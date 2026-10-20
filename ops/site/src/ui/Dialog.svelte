@@ -14,6 +14,7 @@
 	let {
 		open = false,
 		sheet = false,
+		size = "md",
 		title,
 		onclose,
 		children,
@@ -22,6 +23,8 @@
 		open?: boolean;
 		/** On phones, rise from the bottom as a sheet instead of a centred box. */
 		sheet?: boolean;
+		/** "lg" for a dialog that holds a form, like the Add wizard. */
+		size?: "md" | "lg";
 		title: string;
 		onclose: () => void;
 		children: Snippet;
@@ -71,6 +74,7 @@
 		></button>
 		<div
 			class="dialog"
+			class:lg={size === "lg"}
 			role="dialog"
 			aria-modal="true"
 			aria-label={title}
@@ -134,6 +138,13 @@
 		box-shadow: var(--shadow-pop);
 		overflow: hidden;
 		outline: none;
+	}
+
+	/* A fixed height, so a form's buttons stay put from step to step. */
+	.dialog.lg {
+		width: min(42rem, 100%);
+		height: min(44rem, calc(100vh - 2rem));
+		max-height: none;
 	}
 
 	.head {

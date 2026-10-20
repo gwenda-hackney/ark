@@ -18,6 +18,7 @@
 	import EditorHeader from "./EditorHeader.svelte";
 	import EventsList from "./EventsList.svelte";
 	import EventFields from "./tabs/EventFields.svelte";
+	import AddWizard from "./AddWizard.svelte";
 	import GalleryTab from "./tabs/GalleryTab.svelte";
 	import ScheduleTab from "./tabs/ScheduleTab.svelte";
 	import DeleteEventDialog from "./dialogs/DeleteEventDialog.svelte";
@@ -323,7 +324,7 @@
 
 <div class="events-root" class:editor.editing>
 	<!-- Keep the list mounted under the editor so week-list scroll survives open/close. -->
-	<EventsList events={editor.events} {listView} {listTitle} busy={editor.busy} error={editor.error} loading={editor.loading} editing={editor.editing} missing={editor.missing} onreload={() => void editor.reload()} />
+	<EventsList events={editor.events} {listView} {listTitle} busy={editor.busy} error={editor.error} loading={editor.loading} editing={editor.editing && !editor.route.isNew} missing={editor.missing} onreload={() => void editor.reload()} />
 	{#if editor.missing}
 		<div class="missing">
 			<EditorBackBar label={listTitle} onback={() => leaveEditor(editor.listHomePath())} />
@@ -333,6 +334,20 @@
 				Back to {listTitle.toLowerCase()}
 			</Button>
 		</div>
+	{:else if editor.editing && editor.route.isNew}
+		<!-- Adding is a dialog over the list (#245); editing is the full page. -->
+		<AddWizard {editor} onclose={requestClose} />
+		<DiscardDialog open={discardOpen} kind={discardKind} oncancel={cancelDiscard} onconfirm={confirmDiscard} />
+		<ReplaceNightDialog
+			prompt={editor.replacePrompt}
+			eventName={editor.form.name.trim() || "this event"}
+			replacing={editor.replacing}
+			onchoose={(replace) => void editor.chooseConflict(replace)}
+			onclose={() => {
+				editor.replacePrompt = null;
+				editor.publishAfterSave = false;
+			}}
+		/>
 	{:else if editor.editing}
 		<form
 			class="editor"
@@ -523,7 +538,10 @@
 					eventName={editor.form.name.trim() || "this event"}
 					replacing={editor.replacing}
 					onchoose={(replace) => void editor.chooseConflict(replace)}
-					onclose={() => (editor.replacePrompt = null)}
+					onclose={() => {
+						editor.replacePrompt = null;
+						editor.publishAfterSave = false;
+					}}
 				/>
 
 				<ScopeDialog
