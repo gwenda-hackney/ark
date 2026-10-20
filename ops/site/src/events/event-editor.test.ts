@@ -158,11 +158,11 @@ describe("EventEditor: saving a series", () => {
 		assert.equal(nav.navigate.mock.calls[0][0], "/events/new");
 	});
 
-	it("asks for an end date on a repeating series with a start, in When on Schedule", async () => {
+	it("asks for the first night of a repeating series, in When on Schedule (#245)", async () => {
 		const editor = await open("/events/ev1");
-		editor.form.endsOn = "";
+		editor.form.startsOn = "";
 		await editor.onSave(submit());
-		assert.equal(editor.errors.get("event-ends"), "Add the last night of the series.");
+		assert.equal(editor.errors.get("event-starts"), "Add the first night.");
 		assert.equal(nav.navigate.mock.calls[0][0], "/events/ev1/schedule");
 		assert.equal(api.updateEvent.mock.calls.length, 0);
 	});
