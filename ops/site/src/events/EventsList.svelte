@@ -279,14 +279,14 @@
 						{#snippet icon()}
 							<Icon name="plus" size={16} />
 						{/snippet}
-						New series
+						Add
 					</Button>
 				{:else}
-					<Button type="button" size="sm" disabled={busy} onclick={() => navigate("/events/new/once")}>
+					<Button type="button" size="sm" disabled={busy} onclick={() => navigate("/events/new")}>
 						{#snippet icon()}
 							<Icon name="plus" size={16} />
 						{/snippet}
-						New event
+						Add
 					</Button>
 				{/if}
 			{/snippet}
@@ -361,7 +361,7 @@
 					{:else}
 						<EmptyState icon="events" title="No series yet" text="A series is a regular night, like a weekly residency.">
 							{#snippet action()}
-								<Button size="sm" onclick={() => navigate("/events/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}New series</Button>
+								<Button size="sm" onclick={() => navigate("/events/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add</Button>
 							{/snippet}
 						</EmptyState>
 					{/if}
@@ -383,7 +383,7 @@
 				{:else}
 					<EmptyState icon="events" title="No upcoming nights" text="Nights from your series and special events show here.">
 						{#snippet action()}
-							<Button size="sm" onclick={() => navigate("/events/new/once")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}New event</Button>
+							<Button size="sm" onclick={() => navigate("/events/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add</Button>
 						{/snippet}
 					</EmptyState>
 				{/if}
