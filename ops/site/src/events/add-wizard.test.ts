@@ -13,8 +13,8 @@ const happyHour = {
 
 describe("Add wizard (#245)", () => {
 	it("asks a night only what its series doesn't already say", () => {
-		expect(wizardSteps("night")).toEqual(["kind", "when", "guest", "picture", "notes", "check"]);
-		expect(wizardSteps("series")).toEqual(["kind", "name", "when", "about", "picture", "notes", "check"]);
+		expect(wizardSteps("night")).toEqual(["kind", "when", "running", "guest", "picture", "notes", "check"]);
+		expect(wizardSteps("series")).toEqual(["kind", "name", "when", "running", "about", "picture", "notes", "check"]);
 	});
 
 	it("blocks a step only on its own problems, and finds the step a problem belongs to", () => {

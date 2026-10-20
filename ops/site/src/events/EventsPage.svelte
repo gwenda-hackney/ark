@@ -324,7 +324,7 @@
 
 <div class="events-root" class:editor.editing>
 	<!-- Keep the list mounted under the editor so week-list scroll survives open/close. -->
-	<EventsList events={editor.events} {listView} {listTitle} busy={editor.busy} error={editor.error} loading={editor.loading} editing={editor.editing} missing={editor.missing} onreload={() => void editor.reload()} />
+	<EventsList events={editor.events} {listView} {listTitle} busy={editor.busy} error={editor.error} loading={editor.loading} editing={editor.editing && !editor.route.isNew} missing={editor.missing} onreload={() => void editor.reload()} />
 	{#if editor.missing}
 		<div class="missing">
 			<EditorBackBar label={listTitle} onback={() => leaveEditor(editor.listHomePath())} />
@@ -334,6 +334,20 @@
 				Back to {listTitle.toLowerCase()}
 			</Button>
 		</div>
+	{:else if editor.editing && editor.route.isNew}
+		<!-- Adding is a dialog over the list (#245); editing is the full page. -->
+		<AddWizard {editor} onclose={requestClose} />
+		<DiscardDialog open={discardOpen} kind={discardKind} oncancel={cancelDiscard} onconfirm={confirmDiscard} />
+		<ReplaceNightDialog
+			prompt={editor.replacePrompt}
+			eventName={editor.form.name.trim() || "this event"}
+			replacing={editor.replacing}
+			onchoose={(replace) => void editor.chooseConflict(replace)}
+			onclose={() => {
+				editor.replacePrompt = null;
+				editor.publishAfterSave = false;
+			}}
+		/>
 	{:else if editor.editing}
 		<form
 			class="editor"
@@ -342,15 +356,12 @@
 			transition:editorZoom
 			onintroend={reveal.introend}
 			onoutrostart={reveal.outrostart}
-			onsubmit={(e) => (editor.route.isNew ? e.preventDefault() : editor.onSave(e))}
+			onsubmit={editor.onSave}
 		>
 			{#if !reveal.settled}
 				<EditorPlaceholder />
 			{:else}
 				<EditorBackBar label={listTitle} onback={requestClose} />
-				{#if editor.route.isNew}
-					<AddWizard {editor} />
-				{:else}
 				<div class="split split--full">
 					<div class="panel" class:dirty={editor.formDirty}>
 						<EditorHeader
@@ -506,7 +517,6 @@
 						/>
 					</div>
 				</div>
-				{/if}
 
 				<DiscardDialog
 					open={discardOpen}
