@@ -29,6 +29,8 @@
     "studio:deploy": "npm run deploy -w @gwenda/studio",
     "migrate": "node scripts/migrate.mjs",
     "env:status": "node scripts/env-status.mjs",
+    "brand:add": "node scripts/brand-add.mjs",
+    "brand:check": "node scripts/brand-check.mjs",
     "env:secrets:refresh": "node scripts/pull-app-env-from-sm.mjs",
     "env:ops:pull": "node scripts/pull-app-env-from-sm.mjs ops",
     "env:ops:push": "node scripts/push-app-env-to-sm.mjs ops",

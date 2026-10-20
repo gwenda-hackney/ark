@@ -111,6 +111,20 @@ describe("runOpsTick", () => {
     expect(init.headers.Authorization).toBe("Bearer test-secret");
   });
 
+  it("rejects when ops fails, for the cron monitor, without logging an error", async () => {
+    const { runOpsTick } = await import("../src/index");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("error code: 1102", { status: 503 })));
+    const errors = vi.spyOn(console, "error");
+    const warns = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await expect(runOpsTick({ ...env, OPS_URL: "https://ops.example" })).rejects.toThrow(
+      "ops tick failed for https://ops.example (503): error code: 1102",
+    );
+    expect(errors).not.toHaveBeenCalled();
+    expect(warns).toHaveBeenCalled();
+    errors.mockRestore();
+    warns.mockRestore();
+  });
+
   it("does nothing without OPS_URL", async () => {
     const { runOpsTick } = await import("../src/index");
     expect(await runOpsTick(env)).toBeNull();

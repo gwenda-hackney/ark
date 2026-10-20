@@ -26,6 +26,7 @@ jobs:
     outputs:
       web: ${{ steps.filter.outputs.web }}
       ops: ${{ steps.filter.outputs.ops }}
+      brand: ${{ steps.filter.outputs.brand }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -45,6 +46,10 @@ jobs:
               - 'vitest.config.mjs'
               - 'package-lock.json'
               - '.github/workflows/pr.yml'
+            brand:
+              - 'docs/brand/**'
+              - 'scripts/brand-check.mjs'
+              - 'scripts/lib/brand-images.mjs'
 
   web:
     name: Website (lint, tests, brand tokens)
@@ -107,3 +112,16 @@ jobs:
 
       - name: Build
         run: npm run build -w @gwenda/ops
+
+  brand:
+    name: Reference images (WebP, under the size cap)
+    needs: changes
+    if: needs.changes.outputs.brand == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check docs/brand
+        run: node scripts/brand-check.mjs
