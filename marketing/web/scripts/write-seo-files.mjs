@@ -9,7 +9,7 @@ const isPreview = process.env.PUBLIC_IS_PREVIEW === "true";
 const indexablePaths = [
   "/",
   "/privacy/",
-  "/events/",
+  "/whats-on/",
   "/menu/",
   "/whats-on/schedule/",
   "/artists/current/",
