@@ -121,13 +121,13 @@ describe("series page", () => {
   it("sends a former web address to the new one straight away", async () => {
     const response = await render("/whats-on/negroni-night/");
     expect(response.status).toBe(301);
-    expect(response.headers.get("Location")).toBe("/whats-on/negroni-chess");
+    expect(response.headers.get("Location")).toBe("/whats-on/negroni-chess/");
   });
 
   it("sends an unknown address to What's on, not the homepage", async () => {
     const response = await render("/whats-on/no-such-series");
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/whats-on");
+    expect(response.headers.get("Location")).toBe("/whats-on/");
   });
 
   it("leaves the static schedule page and other paths alone", async () => {
@@ -208,14 +208,14 @@ describe("night and ticket pages", () => {
     const response = await render("/whats-on/negroni-night/2099-01-06/ticket");
     expect(response.status).toBe(301);
     expect(response.headers.get("Location")).toBe(
-      "/whats-on/negroni-chess/2099-01-06/ticket",
+      "/whats-on/negroni-chess/2099-01-06/ticket/",
     );
   });
 
   it("sends a night that isn't on the website to its series", async () => {
     const response = await render("/whats-on/negroni-chess/2099-02-01");
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/whats-on/negroni-chess");
+    expect(response.headers.get("Location")).toBe("/whats-on/negroni-chess/");
   });
 });
 
