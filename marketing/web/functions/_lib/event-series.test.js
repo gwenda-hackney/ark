@@ -142,7 +142,7 @@ describe("buildWhatsOnStack", () => {
     expect(stack[1].description).not.toBe("Vinyl until late.");
     expect(stack[1].scheduleLabel).toBe("Saturdays");
     expect(stack[1].weekdayRank).toBe(5);
-    expect(stack[1].href).toBe("/whats-on/gwenda-nights");
+    expect(stack[1].href).toBe("/whats-on/gwenda-nights/");
     expect(stack[1].nightCount).toBe(3);
     expect(stack[1].heroImageUrl).toBe("https://cdn.example/vbrave.jpg");
     expect(stack[1].imageCaption).toBe("Hosting");
@@ -810,7 +810,7 @@ describe("one-off cards", () => {
     const card = stack.find((row) => row.seriesId === "amo-mas");
     expect(radio.hostName).toBe("");
     expect(card.scheduleLabel).toBe("Sun 18 Oct");
-    expect(card.href).toBe("/whats-on/amo-mas");
+    expect(card.href).toBe("/whats-on/amo-mas/");
   });
 
   it("puts their page on the diary card when one is set", () => {
@@ -840,7 +840,7 @@ describe("one-off cards", () => {
     const radio = stack.find((row) => row.seriesId === "gwenda-radio");
     expect(radio.hostName).toBe("Amo MAS");
     expect(radio.hostDate).toBe("2026-10-18");
-    expect(radio.hostHref).toBe("/whats-on/amo-mas");
+    expect(radio.hostHref).toBe("/whats-on/amo-mas/");
   });
 
   it("keeps the residency when the one-off date is the next Sunday", () => {
@@ -892,7 +892,7 @@ describe("one-off cards", () => {
     });
     const line = detail.upcomingDates.find((row) => row.displaced);
     expect(line.date).toBe("2026-10-18");
-    expect(line.href).toBe("/whats-on/amo-mas");
+    expect(line.href).toBe("/whats-on/amo-mas/");
     expect(line.line).toBe(
       "No Gwenda Radio on Sun 18 Oct. Instead, Amo MAS. A night of records. Don't worry, Gwenda Radio will be back on Sun 25 Oct.",
     );
@@ -960,11 +960,11 @@ describe("buildPublicSchedule", () => {
       title: "Vbrave Vinyl Session",
       seriesTitle: "Gwenda Nights",
       artist: "Vbrave",
-      href: "/whats-on/gwenda-nights",
+      href: "/whats-on/gwenda-nights/",
     });
     const october = weeks.find((week) => week.id === "2026-10-12");
     expect(october.nights.map((row) => row.title)).toEqual(["Amo MAS"]);
-    expect(october.nights[0].href).toBe("/whats-on/amo-mas");
+    expect(october.nights[0].href).toBe("/whats-on/amo-mas/");
     expect(
       weeks
         .flatMap((week) => week.nights)
@@ -1089,7 +1089,7 @@ describe("series with no dates yet", () => {
       scheduleLabel: "Dates to be announced",
       datesPending: true,
       date: "",
-      href: "/whats-on/vinyl-club",
+      href: "/whats-on/vinyl-club/",
     });
     expect(seriesCardNextLine(stack[0], "19:00–late")).toBe(
       "Check back soon for the next date",

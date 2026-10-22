@@ -694,7 +694,7 @@ function summarizeSeries(template, nights) {
     nights: ordered,
     regular: repeating,
     richDetail: !repeating,
-    href: `/whats-on/${encodeURIComponent(series.seriesId)}`,
+    href: `/whats-on/${encodeURIComponent(series.seriesId)}/`,
   };
 }
 
@@ -990,7 +990,7 @@ function scheduleNightRow(template, night) {
     startTime: String(night.startTime || "").trim(),
     endTime: String(night.endTime || "").trim(),
     time: String(night.time || "").trim(),
-    href: `/whats-on/${encodeURIComponent(template.seriesId)}`,
+    href: `/whats-on/${encodeURIComponent(template.seriesId)}/`,
     seriesId: template.seriesId,
   };
 }
@@ -1071,7 +1071,7 @@ function oneOffDisplacements(
     );
     rows.push({
       date: night.date,
-      href: `/whats-on/${encodeURIComponent(seriesId)}`,
+      href: `/whats-on/${encodeURIComponent(seriesId)}/`,
       line: oneOffInsteadLine({
         seriesTitle: seriesSummary.title,
         oneOffTitle: template.title || night.title || night.seriesTitle,

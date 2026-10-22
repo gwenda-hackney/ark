@@ -45,8 +45,11 @@ if (!previousTag) {
   console.log(`No earlier ${app.title} release tag: this one starts the history.`);
 }
 const range = previousTag ? `${previousTag}..HEAD` : "HEAD~30..HEAD";
-const subjects = git("log", "--reverse", "--format=%s", range, "--", ...app.paths).split("\n").filter(Boolean);
-const numbers = [...new Set(subjects.map(prNumberOf).filter(Boolean))];
+const commits = git("log", "--reverse", "--format=%H %s", range, "--", ...app.paths)
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => ({ sha: line.slice(0, 40), subject: line.slice(41) }));
+const numbers = [...new Set(commits.map((commit) => prNumberOf(commit.subject)).filter(Boolean))];
 
 if (!numbers.length) {
   console.log(`No ${app.title} changes since ${previousTag || "the start"}; no release.`);
@@ -54,9 +57,31 @@ if (!numbers.length) {
 }
 
 const repo = process.env.GITHUB_REPOSITORY || "gwenda-hackney/ark";
-const prs = numbers.map((number) =>
-  JSON.parse(gh("pr", "view", String(number), "--repo", repo, "--json", "number,title,headRefName,labels")),
-);
+const viewPr = (number) =>
+  JSON.parse(gh("pr", "view", String(number), "--repo", repo, "--json", "number,title,headRefName,labels"));
+
+// A commit may cite its issue, not its PR ("(#245)"): then ask GitHub which
+// PR merged that commit.
+const prs = [];
+for (const number of numbers) {
+  let found = [number];
+  try {
+    viewPr(number);
+  } catch {
+    const shas = commits.filter((commit) => prNumberOf(commit.subject) === number).map((commit) => commit.sha);
+    const merged = (sha) =>
+      JSON.parse(gh("api", `repos/${repo}/commits/${sha}/pulls`, "--jq", "[.[] | select(.merged_at) | .number]"));
+    found = [...new Set(shas.flatMap(merged))];
+    console.log(`#${number} isn't a pull request; merged in ${found.map((n) => `#${n}`).join(", ") || "none"}.`);
+  }
+  for (const prNumber of found) {
+    if (!prs.some((pr) => pr.number === prNumber)) prs.push(viewPr(prNumber));
+  }
+}
+if (!prs.length) {
+  console.log(`No ${app.title} pull requests since ${previousTag || "the start"}; no release.`);
+  process.exit(0);
+}
 const notes = releaseNotes(prs, { previousTag, repo });
 const title = `${app.title} ${version.split("+")[0]}`;
 
