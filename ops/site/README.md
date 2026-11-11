@@ -178,7 +178,7 @@ npm run ops:prod
 
 The same local app (HMR, stack traces in your terminal) with **production powers**: production Ops DB (Gwenda / Gwenda Ops, reached with the production token), production secrets straight from Secrets Manager, `SITE_ENV=production`. Saves, **Update website** and **Update website now** change the real Ops DB and gwenda.co.uk, exactly like hosted ops. The app shows a red **LOCAL COPY ON LIVE DATA** banner. Stop it and run plain `npm run ops:dev` to go back to the dev copy. Don't run both at once: they use the same ports.
 
-Resending form emails from `/forms` locally sends them from this machine: notifications go to your `FORMS_NOTIFY_EMAIL`, receipts to the applicant on the dev row. No website needs to be running.
+Resending a notification from `/forms` locally sends it from this machine, to your `FORMS_NOTIFY_EMAIL`. A receipt is sent by the hosted dev website (its link is signed with the website's key, which ops doesn't hold), so it goes to the dev site's safe inbox. No local website needs to be running.
 
 Build:
 

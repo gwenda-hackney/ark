@@ -4,15 +4,12 @@
  * website's token (BASEROW_WEBSITE_API_KEY), not the Ops database token.
  */
 import { FORM_QUERY } from "../../../../../shared/forms/format.js";
-import {
-  sendFormNotificationEmail,
-  sendFormReceiptEmail,
-} from "../../../../../shared/forms/form-email.js";
-import { SITE_DOMAIN } from "../../../../../shared/site-location.js";
+import { sendFormNotificationEmail } from "../../../../../shared/forms/form-email.js";
 import { baserowFormSubmissionRepository } from "../../../../../shared/guests/adapters/baserow-form-submissions.js";
 import { formSubmissionRepository } from "../../../../../shared/guests/form-submission-repository.js";
 import { FORM_EMAIL_SENT, answersDocument } from "../../../../../shared/guests/form-submissions.js";
 import { sanityQuery } from "../../platform/sanity.js";
+import { publicSiteOrigin } from "../../website/server/site-urls.js";
 import { listEvents, normalizePageUrl, saveOccurrences, updateEvent } from "../../events/server/event-store.js";
 import { todayIso } from "../../events/event-recurrence.js";
 import {
@@ -231,8 +228,44 @@ async function findSubmission(env, rowId) {
 }
 
 /**
- * Resend one email for a submission: render it from the stored row and the
- * Sanity form (the same code the website uses), send it, and stamp the row.
+ * The receipt goes out from this environment's website (its ops-only
+ * /api/forms/admin/resend), which signs the "Change it" link with its own
+ * key then, so the link works whenever the key has changed. Ops never holds
+ * that key. The website stamps the row. Its refusals are 424, so the Forms
+ * page shows why.
+ */
+async function resendReceiptFromWebsite(env, rowId) {
+  const secret = env.FORMS_ADMIN_SECRET?.trim();
+  if (!secret) {
+    throw httpError("FORMS_ADMIN_SECRET is not configured. Locally, run bw-unlock and restart.", 503);
+  }
+  const origin = publicSiteOrigin(env);
+  let response;
+  try {
+    response = await fetch(`${origin}/api/forms/admin/resend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ rowId: String(rowId), kind: "receipt" }),
+    });
+  } catch (error) {
+    throw httpError(`Couldn't reach the website (${origin}): ${error instanceof Error ? error.message : error}`, 424);
+  }
+  const body = await response.json().catch(() => null);
+  if (response.status === 401) {
+    throw httpError("The website refused ops: its FORMS_ADMIN_SECRET is not the same as ops'.", 424);
+  }
+  if (!response.ok || body?.ok !== true) {
+    const why = String(body?.error || `it answered ${response.status}`).replace(/\.$/, "");
+    throw httpError(`The website didn't send the receipt: ${why}.`, 424);
+  }
+  if (body.dryRun) return { ok: true, dryRun: true };
+  return { ok: true, sentAt: body.sentAt ?? null, ...(body.warning ? { warning: body.warning } : {}) };
+}
+
+/**
+ * Resend one email for a submission. The notification: render it from the
+ * stored row and the Sanity form (the same code the website uses), send it,
+ * and stamp the row. The receipt: the website sends it (above).
  * @param {"notify" | "receipt"} kind
  * @returns {Promise<{ ok: true, sentAt?: string | null, dryRun?: boolean, warning?: string }>}
  */
@@ -240,6 +273,7 @@ export async function resendFormEmail(env, rowId, kind) {
   if (!FORM_EMAIL_KINDS.includes(kind)) {
     throw httpError("kind must be notify or receipt.", 400);
   }
+  if (kind === "receipt") return resendReceiptFromWebsite(env, rowId);
   const row = await findSubmission(env, rowId);
   const slug = row.formSlug.trim();
   // The form as the live site shows it (drafts never reach the website).
@@ -249,18 +283,7 @@ export async function resendFormEmail(env, rowId, kind) {
   if (!form) throw httpError(`Form "${slug}" is not in Sanity.`, 404);
   const answers = answersDocument(row.answers).entries;
 
-  let sent;
-  if (kind === "notify") {
-    sent = await sendFormNotificationEmail(env, { form, answers, rowId });
-  } else {
-    const email = row.replyTo.trim().toLowerCase();
-    if (!email) throw httpError("Submission has no reply-to email.", 400);
-    // Rows from before the website saved the link fall back to the form's page.
-    const editUrl =
-      row.editLink.trim() ||
-      `${SITE_DOMAIN}/contact/${encodeURIComponent(slug)}`;
-    sent = await sendFormReceiptEmail(env, { form, answers, email, editUrl });
-  }
+  const sent = await sendFormNotificationEmail(env, { form, answers, rowId });
   if (!sent.ok) throw httpError(sent.error || "Could not send.", 502);
   if (sent.dryRun) return { ok: true, dryRun: true };
 

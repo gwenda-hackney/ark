@@ -152,37 +152,32 @@ describe("resendFormEmail", () => {
     resendEnv = { ...baseEnv, GMAIL_SERVICE_ACCOUNT_JSON: await serviceAccountJson() };
   });
 
-  it("sends the receipt with the edit link the website saved, then stamps the row", async () => {
-    const editLink = "https://gwenda-web-dev.pages.dev/contact/edit?t=abc.def";
-    const { sent, patches, sanityUrls } = mockResend({ row: playRow({ "Edit Link": editLink }) });
+  it("asks this environment's website to send the receipt, and stamps nothing itself", async () => {
+    const calls = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      calls.push({ url: String(input), init });
+      return jsonResponse({ ok: true, sentAt: "2026-11-11T12:00:00.000Z" });
+    });
 
-    const result = await resendFormEmail(resendEnv, "501", "receipt");
+    const result = await resendFormEmail({ ...resendEnv, FORMS_ADMIN_SECRET: "admin" }, "501", "receipt");
 
-    assert.equal(result.ok, true);
-    assert.equal(sent.length, 1);
-    // Local ops: the receipt goes to the safe inbox, naming the applicant (#15).
+    assert.deepEqual(result, { ok: true, sentAt: "2026-11-11T12:00:00.000Z" });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "https://gwenda-web-dev.pages.dev/api/forms/admin/resend");
+    assert.equal(calls[0].init.headers.Authorization, "Bearer admin");
+    assert.deepEqual(JSON.parse(calls[0].init.body), { rowId: "501", kind: "receipt" });
+  });
+
+  it("sends the notification to this environment's notify address", async () => {
+    const { sent, patches, sanityUrls } = mockResend({ row: playRow() });
+    const result = await resendFormEmail(resendEnv, "501", "notify");
     assert.match(sent[0], /^To: dev@example\.com/m);
-    assert.match(sent[0], /^X-Gwenda-Original-To: alex@example\.com/m);
-    assert.ok(sent[0].replace(/=\r\n/g, "").includes("contact/edit?t=3Dabc.def"));
-    assert.deepEqual(Object.keys(patches[0]), ["Receipt Sent"]);
-    assert.equal(result.sentAt, patches[0]["Receipt Sent"]);
+    assert.deepEqual(Object.keys(patches[0]), ["Notify Sent"]);
+    assert.equal(result.sentAt, patches[0]["Notify Sent"]);
     // The live site's form: production dataset, no drafts.
     assert.match(sanityUrls[0].pathname, /\/data\/query\/production$/);
     assert.equal(sanityUrls[0].searchParams.get("perspective"), "published");
     assert.equal(sanityUrls[0].searchParams.get("$slug"), '"play"');
-  });
-
-  it("links an older row with no saved edit link to the form's page", async () => {
-    const { sent } = mockResend({ row: playRow() });
-    await resendFormEmail(resendEnv, "501", "receipt");
-    assert.ok(sent[0].replace(/=\r\n/g, "").includes("https://gwenda.co.uk/contact/play"));
-  });
-
-  it("sends the notification to this environment's notify address", async () => {
-    const { sent, patches } = mockResend({ row: playRow() });
-    await resendFormEmail(resendEnv, "501", "notify");
-    assert.match(sent[0], /^To: dev@example\.com/m);
-    assert.deepEqual(Object.keys(patches[0]), ["Notify Sent"]);
   });
 
   it("does not stamp the row when mail is not set up (dry run)", async () => {
