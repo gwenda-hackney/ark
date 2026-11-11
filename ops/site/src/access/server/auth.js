@@ -48,6 +48,25 @@ export function matchesSecret(provided, expected) {
   return diff === 0;
 }
 
+async function sha256(text) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return new Uint8Array(digest);
+}
+
+/**
+ * Whether a typed password is the expected one, in constant time. Both are
+ * hashed first and every byte of the hashes compared, so the time taken
+ * shows neither where they differ nor how long the password is.
+ */
+export async function matchesPassword(provided, expected) {
+  if (typeof provided !== "string" || typeof expected !== "string") return false;
+  if (!expected) return false;
+  const [a, b] = await Promise.all([sha256(provided), sha256(expected)]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
 export function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -328,10 +347,19 @@ export function gateRedirectPath(next) {
   return `/gate/?next=${encodeURIComponent(safe)}`;
 }
 
+/** Stands in for this site's origin when reading `next` (never fetched). */
+const REDIRECT_BASE = "https://this-site.invalid";
+
+/**
+ * Where to send someone after sign-in: a path on this site, or "/".
+ * `next` is read as a browser would read the Location (backslashes count as
+ * slashes, tabs and newlines vanish), so only a path on this site gets
+ * through; its query is kept, its anchor dropped.
+ */
 export function safeRedirectPath(next) {
   if (!next || typeof next !== "string") return "/";
-  const clean = canonicalizePath(next);
-  if (!clean.startsWith("/") || clean.startsWith("//")) return "/";
+  const clean = pathOnThisSite(canonicalizePath(next));
+  if (!clean) return "/";
   if (clean.startsWith("/gate")) return "/";
   if (clean.startsWith("/api/auth")) return "/";
   if (clean.startsWith("/api/menu")) return "/menu";
@@ -341,6 +369,21 @@ export function safeRedirectPath(next) {
   if (clean.startsWith("/api/venue")) return "/venue";
   if (clean.startsWith("/api/")) return "/";
   return clean;
+}
+
+/** `href` as path and query, if a browser following it stays on this site; else "". */
+function pathOnThisSite(href) {
+  if (!href.startsWith("/")) return "";
+  let url;
+  try {
+    url = new URL(href, REDIRECT_BASE);
+  } catch {
+    return "";
+  }
+  if (url.origin !== REDIRECT_BASE) return "";
+  // Dot segments can leave "//" at the start: a path starts with one "/".
+  if (url.pathname.startsWith("//")) return "";
+  return url.pathname + url.search;
 }
 
 export async function resolveSessionEmail(request, auth) {

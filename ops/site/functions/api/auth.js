@@ -2,6 +2,7 @@ import {
   buildAuthCookie,
   createPasswordToken,
   isSecureOrigin,
+  matchesPassword,
   requestOrigin,
   resolveAuth,
   safeRedirectPath,
@@ -37,8 +38,7 @@ export async function onRequestPost(context) {
     return json({ error: "Use Continue with Google." }, 400);
   }
 
-  const password = body.password ?? "";
-  if (password !== auth.password) {
+  if (!(await matchesPassword(body?.password, auth.password))) {
     return json({ error: "That password isn't right." }, 401);
   }
 
