@@ -16,14 +16,30 @@ import {
 	testBlockedReason,
 	tryAgainBlockedReason,
 } from "./email-view.ts";
+import { weeklyEmailModel } from "../../../../shared/weekly-email/model.js";
+import { renderWeeklyEmail } from "../../../../shared/weekly-email/render.js";
+import { testCatalog } from "../../../../shared/weekly-email/testing.js";
 
 describe("weekly email page: the preview", () => {
 	it("opens the email's links in a new tab, not inside the frame", () => {
-		assert.equal(
+		assert.match(
 			previewDocument('<html><head lang="en"><title>x</title></head><body></body></html>'),
-			'<html><head lang="en"><base target="_blank"><title>x</title></head><body></body></html>',
+			/^<html><head lang="en"><base target="_blank">.*<title>x<\/title><\/head><body><\/body><\/html>$/,
 		);
-		assert.equal(previewDocument("<p>hi</p>"), '<base target="_blank"><p>hi</p>');
+		assert.match(previewDocument("<p>hi</p>"), /^<base target="_blank">.*<p>hi<\/p>$/);
+	});
+
+	it("shows the email as Gmail does: no web fonts, only the faces on this computer", () => {
+		const { html } = renderWeeklyEmail(weeklyEmailModel(testCatalog(), { today: "2026-11-10" }));
+		// The email asks for the website's fonts (Apple Mail loads them); Gmail drops the link.
+		assert.match(html, /<link href="https:\/\/fonts\.googleapis\.com[^>]*>/);
+		const frame = previewDocument(html);
+		assert.doesNotMatch(frame, /<link\b/i);
+		// Nor can a font come in any other way, should the email ever add one.
+		assert.match(frame, /<head><base target="_blank"><meta http-equiv="Content-Security-Policy" content="font-src 'none'">/);
+		// The email's own rules stay, as Gmail keeps them.
+		assert.match(frame, /<style>[\s\S]*@media[\s\S]*<\/style>/);
+		assert.equal(frame.replace(/<base[^>]*><meta[^>]*>/, ""), html.replace(/<link\b[^>]*>/, ""));
 	});
 
 	it("names days the short way", () => {

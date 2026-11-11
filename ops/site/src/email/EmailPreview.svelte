@@ -63,7 +63,7 @@
 	</div>
 	<p class="muted small">
 		Built from what's published on the website right now, so it matches What's on. Links go to {email?.origin ||
-			"the website"}.
+			"the website"}. Shown as Gmail shows it, in this computer's fonts; only Apple Mail loads the website's own.
 	</p>
 	</div>
 </Card>

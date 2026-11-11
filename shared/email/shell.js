@@ -10,7 +10,8 @@
  * inline, one column no wider than 600px, pictures at absolute addresses.
  * Web fonts load where the reader's app allows (Apple Mail); elsewhere each
  * falls back to a face that's on the machine (Impact and the like for the
- * poster face, Georgia for the slab and the pen).
+ * poster face, Georgia for the slab and the pen). Ops' preview shows those
+ * fallbacks, as Gmail does (ops/site/src/email/email-view.ts previewDocument).
  *
  * Nothing here knows about Mailchimp or about forms: a campaign adds its
  * merge tags to its own foot, a transactional email uses transactionalFoot.
@@ -29,10 +30,20 @@ export const COLOURS = {
   rule: "#5a5246",
 };
 
+/**
+ * Only Apple Mail loads the web fonts; Gmail and most others use what's on the
+ * reader's machine, so each stack names that face, machine by machine.
+ */
 export const FONTS = {
-  /** Protest Strike, else the heaviest narrow face on the machine. */
+  /**
+   * Protest Strike, else the heaviest narrow face on the machine: Impact
+   * (Windows, Mac), Helvetica Neue Condensed Black (iPhone), Roboto Condensed
+   * (Android), Liberation Sans Narrow or DejaVu Sans Condensed (Linux),
+   * rather than the plain wide Arial Gmail on Linux fell back to.
+   */
   display:
-    "'Protest Strike',Impact,'HelveticaNeue-CondensedBlack','Arial Narrow Bold','Roboto Condensed',sans-serif-condensed,'Arial Black',sans-serif",
+    "'Protest Strike',Impact,'HelveticaNeue-CondensedBlack','Arial Narrow','Roboto Condensed',sans-serif-condensed,'Liberation Sans Narrow','DejaVu Sans Condensed','Arial Black',sans-serif",
+  /** Georgia on Windows, Mac and iPhone; Times or Noto Serif elsewhere. */
   slab: "'Zilla Slab',Georgia,'Times New Roman',serif",
   pen: "Caveat,Georgia,'Times New Roman',serif",
 };
@@ -93,11 +104,17 @@ export function rule({ top = 28, bottom = 28 } = {}) {
   );
 }
 
-/** The email's name in the poster face, with the mustard stroke under it. */
-export function title(text) {
+/**
+ * The email's name in the poster face, with the mustard stroke under it.
+ * Centred, it lines up with the logo above it; put it in a centred row().
+ */
+export function title(text, { align = "left" } = {}) {
+  const centre = align === "center";
   return table(
-    `<tr><td style="border-bottom:5px solid ${COLOURS.mustard};padding:0 4px 6px 0;"><h1 class="display h1" style="margin:0;font-family:${FONTS.display};font-size:42px;line-height:1.05;font-weight:700;font-synthesis:none;color:${COLOURS.cream};">${esc(text)}</h1></td></tr>`,
-    { width: "", style: "width:auto;" },
+    `<tr><td style="border-bottom:5px solid ${COLOURS.mustard};padding:${centre ? "0 2px 6px" : "0 4px 6px 0"};"><h1 class="display h1" style="margin:0;font-family:${FONTS.display};font-size:42px;line-height:1.05;font-weight:700;font-synthesis:none;color:${COLOURS.cream};${centre ? "text-align:center;" : ""}">${esc(text)}</h1></td></tr>`,
+    centre
+      ? { width: "", attrs: 'align="center"', style: "width:auto;margin:0 auto;" }
+      : { width: "", style: "width:auto;" },
   );
 }
 

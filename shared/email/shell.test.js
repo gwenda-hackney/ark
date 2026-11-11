@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
   COLOURS,
@@ -18,6 +20,15 @@ import { testCatalog } from "../weekly-email/testing.js";
 
 const site = { origin: "https://gwenda.co.uk", name: "Gwenda", social: "Social" };
 
+/** A PNG's image data, chunk by chunk. */
+function idat(png) {
+  const parts = [];
+  for (let at = 8; at < png.length; at += 12 + png.readUInt32BE(at)) {
+    if (png.toString("latin1", at + 4, at + 8) === "IDAT") parts.push(png.subarray(at + 8, at + 8 + png.readUInt32BE(at)));
+  }
+  return parts;
+}
+
 describe("the email shell", () => {
   it("puts the logo at the top: a flat PNG from the site, linked home", () => {
     const [logo, line] = logoHeader(site);
@@ -28,6 +39,21 @@ describe("the email shell", () => {
     expect(logo).toContain('alt="Gwenda Social"');
     expect(line).toContain("Social · Hackney Wick");
     expect(logoHeader({ ...site, logo: "cid:logo@gwenda" })[0]).toContain('src="cid:logo@gwenda"');
+  });
+
+  it("has a logo whose background is the email's own, in every browser", () => {
+    // A gAMA or cHRM chunk makes browsers colour-correct the picture, and the
+    // board behind the logo then shows as a darker square (#130d07 on #1a1510).
+    const png = readFileSync(new URL(`../../marketing/web/public${EMAIL_LOGO_PATH}`, import.meta.url));
+    const chunks = [];
+    for (let at = 8; at < png.length; at += 12 + png.readUInt32BE(at)) chunks.push(png.toString("latin1", at + 4, at + 8));
+    expect(chunks[0]).toBe("IHDR");
+    expect(chunks.filter((type) => ["gAMA", "cHRM", "iCCP"].includes(type))).toEqual([]);
+    // The first pixel, a corner of the board, is the board's colour
+    const [depth, colour] = [png[24], png[25]];
+    expect([depth, colour]).toEqual([8, 2]);
+    const first = inflateSync(Buffer.concat(idat(png))).subarray(1, 4).toString("hex");
+    expect(`#${first}`).toBe(COLOURS.board);
   });
 
   it("escapes text and refuses an href that isn't a web or mail address", () => {
