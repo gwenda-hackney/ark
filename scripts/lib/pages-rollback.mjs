@@ -4,26 +4,15 @@
  * a smoke test that fails afterwards would otherwise leave the broken site up.
  * The live deployment is the project's canonical_deployment. Each deployment
  * keeps its own secrets, so a rollback restores the old secrets too.
+ *
+ * It steps back one deployment only; pages-cleanup.mjs keeps more than that
+ * (ROLLBACK_KEEP in scripts/lib/pages-cleanup.mjs).
  */
-
-const API = "https://api.cloudflare.com/client/v4";
-
-async function cf({ accountId, token, fetchImpl = fetch }, path, method = "GET") {
-  const res = await fetchImpl(`${API}/accounts/${accountId}/pages/projects/${path}`, {
-    method,
-    headers: { authorization: `Bearer ${token}` },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!data.success) {
-    const why = (data.errors || []).map((error) => error.message).join("; ") || `HTTP ${res.status}`;
-    throw new Error(`Cloudflare ${method} ${path}: ${why}`);
-  }
-  return data.result;
-}
+import { cf, getProject } from "./pages-api.mjs";
 
 /** The id of the deployment the project's production address serves now. */
 export async function liveDeploymentId(api, project) {
-  const result = await cf(api, project);
+  const result = await getProject(api, project);
   return result.canonical_deployment?.id || "";
 }
 

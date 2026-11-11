@@ -51,6 +51,7 @@ The main deploy workflows under `.github/workflows/`:
 | `workers.yml` | site-deploy-webhook, Mailchimp sync, site-health |
 | `apps.yml` | Brand guidelines + ops Pages |
 | `pr.yml` | Pull request checks: website lint and tests, ops tests, type check and build |
+| `pages-cleanup.yml` | Deletes a closed PR's previews from the dev Pages projects, and weekly every deployment older than 30 days (`scripts/pages-cleanup.mjs`; the live one, the newest few of `main`/`release`/`preview` and open PRs' branches stay) |
 
 Root `package.json` alone should not trigger Worker deploys.
 
