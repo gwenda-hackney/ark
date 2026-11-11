@@ -99,6 +99,17 @@ The same dev copies, run locally:
 
 `npm run ops:prod` is the exception: ops on your machine with **real prod data** (red banner).
 
+### Dev container
+
+Open the repo in VS Code and choose "Reopen in Container" ([.devcontainer/](.devcontainer/)): the toolchain, `bw` and the Claude Code extension come with it. Claude's chats, sign-in and settings are kept in a volume, so a rebuild doesn't lose them.
+
+**Claude Remote Control.** The container shows up in [claude.ai/code](https://claude.ai/code) (and the phone app) as **ark**, so a session started there runs inside the container, beside the VS Code ones, with the same tools and secrets. It comes from your own dotfiles, not this repo: VS Code installs them into the container when its user settings have `"dotfiles.repository"` (and `"dotfiles.installCommand": "devcontainer.sh"`), and they bring the `claude-remote` command. Without those dotfiles there is no Remote Control and nothing else changes.
+
+- **Check it:** `claude-remote status` (running, signed in, the name, the end of its log). Log: `~/.cache/claude-remote-control.log`.
+- **Start or stop it:** `claude-remote`, `claude-remote stop`. It starts by itself with the container and with every new terminal, and restarts if it exits.
+- **Once, in a terminal:** it asks you to sign the container in to Claude and to trust `/src` from the CLI (the VS Code extension's trust doesn't count). Say yes to both; for the trust question it opens `claude`, you accept, then type `/exit`.
+- **After a rebuild:** nothing; the sign-in and the trust are in the volume. If `claude-remote status` says it is waiting, run `claude-remote` in a terminal and answer its question.
+
 ### Shared by both
 
 - **Settings:** the "Gwenda Config" Baserow database, one per environment (Gwenda for production, Gwenda Dev for dev).
