@@ -8,7 +8,11 @@
  *   endTime, nightSchedule[], repeatEvery, repeatUnit, weekdays[], monthDay,
  *   endsOn, skippedDates[], extraDates[], slug, formerSlugs[], deletedAt,
  *   takingApplications, replacesSeries, driveFolderId, mainImage, heroCrops,
- *   gallery }
+ *   gallery, category }
+ *
+ * category: what the series is (EVENT_CATEGORIES): "event", a night or run
+ * of nights; "promotion", a standing deal such as Happy Hour; "popup", a
+ * pop-up kitchen. A night has none of its own: it takes its series'.
  *
  * gallery: GalleryPhoto[] newest first (#183). GalleryPhoto:
  *   { key, asset, date ("" for the series, or a night's date), added, source }
@@ -36,6 +40,15 @@ import { driveFolderWebUrl } from "../../platform/google-drive.js";
 import { parseNightSchedule } from "./night-schedule.js";
 
 export const REPEAT_UNITS = new Set(["none", "once", "day", "week", "month"]);
+
+/** What a series is: a night (or run of nights), a standing deal, or a pop-up kitchen. */
+export const EVENT_CATEGORIES = ["event", "promotion", "popup"];
+
+/** A stored category as the domain reads it: anything unknown (also none) is a night. */
+export function eventCategory(value) {
+  const raw = String(value?.value ?? value ?? "").trim().toLowerCase();
+  return EVENT_CATEGORIES.includes(raw) ? raw : "event";
+}
 
 /** Website paths under /whats-on/ that are pages of their own, not series. */
 const RESERVED_SLUGS = new Set(["schedule"]);
@@ -271,6 +284,14 @@ export function checkedImageLinks(value) {
   return links;
 }
 
+/** A category as a save sent it: none is a night; anything unknown is refused. */
+export function checkedCategory(value) {
+  const raw = text(value).toLowerCase();
+  if (!raw) return "event";
+  if (!EVENT_CATEGORIES.includes(raw)) fail("Pick what it is: a night, a promotion or a pop-up kitchen.");
+  return raw;
+}
+
 /**
  * A whole series from the editor, checked: the fields the repository saves.
  * `slug` is the series' web address; extraDates and replacesSeries only when given.
@@ -280,9 +301,13 @@ export function eventFieldsFromInput(input, { slug } = {}) {
   if (!name) fail("Name is required.");
   const startsOn = isoDate(input.startsOn);
   const repeatUnit = text(input.repeatUnit || "none").toLowerCase();
-  // A series may have no start date yet: the website shows it with
-  // "Check back soon for the next date". A one-off still needs its date.
+  // An open series (repeat "none") may have no start date yet: the website
+  // shows it with "Check back soon for the next date". A one-off needs its
+  // date, and a repeating series its first night: its nights count from it.
   if (!startsOn && repeatUnit === "once") fail("Start date is required.");
+  if (!startsOn && ["day", "week", "month"].includes(repeatUnit)) {
+    fail("A repeating series needs its first night.");
+  }
   if (!REPEAT_UNITS.has(repeatUnit)) fail("Repeat must be none, once, day, week, or month.");
   const repeatEvery = Math.floor(Number(input.repeatEvery) || 1);
   if (repeatEvery < 1 || repeatEvery > 52) fail("Repeat interval must be between 1 and 52.");
@@ -294,9 +319,6 @@ export function eventFieldsFromInput(input, { slug } = {}) {
   const weekdays = normalizeWeekdays(input.weekdays);
   if (repeatUnit === "month" && !monthDay && startsOn) monthDay = Number(startsOn.slice(8, 10)) || 0;
   if (repeatUnit === "week" && !weekdays.length) fail("Choose at least one weekday.");
-  if (repeatUnit !== "none" && repeatUnit !== "once" && startsOn && !endsOn) {
-    fail("Recurring events need an end date.");
-  }
   if (endsOn && startsOn && endsOn < startsOn) fail("End date must be on or after the start date.");
   const fields = {
     name,
@@ -304,6 +326,7 @@ export function eventFieldsFromInput(input, { slug } = {}) {
     offer: text(input.offer),
     pageUrl: normalizePageUrl(input.pageUrl),
     takingApplications: input.takingApplications === true,
+    category: checkedCategory(input.category),
     shortDescription: text(input.shortDescription),
     description: text(input.description),
     operationsNotes: text(input.operationsNotes),
@@ -396,6 +419,23 @@ export function keepsDroppedNight(row, today = todayIso()) {
 export function droppedNights(event, today = todayIso()) {
   const scheduled = new Set(expandSeriesOccurrenceDates(event));
   return (event?.dates || []).filter((row) => !scheduled.has(row.date) && keepsDroppedNight(row, today));
+}
+
+/**
+ * How many of the series' nights the website still shows differently from
+ * ops although the preview is in step for them: nights staged there that the
+ * website has not taken yet, and dropped nights marked removed there that it
+ * still shows. Nothing here needs staging first; it only has to go live.
+ */
+export function liveNightsBehind(event, today = todayIso()) {
+  const byDate = new Map((event?.dates || []).map((row) => [row.date, row]));
+  const staged = (event?.publish?.previewDates || []).filter((date) => {
+    const row = byDate.get(date);
+    const hash = row?.snapshots?.preview?.hash;
+    return Boolean(row?.sanityId && hash) && hash === occurrenceHash(event, row) && row.snapshots.production?.hash !== hash;
+  });
+  const dropped = (event?.dates || []).filter((row) => row.date >= today && row.snapshots?.preview?.removed);
+  return staged.length + dropped.length;
 }
 
 /** The preview is behind ops: nights to write, or dropped nights to mark removed. */

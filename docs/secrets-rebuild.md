@@ -51,6 +51,7 @@ Pushing a new `OPS_SESSION_SECRET` logs everyone out of ops once, and a new `SIT
 1. **`release` must have the current SM code.** Ops production and the live website deploy only from `release`. If an SM change (for example the lookup by project name) is only on main, cherry-pick that commit onto `release`. Don't merge all of main into it.
 2. **Site-deploy Worker:** `npm run setup:site-deploy`. It gives the Worker both `DEPLOY_WEBHOOK_SECRET` values and `DISPATCH_TOKEN__PRODUCTION` from SM, and stops if `DISPATCH_TOKEN` is missing.
 3. **Mailchimp sync Worker:** `npm run setup:subscribe-mailchimp-sync`
+   **Wi-Fi portal Worker:** `gh workflow run workers.yml --ref release -f worker=wifi-captive-portal`. It gives the Worker `UNIFI_SITE_MANAGER_API_KEY`. The 2026-10-01 rebuild missed it: the portal kept the old Website Baserow token, and once cleanup deleted that token, guests couldn't sign in to the Wi-Fi until 2026-10-19.
 4. **Ops production:** `gh workflow run ops-secrets.yml --ref release`. This pushes secrets and redeploys, and is the moment of the log-out. The workflow ends with the ops smoke test.
 5. **Website secrets:** `gh workflow run web-secrets.yml --ref main -f profile=production`, then the same with `profile=dev`. Pages only uses new secrets after a deploy.
 6. **Live website:** `gh workflow run web-promote.yml --ref release`

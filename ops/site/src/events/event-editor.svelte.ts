@@ -100,6 +100,9 @@ export class EventEditor {
 	/** "Update website": confirm, then publish just this event. */
 	putOpen = $state(false);
 
+	/** The Add wizard's "Save and put on website" (#245): publish once the new event is saved. */
+	publishAfterSave = $state(false);
+
 	putError = $state("");
 	putting = $state(false);
 	retrying = $state(false);
@@ -494,6 +497,8 @@ export class EventEditor {
 	onSave = async (event: Event) => {
 		event.preventDefault();
 		if (this.busy) return;
+		const publish = this.publishAfterSave;
+		this.publishAfterSave = false;
 		this.errors.replace(this.validate());
 		if (this.errors.count) {
 			void this.showErrors();
@@ -522,6 +527,7 @@ export class EventEditor {
 				await this.stageAfterSave(String(data.event?.id || seriesId), "");
 				toast.ok(data.created ? "Night added to the series." : "Night opened.");
 				navigate(eventItemPath(`${seriesId}@${date}`), { replace: true });
+				if (publish) await this.confirmPutOnWebsite();
 			} catch (err) {
 				const message = err instanceof Error ? err.message : "Could not add the night.";
 				this.error = message;
@@ -543,6 +549,8 @@ export class EventEditor {
 				this.form.replacesSeries === hit?.slug ||
 				this.form.replacesSeries === `keep:${hit?.slug || ""}`;
 			if (hit?.slug && !decided) {
+				// Asked first; choosing saves again, and still publishes if asked to.
+				this.publishAfterSave = publish;
 				this.replacePrompt = {
 					id: hit.id,
 					name: hit.name,
@@ -573,6 +581,7 @@ export class EventEditor {
 				await this.uploadPendingPhoto(String(data.event.id));
 				await this.stageAfterSave(String(data.event.id), this.form.repeatUnit === "once" ? "Event saved." : "Series saved.");
 				navigate(eventItemPath(data.event.id, this.tab), { replace: true });
+				if (publish) await this.confirmPutOnWebsite();
 			} else {
 				const data = await updateEvent(this.eventId, this.form.body(this.current));
 				this.rememberEvent(data.event, true);

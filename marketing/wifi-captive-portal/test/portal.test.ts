@@ -5,7 +5,7 @@ import type { Env } from "../src/types.js";
 import { authorizeGuest } from "../src/unifi.js";
 
 const env: Env = {
-  BASEROW_API_KEY: "baserow-key",
+  WEBSITE_DB: {},
   UNIFI_SITE_MANAGER_API_KEY: "sm-key",
   UNIFI_CONSOLE_ID:
     "A89C6C0EB1810000000009A42CB9000000000A2C1924000000006920A430:1883747293",
@@ -177,6 +177,34 @@ describe("handler", () => {
       }),
     );
     vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["can't save it", async () => ({ ok: false as const, status: 502, error: "Saving failed." })],
+    ["throws", async () => { throw new Error("D1_ERROR: no such table"); }],
+  ])("lets the guest on when the sign-up %s, and logs it", async (_, failing) => {
+    const subscribe = vi.fn(failing);
+    const authorize = vi.fn(async () => ({ ok: true as const }));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const post = await handlePortalRequest(
+      new Request("https://wifi.example/authorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ email: "guest@example.com", id: "aa:bb:cc:dd:ee:ff" }),
+      }),
+      env,
+      { subscribe: subscribe as never, authorize },
+    );
+
+    expect(post.status).toBe(200);
+    expect(await post.text()).toContain("Connected");
+    expect(authorize).toHaveBeenCalled();
+    expect(logged).toHaveBeenCalledWith(
+      "[wifi-captive-portal] Sign-up not saved; guest let on anyway",
+      ...(_ === "throws" ? [expect.stringContaining("no such table")] : [502, "Saving failed."]),
+    );
+    logged.mockRestore();
   });
 
   it("exposes health", async () => {

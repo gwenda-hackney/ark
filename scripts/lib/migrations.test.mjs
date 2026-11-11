@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { describe, it, vi } from "vitest";
 import { fileURLToPath } from "node:url";
 import { createTestD1 } from "../../shared/testing/d1-sqlite.js";
+import { all } from "../../shared/d1.js";
 import {
   DATABASES,
   ENVS,
@@ -707,5 +708,62 @@ describe("smoke-test-cleanup", () => {
         ["DELETE", "https://us21.api.mailchimp.com/3.0/lists/e2c69d5d31/members/<hash>"],
       ],
     );
+  });
+});
+
+describe("2026-10-20-description-entities", () => {
+  const load = () => import("../../migrations/2026-10-20-description-entities.mjs");
+
+  it("decodes the editor's entities once", async () => {
+    const { decodeEntities } = await load();
+    assert.equal(decodeEntities("Q&amp;A, Beats &amp; Samples, 3 &lt; 4, Gwenda&#39;s"), "Q&A, Beats & Samples, 3 < 4, Gwenda's");
+    assert.equal(decodeEntities("&amp;lt;"), "&lt;");
+  });
+
+  it("fixes ops events, night overrides and the Sanity documents, and leaves clean ones alone", async () => {
+    const { up } = await load();
+    const db = createTestD1("ops");
+    db.exec(`INSERT INTO events (id, name, description) VALUES
+        (1, 'EPIC Jam', 'A Q&amp;A and a Beats &amp; Samples competition.'),
+        (2, 'Radio Gwenda', 'Records & radio.');
+      INSERT INTO event_dates (id, event_id, date, overrides) VALUES
+        (10, 1, '2026-11-22', '{"description":"Lebanese &amp; British"}'),
+        (11, 2, '2026-11-23', '{"description":"R&B"}');`);
+    const documents = [
+      {
+        _id: "series-epic-jam",
+        title: "EPIC Jam",
+        description: [{ _type: "block", _key: "p0", markDefs: [], children: [{ _type: "span", _key: "s0", marks: [], text: "A Q&amp;A" }] }],
+      },
+      { _id: "drafts.event-radio", title: "Radio Gwenda", description: [] },
+    ];
+    const mutations = [];
+    const sanity = () => ({
+      project: "test",
+      query: async () => documents,
+      mutate: async (list) => mutations.push(...list),
+    });
+    const lines = [];
+
+    await up({ d1: async () => db, sanity, log: (line) => lines.push(line), dryRun: true });
+    assert.equal(mutations.length, 0);
+    assert.equal((await all(db, "SELECT description FROM events WHERE id = 1"))[0].description, "A Q&amp;A and a Beats &amp; Samples competition.");
+
+    await up({ d1: async () => db, sanity, log: (line) => lines.push(line) });
+    const events = await all(db, "SELECT id, description FROM events ORDER BY id");
+    assert.deepEqual(events.map((row) => row.description), ["A Q&A and a Beats & Samples competition.", "Records & radio."]);
+    const nights = await all(db, "SELECT id, overrides FROM event_dates ORDER BY id");
+    assert.deepEqual(nights.map((row) => JSON.parse(row.overrides).description), ["Lebanese & British", "R&B"]);
+    assert.deepEqual(mutations, [
+      {
+        patch: {
+          id: "series-epic-jam",
+          set: {
+            description: [{ _type: "block", _key: "p0", markDefs: [], children: [{ _type: "span", _key: "s0", marks: [], text: "A Q&A" }] }],
+          },
+        },
+      },
+    ]);
+    assert.match(lines[0], /1 events \(EPIC Jam\), 1 nights/);
   });
 });

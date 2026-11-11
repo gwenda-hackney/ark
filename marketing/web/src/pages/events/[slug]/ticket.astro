@@ -11,8 +11,8 @@ export async function getStaticPaths() {
     return events.map((event) => {
       const parsed = parseOccurrenceSlug(event.slug);
       const target = parsed
-        ? `/whats-on/${occurrencePathParams(event).series}/${parsed.date}/ticket`
-        : `/whats-on/${event.seriesId || event.slug}`;
+        ? `/whats-on/${occurrencePathParams(event).series}/${parsed.date}/ticket/`
+        : `/whats-on/${event.seriesId || event.slug}/`;
       return {
         params: { slug: event.slug },
         props: { target },

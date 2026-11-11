@@ -114,8 +114,8 @@ async function resolveSeries(env, seriesId) {
     // A web address changed in ops: the old one leads to the series.
     const moved = seriesRedirects(series).find((row) => row.from === seriesId);
     return moved
-      ? { redirect: `/whats-on/${moved.to}`, status: 301 }
-      : { redirect: "/whats-on", status: 302 };
+      ? { redirect: `/whats-on/${moved.to}/`, status: 301 }
+      : { redirect: "/whats-on/", status: 302 };
   }
   const record = series.find((row) => row.seriesId === detail.seriesId);
   const nights = occurrences
@@ -176,8 +176,11 @@ async function resolveNight(env, seriesId, date, ticket) {
       (row) => row.series === seriesId && row.date === date,
     );
     if (moved)
-      return { redirect: `${moved.to}${ticket ? "/ticket" : ""}`, status: 301 };
-    return { redirect: `/whats-on/${seriesId}`, status: 302 };
+      return {
+        redirect: `${moved.to}${ticket ? "/ticket" : ""}/`,
+        status: 301,
+      };
+    return { redirect: `/whats-on/${seriesId}/`, status: 302 };
   }
   const { event } = page;
   // The night's own photos from the series gallery (#30).

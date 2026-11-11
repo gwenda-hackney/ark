@@ -10,6 +10,7 @@ import {
   hasDigitalPlacement,
 } from "../../menu/server/menu-placements.js";
 import { flattenMenuSections } from "../../menu/menu-sections.js";
+import { listPopupSeries } from "../../events/server/popups.js";
 import { loadMenuTree } from "../../menu/server/menu-store.js";
 import {
   PREVIEW,
@@ -18,7 +19,7 @@ import {
   sanityUploadImage,
 } from "../../platform/sanity.js";
 
-/** Sortable Sanity orderRank from the menu's numeric order. */
+/** Sortable Sanity orderRank from the menu's numeric order (create only). */
 export function orderRankFromOrder(order, kind = "item") {
   const n = Math.max(0, Math.floor(Number(order) || 0));
   const tag = kind === "section" ? "s" : "i";
@@ -125,29 +126,84 @@ async function createdDocId(result) {
   return typeof id === "string" && id ? id : null;
 }
 
+function reference(id) {
+  return { _type: "reference", _ref: id };
+}
+
 /**
- * Ensure every ops section exists in Sanity; return map of ops id → Sanity id.
- * Parents are walked before children via flattenMenuSections.
- * Sections already linked get a rename, subtitle or move patched in
- * (linkedSectionPatch); before, a rename in ops never reached the website.
+ * A patch that makes `current` (the document as the preview shows it, with
+ * references as plain ids) match `wanted`: a key whose value is null or ""
+ * is unset. Null when nothing differs, so a publish with nothing changed
+ * leaves no draft behind. `refs` names the keys that are references,
+ * `sameAs` a key's own comparison.
  */
-async function ensureSanitySections(env, pending, sections) {
+export function patchToMatch(current, wanted, { refs = {}, sameAs = {} } = {}) {
+  const set = {};
+  const unset = [];
+  for (const [key, value] of Object.entries(wanted)) {
+    const has = current?.[key] ?? null;
+    const want = value === "" ? null : (value ?? null);
+    if (sameAs[key] ? sameAs[key](has, want) : has === want) continue;
+    if (want == null) unset.push(key);
+    else set[key] = refs[key] ? refs[key](want) : want;
+  }
+  if (!Object.keys(set).length && !unset.length) return null;
+  return {
+    ...(Object.keys(set).length ? { set } : {}),
+    ...(unset.length ? { unset } : {}),
+  };
+}
+
+/**
+ * Each pop-up kitchen's Sanity series document, by the series' ops id: only
+ * the ones the preview has (a series never sent to the website has none, and
+ * a chapter can't refer to a document that isn't there).
+ */
+async function popupSeriesDocuments(env, sections) {
+  const wanted = new Set(
+    flattenMenuSections(sections)
+      .map((section) => section.popupSeriesId)
+      .filter(Boolean)
+      .map(String),
+  );
+  if (!wanted.size) return new Map();
+  const popups = (await listPopupSeries(env)).filter((popup) => wanted.has(popup.id));
+  if (!popups.length) return new Map();
+  const there = new Set(
+    (await sanityQuery(env, PREVIEW, "*[_id in $ids]._id", { ids: popups.map((popup) => popup.sanityId) })) || [],
+  );
+  return new Map(popups.filter((popup) => there.has(popup.sanityId)).map((popup) => [popup.id, popup.sanityId]));
+}
+
+const SECTION_FIELDS = `{ _id, title, subtitle, orderRank, kind, "parent": parent._ref, "popupSeries": popupSeries._ref }`;
+
+const SECTION_REFS = { parent: reference, popupSeries: reference };
+
+/** A chapter with no kind in Sanity is drinks: the website shows it on /bar either way. */
+const SECTION_SAME = {
+  kind: (has, want) => (want == null ? has == null : (has || "bar") === want),
+};
+
+/**
+ * Ensure every ops section exists in Sanity, as ops has it; return map of
+ * ops id → Sanity id. Parents are walked before children via
+ * flattenMenuSections. Ops owns a section's title, subtitle, place in the
+ * order, parent, and, for a chapter, whether it is drinks or food (`kind`)
+ * and its pop-up kitchen (`popupSeries`, the event series' document); a
+ * group carries neither, it follows its chapter. A
+ * section already in Sanity is patched only where it differs. Its slug is
+ * written when it is created and then left alone: it is a web address.
+ */
+async function ensureSanitySections(env, pending, sections, popupDocs = new Map()) {
   const flat = flattenMenuSections(sections);
   const byBaserowId = new Map();
   let writes = 0;
 
-  const linkedIds = flat.map((s) => s.sanityId).filter(Boolean);
-  const linked = new Map(
-    (linkedIds.length
-      ? (await sanityQuery(
-          env,
-          PREVIEW,
-          `*[_type == "menuSection" && _id in $ids]{_id, title, subtitle, orderRank, "parent": parent._ref}`,
-          { ids: linkedIds },
-        )) || []
-      : []
-    ).map((doc) => [doc._id, doc]),
-  );
+  const linked = flat.map((section) => section.sanityId).filter(Boolean);
+  const docs = linked.length
+    ? (await sanityQuery(env, PREVIEW, `*[_id in $ids]${SECTION_FIELDS}`, { ids: linked })) || []
+    : [];
+  const docById = new Map(docs.map((doc) => [doc._id, doc]));
 
   for (const section of flat) {
     const slug =
@@ -155,61 +211,42 @@ async function ensureSanitySections(env, pending, sections) {
     const parentSanityId = section.parentId
       ? byBaserowId.get(String(section.parentId))
       : null;
+    const chapter = !section.parentId;
+    const wanted = {
+      title: section.title || slug,
+      subtitle: section.subtitle || null,
+      orderRank: orderRankFromOrder(section.orderRank, "section"),
+      parent: parentSanityId || null,
+      kind: chapter ? section.kind || "bar" : null,
+      popupSeries:
+        (chapter && section.popupSeriesId && popupDocs.get(String(section.popupSeriesId))) || null,
+    };
 
-    if (section.sanityId) {
-      const current = linked.get(section.sanityId);
-      const patch = current && linkedSectionPatch(section, current, parentSanityId);
-      if (patch) {
-        await sanityMutate(env, [{ patch: { id: section.sanityId, ...patch } }]);
-        writes += 1;
-      }
-      byBaserowId.set(String(section._id), section.sanityId);
-      continue;
+    // A link to a document that is gone is looked up again by slug.
+    let current = section.sanityId ? docById.get(section.sanityId) : null;
+    if (!current) {
+      const found = await sanityQuery(
+        env,
+        PREVIEW,
+        `*[_type == "menuSection" && slug.current == $slug && !(_id in path("drafts.**"))][0]${SECTION_FIELDS}`,
+        { slug },
+      );
+      current = found?._id ? found : null;
     }
 
-    let sanityId = await sanityQuery(
-      env,
-      PREVIEW,
-      `*[_type == "menuSection" && slug.current == $slug && !(_id in path("drafts.**"))][0]._id`,
-      { slug },
-    );
-
-    const fields = {
-      title: section.title || slug,
-      slug: { _type: "slug", current: slug },
-      orderRank: orderRankFromOrder(section.orderRank, "section"),
-      ...(section.subtitle ? { subtitle: section.subtitle } : {}),
-      ...(parentSanityId
-        ? { parent: { _type: "reference", _ref: parentSanityId } }
-        : {}),
-    };
-    const unset = [];
-    if (!section.subtitle) unset.push("subtitle");
-    if (!parentSanityId) unset.push("parent");
-
-    if (sanityId) {
-      await sanityMutate(env, [
-        {
-          patch: {
-            id: sanityId,
-            set: {
-              title: fields.title,
-              slug: fields.slug,
-              ...(section.subtitle ? { subtitle: section.subtitle } : {}),
-              ...(parentSanityId
-                ? { parent: { _type: "reference", _ref: parentSanityId } }
-                : {}),
-            },
-            ...(unset.length ? { unset } : {}),
-          },
-        },
-      ]);
-      writes += 1;
+    let sanityId = current?._id || null;
+    if (current) {
+      const patch = patchToMatch(current, wanted, { refs: SECTION_REFS, sameAs: SECTION_SAME });
+      if (patch) {
+        await sanityMutate(env, [{ patch: { id: sanityId, ...patch } }]);
+        writes += 1;
+      }
     } else {
-      const created = await sanityMutate(env, [
-        { create: { _type: "menuSection", ...fields } },
-      ]);
-      sanityId = await createdDocId(created);
+      const doc = { _type: "menuSection", slug: { _type: "slug", current: slug } };
+      for (const [key, value] of Object.entries(wanted)) {
+        if (value != null) doc[key] = SECTION_REFS[key] ? SECTION_REFS[key](value) : value;
+      }
+      sanityId = await createdDocId(await sanityMutate(env, [{ create: doc }]));
       if (!sanityId) {
         const error = new Error(
           `Failed to create Sanity section "${section.title}".`,
@@ -225,38 +262,6 @@ async function ensureSanitySections(env, pending, sections) {
   }
 
   return { byBaserowId, writes };
-}
-
-/**
- * What a section already on the website needs so it matches ops: a rename,
- * a new subtitle, a move under another chapter or a new place in the
- * order. Null when it matches.
- * The slug stays, so links to a chapter keep working after a rename.
- */
-export function linkedSectionPatch(section, current, parentSanityId) {
-  const title = section.title || "";
-  const subtitle = section.subtitle || "";
-  const parent = parentSanityId || null;
-  const set = {};
-  const unset = [];
-  if (title && title !== (current.title || "")) set.title = title;
-  if (subtitle !== (current.subtitle || "")) {
-    if (subtitle) set.subtitle = subtitle;
-    else unset.push("subtitle");
-  }
-  if (parent !== (current.parent || null)) {
-    if (parent) set.parent = { _type: "reference", _ref: parent };
-    else unset.push("parent");
-  }
-  if (section.orderRank != null) {
-    const rank = orderRankFromOrder(section.orderRank, "section");
-    if (rank !== current.orderRank) set.orderRank = rank;
-  }
-  if (!Object.keys(set).length && !unset.length) return null;
-  return {
-    ...(Object.keys(set).length ? { set } : {}),
-    ...(unset.length ? { unset } : {}),
-  };
 }
 
 function sectionRef(sanitySectionId) {
@@ -348,8 +353,13 @@ async function publishItems(env, pending, { items, sections, target }) {
     }
   }
 
-  const { byBaserowId: sectionIds, writes: sectionWrites } =
-    await ensureSanitySections(env, pending, [...withAncestors.values()]);
+  const publishing = [...withAncestors.values()];
+  const { byBaserowId: sectionIds, writes: sectionWrites } = await ensureSanitySections(
+    env,
+    pending,
+    publishing,
+    await popupSeriesDocuments(env, publishing),
+  );
 
   const created = [];
   const synced = [];

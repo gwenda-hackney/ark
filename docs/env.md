@@ -47,7 +47,7 @@ ARK_SECRETS_REFRESH=1 npm run ops:dev   # same, for one run
 
 Overrides: `BW_SESSION_FILE` (session file path), `ARK_SECRETS_CACHE_DIR` (cache directory).
 
-Production worker setup (`setup:wifi-portal`, `setup:subscribe-mailchimp-sync`) reads the production Website Baserow token straight from Secrets Manager.
+Production worker setup (`setup:subscribe-mailchimp-sync`) reads the production Website Baserow token straight from Secrets Manager.
 
 If Secrets Manager is ever emptied, or every secret has to be replaced, follow [secrets-rebuild.md](secrets-rebuild.md).
 

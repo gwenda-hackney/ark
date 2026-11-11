@@ -83,7 +83,8 @@
 	class="span-half row-start"
 	label="First night"
 	for="event-starts"
-	optional
+	optional={form.repeatUnit === "none"}
+	required={form.repeatUnit !== "none"}
 	error={errors.get("event-starts")}
 	help="Schedule tab"
 >
@@ -94,7 +95,7 @@
 		class="span-half"
 		label="Last night"
 		for="event-ends"
-		required={Boolean(form.startsOn)}
+		optional
 		error={errors.get("event-ends")}
 	>
 		<DateField id="event-ends" size="sm" bind:value={form.endsOn} min={form.startsOn} />

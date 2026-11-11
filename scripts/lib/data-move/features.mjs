@@ -6,7 +6,11 @@
  *     app: "ops",                        // whose secrets its Baserow adapter needs
  *     role: "ops",                       // the D1 database it lives in
  *     freeze: true,                      // refuse a production write unless frozen (#191)
+ *     tables: [...],                     // optional: its D1 tables, parents first, so a D1 source
+ *                                        // whose schema is behind this code can still be read
  *     keep: (collection, record, records) => …,   // optional: false for records never copied
+ *     detach: (collection, record) => fields,     // optional: what a copy out of production
+ *                                        // leaves behind (see leavesProduction below)
  *     adapters: {
  *       baserow: ({ env }) => baserowEventRepository(env),   // a source only
  *       d1: ({ db }) => d1EventRepository(db),
@@ -27,9 +31,9 @@ import { baserowArtistRepository } from "../../../shared/artists/baserow-artists
 import { isBlankArtist } from "../../../shared/artists/artist-model.js";
 import { d1ArtistRepository } from "../../../shared/artists/d1-artists.js";
 import { baserowMenuRepository } from "../../../ops/site/src/menu/server/adapters/baserow-menu.js";
-import { d1MenuRepository } from "../../../ops/site/src/menu/server/adapters/d1-menu.js";
+import { MENU_D1_TABLES, d1MenuRepository } from "../../../ops/site/src/menu/server/adapters/d1-menu.js";
 import { baserowEventRepository } from "../../../ops/site/src/events/server/adapters/baserow-events.js";
-import { d1EventRepository } from "../../../ops/site/src/events/server/adapters/d1-events.js";
+import { EVENT_D1_TABLES, d1EventRepository } from "../../../ops/site/src/events/server/adapters/d1-events.js";
 
 export const FEATURES = {
   users: {
@@ -97,6 +101,7 @@ export const FEATURES = {
     app: "ops",
     role: "ops",
     freeze: true,
+    tables: MENU_D1_TABLES,
     adapters: {
       baserow: ({ env }) => baserowMenuRepository(env),
       d1: ({ db }) => d1MenuRepository(db),
@@ -106,12 +111,55 @@ export const FEATURES = {
     app: "ops",
     role: "ops",
     freeze: true,
+    tables: EVENT_D1_TABLES,
+    detach: detachEvent,
     adapters: {
       baserow: ({ env }) => baserowEventRepository(env),
       d1: ({ db }) => d1EventRepository(db),
     },
   },
 };
+
+/**
+ * True for a copy that takes production's records somewhere else (dev). Its
+ * target runs with production's Google service account and other shared
+ * logins, so an id of something production owns is a way for dev's code to
+ * change the real thing. Such a copy applies the feature's `detach`.
+ */
+export function leavesProduction(from, to) {
+  return from?.env === "production" && to?.env !== "production";
+}
+
+/**
+ * What a series or night leaves behind on a copy out of production:
+ * - the series' Drive folder: deleting or renaming the series bins or renames
+ *   the folder (event-store.js), and dev would do it to production's. Without
+ *   one, ops makes the series its own folder under dev's root when needed.
+ * - a gallery photo's Drive original ("drive:<file id>"): the Drive copy
+ *   moves the original into the series' folder (event-drive-mirror.js adopt),
+ *   so dev would take the file out of production's folder. As "ops", the
+ *   photo is copied from Sanity instead.
+ * - a night's ClickUp task: task ids work from any list, so dev's social
+ *   tasks would rewrite production's. Ops skips ClickUp on dev today
+ *   (event-publish.js); this doesn't lean on that.
+ *
+ * What stays, and why it is safe: a night's Google Calendar entry id (only
+ * found on the calendar it is on, and dev's `google.calendar_id` is its own
+ * calendar), and Sanity document and image ids here, on the menu and on
+ * artists (dev has its own Sanity project, which holds dev's copies under
+ * the same ids). The menu's Lightspeed SKUs are only matched against
+ * imports; ops never writes to Lightspeed.
+ */
+export function detachEvent(collection, record) {
+  if (collection === "nights") return { clickupTaskId: "" };
+  if (collection !== "events") return null;
+  return {
+    driveFolderId: "",
+    gallery: (record.gallery || []).map((photo) =>
+      String(photo?.source || "").startsWith("drive:") ? { ...photo, source: "ops" } : photo,
+    ),
+  };
+}
 
 /**
  * Baserow can hold two config rows for one name + env + service (its set

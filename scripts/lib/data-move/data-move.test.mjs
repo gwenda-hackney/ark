@@ -8,10 +8,10 @@ import {
   importTables,
 } from "../../../shared/d1-table.js";
 import { createTestD1 } from "../../../shared/testing/d1-sqlite.js";
-import { parseArgs } from "../../data-move.mjs";
+import { moveBetween, parseArgs } from "../../data-move.mjs";
 import { createFakeWorld } from "../../../ops/site/src/testing/fake-world.js";
 import { FEATURES, featureFor } from "./features.mjs";
-import { diffSnapshots, keptSnapshot, moveFeature } from "./index.mjs";
+import { describeMove, diffSnapshots, keptSnapshot, moveFeature } from "./index.mjs";
 
 /** A repository in memory: exportAll / importAll only, like a Baserow source plus a target. */
 function memory(snapshot = {}) {
@@ -70,7 +70,7 @@ describe("moveFeature", () => {
       keep: (_collection, record) => !record.email.startsWith("alerts+"),
       log: (line) => lines.push(line),
     });
-    assert.deepEqual(result, { counts: { people: 1 }, skipped: { people: 1 } });
+    assert.deepEqual(result, { counts: { people: 1 }, skipped: { people: 1 }, detached: {} });
     assert.deepEqual(await target.exportAll(), {
       people: [SNAPSHOT.people[0]],
     });
@@ -265,6 +265,123 @@ describe("the menu feature", () => {
       );
     } finally {
       world.restore();
+    }
+  });
+});
+
+describe("a copy out of production", () => {
+  const ASSET = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
+  const PRODUCTION = {
+    events: [
+      {
+        id: 7,
+        name: "Epic Jam",
+        slug: "epic-jam",
+        driveFolderId: "production-folder",
+        gallery: [
+          { key: "original", asset: ASSET, date: "", added: "", source: "drive:production-file" },
+          { key: "upload", asset: ASSET.replace("0a1b", "ffff"), date: "", added: "", source: "ops" },
+        ],
+      },
+      { id: 8, name: "Quiz", slug: "quiz", driveFolderId: "" },
+    ],
+    nights: [
+      {
+        id: 70,
+        eventId: "7",
+        date: "2026-11-20",
+        slug: "epic-jam-2026-11-20",
+        sanityId: "event-epic-jam-2026-11-20",
+        clickupTaskId: "production-task",
+        googleCalendarEventId: "abc123|0123abcd",
+      },
+    ],
+  };
+
+  /** The events feature's own D1 repository, holding production's rows. */
+  async function events(snapshot) {
+    const repo = FEATURES.events.adapters.d1({ db: createTestD1("ops") });
+    if (snapshot) await repo.importAll(snapshot);
+    return repo;
+  }
+
+  const side = (text) => {
+    const [kind, env] = text.split(":");
+    return { kind, env };
+  };
+
+  it("into dev leaves behind what points at production's Drive and ClickUp, and says so", async () => {
+    const lines = [];
+    const target = await events();
+    const result = await moveBetween({
+      feature: FEATURES.events,
+      from: side("d1:production"),
+      to: side("d1:dev"),
+      source: await events(PRODUCTION),
+      target,
+      log: (line) => lines.push(line),
+    });
+    const copy = await target.exportAll();
+    // Deleting or renaming the series on dev would bin or rename the real folder.
+    assert.deepEqual(copy.events.map((event) => event.driveFolderId), ["", ""]);
+    // The Drive copy would move a "drive:" original out of production's folder.
+    assert.deepEqual(copy.events[0].gallery.map((photo) => [photo.key, photo.source]), [
+      ["original", "ops"],
+      ["upload", "ops"],
+    ]);
+    assert.equal(copy.nights[0].clickupTaskId, "");
+    // Dev has its own calendar and its own Sanity project: these stay.
+    assert.equal(copy.nights[0].googleCalendarEventId, "abc123|0123abcd");
+    assert.equal(copy.nights[0].sanityId, "event-epic-jam-2026-11-20");
+    assert.equal(copy.events[0].name, "Epic Jam");
+    assert.deepEqual(result.detached, {
+      events: { driveFolderId: 1, gallery: 1 },
+      nights: { clickupTaskId: 1 },
+    });
+    assert.ok(
+      lines.includes(
+        "left behind, as it points at production: driveFolderId of 1 events, gallery of 1 events, clickupTaskId of 1 nights",
+      ),
+      lines.join("\n"),
+    );
+    assert.equal(
+      describeMove(result),
+      "2 events, 1 nights; left behind, as it points at production: driveFolderId of 1 events, gallery of 1 events, clickupTaskId of 1 nights",
+    );
+  });
+
+  it("from Baserow production into dev does the same", async () => {
+    const target = await events();
+    await moveBetween({
+      feature: FEATURES.events,
+      from: side("baserow:production"),
+      to: side("d1:dev"),
+      // As a Baserow adapter exports them: whole records.
+      source: memory(await (await events(PRODUCTION)).exportAll()),
+      target,
+    });
+    assert.equal((await target.exportAll()).events[0].driveFolderId, "");
+  });
+
+  it("into production (the cutover), or out of dev, carries everything", async () => {
+    for (const [from, to] of [
+      ["baserow:production", "d1:production"],
+      ["d1:dev", "d1:production"],
+    ]) {
+      const target = await events();
+      const result = await moveBetween({
+        feature: FEATURES.events,
+        from: side(from),
+        to: side(to),
+        source: await events(PRODUCTION),
+        target,
+      });
+      const copy = await target.exportAll();
+      assert.equal(copy.events[0].driveFolderId, "production-folder", `${from} → ${to}`);
+      assert.equal(copy.events[0].gallery[0].source, "drive:production-file");
+      assert.equal(copy.nights[0].clickupTaskId, "production-task");
+      assert.deepEqual(result.detached, {});
+      assert.equal(describeMove(result), "2 events, 1 nights");
     }
   });
 });

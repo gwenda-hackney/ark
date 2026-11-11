@@ -10,6 +10,7 @@ on:
       - "marketing/site-deploy-webhook/**"
       - "marketing/subscribe-mailchimp-sync/**"
       - "marketing/site-health/**"
+      - "marketing/wifi-captive-portal/**"
       - ".github/workflows/workers.yml"
   workflow_dispatch:
     inputs:
@@ -23,6 +24,7 @@ on:
           - site-deploy-webhook
           - subscribe-mailchimp-sync
           - site-health
+          - wifi-captive-portal
 
 jobs:
   changes:
@@ -32,6 +34,7 @@ jobs:
       site_deploy: ${{ steps.set.outputs.site_deploy }}
       mailchimp: ${{ steps.set.outputs.mailchimp }}
       site_health: ${{ steps.set.outputs.site_health }}
+      wifi_portal: ${{ steps.set.outputs.wifi_portal }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -52,6 +55,9 @@ jobs:
             site_health:
               - 'marketing/site-health/**'
               - '.github/workflows/workers.yml'
+            wifi_portal:
+              - 'marketing/wifi-captive-portal/**'
+              - '.github/workflows/workers.yml'
       - id: set
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -59,16 +65,20 @@ jobs:
             sd=false
             mc=false
             sh=false
+            wp=false
             if [ "$W" = "all" ] || [ "$W" = "site-deploy-webhook" ]; then sd=true; fi
             if [ "$W" = "all" ] || [ "$W" = "subscribe-mailchimp-sync" ]; then mc=true; fi
             if [ "$W" = "all" ] || [ "$W" = "site-health" ]; then sh=true; fi
+            if [ "$W" = "all" ] || [ "$W" = "wifi-captive-portal" ]; then wp=true; fi
             echo "site_deploy=$sd" >> "$GITHUB_OUTPUT"
             echo "mailchimp=$mc" >> "$GITHUB_OUTPUT"
             echo "site_health=$sh" >> "$GITHUB_OUTPUT"
+            echo "wifi_portal=$wp" >> "$GITHUB_OUTPUT"
           else
             echo "site_deploy=${{ steps.filter.outputs.site_deploy }}" >> "$GITHUB_OUTPUT"
             echo "mailchimp=${{ steps.filter.outputs.mailchimp }}" >> "$GITHUB_OUTPUT"
             echo "site_health=${{ steps.filter.outputs.site_health }}" >> "$GITHUB_OUTPUT"
+            echo "wifi_portal=${{ steps.filter.outputs.wifi_portal }}" >> "$GITHUB_OUTPUT"
           fi
 
   site-deploy-webhook:
@@ -278,6 +288,87 @@ jobs:
             npx wrangler secret delete SMTP_PASSWORD
           else
             echo "SMTP_PASSWORD already removed."
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+
+  wifi-captive-portal:
+    name: Wi-Fi captive portal
+    needs: changes
+    if: needs.changes.outputs.wifi_portal == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+      - uses: ./.github/actions/npm-install
+      - name: Pull Ark secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ark:pull -- --github-env
+      # UNIFI_SITE_MANAGER_API_KEY (web runtime key). Sign-ups go to D1 through
+      # the WEBSITE_DB binding, so no data token is needed.
+      - name: Pull web secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:web:pull -- --github-env
+      - run: npm run typecheck -w @gwenda/wifi-captive-portal
+      - run: npm test -w @gwenda/wifi-captive-portal
+      # Bundle first, so the code that deploys is the code its map (sent to
+      # Sentry, #35) describes.
+      - name: Bundle
+        run: npx wrangler deploy --dry-run --upload-source-maps --outdir dist
+        working-directory: marketing/wifi-captive-portal
+      - name: Sentry token
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs SENTRY_ORG_TOKEN
+      - name: Upload source maps to Sentry
+        uses: ./.github/actions/sentry-sourcemaps
+        with:
+          path: marketing/wifi-captive-portal/dist
+          project: wifi-portal
+          auth-token: ${{ env.SENTRY_ORG_TOKEN }}
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy dist/index.js --no-bundle
+          workingDirectory: marketing/wifi-captive-portal
+      - name: Sync Worker secrets
+        run: |
+          cd marketing/wifi-captive-portal
+          echo "$UNIFI_SITE_MANAGER_API_KEY" | npx wrangler secret put UNIFI_SITE_MANAGER_API_KEY
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          UNIFI_SITE_MANAGER_API_KEY: ${{ env.UNIFI_SITE_MANAGER_API_KEY }}
+      - name: Smoke test
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS https://wifi.gwenda.co.uk/health | grep -q '"ok":true'; then
+              echo "Wi-Fi portal is up."; exit 0
+            fi
+            sleep 10
+          done
+          echo "Wi-Fi portal smoke test failed." >&2
+          exit 1
+      # Post: only the old Baserow sign-up used this. Safe to run again.
+      - name: Remove retired Worker secrets
+        run: |
+          cd marketing/wifi-captive-portal
+          if npx wrangler secret list --format json | grep -q '"name": *"BASEROW_API_KEY"'; then
+            npx wrangler secret delete BASEROW_API_KEY
+          else
+            echo "BASEROW_API_KEY already removed."
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}

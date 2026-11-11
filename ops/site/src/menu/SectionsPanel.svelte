@@ -1,17 +1,20 @@
 <script lang="ts">
-	import { Button, Confirm, ConfirmDialog, Field, TextField } from "../ui";
+	import { Badge, Button, Confirm, ConfirmDialog, Field, NativeSelect, Segmented, TextField } from "../ui";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { countSectionItems } from "./menu-sections.js";
-	import type { MenuSection } from "./types";
+	import { SECTION_KIND_ITEMS, type MenuPopup, type MenuSection } from "./types";
 	import { Icon } from "../app/shell";
 
 	let {
 		sections,
+		popups = [],
 		busy = false,
 		onchanged,
 	}: {
 		sections: MenuSection[];
+		/** Pop-up kitchens (event series marked as one) a food chapter can belong to. */
+		popups?: MenuPopup[];
 		busy?: boolean;
 		onchanged: () => Promise<void> | void;
 	} = $props();
@@ -23,6 +26,13 @@
 	let editingId = $state<string | null>(null);
 	let draftTitle = $state("");
 	let draftSubtitle = $state("");
+	let draftKind = $state("bar");
+	let draftPopupId = $state("");
+	const popupOptions = $derived([
+		{ value: "", label: "None" },
+		...popups.map((popup) => ({ value: popup.id, label: popup.name })),
+	]);
+	const popupName = (id: string | null | undefined) => popups.find((popup) => popup.id === id)?.name || "";
 	let addingFor = $state<string | "chapter" | null>(null);
 	let newTitle = $state("");
 	let newParentId = $state("");
@@ -33,6 +43,8 @@
 		editingId = section._id;
 		draftTitle = section.title || "";
 		draftSubtitle = section.subtitle || "";
+		draftKind = section.kind || "bar";
+		draftPopupId = section.popupSeriesId || "";
 		addingFor = null;
 	}
 
@@ -55,6 +67,11 @@
 			await api.updateSection(section._id, {
 				title,
 				subtitle: section.parentId ? "" : draftSubtitle.trim(),
+				// Only a chapter is drinks or food and has a pop-up kitchen; a group follows it.
+				// A pop-up kitchen's chapter is food: drinks carry none.
+				...(section.parentId
+					? {}
+					: { kind: draftKind, popupSeriesId: draftKind === "kitchen" ? draftPopupId : "" }),
 			});
 			editingId = null;
 			await onchanged();
@@ -205,6 +222,33 @@
 				>
 					<TextField id={`sec-sub-${section._id}`} size="sm" bind:value={draftSubtitle} />
 				</Field>
+				<Field label="Drinks or food" for={`sec-kind-${section._id}`} hint="Food shows on the kitchen page, drinks on the bar page.">
+					<Segmented
+						bind:value={draftKind}
+						items={SECTION_KIND_ITEMS}
+						tone="soft"
+						size="sm"
+						ariaLabel="Drinks or food"
+					/>
+				</Field>
+				<!-- Always there, so the form doesn't move when Drinks or Food is switched. -->
+				<Field
+					label="Pop-up kitchen"
+					for={`sec-popup-${section._id}`}
+					width="md"
+					optional
+					hint={draftKind === "kitchen"
+						? "Whose food this is. Pop-up kitchens are added in Events."
+						: "Only a Food chapter can belong to a pop-up kitchen."}
+				>
+					<NativeSelect
+						id={`sec-popup-${section._id}`}
+						size="sm"
+						bind:value={draftPopupId}
+						options={popupOptions}
+						disabled={draftKind !== "kitchen"}
+					/>
+				</Field>
 			{/if}
 		</div>
 		<div class="edit-actions">
@@ -261,6 +305,8 @@
 						<h3 class="chapter-name">
 							{chapter.title}
 							<span class="chapter-count tnum">{drinks(countSectionItems(chapter))}</span>
+							{#if chapter.kind === "kitchen"}<Badge>Food</Badge>{/if}
+							{#if popupName(chapter.popupSeriesId)}<Badge>{popupName(chapter.popupSeriesId)}</Badge>{/if}
 						</h3>
 						{#if chapter.subtitle}<p class="subtitle">{chapter.subtitle}</p>{/if}
 					</div>

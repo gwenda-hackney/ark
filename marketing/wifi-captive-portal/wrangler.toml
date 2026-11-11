@@ -10,6 +10,11 @@ routes = [
   { pattern = "wifi.gwenda.co.uk", custom_domain = true }
 ]
 
+# Keep the Worker's logs in the Cloudflare dashboard (Workers → Logs), so a
+# failed sign-in can be looked at afterwards, not only while tailing.
+[observability]
+enabled = true
+
 [assets]
 directory = "./public"
 binding = "ASSETS"
@@ -17,7 +22,6 @@ binding = "ASSETS"
 run_worker_first = ["/", "/guest", "/guest/*", "/authorize", "/health"]
 
 [vars]
-BASEROW_API_URL = "https://api.baserow.io"
 WIFI_SUBSCRIBE_TAG = "wifi"
 UNIFI_SITE_IDENTIFIER = "default"
 UNIFI_GUEST_MINUTES = "1440"
@@ -25,7 +29,7 @@ REDIRECT_URL = "https://gwenda.co.uk"
 # Console id from https://unifi.ui.com/consoles/{UNIFI_CONSOLE_ID}/…
 UNIFI_CONSOLE_ID = "A89C6C0EB1810000000009A42CB9000000000A2C1924000000006920A430:1883747293"
 
-# D1 (#127): the website database only, for subscribers. Unused until guests move.
+# D1: the website database, for subscribers and the write freeze.
 [[d1_databases]]
 binding = "WEBSITE_DB"
 database_name = "gwenda-website"

@@ -37,6 +37,7 @@ import { eventRepository } from "./event-repository.js";
 import {
   buildEvent,
   buildNight,
+  checkedCategory,
   clockTime,
   eventFieldsFromInput,
   isoDate,
@@ -52,6 +53,7 @@ export {
   dedupeOccurrences,
   droppedNights,
   keepsDroppedNight,
+  liveNightsBehind,
   normalizePageUrl,
   previewBehind,
   publishState,
@@ -187,6 +189,7 @@ export async function updateEvent(env, id, input) {
       input?.takingApplications !== undefined
         ? input.takingApplications
         : current.takingApplications,
+    category: input?.category !== undefined ? input.category : current.category,
     pageUrl: input?.pageUrl !== undefined ? input.pageUrl : current.pageUrl,
     shortDescription:
       input?.shortDescription !== undefined
@@ -344,6 +347,26 @@ export async function syncEventOccurrences(env, event) {
     });
   }
   return getEvent(env, event.id);
+}
+
+/**
+ * Say what a series is (a night, a promotion or a pop-up kitchen) and change
+ * nothing else: unlike updateEvent, the rest of the series is not checked
+ * again and its nights are left as they are, so it also works on a series
+ * saved before today's rules (migrations/2026-11-10-a-series-categories.mjs).
+ * The website follows on the series' next Update website.
+ */
+export async function setEventCategory(env, id, category) {
+  const raw = text(category).toLowerCase();
+  if (!raw) {
+    const error = new Error("Pick what it is: a night, a promotion or a pop-up kitchen.");
+    error.status = 400;
+    throw error;
+  }
+  const events = eventRepository(env);
+  await events.get(id);
+  const record = await events.update(id, { category: checkedCategory(raw) });
+  return buildEvent(record, await events.nightsOf(id), buildOptions(env));
 }
 
 /** Mark an event deleted (an ISO time), or restore it (""). */

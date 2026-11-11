@@ -1,7 +1,7 @@
 import { handleDeploy, handlePromote, handleStatus } from "./handler";
 import { handleCompare, handleDevCopy } from "./tools";
 import type { Env } from "./types";
-import { captureConsoleIntegration, withSentry } from "@sentry/cloudflare";
+import { captureConsoleIntegration, withMonitor, withSentry } from "@sentry/cloudflare";
 import { sentryOptions } from "../../../shared/sentry.js";
 
 const ALLOWED_ORIGINS = new Set([
@@ -49,8 +49,24 @@ function serviceInfo(request: Request): Response {
 }
 
 /**
+ * Sentry cron monitors for the ticks below. One failed tick is normal (ops can
+ * run over the free plan's 10 ms CPU, #235), so it takes 6 in a row, half an
+ * hour without website updates starting on their own, to open an issue, and
+ * one good tick closes it. Sentry creates the monitors from this config.
+ */
+const TICK_MONITOR: Parameters<typeof withMonitor>[2] = {
+  schedule: { type: "crontab", value: "*/5 * * * *" },
+  timezone: "Etc/UTC",
+  checkinMargin: 2,
+  maxRuntime: 2,
+  failureIssueThreshold: 6,
+  recoveryThreshold: 1,
+};
+
+/**
  * Cron: let ops start any website update that is due. Ops holds the rules.
- * Each ops checks its own env's secret, so dev ops gets the dev one.
+ * Each ops checks its own env's secret, so dev ops gets the dev one. A failed
+ * tick rejects, which its cron monitor records; it isn't an error by itself.
  */
 export async function runOpsTick(
   env: Env,
@@ -63,9 +79,9 @@ export async function runOpsTick(
     headers: { Authorization: `Bearer ${secret}` },
   });
   if (!response.ok) {
-    console.error(
-      `ops tick failed for ${opsUrl} (${response.status}): ${await response.text()}`,
-    );
+    const message = `ops tick failed for ${opsUrl} (${response.status}): ${await response.text()}`;
+    console.warn(message);
+    throw new Error(message);
   }
   return response;
 }
@@ -84,19 +100,23 @@ export default withSentry(
     async scheduled(
       _controller: ScheduledController,
       env: Env,
-      ctx: ExecutionContext,
+      _ctx: ExecutionContext,
     ): Promise<void> {
-      // Prod ops and dev ops each run their own website's schedule.
-      ctx.waitUntil(
-        Promise.allSettled([
-          runOpsTick(env),
-          runOpsTick(
-            env,
-            env.OPS_DEV_URL,
-            env.DEPLOY_WEBHOOK_SECRET_DEV || env.DEPLOY_WEBHOOK_SECRET,
-          ),
-        ]).then(() => undefined),
-      );
+      // Prod ops and dev ops each run their own website's schedule. Awaited,
+      // not waitUntil, so the check-ins are sent before Sentry flushes.
+      await Promise.allSettled([
+        withMonitor("ops-tick", () => runOpsTick(env), TICK_MONITOR),
+        withMonitor(
+          "ops-tick-dev",
+          () =>
+            runOpsTick(
+              env,
+              env.OPS_DEV_URL,
+              env.DEPLOY_WEBHOOK_SECRET_DEV || env.DEPLOY_WEBHOOK_SECRET,
+            ),
+          TICK_MONITOR,
+        ),
+      ]);
     },
 
     async fetch(request: Request, env: Env): Promise<Response> {

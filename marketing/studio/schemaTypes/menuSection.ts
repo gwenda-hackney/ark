@@ -43,6 +43,15 @@ export const menuSection = defineType({
       hidden: ({ document }) => Boolean(document?.parent),
     }),
     defineField({
+      name: "popupSeries",
+      title: "Pop-up kitchen",
+      type: "reference",
+      to: [{ type: "eventSeries" }],
+      description:
+        "The pop-up kitchen (an event series whose category is pop-up) whose chapter this is, if any. Set in ops. Subsections follow their parent.",
+      hidden: ({ document }) => Boolean(document?.parent),
+    }),
+    defineField({
       name: "parent",
       title: "Parent chapter",
       type: "reference",

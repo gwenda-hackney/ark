@@ -170,7 +170,7 @@ Guest data from the website (form entries, subscribers, RSVPs) lives in Baserow'
 - **SM:** `BASEROW_WEBSITE_API_KEY__DEV` ([`ark/web-dev`](#arkweb-dev)), `BASEROW_WEBSITE_API_KEY__PRODUCTION` ([`ark/web`](#arkweb)).
 - **What:** a database token for the "Website" database (forms, subscribers, RSVPs) or its dev copy.
 - **Runtime name:** `BASEROW_API_KEY` on the website; `BASEROW_WEBSITE_API_KEY` in ops (form resends).
-- **Used by:** website functions (forms, subscribe, RSVP, tickets), ops forms, `setup:subscribe-mailchimp-sync`, and the Mailchimp sync and Wi-Fi portal Workers (as their `BASEROW_API_KEY`).
+- **Used by:** website functions (forms, subscribe, RSVP, tickets), ops forms, `setup:subscribe-mailchimp-sync`, and the Mailchimp sync Worker (as its `BASEROW_API_KEY`). The Wi-Fi portal saves sign-ups to D1 and no longer uses it.
 - **Gets there by:** website: Pages secret (`web-secrets.yml`); ops: Pages secret; Workers: `wrangler secret put` by CI or the setup scripts.
 - **Expires:** never.
 - **Changing it:** as above, then `web-secrets.yml` for both profiles, a website deploy, and the Workers deploy.
@@ -417,7 +417,7 @@ The venue Wi-Fi asks guests to sign up before going online; the portal Worker th
 - **SM:** `UNIFI_SITE_MANAGER_API_KEY`, shared, in [`ark/web-dev`](#arkweb-dev). Shared because there is one Wi-Fi controller, the venue's, and the local portal dev server uses it too.
 - **What:** the UniFi Site Manager API key; the captive portal Worker lets guests onto the Wi-Fi with it.
 - **Used by:** the Wi-Fi captive portal Worker, `setup:wifi-portal`, `wifi-portal-dev.mjs`.
-- **Gets there by:** `setup:wifi-portal` puts it on the Worker.
+- **Gets there by:** the Workers workflow puts it on the Worker when the portal deploys from `release`; `setup:wifi-portal` does the same by hand.
 - **Expires:** check at [unifi.ui.com/api](https://unifi.ui.com/api); set when the key was made.
 
 ### `UPTIME_ROBOT_API_KEY`
@@ -494,7 +494,7 @@ Public halves of the Google setup; the secrets are above.
 Which audience the sync works on, and where Baserow is.
 
 - `MAILCHIMP_AUDIENCE_ID`: the audience it syncs into.
-- `BASEROW_API_URL`: `https://api.baserow.io` (also on the Wi-Fi portal).
+- `BASEROW_API_URL`: `https://api.baserow.io`.
 
 ### Wi-Fi captive portal Worker
 

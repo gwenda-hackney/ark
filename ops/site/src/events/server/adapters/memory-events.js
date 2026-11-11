@@ -27,6 +27,7 @@ const EMPTY_EVENT = {
   formerSlugs: [],
   deletedAt: "",
   takingApplications: false,
+  category: "event",
   replacesSeries: "",
   driveFolderId: "",
   mainImage: null,

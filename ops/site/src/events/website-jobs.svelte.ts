@@ -1,9 +1,10 @@
 /**
- * "Getting it ready for the website": saving only stores the event, and the
- * calendar entries and website copy follow here, in the background. The
- * server works out what is behind (src/events/server/website-jobs.js); the open
- * app runs one step per request until nothing is left. A cron does the same
- * when nobody has ops open.
+ * "Website updating…": saving only stores the event, and the calendar
+ * entries, the preview copy and then the website itself follow here, in the
+ * background, so nobody has to press Update website. The server works out
+ * what is behind (src/events/server/website-jobs.js); the open app runs one
+ * step per request until nothing is left. A cron does the same when nobody
+ * has ops open.
  */
 import { getWebsiteJobs, runWebsiteJob, type OpsEvent, type WebsiteJob } from "../app/api";
 import { refreshSitePending } from "../website/site-pending.svelte";
@@ -31,8 +32,8 @@ let timer: ReturnType<typeof setInterval> | null = null;
 const eventListeners = new Set<(event: OpsEvent) => void>();
 const idleWaiters: (() => void)[] = [];
 
-/** Safety stop for one run: a long series takes a handful of steps. */
-const MAX_STEPS = 40;
+/** Safety stop for one run: a series of ninety nights takes about twenty steps. */
+const MAX_STEPS = 60;
 
 export function getWebsiteJobsState(): State {
 	return state;
@@ -84,7 +85,7 @@ async function run(): Promise<void> {
 			if (result.failed) {
 				dequeue(id);
 				const name = result.event?.name || state.jobs.find((row) => row.eventId === id)?.name || "An event";
-				toast.error(`${name} isn't ready for the website: ${result.failed}`);
+				toast.error(`${name} is saved, but the website did not update: ${result.failed}`);
 				// Nothing queued in this tab: stop rather than retry the same failure.
 				if (!state.queued.length) break;
 			} else if (result.done) {

@@ -21,3 +21,7 @@
 /contact/perform/ /contact/play 301
 /contact/perform/submitted /contact/play/submitted 301
 /contact/perform/submitted/ /contact/play/submitted 301
+
+# Old events index → What's on (a real 301, not Astro's noindex meta-refresh stub)
+/events /whats-on/ 301
+/events/ /whats-on/ 301

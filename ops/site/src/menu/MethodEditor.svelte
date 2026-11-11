@@ -15,6 +15,7 @@
 	import { getFieldContext } from "../ui/field-context";
 	import { Icon } from "../app/shell";
 	import { isShownLink, normalizeDescriptionLink } from "../events/description-links";
+	import { editorMarkdownToText } from "./editor-markdown";
 
 	let {
 		id = "f-method",
@@ -45,7 +46,7 @@
 	let lastEmitted = "";
 
 	function readMarkdown(ed: Editor): string {
-		return (ed.getMarkdown() || "").trim();
+		return editorMarkdownToText(ed.getMarkdown() || "").trim();
 	}
 
 	function emit(ed: Editor): void {

@@ -38,10 +38,18 @@ const missingId = 987_654;
 
 /** One of everything, linked the way ops links them. */
 async function seedMenu(repo) {
+  const kitchen = await repo.create("menu_sections", {
+    name: "Chez Pickle",
+    slug: "chez-pickle",
+    order: 9,
+    kind: "kitchen",
+    popupSeriesId: 41,
+  });
   const chapter = await repo.create("menu_sections", {
     name: "Our Formulas",
     slug: "our-formulas",
     order: 1,
+    kind: "bar",
   });
   const group = await repo.create("menu_sections", {
     name: "Spritz",
@@ -140,7 +148,7 @@ async function seedMenu(repo) {
     posMenuId: fall.id,
     posScreen: "Spritz",
   });
-  return { chapter, group, fall, live, gin, lwc, drink };
+  return { chapter, group, fall, live, gin, lwc, drink, kitchen };
 }
 
 repositoryContract("MenuRepository", {
@@ -187,6 +195,22 @@ repositoryContract("MenuRepository", {
           );
         }
       }
+    },
+    "a chapter keeps whether it is drinks or food, and its pop-up kitchen": async (
+      repo,
+    ) => {
+      const { chapter, group, kitchen } = await seedMenu(repo);
+      const stored = await repo.get("menu_sections", kitchen.id);
+      assert.equal(stored.kind, "kitchen");
+      assert.equal(stored.popupSeriesId, 41, "an event series' id");
+      assert.equal((await repo.get("menu_sections", chapter.id)).kind, "bar");
+      assert.equal(chapter.popupSeriesId, null);
+      assert.equal(group.kind, "", "a group has none of its own");
+      const moved = await repo.update("menu_sections", kitchen.id, {
+        kind: "bar",
+        popupSeriesId: null,
+      });
+      assert.deepEqual(moved, { ...kitchen, kind: "bar", popupSeriesId: null });
     },
     "a new record has every field, empty": async (repo) => {
       const item = await repo.create("menu_items", { name: "Water" });

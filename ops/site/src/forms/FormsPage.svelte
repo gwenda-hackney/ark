@@ -225,7 +225,7 @@
 			artistNameDraft = saved.artistName || sent.name;
 			artistLinkDraft = saved.artistLink || sent.link;
 			artistNote = saved.eventsUpdated
-				? `Saved. ${saved.eventsUpdated === 1 ? "1 upcoming event" : `${saved.eventsUpdated} upcoming events`} updated too; they go on the website with Update website.`
+				? `Saved. ${saved.eventsUpdated === 1 ? "1 upcoming event" : `${saved.eventsUpdated} upcoming events`} updated too; they go on the website by themselves in a few minutes.`
 				: "Saved.";
 		} catch (err) {
 			artistError = err instanceof Error ? err.message : "Could not save that.";

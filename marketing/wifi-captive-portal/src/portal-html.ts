@@ -179,6 +179,34 @@ const SHARED_STYLES = `
     box-shadow: 0 0 28px color-mix(in srgb, var(--gold) 22%, transparent);
   }
   button:active { transform: scale(0.98); }
+  /* Sending: the sign-up and the UniFi call take a moment, so say so. */
+  button[aria-busy="true"],
+  button[aria-busy="true"]:hover {
+    background: var(--gold);
+    color: var(--bg);
+    box-shadow: none;
+    cursor: progress;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    animation: pulse 1.6s var(--ease-smooth) infinite;
+  }
+  button[aria-busy="true"]::before {
+    content: "";
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 1.5px solid color-mix(in srgb, var(--bg) 30%, transparent);
+    border-top-color: var(--bg);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 50% { opacity: 0.75; } }
+  @media (prefers-reduced-motion: reduce) {
+    button[aria-busy="true"] { animation: none; }
+    button[aria-busy="true"]::before { animation-duration: 2.4s; }
+  }
   .consent {
     margin-top: 1rem;
     color: var(--muted);
@@ -265,6 +293,27 @@ const SUCCESS_STYLES = `
   }
 `;
 
+/**
+ * Show the tap was taken: lock the button while the sign-up goes through, and
+ * unlock it if the page comes back from the browser's back cache.
+ */
+const BUSY_SCRIPT = `
+  (function () {
+    var form = document.querySelector("form");
+    var button = form.querySelector("button");
+    var label = button.textContent;
+    form.addEventListener("submit", function (event) {
+      if (button.getAttribute("aria-busy") === "true") return event.preventDefault();
+      button.setAttribute("aria-busy", "true");
+      button.textContent = "Getting you online…";
+    });
+    window.addEventListener("pageshow", function () {
+      button.removeAttribute("aria-busy");
+      button.textContent = label;
+    });
+  })();
+`;
+
 export function renderPortalPage(input: PortalPageInput = {}): string {
   const error = input.error
     ? `<p class="error" role="alert">${escapeHtml(input.error)}</p>`
@@ -299,6 +348,7 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
         <button type="submit">Enter our world</button>
         <p class="consent">The occasional note from Gwenda. Leave anytime.</p>
       </form>
+      <script>${BUSY_SCRIPT}</script>
     </div>
   </main>
 </body>

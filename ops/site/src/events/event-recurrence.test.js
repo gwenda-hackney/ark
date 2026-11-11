@@ -267,3 +267,31 @@ it("stay outside the series' start and end", () => {
   );
 });
 });
+
+describe("expandSeriesOccurrenceDates with no end date (#245)", () => {
+  const happyHour = {
+    startsOn: "2026-10-21",
+    repeatUnit: "week",
+    repeatEvery: 1,
+    weekdays: ["wed", "thu", "fri", "sat"],
+    endsOn: "",
+  };
+
+  it("runs from the first night to 12 weeks from today", () => {
+    const dates = expandSeriesOccurrenceDates(happyHour, { today: "2026-10-21" });
+    assert.equal(dates[0], "2026-10-21");
+    assert.equal(dates.at(-1), "2027-01-13");
+    assert.equal(dates.length, 49); // 12 weeks of four nights, and the Wednesday that ends the window
+  });
+
+  it("keeps its past nights and grows as the days pass", () => {
+    const later = expandSeriesOccurrenceDates(happyHour, { today: "2026-11-11" });
+    assert.equal(later[0], "2026-10-21");
+    assert.equal(later.at(-1), "2027-02-03");
+  });
+
+  it("stops at its last night when it has one", () => {
+    const dates = expandSeriesOccurrenceDates({ ...happyHour, endsOn: "2026-10-31" }, { today: "2026-10-21" });
+    assert.deepEqual(dates, ["2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31"]);
+  });
+});

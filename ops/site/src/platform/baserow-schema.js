@@ -97,6 +97,7 @@ export function eventFields() {
       name: "Taking applications",
       body: { name: "Taking applications", type: "boolean" },
     },
+    { name: "Category", body: { name: "Category", type: "text" } },
     { name: "Drive folder id", body: { name: "Drive folder id", type: "text" } },
     {
       name: "Replaces series",
@@ -268,6 +269,12 @@ export const RECIPE_UNITS = [
 
 export function sectionFields(sectionsTableId) {
   return [
+    // Drinks ("bar") or food ("kitchen"), and the pop-up kitchen's event series id (menu-model.js).
+    { name: "Kind", body: { name: "Kind", type: "text" } },
+    {
+      name: "Pop-up series",
+      body: { name: "Pop-up series", type: "number", number_decimal_places: 0, number_negative: false },
+    },
     { name: "Slug", body: { name: "Slug", type: "text" } },
     { name: "Subtitle", body: { name: "Subtitle", type: "text" } },
     {

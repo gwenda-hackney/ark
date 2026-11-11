@@ -3,9 +3,15 @@
  * real API handlers, with Baserow, Sanity and Google faked (_test/fake-world.js).
  * Each test checks what the editor sees (the event's status line) as well as
  * what reached the calendar and the website.
+ *
+ * A saved event goes on the website by itself ("events: the website follows
+ * a save", last in this file). The blocks before it turn that off
+ * (waitForUpdateWebsite: the setting website.auto_update = off), so each can
+ * look at the preview before the website changes, and Update website, which
+ * stays as the way to do it by hand, is covered throughout.
  */
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "vitest";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { eventHeaderFlag } from "./event-header-status.ts";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import {
@@ -29,6 +35,7 @@ import { onRequestPost as uploadGalleryPhoto } from "../../functions/api/events/
 import { onRequestPost as tick } from "../../functions/api/web/tick.js";
 import { onRequestDelete as removeGalleryPhoto } from "../../functions/api/events/[id]/gallery/[key].js";
 import { onRequestPost as release } from "../../functions/api/web/release.js";
+import { resetConfigCacheForTests } from "../../../../shared/config.js";
 
 /** ISO date `days` from today. */
 function daysFromNow(days) {
@@ -50,6 +57,11 @@ function addDays(iso, days) {
   const date = new Date(`${iso}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+/** Turn off "saved events go on the website by themselves": they wait for Update website. */
+function waitForUpdateWebsite(world) {
+  world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
 }
 
 const WEDNESDAY = 3;
@@ -113,9 +125,35 @@ function editor(world) {
       assert.equal(res.status, 200, JSON.stringify(res.data));
       return res.data;
     },
-    /** Let the background job finish (calendar + preview copy). */
+    /** One step of the background job, as the open app runs them. */
+    async jobStep(event) {
+      const res = await callApi(world, runWebsiteJob, {
+        method: "POST",
+        path: "/api/web/jobs",
+        body: { eventId: id(event) },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data;
+    },
+    /** "Try again" on an event the job gave up on. */
+    async retryJob(event) {
+      const res = await callApi(world, runWebsiteJob, {
+        method: "POST",
+        path: "/api/web/jobs",
+        body: { eventId: id(event), retry: true },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data;
+    },
+    /** The cron's pass when nobody has ops open: one step for whichever event is waiting. */
+    async cronStep() {
+      const res = await callApi(world, runWebsiteJob, { method: "POST", path: "/api/web/jobs", body: {} });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data;
+    },
+    /** Let the background job finish (calendar, preview copy and, unless turned off, the website). */
     async waitUntilReady(event) {
-      for (let step = 0; step < 20; step += 1) {
+      for (let step = 0; step < 40; step += 1) {
         const res = await callApi(world, runWebsiteJob, {
           method: "POST",
           path: "/api/web/jobs",
@@ -268,6 +306,43 @@ function editor(world) {
   };
 }
 
+/** Until `stop()`: Sanity refuses anything written to the website itself; drafts still save. */
+function refusePublishing(message) {
+  const faked = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const url = String(input instanceof Request ? input.url : input);
+    const live =
+      url.includes("/data/mutate/") &&
+      JSON.parse(String(init.body || "{}")).mutations?.some(
+        (mutation) => mutation.createOrReplace && !String(mutation.createOrReplace._id).startsWith("drafts."),
+      );
+    return live ? new Response(JSON.stringify({ message }), { status: 500 }) : faked(input, init);
+  };
+  return { stop: () => (globalThis.fetch = faked) };
+}
+
+/**
+ * Until `stop()`: the settings can't be read (Baserow turns the config token
+ * away, as when it is rate-limited). Nothing a request read earlier is kept.
+ */
+function settingsUnreadable(world) {
+  const faked = globalThis.fetch;
+  resetConfigCacheForTests();
+  globalThis.fetch = async (input, init = {}) => {
+    const headers = init.headers instanceof Headers ? Object.fromEntries(init.headers) : init.headers || {};
+    const auth = headers.Authorization || headers.authorization || "";
+    return auth === `Token ${world.env.BASEROW_CONFIG_API_KEY}`
+      ? new Response(JSON.stringify({ error: "ERROR_TOO_MANY_REQUESTS" }), { status: 429 })
+      : faked(input, init);
+  };
+  return {
+    stop() {
+      globalThis.fetch = faked;
+      resetConfigCacheForTests();
+    },
+  };
+}
+
 /** Night documents on the live site, by date. */
 function liveNights(world) {
   return world.sanity
@@ -298,6 +373,7 @@ describe("events: creating", () => {
   let ops;
   beforeEach(async () => {
     world = await createFakeWorld();
+    waitForUpdateWebsite(world);
     world.install();
     ops = editor(world);
   });
@@ -371,6 +447,48 @@ describe("events: creating", () => {
     assert.equal(await ops.sees(event), "Live");
   });
 
+  it("a promotion: marked as one in ops and on the website, and a night again when changed back", async () => {
+    const night = await ops.create(weeklySeries());
+    assert.equal(night.category, "event", "a night unless told otherwise");
+    const refused = await ops.tryCreate(weeklySeries({ name: "Happy Hour", category: "party" }));
+    assert.equal(refused.status, 400);
+    assert.match(refused.data.error, /a night, a promotion or a pop-up kitchen/);
+
+    const deal = await ops.create(weeklySeries({ name: "Happy Hour", offer: "20% off any cocktail", category: "promotion" }));
+    assert.equal(deal.category, "promotion");
+    assert.deepEqual(
+      (await ops.list()).map((event) => [event.name, event.category]).sort(),
+      [["Happy Hour", "promotion"], ["Negroni Chess Society", "event"]],
+    );
+    await ops.waitUntilReady(deal);
+    await ops.waitUntilReady(night);
+    await ops.updateWebsite(deal);
+    await ops.updateWebsite(night);
+    const series = (title) => world.sanity.published("eventSeries").find((doc) => doc.title === title);
+    const nights = (seriesId) => world.sanity.published("event").filter((doc) => doc.seriesId === seriesId);
+    assert.equal(series("Happy Hour").category, "promotion");
+    assert.ok(nights("happy-hour").length > 0);
+    assert.ok(nights("happy-hour").every((doc) => doc.category === "promotion"), "each of its nights says so too");
+    assert.equal("category" in series("Negroni Chess Society"), false, "a night carries none");
+    assert.ok(nights("negroni-chess-society").every((doc) => !("category" in doc)));
+    assert.equal(await ops.sees(deal), "Live");
+
+    // Only the category sent: the rest of the series stays, and the change waits for Update website.
+    const popup = await ops.edit(deal, { category: "popup" });
+    assert.equal(popup.category, "popup");
+    assert.equal(popup.offer, "20% off any cocktail");
+    await ops.waitUntilReady(deal);
+    assert.notEqual(await ops.sees(deal), "Live", "the change is waiting");
+    await ops.updateWebsite(deal);
+    assert.equal(series("Happy Hour").category, "popup");
+
+    await ops.edit(deal, { category: "event" });
+    await ops.waitUntilReady(deal);
+    await ops.updateWebsite(deal);
+    assert.equal("category" in series("Happy Hour"), false);
+    assert.ok(nights("happy-hour").every((doc) => !("category" in doc)));
+  });
+
   it("refuses a second series with the same name", async () => {
     await ops.create(weeklySeries());
     const again = await ops.tryCreate(weeklySeries());
@@ -378,14 +496,75 @@ describe("events: creating", () => {
     assert.equal(world.baserow.rows("Events").length, 1);
   });
 
-  it("refuses times that aren't 24-hour, and a recurring series without an end date", async () => {
+  it("refuses times that aren't 24-hour, and a repeating series without its first night (#245)", async () => {
     const badTime = await ops.tryCreate(weeklySeries({ startTime: "7pm" }));
     assert.equal(badTime.status, 400);
     assert.match(badTime.data.error, /24-hour/);
-    const noEnd = await ops.tryCreate(weeklySeries({ endsOn: "" }));
-    assert.equal(noEnd.status, 400);
-    assert.match(noEnd.data.error, /end date/);
+    // Happy Hour went live like this: every day, no start date, so no nights.
+    const noStart = await ops.tryCreate(weeklySeries({ repeatUnit: "day", weekdays: [], startsOn: "", endsOn: "" }));
+    assert.equal(noStart.status, 400);
+    assert.match(noStart.data.error, /first night/);
     assert.equal(world.baserow.rows("Events").length, 0, "nothing saved");
+  });
+});
+
+// A series with no end date keeps going (#245): 12 weeks of nights ahead, and
+// as the weeks pass the new ones go on the website by themselves.
+describe("events: no end date", () => {
+  let world;
+  let ops;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    waitForUpdateWebsite(world);
+    world.install();
+    ops = editor(world);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    world.restore();
+  });
+
+  const happyHour = () =>
+    weeklySeries({ name: "Happy Hour", weekdays: ["wed", "thu", "fri", "sat"], endsOn: "" });
+
+  it("saves with no last night and has 12 weeks of nights", async () => {
+    const event = await ops.create(happyHour());
+    await ops.waitUntilReady(event);
+    const nights = previewNights(world);
+    assert.ok(nights.length >= 44 && nights.length <= 48, `about 12 weeks of 4 nights, got ${nights.length}`);
+    assert.ok(nights.at(-1) > daysFromNow(80) && nights.at(-1) <= daysFromNow(84));
+  });
+
+  it("puts the new nights on the website as the weeks pass, but not a night added by hand", async () => {
+    const event = await ops.create(happyHour());
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    const lastBefore = liveNights(world).at(-1);
+
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(`${daysFromNow(21)}T12:00:00Z`) });
+    await ops.waitUntilReady(event);
+    const live = liveNights(world);
+    assert.ok(live.at(-1) > lastBefore, "new nights went live without Update website");
+    assert.equal(await ops.sees(event), "Live");
+
+    const extra = addDays(nextWeekday(1), 7); // a Monday, outside the pattern
+    await ops.addNight(event, extra);
+    await ops.waitUntilReady(event);
+    assert.ok(!liveNights(world).includes(extra), "a night added by hand waits for Update website");
+    assert.equal(await ops.sees(event), "Changed");
+  });
+
+  it("keeps an edit to a live series waiting, new nights and all", async () => {
+    const event = await ops.create(happyHour());
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    const liveBefore = liveNights(world);
+
+    await ops.edit(event, { description: "Two-for-one spritz." });
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(`${daysFromNow(21)}T12:00:00Z`) });
+    await ops.waitUntilReady(event);
+    assert.deepEqual(liveNights(world).filter((date) => date > liveBefore.at(-1)), [], "nothing new went live");
+    assert.equal(await ops.sees(event), "Changed");
   });
 });
 
@@ -395,6 +574,7 @@ describe("events: editing", () => {
   let event;
   beforeEach(async () => {
     world = await createFakeWorld();
+    waitForUpdateWebsite(world);
     world.install();
     ops = editor(world);
     event = await ops.create(weeklySeries());
@@ -483,6 +663,7 @@ describe("events: deleting", () => {
   let event;
   beforeEach(async () => {
     world = await createFakeWorld();
+    waitForUpdateWebsite(world);
     world.install();
     ops = editor(world);
     event = await ops.create(weeklySeries());
@@ -666,6 +847,7 @@ describe("events: changing the schedule drops nights", () => {
   let event;
   beforeEach(async () => {
     world = await createFakeWorld();
+    waitForUpdateWebsite(world);
     world.install();
     ops = editor(world);
     event = await ops.create(weeklySeries());
@@ -706,6 +888,7 @@ describe("events: images", () => {
   let event;
   beforeEach(async () => {
     world = await createFakeWorld();
+    waitForUpdateWebsite(world);
     world.install();
     ops = editor(world);
     event = await ops.create(weeklySeries());
@@ -806,6 +989,7 @@ describe("events: gallery", () => {
   let event;
   beforeEach(async () => {
     world = await createFakeWorld();
+    waitForUpdateWebsite(world);
     world.install();
     ops = editor(world);
     event = await ops.create(weeklySeries());
@@ -877,6 +1061,7 @@ describe("events: the Drive copy for collaborators", () => {
   let event;
   beforeEach(async () => {
     world = await createFakeWorld();
+    waitForUpdateWebsite(world);
     world.install();
     ops = editor(world);
     event = await ops.create(weeklySeries());
@@ -989,6 +1174,7 @@ describe("events: Google Calendar", () => {
   let event;
   beforeEach(async () => {
     world = await createFakeWorld();
+    waitForUpdateWebsite(world);
     world.install();
     ops = editor(world);
     event = await ops.create(weeklySeries());
@@ -1018,5 +1204,176 @@ describe("events: Google Calendar", () => {
     await ops.syncCalendar(event);
     await ops.syncCalendar(event);
     assert.deepEqual(world.google.calendar().map((entry) => entry.id).sort(), before);
+  });
+});
+
+describe("events: the website follows a save", () => {
+  let world;
+  let ops;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    world.install();
+    ops = editor(world);
+  });
+  afterEach(() => world.restore());
+
+  /** What the editor's header says while the job is at work, and after. */
+  const seesWhile = async (event, job) => eventHeaderFlag((await ops.open(event)).publish, false, { job }).label;
+
+  it("a new series: saved, then on the website with nobody pressing Update website", async () => {
+    const event = await ops.create(weeklySeries());
+    assert.equal(world.sanity.published().length, 0, "the save itself only stores it");
+    assert.equal(await seesWhile(event, "waiting"), "Updating");
+
+    await ops.waitUntilReady(event);
+    const nights = world.baserow.rows("Event dates").map((row) => row.Date).sort();
+    assert.ok(nights.length >= 8);
+    assert.deepEqual(liveNights(world), nights, "every night is on the website");
+    assert.equal(world.sanity.published("eventSeries")[0].title, "Negroni Chess Society");
+    assert.deepEqual(world.sanity.drafts(), [], "no drafts left behind");
+    assert.equal(world.google.calendar().length, nights.length);
+    assert.equal(await ops.sees(event), "Live");
+    assert.deepEqual((await ops.cronStep()), { ok: true, idle: true }, "nothing left to do");
+  });
+
+  it("an edit to a live series reaches the website by itself", async () => {
+    const event = await ops.create(weeklySeries());
+    await ops.waitUntilReady(event);
+    await ops.edit(event, { shortDescription: "Chess, negronis, the canal." });
+    assert.equal(world.sanity.published("eventSeries")[0].shortDescription, "Chess by the canal.", "not during the save");
+    await ops.waitUntilReady(event);
+    assert.equal(world.sanity.published("eventSeries")[0].shortDescription, "Chess, negronis, the canal.");
+    assert.equal(await ops.sees(event), "Live");
+    assert.deepEqual(world.sanity.drafts(), []);
+  });
+
+  it("with nobody in ops, the cron's steps put it on the website", async () => {
+    const event = await ops.create(weeklySeries());
+    for (let step = 0; step < 40 && !(await ops.cronStep()).idle; step += 1);
+    assert.ok(liveNights(world).length >= 8);
+    assert.equal(await ops.sees(event), "Live");
+  });
+
+  it("a long series goes a few nights a step: no request does it all", async () => {
+    // Every night from tomorrow, with no end: nights run to 12 weeks from today
+    // (HORIZON_DAYS), so there are 84 whatever day this runs. Starting on the
+    // next Wednesday instead would leave 78 to 84, depending on the weekday.
+    const event = await ops.create(
+      weeklySeries({ name: "Happy Hour", repeatUnit: "day", weekdays: [], startsOn: daysFromNow(1), endsOn: "" }),
+    );
+    const total = world.baserow.rows("Event dates").length;
+    assert.equal(total, 84, "a night a day for 12 weeks");
+    let steps = 0;
+    for (; steps < 60; steps += 1) {
+      const before = { drafts: world.sanity.drafts("event").length, live: liveNights(world).length };
+      const result = await ops.jobStep(event);
+      assert.equal(result.failed || "", "");
+      assert.ok(world.sanity.drafts("event").length - before.drafts <= 12, "at most 12 nights staged in a step");
+      assert.ok(liveNights(world).length - before.live <= 20, "at most 20 documents put live in a step");
+      if (result.done) break;
+    }
+    assert.ok(steps < 60, "it finishes");
+    assert.ok(steps > 10, `many short steps, got ${steps + 1}`);
+    assert.equal(liveNights(world).length, total, "every night is on the website");
+    assert.deepEqual(world.sanity.drafts(), []);
+    assert.equal(await ops.sees(event), "Live");
+  });
+
+  it("ending a series takes its nights off the website by itself; the series stays in ops", async () => {
+    const event = await ops.create(weeklySeries());
+    await ops.waitUntilReady(event);
+    const nights = liveNights(world);
+    await ops.edit(event, { endsOn: nights[2] });
+    await ops.waitUntilReady(event);
+    assert.deepEqual(liveNights(world), nights.slice(0, 3));
+    assert.deepEqual(world.sanity.drafts(), []);
+    assert.equal(world.baserow.rows("Events").length, 1);
+    assert.equal(await ops.sees(event), "Live");
+  });
+
+  it("with the settings unreadable nothing goes on the website; it goes once they can be read again", async () => {
+    const event = await ops.create(weeklySeries());
+    const outage = settingsUnreadable(world);
+    // Whether saves go on the website by themselves is a setting: it may say "off".
+    for (let step = 0; step < 20; step += 1) {
+      const result = await ops.jobStep(event);
+      assert.equal(result.failed || "", "", "waiting is not a failure staff have to retry");
+      if (result.done) break;
+    }
+    assert.equal(world.sanity.published().length, 0, "nothing was put on the website without knowing the setting");
+    assert.ok(previewNights(world).length >= 8, "the preview is still brought up to date");
+    outage.stop();
+
+    await ops.waitUntilReady(event);
+    assert.ok(liveNights(world).length >= 8, "the next pass puts it on the website");
+    assert.equal(await ops.sees(event), "Live");
+  });
+
+  it("turned off, it stays off while the settings can't be read", async () => {
+    waitForUpdateWebsite(world);
+    const event = await ops.create(weeklySeries());
+    const outage = settingsUnreadable(world);
+    for (let step = 0; step < 20 && !(await ops.jobStep(event)).done; step += 1);
+    outage.stop();
+    assert.equal(world.sanity.published().length, 0, "it still waits for Update website");
+  });
+
+  it("an event that isn't ready (no description) is saved, stays off the website, and says why", async () => {
+    const event = await ops.create(weeklySeries({ description: "", shortDescription: "" }));
+    let result;
+    for (let step = 0; step < 20; step += 1) {
+      result = await ops.jobStep(event);
+      if (result.failed || result.done) break;
+    }
+    assert.match(result.failed, /Description is required/);
+    assert.equal(world.sanity.published().length, 0);
+    // Once it has one, the next save sends it on its way.
+    await ops.edit(event, { description: "Boards out, negronis poured." });
+    await ops.waitUntilReady(event);
+    assert.ok(liveNights(world).length >= 8);
+  });
+
+  it("the website refusing a change is a failure staff can retry, not a loop", async () => {
+    const event = await ops.create(weeklySeries());
+    await ops.waitUntilReady(event);
+    await ops.edit(event, { shortDescription: "Chess, negronis, the canal." });
+    const failing = refusePublishing("Sanity is having a moment.");
+    let result;
+    for (let step = 0; step < 20; step += 1) {
+      result = await ops.jobStep(event);
+      if (result.failed || result.done) break;
+    }
+    assert.match(result.failed, /Sanity is having a moment/);
+    assert.equal(world.sanity.published("eventSeries")[0].shortDescription, "Chess by the canal.");
+    assert.deepEqual(await ops.cronStep(), { ok: true, idle: true }, "not retried in a loop");
+    assert.equal(await seesWhile(event, "failed"), "Failed");
+    failing.stop();
+
+    // Try again, or the Update website button: either gets it there.
+    for (let step = 0, next = await ops.retryJob(event); step < 20 && !next.done; step += 1) next = await ops.jobStep(event);
+    assert.equal(world.sanity.published("eventSeries")[0].shortDescription, "Chess, negronis, the canal.");
+    assert.equal(await ops.sees(event), "Live");
+  });
+
+  it("a deleted event still waits on the Website page, where it can be restored", async () => {
+    const event = await ops.create(weeklySeries());
+    await ops.waitUntilReady(event);
+    const nights = liveNights(world);
+    await ops.deleteEvent(event);
+    assert.deepEqual(await ops.cronStep(), { ok: true, idle: true });
+    assert.deepEqual(liveNights(world), nights, "still on the website");
+    await ops.restore(event);
+    await ops.waitUntilReady(event);
+    assert.deepEqual(liveNights(world), nights);
+    assert.equal(await ops.sees(event), "Live");
+  });
+
+  it("a series waiting for dates goes on the website as that, once", async () => {
+    const event = await ops.create(weeklySeries({ name: "The Jazz Room", repeatUnit: "none", weekdays: [], startsOn: "", endsOn: "" }));
+    await ops.waitUntilReady(event);
+    const [series] = world.sanity.published("eventSeries");
+    assert.equal(series.title, "The Jazz Room");
+    assert.equal(series.datesPending, true);
+    assert.deepEqual(await ops.cronStep(), { ok: true, idle: true });
   });
 });

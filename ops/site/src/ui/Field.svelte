@@ -22,6 +22,7 @@
 		error = "",
 		required = false,
 		optional = false,
+		reserve = false,
 		width = "full",
 		for: htmlFor,
 		actions,
@@ -38,6 +39,8 @@
 		required?: boolean;
 		/** May be left blank. Shows nothing; kept so call sites read clearly. */
 		optional?: boolean;
+		/** Keep the hint line's space when it's empty, so an error appearing doesn't push what's below down. */
+		reserve?: boolean;
 		width?: FieldWidth;
 		for?: string;
 		actions?: Snippet;
@@ -103,6 +106,8 @@
 		</p>
 	{:else if hint}
 		<p class="hint" id={hintId}>{hint}</p>
+	{:else if reserve}
+		<p class="hint" aria-hidden="true"></p>
 	{/if}
 </div>
 
@@ -230,6 +235,7 @@
 	}
 
 	.hint {
+		min-height: var(--leading-xs);
 		color: var(--subtle-foreground);
 	}
 

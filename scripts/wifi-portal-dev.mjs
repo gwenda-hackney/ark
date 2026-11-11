@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Local Wi‑Fi captive portal: load the local Website Baserow token and UniFi key
- * from the unlocked vault and run `wrangler dev` with them in a per-run env file
- * in the RAM secrets directory (`--env-file`), deleted on exit, never `.dev.vars`.
+ * Local Wi‑Fi captive portal: load the UniFi key from the unlocked vault and run
+ * `wrangler dev` with it in a per-run env file in the RAM secrets directory
+ * (`--env-file`), deleted on exit, never `.dev.vars`.
  *
  *   npm run wifi-portal
  */
@@ -17,7 +17,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/wifi-captive-portal");
 const DEV_VARS_PATH = resolve(WORKER_DIR, ".dev.vars");
 
-const SECRET_KEYS = ["BASEROW_API_KEY", "UNIFI_SITE_MANAGER_API_KEY"];
+const SECRET_KEYS = ["UNIFI_SITE_MANAGER_API_KEY"];
 
 function writeBindings() {
   const bindings = new Map();
@@ -30,7 +30,7 @@ function writeBindings() {
   if (missing.length) {
     throw new Error(
       `Missing: ${missing.join(", ")} (run bw-unlock; they come from Secrets Manager)\n` +
-        "Need BASEROW_API_KEY and UNIFI_SITE_MANAGER_API_KEY for local portal.",
+        "Need UNIFI_SITE_MANAGER_API_KEY for local portal.",
     );
   }
   // An old generated .dev.vars would win over --env-file.
@@ -47,7 +47,7 @@ const testUrl =
   "http://127.0.0.1:8787/guest/s/default/?id=aa:bb:cc:dd:ee:ff&ap=11:22:33:44:55:66";
 console.log(`\nOpen to test (fake guest MAC):\n  ${testUrl}\n`);
 console.log(
-  "Baserow write will run for real. UniFi authorize will fail with a fake MAC unless that client is on the hotspot.\n",
+  "Sign-ups go to the local D1 (wrangler dev --local). UniFi authorize will fail with a fake MAC unless that client is on the hotspot.\n",
 );
 
 const extra = process.argv.slice(2);

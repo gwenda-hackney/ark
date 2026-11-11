@@ -32,10 +32,9 @@ describe("validateEvent", () => {
 		expect(validateEvent({ ...base, description: "[Tickets](https://dice.fm/x)" }, series)).toEqual({});
 	});
 
-	it("wants an end date on a repeating series that has a start, and not before it", () => {
-		expect(validateEvent({ ...base, endsOn: "" }, series)["event-ends"]).toBe(
-			"Add the last night of the series.",
-		);
+	it("wants a first night on a repeating series; the last night is optional, not before the first (#245)", () => {
+		expect(validateEvent({ ...base, endsOn: "" }, series)).toEqual({});
+		expect(validateEvent({ ...base, startsOn: "", endsOn: "" }, series)["event-starts"]).toBe("Add the first night.");
 		expect(validateEvent({ ...base, endsOn: "2026-09-01" }, series)["event-ends"]).toBe(
 			"Pick 01/10/2026 or later.",
 		);

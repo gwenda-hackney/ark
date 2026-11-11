@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import type { OpsEvent } from "../app/api";
 import {
+	DELETE_NIGHTS_WEBSITE_NOTE,
 	deleteEventCopy,
 	formatClock,
 	repeatLabel,
@@ -27,7 +28,7 @@ describe("social post task line (#158)", () => {
 	it("says whether a night has its task, and counts them on a series", () => {
 		const ev = event({ dates: [night("2026-10-01", "t0"), night("2026-10-08", "t1"), night("2026-10-15")] });
 		assert.match(socialTaskNote(ev, "2026-10-08", "2026-10-02"), /^The social post task is in ClickUp/);
-		assert.match(socialTaskNote(ev, "2026-10-15", "2026-10-02"), /^No social post task yet. Update website adds one/);
+		assert.match(socialTaskNote(ev, "2026-10-15", "2026-10-02"), /^No social post task yet. Saving adds one/);
 		assert.match(socialTaskNote(ev, "", "2026-10-02"), /^Social post tasks in ClickUp: 1 of 2 upcoming nights/);
 		assert.equal(socialTaskNote(ev, "", "2026-12-01"), "No upcoming nights, so no social post tasks.");
 	});
@@ -73,6 +74,15 @@ describe("event labels", () => {
 			seriesBlurb(event({ nightSchedule: [{ label: "Doors" }, { label: "Set" }] as OpsEvent["nightSchedule"] })),
 			"Doors · Set",
 		);
+	});
+});
+
+describe("deleting nights of a series that is on the website", () => {
+	it("says nights come off by themselves, and that a whole event waits for Update website", () => {
+		assert.match(DELETE_NIGHTS_WEBSITE_NOTE, /^Deleted nights come off the website a minute or two after\./);
+		// "All future nights" of a series that hasn't started deletes the event, which is never automatic.
+		assert.match(DELETE_NIGHTS_WEBSITE_NOTE, /no nights, the whole event is deleted: it stays on the website until you press Update website/);
+		assert.match(DELETE_NIGHTS_WEBSITE_NOTE, /restore it there/);
 	});
 });
 

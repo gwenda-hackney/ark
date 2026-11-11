@@ -240,8 +240,12 @@ export function expandOccurrenceDates(rule, { today, horizonDays = HORIZON_DAYS 
   return [];
 }
 
-/** Materialize the complete series from its start through its required end. */
-export function expandSeriesOccurrenceDates(rule) {
+/**
+ * Every night of the series, from its start through its end. A series with
+ * no end date (#245) keeps going: its nights run to 12 weeks from `today`,
+ * the same window the website shows, so they grow as the days pass.
+ */
+export function expandSeriesOccurrenceDates(rule, { today, horizonDays = HORIZON_DAYS } = {}) {
   const start = parseIsoDate(rule?.startsOn);
   const startIso = start ? formatIsoDate(start) : "";
   const unit = String(rule?.repeatUnit || "none").trim().toLowerCase();
@@ -250,7 +254,8 @@ export function expandSeriesOccurrenceDates(rule) {
     // Starts on may be empty for an open series with no nights yet.
     return finalizeDates(startIso ? [startIso] : [], rule, {});
   }
-  const end = parseIsoDate(rule?.endsOn);
+  const todayDate = parseIsoDate(today) || parseIsoDate(todayIso());
+  const end = parseIsoDate(rule?.endsOn) || (todayDate && addDays(todayDate, horizonDays));
   // Nights added by hand belong to the series even outside its start and end.
   if (!start || !end || end < start) return finalizeDates([], rule, {});
   return finalizeDates(
