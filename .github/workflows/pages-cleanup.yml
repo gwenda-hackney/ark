@@ -1,0 +1,175 @@
+name: Pages cleanup
+
+# Deletes old Cloudflare Pages deployments (scripts/pages-cleanup.mjs), so no
+# project grows past what the dashboard can manage (281 on gwenda-web-dev
+# before this). What always stays is in scripts/lib/pages-cleanup.mjs: the live
+# deployment, each project's newest, the newest few of main/release/preview
+# for rollback, open PRs' branches, anything on a custom domain.
+#
+#   PR closed   that branch's previews on the dev projects
+#   weekly      deployments older than 30 days on the dev projects, then
+#               starts itself on release for the production ones: only
+#               release reads the production Cloudflare token (#61)
+#
+# By hand: run it from main for both accounts, from release for production
+# only. dry-run says what it would delete.
+
+run-name: >-
+  ${{
+    github.event_name == 'pull_request' && format('pr-closed-{0}', github.head_ref) ||
+    format('sweep-{0}', github.ref_name == 'release' && 'production' || 'dev')
+  }}
+
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    # Mondays, 05:23 UTC
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      older-than:
+        description: Delete deployments older than this many days
+        required: true
+        default: "30"
+      dry-run:
+        description: Only say what would be deleted
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  pr-closed:
+    name: Delete the closed PR's previews (dev)
+    # A fork's PR gets no secrets, and its branch never deployed here. A PR
+    # from a long-lived branch (main into release) has no previews to delete.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !contains(fromJSON('["main","release","preview"]'), github.head_ref)
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-cleanup-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: read
+    # The dev Bitwarden token. preview takes any ref; dev only main. Nothing
+    # is deployed, so no deployment is recorded.
+    environment:
+      name: preview
+      deployment: false
+    steps:
+      # main's cleanup code, not the PR's.
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Pull dev Cloudflare credentials from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ark:pull -- --github-env --profile dev
+
+      - name: Delete the branch's previews
+        env:
+          BRANCH: ${{ github.head_ref }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/pages-cleanup.mjs --branch "$BRANCH" --apply
+
+  sweep-dev:
+    name: Delete old deployments (dev)
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-cleanup-sweep-dev
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: read
+    environment:
+      name: dev
+      deployment: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Pull dev Cloudflare credentials from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ark:pull -- --github-env --profile dev
+
+      - name: Delete old deployments
+        env:
+          OLDER_THAN: ${{ inputs.older-than || '30' }}
+          APPLY: ${{ inputs.dry-run != true && '--apply' || '' }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/pages-cleanup.mjs --sweep --older-than "$OLDER_THAN" $APPLY
+
+  # Production's token is only for jobs on release in the production
+  # environment (#61), and a schedule runs on main: start this workflow there.
+  start-production-sweep:
+    name: Start the production sweep on release
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Run this workflow on release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLDER_THAN: ${{ inputs.older-than || '30' }}
+          DRY_RUN: ${{ inputs.dry-run && 'true' || 'false' }}
+        run: >-
+          gh workflow run pages-cleanup.yml --repo "$GITHUB_REPOSITORY" --ref release
+          -f older-than="$OLDER_THAN" -f dry-run="$DRY_RUN"
+
+  sweep-production:
+    name: Delete old deployments (production)
+    if: github.event_name == 'workflow_dispatch' && github.ref_name == 'release'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-cleanup-sweep-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: read
+    environment:
+      name: production
+      deployment: false
+    steps:
+      - name: Checkout release
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Pull production Cloudflare credentials from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ark:pull -- --github-env --profile production
+
+      - name: Delete old deployments
+        env:
+          OLDER_THAN: ${{ inputs.older-than }}
+          APPLY: ${{ inputs.dry-run != true && '--apply' || '' }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/pages-cleanup.mjs --env production --sweep --older-than "$OLDER_THAN" $APPLY
