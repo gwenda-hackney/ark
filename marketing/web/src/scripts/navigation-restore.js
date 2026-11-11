@@ -6,6 +6,15 @@
  * browser back/forward. The Performance Navigation Timing entry stays as the
  * original full load, so we mark restore from the Astro event as well.
  *
+ * Two marks on `<html>`, for two different spans of time:
+ *
+ * - `navigation-restore`: this visit came by back/forward, so it was painted
+ *   in its final state. It stays for the visit.
+ * - `is-restoring-scroll`: the restored offset is landing, so scrolling is
+ *   instant (global.css): a smooth one would glide to it, or fight it. It
+ *   goes once the offset has landed, and the page's jump links glide again;
+ *   left on, every jump on home was instant after a Back.
+ *
  * Critical: Astro's `swapRootAttributes` replaces ALL `<html>` attributes with
  * the inbound document's, which wipes client-only classes (`fonts-ready`,
  * `navigation-restore`, …). Re-apply those after every swap or the hero logo
@@ -13,6 +22,8 @@
  */
 
 import { ensureFontsReadyClass } from "./fonts-ready.js";
+
+const RESTORING_SCROLL = "is-restoring-scroll";
 
 /** True when this paint should skip entrance motion (hard or soft restore). */
 export function isRestoredNavigation() {
@@ -27,12 +38,39 @@ export function isRestoredNavigation() {
   }
 }
 
-function markRestore() {
-  document.documentElement.classList.add("navigation-restore", "fonts-ready");
+/** The landing in progress; an older one's end leaves a newer one alone. */
+let landing = 0;
+
+/** @param {HTMLElement} [root] the page's root, or the one coming in */
+function markRestore(root = document.documentElement) {
+  root.classList.add("navigation-restore", "fonts-ready", RESTORING_SCROLL);
+  landing += 1;
 }
 
 function clearRestore() {
-  document.documentElement.classList.remove("navigation-restore");
+  landing += 1;
+  document.documentElement.classList.remove(
+    "navigation-restore",
+    RESTORING_SCROLL,
+  );
+}
+
+/**
+ * The restored offset has landed: once the page has loaded (the browser's
+ * own restore, on a full load, comes with the load event) and two frames
+ * have drawn it, scrolling is the page's own again.
+ */
+function endLanding() {
+  const mine = landing;
+  const end = () =>
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (mine !== landing) return;
+        document.documentElement.classList.remove(RESTORING_SCROLL);
+      }),
+    );
+  if (document.readyState === "complete") end();
+  else window.addEventListener("load", end, { once: true });
 }
 
 /** Force every deferred/animated element into its resting, visible state. */
@@ -127,6 +165,7 @@ export function initNavigationRestore() {
   if (isRestoredNavigation()) {
     markRestore();
     settleAnimations();
+    endLanding();
   }
 
   if (hooksBound) return;
@@ -138,6 +177,7 @@ export function initNavigationRestore() {
     if (!event.persisted) return;
     markRestore();
     settleAnimations();
+    endLanding();
   });
 
   // View Transitions: browser back/forward is `traverse`, not Performance
@@ -157,13 +197,22 @@ export function initNavigationRestore() {
     }
   });
 
+  // The router scrolls to the saved offset after it has swapped the root's
+  // attributes for the new page's: the marks go on the new page's root, so
+  // they are there for it.
+  document.addEventListener("astro:before-swap", (event) => {
+    if (pendingRestore) markRestore(event.newDocument.documentElement);
+  });
+
   document.addEventListener("astro:after-swap", () => {
     // swapRootAttributes wiped client classes — put them back.
     ensureFontsReadyClass();
 
     if (pendingRestore) {
+      // The router has scrolled to the saved offset by now
       markRestore();
       settleAnimations();
+      endLanding();
     } else if (pendingScrollPin) {
       scheduleScrollPin();
     }

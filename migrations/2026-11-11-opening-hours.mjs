@@ -1,7 +1,8 @@
 /**
- * The venue's opening hours (#240), as on its Google Maps listing and
- * confirmed by the owner: shut Mondays; Tuesday 5–10pm; Wednesday and
- * Thursday 5–10:30pm; Friday 4–11:30pm; Saturday 4pm–1am; Sunday 4–10pm.
+ * The venue's opening hours (#240), as confirmed by the owner: shut
+ * Mondays; Tuesday to Thursday 5–10:30pm; Friday 4–11:30pm; Saturday
+ * 4pm–1am; Sunday 4–10pm. (Google Maps had Tuesday till 10pm; the owner
+ * moved it to 10:30 on 2026-11-11, and Google is updated at launch.)
  *
  * From now on they are kept in ops (Settings → Venue details), and this
  * gives ops its first week. It saves through ops' own use case
@@ -34,7 +35,7 @@ export const about = "Venue details: the opening hours, once (shut Mondays, Satu
 /** The week, Monday first. Times are London; Saturday's close is after midnight. */
 export const WEEK = [
   { day: "mon", closed: true },
-  { day: "tue", opens: "17:00", closes: "22:00" },
+  { day: "tue", opens: "17:00", closes: "22:30" },
   { day: "wed", opens: "17:00", closes: "22:30" },
   { day: "thu", opens: "17:00", closes: "22:30" },
   { day: "fri", opens: "16:00", closes: "23:30" },
