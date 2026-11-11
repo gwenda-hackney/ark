@@ -937,7 +937,7 @@ html[data-chart-leaving] .ch-page {
 
 /*
  * The hero comes in: the logo first, rising a little into place as it
- * shows, then SOCIAL and the line, then the five places one after another,
+ * firms up, then SOCIAL and the line, then the five places one after another,
  * all over within a second. Opacity and transforms only, so nothing around
  * it moves. On a fresh load, and coming to home from another page, where
  * the hero is named apart (chart-hero) so the page's rise between pages
@@ -987,20 +987,25 @@ html[data-chart-leaving] .ch-page {
   }
 
   /* Coming from another page: the page fades and rises in around it, the
-     hero in place doing its own */
+     hero in place doing its own. It is drawn over the page going out, so it
+     fades in as that fades away (without, the logo shows over the last
+     page's words), but doesn't rise with it */
   html[data-chart-arrived]:not(.navigation-restore):not([data-chart-leaving])
     .ch-hero-content {
     view-transition-name: chart-hero;
   }
 
   :root:has(.ch-page)::view-transition-new(chart-hero) {
-    animation: none;
+    animation: ch-page-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
 }
 
+/* The logo is the page's largest paint, and Chrome doesn't count a paint at
+   opacity 0 (a logo already loaded would go unseen as the first paint):
+   it starts part-shown */
 @keyframes ch-hero-logo {
   from {
-    opacity: 0;
+    opacity: 0.6;
     transform: translateY(14px) scale(0.98);
   }
 }
