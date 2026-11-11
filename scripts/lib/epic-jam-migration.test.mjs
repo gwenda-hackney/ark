@@ -4,7 +4,7 @@
  * faked: for real, again (nothing left to do), halfway, and as a dry run.
  */
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "vitest";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { d1EventRepository } from "../../ops/site/src/events/server/adapters/d1-events.js";
 import { d1MenuRepository } from "../../ops/site/src/menu/server/adapters/d1-menu.js";
 import { resolveOccurrenceContent } from "../../ops/site/src/events/server/event-content.js";
@@ -21,10 +21,17 @@ const SUNDAY = "A film screening followed by a Q&A, dance performances, a Beats 
 describe("2026-11-10-epic-jam-one-event", () => {
   let world;
   beforeEach(async () => {
+    // The migration is about two real days (DAYS, 21 and 22 November 2026), and
+    // only nights from today on are on the website: the day it was written, so
+    // that the weekend is still to come whenever this runs.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-10T12:00:00Z") });
     world = await createFakeWorld();
     world.install();
   });
-  afterEach(() => world.restore());
+  afterEach(() => {
+    world.restore();
+    vi.useRealTimers();
+  });
 
   /** Ops as the migration reaches it: the events in `db`, with Sanity, Google Calendar and Drive faked. */
   const opsEnv = (db) => ({ ...world.env, eventRepository: d1EventRepository(db), menuRepository: d1MenuRepository(db) });

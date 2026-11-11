@@ -1255,9 +1255,14 @@ describe("events: the website follows a save", () => {
   });
 
   it("a long series goes a few nights a step: no request does it all", async () => {
-    const event = await ops.create(weeklySeries({ name: "Happy Hour", repeatUnit: "day", weekdays: [], endsOn: "" }));
+    // Every night from tomorrow, with no end: nights run to 12 weeks from today
+    // (HORIZON_DAYS), so there are 84 whatever day this runs. Starting on the
+    // next Wednesday instead would leave 78 to 84, depending on the weekday.
+    const event = await ops.create(
+      weeklySeries({ name: "Happy Hour", repeatUnit: "day", weekdays: [], startsOn: daysFromNow(1), endsOn: "" }),
+    );
     const total = world.baserow.rows("Event dates").length;
-    assert.ok(total >= 80, `about 84 nights in 12 weeks, got ${total}`);
+    assert.equal(total, 84, "a night a day for 12 weeks");
     let steps = 0;
     for (; steps < 60; steps += 1) {
       const before = { drafts: world.sanity.drafts("event").length, live: liveNights(world).length };
