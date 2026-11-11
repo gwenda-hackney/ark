@@ -37,11 +37,6 @@
   box-shadow: inset 0 0 0 1.5px var(--ch-mustard);
 }
 
-.ch-contact-card:focus-visible {
-  outline: 2px solid var(--ch-gold);
-  outline-offset: 2px;
-}
-
 .ch-contact-card-title {
   font-family: var(--ch-caps);
   font-weight: 700;

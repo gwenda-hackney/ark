@@ -15,11 +15,6 @@
   text-decoration: none;
 }
 
-.ch-page .series-gallery-item a:focus-visible {
-  outline: 2px solid var(--ch-mustard);
-  outline-offset: 3px;
-}
-
 /*
  * Home's few (PhotoWall `row`): even rows of squares, each photo cropped to
  * its tile. Four abreast on a desk, three on a tablet, two on a phone; a

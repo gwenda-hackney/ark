@@ -170,11 +170,13 @@
   mask: var(--cut) center / 100% 100% no-repeat;
 }
 
-/* Red paper, cream print: today, Tonight, a deal */
+/* Red paper, cream print: today, Tonight, a deal. The deeper red, so the
+   print reads under the paper's sheen too (4.5:1 at its top, 5.7:1 in the
+   middle); the logo's own --ch-pop is 3.3:1 there */
 .ch-night--tonight .ch-night-date,
 .ch-night-label,
 .ch-stand--deal .ch-stand-tag {
-  --paper: var(--ch-pop);
+  --paper: var(--ch-red);
   --print: var(--ch-cream);
 }
 
@@ -660,6 +662,26 @@
   color: var(--ch-cream);
 }
 
+/* Wherever the dock shows (a touch screen): full-size targets for the links
+   under the words; the line under each stays close to it */
+@media not all and (min-width: 62.5rem) {
+  .ch-stand-links {
+    gap: 0 1.5rem;
+    margin-top: 0 !important;
+  }
+
+  .ch-page .ch-stand-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-bottom: 0;
+    border-bottom: 0;
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.3em;
+  }
+}
+
 @media (max-width: 64rem) {
   .ch-stands {
     grid-template-columns: minmax(0, 1fr);
@@ -709,24 +731,6 @@
     white-space: nowrap;
     padding: 0.25rem 0.4375rem 0.3125rem;
     font-size: 0.75rem;
-  }
-
-  /* Full-size targets for the links under the words; the line under each
-     stays close to it */
-  .ch-stand-links {
-    gap: 0 1.5rem;
-    margin-top: 0 !important;
-  }
-
-  .ch-page .ch-stand-links a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-    padding-bottom: 0;
-    border-bottom: 0;
-    text-decoration: underline;
-    text-decoration-thickness: 1.5px;
-    text-underline-offset: 0.3em;
   }
 
   .ch-stand--deal .ch-stand-tag {
