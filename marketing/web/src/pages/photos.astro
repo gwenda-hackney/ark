@@ -2,7 +2,7 @@
 /**
  * Every gallery photo (#240). Home shows the newest few and links here.
  * Under the venue's own, the photos from events: each event's gallery in
- * ops, its newest few under its name (lib/photos.js eventPhotoGroups), in
+ * ops, its newest few under its name (lib/photos.js photosPageEvents), in
  * the event galleries' wall (renderGallery, as on the event's own page).
  */
 import BaseLayout from "../layouts/BaseLayout.astro";
@@ -10,14 +10,12 @@ import ChartPage from "../components/chart/ChartPage.astro";
 import PhotoWall from "../components/chart/PhotoWall.astro";
 import { renderGallery } from "../lib/event-card.js";
 import { eventPhotos, galleryPhotos } from "../lib/photo-sources";
-import { eventPhotoGroups } from "../lib/photos.js";
+import { photosPageEvents } from "../lib/photos.js";
 
 const photos = await galleryPhotos();
 const { events } = await eventPhotos();
 /** A picture already on the venue's wall isn't shown again under an event. */
-const groups = eventPhotoGroups(events, {
-  shownElsewhere: photos.map((photo) => photo.hash),
-});
+const groups = photosPageEvents(photos, events);
 ---
 
 <BaseLayout

@@ -4,8 +4,9 @@
  * opens large with arrows, swipe and Escape. The markup is the event
  * gallery's (#30, renderGallery in lib/event-card.js), so the same
  * scripts/gallery.js lays it out and opens the photos. The photos are the
- * venue's Gallery in ops, on Sanity's CDN (lib/photo-sources.ts), sized as
- * an event gallery's are (functions/_lib/sanity-image-url.js).
+ * venue's Gallery in ops (on home, with a couple from events' galleries),
+ * on Sanity's CDN (lib/photo-sources.ts), sized as an event gallery's are
+ * (functions/_lib/sanity-image-url.js).
  */
 import "../../styles/chart-photos.css";
 import {
@@ -13,10 +14,14 @@ import {
   imageSrcset,
   sizedImageUrl,
 } from "../../../functions/_lib/sanity-image-url.js";
-import type { GalleryPhoto } from "../../lib/photo-sources";
+import type { EventPhoto } from "../../lib/photo-sources";
 
 interface Props {
-  photos: GalleryPhoto[];
+  /**
+   * The venue's photos; on home a couple from events too, each saying which
+   * (lib/photos.js homePhotoPlan).
+   */
+  photos: Array<EventPhoto & { event?: { title: string } }>;
   /**
    * Home's few, in even rows of squares, each photo cropped to its tile:
    * laid out by the page's CSS (chart-photos.css), not in columns.
@@ -68,7 +73,10 @@ const tiles = photos.map((photo, index) => ({
               src={src}
               srcset={srcset || undefined}
               sizes={srcset ? (row ? ROW_SIZES : SIZES) : undefined}
-              alt={photo.alt}
+              alt={
+                photo.alt ||
+                (photo.event ? `A photo from ${photo.event.title}` : "")
+              }
               width={photo.width}
               height={photo.height}
               loading="lazy"

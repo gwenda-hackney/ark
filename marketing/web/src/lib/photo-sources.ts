@@ -34,14 +34,14 @@ export type EventPhoto = {
   lqip: string;
   color: string;
   hash: string;
+  /** Width over height, to three places: the wall lays photos out by it. */
+  ratio: number;
 };
 
 /** A photo of the venue's own, from its Gallery in ops. */
 export type GalleryPhoto = EventPhoto & {
   /** The menu board on home it can be pinned up on: "drinks", "food" or "". */
   menu: string;
-  /** Width over height, to three places: the wall lays photos out by it. */
-  ratio: number;
 };
 
 /** An event and its photos, newest first; `href` while it has a page. */
@@ -62,10 +62,12 @@ const VENUE_PHOTO_ALT = "A photo from Gwenda";
 
 function eventPhoto(entry: GalleryEntry | VenueGalleryEntry): EventPhoto {
   const url = String(entry?.url || "").trim();
+  const width = Number(entry?.width) || 0;
+  const height = Number(entry?.height) || 0;
   return {
     url,
-    width: Number(entry?.width) || 0,
-    height: Number(entry?.height) || 0,
+    width,
+    height,
     alt: String(entry?.alt || "").trim(),
     date: String((entry as GalleryEntry)?.date || "").trim(),
     added: String(entry?.added || "").trim(),
@@ -76,6 +78,8 @@ function eventPhoto(entry: GalleryEntry | VenueGalleryEntry): EventPhoto {
       ? String(entry?.color)
       : "",
     hash: SANITY_HASH.exec(url)?.[1] || "",
+    ratio:
+      width > 0 && height > 0 ? Math.round((width / height) * 1000) / 1000 : 0,
   };
 }
 
@@ -101,7 +105,6 @@ export function venuePhotos(
       ...photo,
       alt: photo.alt || VENUE_PHOTO_ALT,
       menu: PHOTO_MENUS.includes(menu) ? menu : "",
-      ratio: Math.round((photo.width / photo.height) * 1000) / 1000,
     });
   }
   return photos;

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { eventPhotoGroups, homePhotoPlan } from "./photos.js";
+import { homePhotoPlan, photosPageEvents } from "./photos.js";
 import { readVenueDetails } from "./venue-details.js";
 
 /**
@@ -17,8 +17,17 @@ vi.mock("./sanity/venue-details", () => ({
     gallery: details.gallery,
   }),
 }));
+/** What's on as Sanity has it: each series with its gallery from ops. */
+const catalog = vi.hoisted(() => ({
+  series: [] as unknown[],
+  occurrences: [] as unknown[],
+}));
+vi.mock("./sanity/events", () => ({
+  fetchWhatsOnCatalog: async () => catalog,
+}));
 
-const { galleryPhotos, venuePhotos } = await import("./photo-sources");
+const { eventPhotos, galleryPhotos, venuePhotos } =
+  await import("./photo-sources");
 
 const sha = (n: number) => n.toString(16).padStart(40, "a");
 const CDN = "https://cdn.sanity.io/images/pn5yjro6/production";
@@ -168,25 +177,73 @@ describe("the venue's photos on home and on /photos", () => {
 
   it("an event's copy of a venue photo shows once on /photos, on the venue's wall", () => {
     const photos = gallery();
-    const groups = eventPhotoGroups(
-      [
-        {
-          id: "chez-pickle",
-          title: "Chez Pickle",
-          photos: [
-            { ...photos[0], date: "", added: "2026-11-12" },
-            {
-              ...entry(20),
-              hash: sha(20),
-              date: "",
-              added: "2026-11-12",
-              alt: "",
-            },
-          ],
-        },
-      ],
-      { shownElsewhere: photos.map((photo) => photo.hash) },
-    );
+    const groups = photosPageEvents(photos, [
+      {
+        id: "chez-pickle",
+        title: "Chez Pickle",
+        photos: [
+          { ...photos[0], date: "", added: "2026-11-12" },
+          {
+            ...entry(20),
+            hash: sha(20),
+            date: "",
+            added: "2026-11-12",
+            alt: "",
+          },
+        ],
+      },
+    ]);
     expect(groups[0].photos.map((photo) => photo.hash)).toEqual([sha(20)]);
+  });
+});
+
+describe("eventPhotos, and home's strip with them", () => {
+  beforeEach(() => {
+    details.gallery = [];
+    catalog.series = [];
+  });
+
+  /** A series as SERIES_QUERY returns it, its gallery newest first. */
+  const series = (id: string, gallery: unknown[]) => ({
+    seriesId: id,
+    title: `The ${id}`,
+    description: "",
+    gallery,
+  });
+
+  it("each event's photo comes with its shape and the hash of its picture", async () => {
+    catalog.series = [
+      series("karaoke", [
+        entry(10, { width: 1200, height: 1600, alt: "", date: "2026-11-07" }),
+      ]),
+    ];
+    const { events } = await eventPhotos("2026-11-11");
+    expect(events[0].photos[0]).toMatchObject({
+      hash: sha(10),
+      ratio: 0.75,
+      date: "2026-11-07",
+    });
+  });
+
+  it("home's strip mixes in the newest photo of two events, never one the venue's wall has", async () => {
+    details.gallery = [entry(1), entry(2), entry(3)];
+    catalog.series = [
+      series("karaoke", [entry(10, { added: "2026-11-08T22:00:00Z" })]),
+      series("friday", [
+        // The venue's second photo, uploaded to the event too
+        entry(2, { added: "2026-11-10T02:00:00Z" }),
+        entry(20, { added: "2026-11-10T01:00:00Z" }),
+      ]),
+      series("quiz", [entry(30, { added: "2026-10-02T20:00:00Z" })]),
+    ];
+    const { events } = await eventPhotos("2026-11-11");
+    const home = homePhotoPlan(await galleryPhotos(), { events });
+    expect(home.row.map((photo) => photo.hash)).toEqual([
+      sha(1),
+      sha(20),
+      sha(2),
+      sha(10),
+      sha(3),
+    ]);
   });
 });
