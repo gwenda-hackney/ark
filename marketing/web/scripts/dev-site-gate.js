@@ -5,6 +5,7 @@ import {
   gateBypassRedirectPath,
   isPublicPath,
   isUnauthenticatedCrawler,
+  matchesPassword,
   matchesSecret,
   parseCookies,
   safeRedirectPath,
@@ -26,7 +27,7 @@ export function devSiteGate({ password, bypassKey, open = false } = {}) {
         const { password: submitted, next: nextPath } = JSON.parse(
           body || "{}",
         );
-        if (submitted !== password) {
+        if (!(await matchesPassword(submitted, password))) {
           res.statusCode = 401;
           res.setHeader("Content-Type", "application/json");
           res.end(JSON.stringify({ error: "That password isn't right." }));

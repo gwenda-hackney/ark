@@ -12,6 +12,9 @@ export const DEFAULT_VENUE = "Schwartz Wharf, Hackney Wick, London E9 5AA";
 
 /** Footer / contact details for transactional emails. */
 export const SITE_DOMAIN = "https://gwenda.co.uk";
+/** The name, and the word under the logo ("Gwenda Social"). Keep in sync with web/src/config/site.ts */
+export const SITE_NAME = "Gwenda";
+export const SITE_SOCIAL = "Social";
 export const SITE_INSTAGRAM = "https://www.instagram.com/gwendahackney";
 export const SITE_ADDRESS = "Unit 4003, 4 Schwartz Wharf, London, E9 5AA";
 export const SITE_ADDRESS_SHORT = "Schwartz Wharf, Hackney Wick";

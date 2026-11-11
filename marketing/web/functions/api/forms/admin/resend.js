@@ -59,7 +59,7 @@ export async function onRequestPost(context) {
 
   let sent;
   if (kind === "notify") {
-    sent = await sendFormNotificationEmail(env, { form, answers });
+    sent = await sendFormNotificationEmail(env, { form, answers, rowId });
   } else {
     const email = submission.replyTo;
     if (!email) {

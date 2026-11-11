@@ -1,0 +1,63 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import ChartMenu from "../components/chart/ChartMenu.astro";
+import KitchenLine from "../components/chart/KitchenLine.astro";
+import StandingCards from "../components/chart/StandingCards.astro";
+import { siteConfig } from "../config/site";
+import { menuChapters } from "../data/menu";
+import { londonToday } from "../lib/london-day.js";
+import {
+  kitchenChaptersOn,
+  kitchenLine,
+  kitchenNow,
+} from "../lib/popup-kitchen.js";
+import { fetchWhatsOnCatalog } from "../lib/sanity/events";
+import { fetchMenu } from "../lib/sanity/menu";
+
+const today = londonToday();
+const menu = await fetchMenu();
+/** Who's in the kitchen: the pop-up, from What's on's catalog. */
+const { series, occurrences } = await fetchWhatsOnCatalog().catch(() => ({
+  series: [],
+  occurrences: [],
+}));
+/** A pop-up's chapter from when it's booked through its last night. */
+const chapters = kitchenChaptersOn(
+  menuChapters(menu, "kitchen"),
+  occurrences,
+  today,
+);
+const { popup } = kitchenNow(series, occurrences, today);
+/**
+ * In place of a menu: who's next, the list on its way, or nobody in. Not
+ * over one: the pop-up's card above says who and from when.
+ */
+const line = kitchenLine(popup, chapters);
+---
+
+<BaseLayout
+  title={`Food · ${siteConfig.name}`}
+  description="Food at Gwenda, by the canal in Hackney Wick: what the kitchen’s cooking right now."
+  showBooking={false}
+>
+  <ChartPage class="ch-menu-page" title="Food">
+    <StandingCards
+      series={series}
+      occurrences={occurrences}
+      chapters={chapters}
+      show="popup"
+      headed={false}
+      top
+    />
+    <ChartMenu sections={chapters}>
+      <KitchenLine
+        slot="empty"
+        line={line === "ahead" ? "" : line}
+        popup={popup}
+        soon="The kitchen menu’s on its way."
+        class="ch-ital"
+      />
+    </ChartMenu>
+  </ChartPage>
+</BaseLayout>

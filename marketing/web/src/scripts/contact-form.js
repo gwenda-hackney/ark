@@ -1,6 +1,12 @@
-import { replacePageUrl } from "./history-state.js";
+import {
+  DATE_FIELD_MAX_DAYS,
+  formatErrorForFieldValue,
+  londonToday,
+} from "../../../../shared/forms/field-rules.js";
+import { initThemedSelects } from "./themed-select.js";
+import { formDraftKey } from "../lib/form-draft.js";
 
-/** @typedef {{ csrfToken: string, secret: string }} FormAuth */
+/** @typedef {{ csrfToken: string }} FormAuth */
 
 /** @type {FormAuth | null} */
 let formAuth = null;
@@ -15,11 +21,11 @@ async function loadFormAuth() {
     throw new Error(data.error ?? "Something went wrong. Try again?");
   }
 
-  if (!data.csrfToken || !data.secret) {
+  if (!data.csrfToken) {
     throw new Error("Something went wrong. Try again?");
   }
 
-  formAuth = { csrfToken: data.csrfToken, secret: data.secret };
+  formAuth = { csrfToken: data.csrfToken };
 }
 
 function ensureFormAuth() {
@@ -110,6 +116,18 @@ function syncOtherFields(form) {
   });
 }
 
+/** A date field takes today (at the bar) up to two years on. */
+function initDateFields(form) {
+  const today = londonToday();
+  const last = new Date(`${today}T00:00:00Z`);
+  last.setUTCDate(last.getUTCDate() + DATE_FIELD_MAX_DAYS);
+  form.querySelectorAll('input[type="date"]').forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    input.min = today;
+    input.max = last.toISOString().slice(0, 10);
+  });
+}
+
 function initOtherFields(form) {
   syncOtherFields(form);
   form.addEventListener("change", (event) => {
@@ -132,10 +150,6 @@ function setError(errorEl, message) {
   errorEl.textContent = message || "";
 }
 
-function formStorageKey(slug) {
-  return slug ? `gwenda-form:${slug}` : "";
-}
-
 /**
  * @param {string} slug
  * @param {{
@@ -150,7 +164,7 @@ function formStorageKey(slug) {
  * }} payload
  */
 function persistFormSession(slug, payload) {
-  const key = formStorageKey(slug);
+  const key = formDraftKey(slug);
   if (!key || typeof sessionStorage === "undefined") return;
   try {
     sessionStorage.setItem(
@@ -163,7 +177,7 @@ function persistFormSession(slug, payload) {
 }
 
 function readFormSession(slug) {
-  const key = formStorageKey(slug);
+  const key = formDraftKey(slug);
   if (!key || typeof sessionStorage === "undefined") return null;
   try {
     const raw = sessionStorage.getItem(key);
@@ -184,112 +198,6 @@ async function navigateToSubmitted(slug) {
   } catch {
     location.assign(path);
   }
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
-const URL_RE = /^https?:\/\/\S+$/i;
-
-/** Keep in sync with functions/_lib/form-field-rules.js */
-function isValidEmail(value) {
-  const email = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (!email || email.length > 254) return false;
-  if (email.includes("..")) return false;
-  if (!EMAIL_RE.test(email)) return false;
-
-  const at = email.lastIndexOf("@");
-  if (at < 1) return false;
-  const local = email.slice(0, at);
-  const domain = email.slice(at + 1);
-
-  if (!local || local.length > 64) return false;
-  if (local.startsWith(".") || local.endsWith(".")) return false;
-  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(local)) return false;
-
-  if (!domain || domain.length > 253) return false;
-  if (
-    domain.startsWith("-") ||
-    domain.endsWith("-") ||
-    domain.startsWith(".")
-  ) {
-    return false;
-  }
-  const labels = domain.split(".");
-  if (labels.length < 2) return false;
-  if (labels.some((label) => !label || label.length > 63)) return false;
-  if (
-    labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label))
-  ) {
-    return false;
-  }
-  const tld = labels[labels.length - 1];
-  if (!/^[a-z]{2,24}$/i.test(tld)) return false;
-
-  return true;
-}
-
-function isValidUrl(value) {
-  return URL_RE.test(String(value ?? "").trim());
-}
-
-function isValidPhone(value) {
-  const trimmed = String(value ?? "").trim();
-  if (!trimmed) return false;
-  if (!/^[+()\d\s./-]+$/.test(trimmed)) return false;
-  const digits = trimmed.replace(/\D/g, "");
-  return digits.length >= 8 && digits.length <= 15;
-}
-
-function isValidInstagramOrLink(value) {
-  const trimmed = String(value ?? "").trim();
-  if (!trimmed) return false;
-
-  if (/^https?:\/\//i.test(trimmed)) {
-    try {
-      const url = new URL(trimmed);
-      return Boolean(url.hostname.includes("."));
-    } catch {
-      return false;
-    }
-  }
-
-  if (/^(www\.)?instagram\.com\/[A-Za-z0-9._]+\/?$/i.test(trimmed)) {
-    return true;
-  }
-
-  const handle = trimmed.replace(/^@/, "");
-  return /^[A-Za-z0-9._]{1,30}$/.test(handle);
-}
-
-function formatErrorForFieldValue({ key, type, label, value }) {
-  const fieldKey = String(key ?? "").trim();
-  const fieldType = String(type ?? "").trim();
-  const fieldLabel = String(label ?? "This field").trim() || "This field";
-  const fieldValue = String(value ?? "").trim();
-  if (!fieldValue) return "";
-
-  if (fieldType === "email" || fieldKey === "email") {
-    if (!isValidEmail(fieldValue)) {
-      return "Enter a full email address (name@example.com).";
-    }
-  }
-  if (fieldType === "tel" || fieldKey === "phone") {
-    if (!isValidPhone(fieldValue)) {
-      return "Enter a valid phone number (with country code if you can).";
-    }
-  }
-  if (fieldKey === "instagram") {
-    if (!isValidInstagramOrLink(fieldValue)) {
-      return "Enter an @handle or a link.";
-    }
-  }
-  if (fieldType === "url") {
-    if (!isValidUrl(fieldValue)) {
-      return `Enter a full link for ${fieldLabel} (https://…).`;
-    }
-  }
-  return "";
 }
 
 function fieldWrapFor(el) {
@@ -371,7 +279,11 @@ function messageForControl(el, opts = {}) {
 
   return formatErrorForFieldValue({
     key: el.name,
-    type: el instanceof HTMLInputElement ? el.type : el.tagName.toLowerCase(),
+    // The form's own field type where the input's differs (a number is typed
+    // into a text input, so the wheel can't change it).
+    type:
+      el.dataset.fieldType ||
+      (el instanceof HTMLInputElement ? el.type : el.tagName.toLowerCase()),
     label,
     value,
   });
@@ -606,310 +518,6 @@ function initFieldValidation(form) {
   );
 }
 
-function initSectionNav() {
-  const nav = document.getElementById("contact-nav");
-  const form = document.getElementById("contact-form");
-  if (!(nav instanceof HTMLElement) || !(form instanceof HTMLFormElement))
-    return;
-
-  const links = [...nav.querySelectorAll(".contact-nav-link")];
-  const sections = [...form.querySelectorAll(".contact-section")];
-  const sectionSelect = nav.querySelector("#contact-section-select");
-  if (
-    (!links.length && !(sectionSelect instanceof HTMLSelectElement)) ||
-    !sections.length
-  ) {
-    return;
-  }
-
-  const sentinel = nav.previousElementSibling;
-  if (
-    sentinel instanceof HTMLElement &&
-    sentinel.classList.contains("contact-nav-sentinel")
-  ) {
-    const stuckObserver = new IntersectionObserver(
-      ([entry]) => {
-        nav.classList.toggle(
-          "is-stuck",
-          Boolean(entry && !entry.isIntersecting),
-        );
-      },
-      { threshold: [1] },
-    );
-    stuckObserver.observe(sentinel);
-  }
-
-  let syncingFromScroll = false;
-
-  const goToSection = (id) => {
-    const section = id ? document.getElementById(id) : null;
-    if (!(section instanceof HTMLElement)) return;
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
-    replacePageUrl(`#${id}`);
-  };
-
-  const setActive = (id) => {
-    for (const link of links) {
-      const active = link.getAttribute("data-section") === id;
-      link.classList.toggle("is-active", active);
-      if (active) link.setAttribute("aria-current", "true");
-      else link.removeAttribute("aria-current");
-    }
-
-    if (
-      sectionSelect instanceof HTMLSelectElement &&
-      sectionSelect.value !== id
-    ) {
-      syncingFromScroll = true;
-      sectionSelect.value = id;
-      sectionSelect.dispatchEvent(new Event("change", { bubbles: true }));
-      syncingFromScroll = false;
-    }
-  };
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-      const top = visible[0]?.target;
-      if (top instanceof HTMLElement && top.dataset.section) {
-        setActive(top.dataset.section);
-      }
-    },
-    {
-      rootMargin: "-20% 0px -55% 0px",
-      threshold: [0.1, 0.35, 0.6],
-    },
-  );
-
-  for (const section of sections) observer.observe(section);
-  if (sections[0] instanceof HTMLElement && sections[0].dataset.section) {
-    setActive(sections[0].dataset.section);
-  }
-
-  nav.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const link = target.closest("a.contact-nav-link");
-    if (!(link instanceof HTMLAnchorElement)) return;
-    const id = link.getAttribute("data-section");
-    if (!id) return;
-    event.preventDefault();
-    setActive(id);
-    goToSection(id);
-  });
-
-  if (sectionSelect instanceof HTMLSelectElement) {
-    sectionSelect.addEventListener("change", () => {
-      if (syncingFromScroll) return;
-      const id = sectionSelect.value;
-      if (!id) return;
-      setActive(id);
-      goToSection(id);
-    });
-  }
-}
-
-/** @type {HTMLElement | null} */
-let brandedOpenRoot = null;
-let brandedSelectDocBound = false;
-
-function closeBrandedOpen() {
-  if (!brandedOpenRoot) return;
-  brandedOpenRoot.classList.remove("is-open", "is-drop-up");
-  const trigger = brandedOpenRoot.querySelector(".gw-select-trigger");
-  const menu = brandedOpenRoot.querySelector(".gw-select-menu");
-  if (trigger instanceof HTMLElement) {
-    trigger.setAttribute("aria-expanded", "false");
-  }
-  if (menu instanceof HTMLElement) menu.hidden = true;
-  brandedOpenRoot = null;
-}
-
-function initBrandedSelects(root) {
-  if (!(root instanceof Element)) return;
-  const selects = [...root.querySelectorAll(".gw-field > select")];
-  if (!selects.length) return;
-
-  const closeOpen = closeBrandedOpen;
-
-  for (const select of selects) {
-    if (!(select instanceof HTMLSelectElement)) continue;
-    if (select.closest(".gw-select")) continue;
-
-    const options = [...select.options].filter(
-      (opt) => !opt.disabled || opt.value,
-    );
-    const placeholder =
-      [...select.options]
-        .find((opt) => opt.disabled && !opt.value)
-        ?.textContent?.trim() || "Select…";
-
-    const root = document.createElement("div");
-    root.className = "gw-select";
-
-    const trigger = document.createElement("button");
-    trigger.type = "button";
-    trigger.className = "gw-select-trigger";
-    trigger.setAttribute("aria-haspopup", "listbox");
-    trigger.setAttribute("aria-expanded", "false");
-    trigger.id = `${select.id || select.name}-trigger`;
-
-    const valueEl = document.createElement("span");
-    valueEl.className = "gw-select-value";
-
-    const chevron = document.createElement("span");
-    chevron.className = "gw-select-chevron";
-    chevron.setAttribute("aria-hidden", "true");
-
-    trigger.append(valueEl, chevron);
-
-    const menu = document.createElement("ul");
-    menu.className = "gw-select-menu";
-    menu.setAttribute("role", "listbox");
-    menu.id = `${select.id || select.name}-listbox`;
-    menu.hidden = true;
-    trigger.setAttribute("aria-controls", menu.id);
-
-    const syncTrigger = () => {
-      const selected = select.selectedOptions[0];
-      const empty = !selected || !selected.value;
-      valueEl.textContent = empty
-        ? placeholder
-        : selected?.textContent?.trim() || placeholder;
-      trigger.classList.toggle("is-placeholder", empty);
-      for (const item of menu.querySelectorAll("[role='option']")) {
-        if (!(item instanceof HTMLElement)) continue;
-        const active = item.dataset.value === select.value;
-        item.classList.toggle("is-selected", active);
-        item.setAttribute("aria-selected", active ? "true" : "false");
-      }
-    };
-
-    for (const opt of options) {
-      if (opt.disabled && !opt.value) continue;
-      const item = document.createElement("li");
-      item.className = "gw-select-option";
-      item.setAttribute("role", "option");
-      item.dataset.value = opt.value;
-      item.textContent = opt.textContent?.trim() || opt.value;
-      item.tabIndex = -1;
-      item.addEventListener("click", () => {
-        select.value = opt.value;
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-        syncTrigger();
-        closeOpen();
-        trigger.focus();
-      });
-      menu.append(item);
-    }
-
-    select.classList.add("visually-hidden");
-    select.setAttribute("tabindex", "-1");
-    select.setAttribute("aria-hidden", "true");
-
-    const parent = select.parentElement;
-    if (!parent) continue;
-    if (select.id) {
-      const label = parent.querySelector(
-        `label[for="${CSS.escape(select.id)}"]`,
-      );
-      if (label) label.setAttribute("for", trigger.id);
-    }
-    parent.insertBefore(root, select);
-    root.append(trigger, menu, select);
-
-    const openMenu = () => {
-      closeOpen();
-      root.classList.remove("is-drop-up");
-      root.classList.add("is-open");
-      trigger.setAttribute("aria-expanded", "true");
-      menu.hidden = false;
-      brandedOpenRoot = root;
-
-      const triggerRect = trigger.getBoundingClientRect();
-      const menuHeight = Math.min(menu.scrollHeight, 16 * 16);
-      const spaceBelow = window.innerHeight - triggerRect.bottom;
-      const spaceAbove = triggerRect.top;
-      if (spaceBelow < menuHeight + 24 && spaceAbove > spaceBelow) {
-        root.classList.add("is-drop-up");
-      }
-
-      const selected =
-        menu.querySelector(".gw-select-option.is-selected") ||
-        menu.querySelector(".gw-select-option");
-      if (selected instanceof HTMLElement) selected.focus();
-
-      requestAnimationFrame(() => {
-        menu.dispatchEvent(new Event("scroll"));
-      });
-    };
-
-    trigger.addEventListener("click", () => {
-      if (root.classList.contains("is-open")) closeOpen();
-      else openMenu();
-    });
-
-    trigger.addEventListener("keydown", (event) => {
-      if (
-        event.key === "ArrowDown" ||
-        event.key === "Enter" ||
-        event.key === " "
-      ) {
-        event.preventDefault();
-        openMenu();
-      }
-    });
-
-    menu.addEventListener("keydown", (event) => {
-      const items = [...menu.querySelectorAll(".gw-select-option")].filter(
-        (el) => el instanceof HTMLElement,
-      );
-      const index = items.indexOf(document.activeElement);
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeOpen();
-        trigger.focus();
-        return;
-      }
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        items[Math.min(items.length - 1, index + 1)]?.focus();
-        return;
-      }
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        items[Math.max(0, index - 1)]?.focus();
-        return;
-      }
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.click();
-        }
-      }
-    });
-
-    syncTrigger();
-    select.addEventListener("change", syncTrigger);
-  }
-
-  if (!brandedSelectDocBound) {
-    brandedSelectDocBound = true;
-    document.addEventListener("click", (event) => {
-      if (!(event.target instanceof Node)) return;
-      if (brandedOpenRoot && !brandedOpenRoot.contains(event.target)) {
-        closeBrandedOpen();
-      }
-    });
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeBrandedOpen();
-    });
-  }
-}
-
 /** @type {AbortController | null} */
 let playParallaxAbort = null;
 
@@ -963,27 +571,6 @@ function initPlayParallax() {
   });
 
   update();
-}
-
-/** On /contact/play, put the cursor in the name field on land. */
-function focusPlayNameField(form, slug) {
-  if (slug !== "play") return;
-  const nameInput = form.querySelector('input[name="name"]');
-  if (!(nameInput instanceof HTMLInputElement)) return;
-
-  const active = document.activeElement;
-  if (
-    active instanceof HTMLElement &&
-    active !== document.body &&
-    active !== document.documentElement &&
-    form.contains(active)
-  ) {
-    return;
-  }
-
-  requestAnimationFrame(() => {
-    nameInput.focus({ preventScroll: true });
-  });
 }
 
 export function initContactForm() {
@@ -1046,12 +633,13 @@ export function initContactForm() {
   }
   form.dataset.gwBound = "1";
 
-  initSectionNav();
   initOtherFields(form);
-  initBrandedSelects(panel instanceof Element ? panel : form);
+  initDateFields(form);
+  initThemedSelects(panel instanceof Element ? panel : form, {
+    selector: ".gw-field > select",
+  });
   initFieldValidation(form);
   restoreSavedAnswers();
-  focusPlayNameField(form, slug);
 
   ensureFormAuth().catch(() => {
     /* auth loads again on submit */
@@ -1094,7 +682,6 @@ export function initContactForm() {
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-Token": formAuth.csrfToken,
-          "X-Subscribe-Secret": formAuth.secret,
         },
         body: JSON.stringify({
           slug,
@@ -1363,7 +950,6 @@ export function initContactFormSubmitted() {
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-Token": formAuth.csrfToken,
-          "X-Subscribe-Secret": formAuth.secret,
         },
         body: JSON.stringify({
           slug,

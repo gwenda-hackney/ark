@@ -15,9 +15,10 @@ import {
   FORM_STATUS_VERIFIED,
   answersDocument,
   answersValue,
+  submissionBelongsTo,
 } from "../../../../shared/guests/form-submissions.js";
 
-export { FORM_STATUS_PENDING, FORM_STATUS_VERIFIED };
+export { FORM_STATUS_PENDING, FORM_STATUS_VERIFIED, submissionBelongsTo };
 
 async function reportStoreFailure(env, extra) {
   await reportFormError(env, "form_store_failed", extra);
@@ -308,11 +309,9 @@ export async function markFormSubmissionVerified(env, rowId, expectedEmail) {
     formTitle: submission.formTitle,
     submittedAt: submission.submittedAt ?? undefined,
   };
-  const expected = String(expectedEmail ?? "")
-    .trim()
-    .toLowerCase();
+  const expected = String(expectedEmail ?? "").trim();
 
-  if (expected && submission.replyTo && submission.replyTo !== expected) {
+  if (expected && !submissionBelongsTo(submission, expected)) {
     return { ok: false, error: "This link isn't valid." };
   }
   if (submission.status === FORM_STATUS_VERIFIED) {

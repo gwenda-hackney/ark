@@ -133,10 +133,27 @@ Ops **Developer tools → Settings** lists every setting in its environment and 
 | `google.drive_events_folder_id` | dev, production / ops | Drive folder for event galleries (`Events-dev/` vs `Events/`) | dev row |
 | `google.calendar_id` | dev, production / ops | Calendar that receives ops nights | dev row |
 | `lightspeed.archive_skus` | per env / ops | Lightspeed SKUs archived from the ops stock view | |
+| `website.auto_update` | per env / ops | Whether a saved event goes on the website by itself. On unless the value is `off`; no row means on. See below. | dev row |
 | `ops.admin_emails` | all / ops | Who sees Developer tools (everyone in dev) | |
+| `weekly_email.sending` | per env / ops | The weekly what's on email goes to the mailing list only when production's row says `on`. No row, or anything else, is off. Changed by an admin on ops' Weekly email page. See [ops README](../ops/site/README.md#weekly-email). | |
+| `weekly_email.mode`, `.day`, `.time`, `.notify_emails` | per env / ops | Weekly email: `approve` to make each one wait for an admin (otherwise it sends by itself), the day (`mon`…`sun`, default `tue`), the London time (`HH:MM`, default `11:00`), and who is told when one waits or fails (default: the admins). | |
 | `forms.notify_email` | dev / web | Form notifications outside production: `alerts@gwenda.co.uk`. Required outside production (none means no email). Production has no row: each form's own address. | **`FORMS_NOTIFY_EMAIL`** in `.env` (your email) |
 
 Do **not** put credentials here.
+
+### `website.auto_update`: saved events go on the website by themselves
+
+On by default: after a save, ops' website job brings the event's calendar entries, its preview and then the website itself up to date, with nobody pressing Update website ([sanity.md](sanity.md)). With the value `off`, events stop at the preview and wait for **Update website**, as they did before. Deleted events always wait (Website page, with Restore). If the settings can't be read, ops treats that pass as `off` and asks again on the next one, so an outage never publishes what the switch was holding back.
+
+No ops page edits it. Set the environment's row with `config:set` (needs `bw-unlock`; ops reads the change within a minute):
+
+```bash
+npm run config:set -- --env production --key website.auto_update              # what it is now
+npm run config:set -- --env production --key website.auto_update --value off  # before a deploy that should not publish by itself
+npm run config:set -- --env production --key website.auto_update --value ""   # back on
+```
+
+**Before a deploy:** the post-deploy migrations and the website job start as soon as the new code is live. To look at the preview first, turn it `off` before merging, check the preview, press Update website on the Website page, then turn it back on. `config:set` takes any key in `SETTINGS` (`shared/config.js`) and writes the row the app itself would (that environment, the setting's Service); it refuses while an environment's settings are still on Baserow.
 
 ```bash
 npm run setup:baserow-config -- --env dev               # create/repair DB, table, fields, seed rows. Additive only.
@@ -225,6 +242,6 @@ Mail goes out through the Gmail API as `notifications@` with `GMAIL_SERVICE_ACCO
 
 Each submission sends two emails: a **notification** to the team and a **receipt** to the applicant. After each one actually goes out (not a local dry run) the row is stamped in `Notify Sent` / `Receipt Sent`.
 
-The code that renders and sends both emails lives in `shared/forms/` and is used by both apps. Ops `/forms` shows both stamps and can send or resend either email itself: it reads the row, loads the form from the live site's Sanity dataset (published only), sends through the same Gmail mailbox (`GMAIL_SERVICE_ACCOUNT_JSON`, sender in `shared/mail-from.js`), and stamps the row. Ops never calls the website.
+The code that renders and sends both emails lives in `shared/forms/` and is used by both apps. Ops `/forms` shows both stamps and can send or resend either email. It sends the notification itself: it reads the row, loads the form from the live site's Sanity dataset (published only), sends through the same Gmail mailbox (`GMAIL_SERVICE_ACCOUNT_JSON`, sender in `shared/mail-from.js`), and stamps the row. The receipt it asks this environment's website to send (below).
 
-The receipt's "change your application" link is signed with the website's secret. The site saves the finished link in the row's `Edit Link` column when it stores the submission, so ops can resend a receipt without the secret or the website's address. The column is added by a pre-deploy [migration](migrations.md); until it exists the site skips saving. Rows without a link get a link to the form's page on gwenda.co.uk instead.
+The receipt's "change your application" link is signed with the website's secret (`SUBSCRIBE_SECRET`), which only the website holds. So ops resends a receipt without the secret: it posts `{ rowId, kind: "receipt" }` to the website's `/api/forms/admin/resend` (Bearer `FORMS_ADMIN_SECRET`; production ops asks gwenda.co.uk, dev and local ops the dev site), and the website signs a fresh link, sends the receipt and stamps the row. A link signed then works even after the secret has changed. When the website refuses or can't be reached, the Forms page says why. The site also saves the link it first sent in the row's `Edit Link` column, as a record; nothing reads it back. The column is added by a pre-deploy [migration](migrations.md); until it exists the site skips saving.

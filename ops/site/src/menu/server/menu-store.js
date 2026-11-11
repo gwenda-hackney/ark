@@ -5,6 +5,8 @@
 import { parseImageAssetId, sanityImageUrl } from "../../../../../shared/sanity-image.js";
 import { sanityProjectId, sanityUploadImage } from "../../platform/sanity.js";
 import { menuRepository } from "./menu-repository.js";
+import { SECTION_KINDS, sectionKind, sectionPopupSeriesId } from "./menu-model.js";
+import { listPopupSeries } from "../../events/server/popups.js";
 import {
   computeRecipeAbv,
   computeRecipeVolumeMl,
@@ -90,8 +92,12 @@ function mapIngredient(record) {
   };
 }
 
-/** A menu_sections record → a section. */
-function mapSection(record) {
+/**
+ * A menu_sections record → a section. `recordsById` (every section record by
+ * id) lets a group answer with its chapter's kind and pop-up kitchen.
+ */
+function mapSection(record, recordsById = new Map()) {
+  const popupSeriesId = sectionPopupSeriesId(record, recordsById);
   return {
     _id: String(record.id),
     id: String(record.id),
@@ -102,8 +108,15 @@ function mapSection(record) {
     parentId: idText(record.parentId),
     parentTitle: undefined,
     sanityId: text(record.sanityId) || undefined,
+    // Drinks ("bar") or food ("kitchen"), and the pop-up kitchen (an event series) whose chapter it is.
+    kind: sectionKind(record, recordsById),
+    popupSeriesId: popupSeriesId != null ? String(popupSeriesId) : null,
     items: [],
   };
+}
+
+function recordsById(records) {
+  return new Map(records.map((record) => [record.id, record]));
 }
 
 /**
@@ -133,8 +146,13 @@ function menuLabels(sections, posMenus) {
   };
 }
 
-async function loadLabels(repo, posMenus) {
-  return menuLabels(await repo.list("menu_sections"), posMenus);
+/** `isFoodSection(sectionId)`: whether a section is in a kitchen chapter (menu-placements.js). */
+function foodSections(sectionRecords) {
+  const byId = recordsById(sectionRecords);
+  return (sectionId) => {
+    const record = byId.get(Number(sectionId));
+    return Boolean(record) && sectionKind(record, byId) === "kitchen";
+  };
 }
 
 /** A menu_items record → the drink ops shows. `posMenuNames` names its POS menus. */
@@ -205,8 +223,9 @@ export async function loadMenuTree(env, repo = menuRepository(env)) {
   ]);
   const labels = menuLabels(sectionRecords, posMenus);
 
+  const sectionsById = recordsById(sectionRecords);
   const sections = sectionRecords
-    .map(mapSection)
+    .map((record) => mapSection(record, sectionsById))
     .filter((section) => Boolean(section.title || section.slug))
     .sort((a, b) => a.orderRank - b.orderRank);
   const byId = new Map(sections.map((section) => [section._id, section]));
@@ -491,13 +510,15 @@ async function replaceIngredients(repo, itemId, ingredients) {
 export async function createMenuItem(env, input) {
   const repo = menuRepository(env);
   const ingredients = normalizeIngredients(input.ingredients);
-  const [inventoryById, posMenus, siblings] = await Promise.all([
+  const [inventoryById, posMenus, siblings, sections] = await Promise.all([
     loadInventoryAbvMap(repo),
     listPosMenus(env, repo),
     repo.list("menu_items"),
+    repo.list("menu_sections"),
   ]);
   const placements = resolvePlacementsForWrite(input, {
     defaultPosMenus: posMenus,
+    isFoodSection: foodSections(sections),
   });
   const derived = applyPlacementDerivedFields({ ...input, placements });
   const payload = {
@@ -533,7 +554,7 @@ export async function createMenuItem(env, input) {
     fields.order = maxOrder + 1;
   }
   const record = await repo.create("menu_items", fields);
-  const labels = await loadLabels(repo, posMenus);
+  const labels = menuLabels(sections, posMenus);
   const savedIngredients = await replaceIngredients(repo, record.id, ingredients);
   const savedPlacements = await replaceMenuPlacements(repo, record.id, placements, labels);
   const item = applyPlacementDerivedFields({
@@ -576,6 +597,7 @@ export async function updateMenuItem(env, itemId, input) {
   const placements = resolvePlacementsForWrite(input, {
     existingItem: existingMapped,
     defaultPosMenus: posMenus,
+    isFoodSection: foodSections(sections),
   });
   const derived = applyPlacementDerivedFields({
     ...existingMapped,
@@ -785,8 +807,9 @@ function nextSectionOrder(records) {
 }
 
 function mappedSections(records) {
+  const all = recordsById(records);
   const sections = records
-    .map(mapSection)
+    .map((record) => mapSection(record, all))
     .filter((section) => Boolean(section.title || section.slug));
   const byId = new Map(sections.map((section) => [section._id, section]));
   for (const section of sections) {
@@ -819,6 +842,26 @@ function assertUniqueSectionSlug(sections, slug, exceptId) {
   if (clash) fail(409, "A section with that name already exists.");
 }
 
+const POPUP_NEEDS_FOOD = "Only a Food chapter can belong to a pop-up kitchen.";
+
+/** "bar" or "kitchen" as a save sent it; anything else is refused. */
+function kindInput(value) {
+  const kind = text(value).toLowerCase();
+  if (!SECTION_KINDS.includes(kind)) fail(400, "Pick Drinks or Food.");
+  return kind;
+}
+
+/**
+ * The pop-up kitchen a save names: its event series' id, null for none.
+ * 400 unless it is a series marked as a pop-up kitchen (events' popups.js).
+ */
+async function popupInput(env, value) {
+  if (value == null || value === "") return null;
+  const popup = (await listPopupSeries(env)).find((series) => series.id === String(value).trim());
+  if (!popup) fail(400, "Pick a pop-up kitchen: an event marked as a pop-up kitchen (Events).");
+  return Number(popup.id);
+}
+
 export async function createMenuSection(env, input) {
   const repo = menuRepository(env);
   const title = text(input.title);
@@ -830,26 +873,36 @@ export async function createMenuSection(env, input) {
   assertUniqueSectionSlug(sections, slug);
   const parentId = text(input.parentId) || null;
   await assertSectionParent(byId, parentId);
+  // Only a chapter is drinks or food and has a pop-up kitchen; a group follows its chapter.
+  const own = { kind: "", popupSeriesId: null };
+  if (!parentId) {
+    own.kind = input.kind == null || input.kind === "" ? "bar" : kindInput(input.kind);
+    own.popupSeriesId = await popupInput(env, input.popupSeriesId);
+    if (own.popupSeriesId && own.kind !== "kitchen") fail(400, POPUP_NEEDS_FOOD);
+  }
   const record = await repo.create("menu_sections", {
     name: title,
     slug,
     subtitle: text(input.subtitle),
     order: parseQuantity(input.orderRank) ?? nextSectionOrder(records),
     parentId: parentId ? Number(parentId) : null,
+    ...own,
   });
-  return mapSection(record);
+  return mapSection(record, recordsById([...records, record]));
 }
 
 export async function updateMenuSection(env, sectionId, input) {
   const repo = menuRepository(env);
   const existing = await repo.get("menu_sections", sectionId);
   if (!existing) fail(404, "Section not found.");
-  const current = mapSection(existing);
+  const records = await repo.list("menu_sections");
+  const all = recordsById(records);
+  const current = mapSection(existing, all);
   const title = text(input.title) || current.title;
   if (!title) fail(400, "Section name is required.");
   const slug = itemSlug(input.slug) || current.slug || itemSlug(title);
   if (!slug) fail(400, "Use letters or numbers in the section name.");
-  const { sections, byId } = mappedSections(await repo.list("menu_sections"));
+  const { sections, byId } = mappedSections(records);
   assertUniqueSectionSlug(sections, slug, current._id);
   const parentId =
     input.parentId === "" || input.parentId === null
@@ -872,11 +925,33 @@ export async function updateMenuSection(env, sectionId, input) {
     subtitle: input.subtitle == null ? current.subtitle || "" : text(input.subtitle),
     parentId: parentId ? Number(parentId) : null,
   };
+  if (parentId) {
+    // A group follows its chapter.
+    fields.kind = "";
+    fields.popupSeriesId = null;
+  } else {
+    // A group made a chapter keeps what it was under its old chapter (current.*).
+    fields.kind = input.kind == null || input.kind === "" ? current.kind : kindInput(input.kind);
+    fields.popupSeriesId =
+      input.popupSeriesId === undefined
+        ? current.popupSeriesId
+          ? Number(current.popupSeriesId)
+          : null
+        : await popupInput(env, input.popupSeriesId);
+    if (fields.popupSeriesId && fields.kind !== "kitchen") {
+      // Naming a pop-up kitchen for drinks is refused; a chapter turned back
+      // into drinks without a word about its pop-up kitchen just lets it go.
+      if (input.popupSeriesId) fail(400, POPUP_NEEDS_FOOD);
+      fields.popupSeriesId = null;
+    }
+  }
   if (input.orderRank != null) {
     const order = parseQuantity(input.orderRank);
     if (order != null) fields.order = order;
   }
-  return mapSection(await repo.update("menu_sections", sectionId, fields));
+  const record = await repo.update("menu_sections", sectionId, fields);
+  all.set(record.id, record);
+  return mapSection(record, all);
 }
 
 export async function deleteMenuSection(env, sectionId) {

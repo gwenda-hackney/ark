@@ -1,0 +1,26 @@
+/*
+ * Arriving at a part of the menu from a link (#240): one of home's tiles, a
+ * pop-up kitchen's "See the menu", a chapter's name at the top of the page.
+ * Which id is on what is lib/menu-anchors.js; how the menu itself looks is
+ * chart.css, and so is where a jump link lands (under the bar or the corner
+ * button, with a little air: --ch-fixed-top).
+ */
+
+/*
+ * The group just landed on shows which it is for a moment: its head in
+ * cream, a mustard line under it, easing back to how every head looks. It
+ * may be in the second column, or too near the foot of the page to reach
+ * the top of the window, so the eye needs telling. Once, and only that.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .ch-group:target > h3 {
+    animation: ch-landed 2s ease-out 0.45s backwards;
+  }
+}
+
+@keyframes ch-landed {
+  from {
+    color: var(--ch-cream);
+    box-shadow: 0 0.1875rem 0 var(--ch-mustard);
+  }
+}

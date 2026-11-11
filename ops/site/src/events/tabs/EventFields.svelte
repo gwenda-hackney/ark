@@ -4,9 +4,9 @@
 	 * is and when each night runs, in the website's words, and the photo;
 	 * Schedule is a series' pattern and night schedule; Ops is the team's tasks
 	 * and notes. A night or a special event has one date, which sits with its
-	 * times under the name. A new form
-	 * is every part on one page, starting with the chooser. A night shows each
-	 * value it takes from its series as "From series", with Override beside it.
+	 * times under the name. A night shows each value it takes from its series
+	 * as "From series", with Override beside it. Adding something new is the
+	 * Add wizard (AddWizard.svelte).
 	 */
 	import { tick } from "svelte";
 	import { Icon } from "../../app/shell";
@@ -15,8 +15,8 @@
 		DateField,
 		Field,
 		FormSection,
-		NativeSelect,
 		PhotoActions,
+		Segmented,
 		Switch,
 		TextArea,
 		TextField,
@@ -39,7 +39,7 @@
 		type EventForm,
 		type SeriesTextKey,
 	} from "../event-form.svelte";
-	import type { NewEventKind } from "../event-editor.svelte";
+	import { CATEGORY_CHOICES } from "../event-category";
 
 	let {
 		part,
@@ -50,19 +50,14 @@
 		eventId,
 		occurrenceDate,
 		busy,
-		isNew,
-		newKind,
 		creatingNight,
 		creatingOnce,
 		editingOnce,
 		editingOccurrence,
-		attachSeriesId = $bindable(),
-		seriesOptions,
 		approvedArtists,
 		webAddressChanged,
 		framingUrl,
 		previewDates,
-		onkind,
 		onoverride,
 		onuseseries,
 		onoverridephoto,
@@ -82,17 +77,11 @@
 		eventId: string;
 		occurrenceDate: string;
 		busy: boolean;
-		isNew: boolean;
-		/** What a new form makes, from the chooser. */
-		newKind: NewEventKind;
 		creatingNight: boolean;
 		creatingOnce: boolean;
 		editingOnce: boolean;
 		/** One night of a series: fields follow the series until overridden. */
 		editingOccurrence: boolean;
-		/** The series a new night is added to ("" for a new series or special event). */
-		attachSeriesId: string;
-		seriesOptions: { value: string; label: string }[];
 		/** Approved play applicants, suggested in Guest/collaboration. */
 		approvedArtists: ApprovedArtist[];
 		webAddressChanged: boolean;
@@ -100,7 +89,6 @@
 		framingUrl: string;
 		/** Upcoming nights from the pattern as typed. */
 		previewDates: string[];
-		onkind: (kind: NewEventKind) => void;
 		onoverride: (key: SeriesTextKey) => void;
 		onuseseries: (key: SeriesTextKey) => void;
 		onoverridephoto: () => void;
@@ -141,27 +129,6 @@
 		description: "event-description",
 		operationsNotes: "event-operations-notes",
 	};
-
-	const KINDS: { id: NewEventKind; title: string; blurb: string; icon: string }[] = [
-		{
-			id: "series",
-			title: "New series",
-			blurb: "A night that comes round again, like a weekly residency.",
-			icon: "refresh",
-		},
-		{
-			id: "night",
-			title: "Night for a series",
-			blurb: "One date for a series you already run. It takes the series' details.",
-			icon: "events",
-		},
-		{
-			id: "once",
-			title: "Special event",
-			blurb: "A one-off on a single date, with its own page.",
-			icon: "star",
-		},
-	];
 
 	/** What a following field shows: the series' value, or why there is none. */
 	function readout(key: SeriesTextKey): string {
@@ -233,41 +200,7 @@
 {/snippet}
 
 <div class="board">
-	{#if isNew}
-		<FormSection title="What are you adding?" class="chooser">
-			<div class="kinds" role="radiogroup" aria-label="What are you adding?">
-				{#each KINDS as kind (kind.id)}
-					<label class="kind" class:on={newKind === kind.id}>
-						<input
-							class="sr-only"
-							type="radio"
-							name="event-kind"
-							value={kind.id}
-							checked={newKind === kind.id}
-							onchange={() => onkind(kind.id)}
-						/>
-						<span class="kind-icon" aria-hidden="true"><Icon name={kind.icon} size={18} /></span>
-						<span class="kind-text">
-							<span class="kind-title">{kind.title}</span>
-							<span class="kind-blurb">{kind.blurb}</span>
-						</span>
-					</label>
-				{/each}
-			</div>
-			{#if newKind === "night"}
-				<Field class="span-4" label="Series" for="event-series" required error={errors.get("event-series")}>
-					<NativeSelect
-						id="event-series"
-						size="sm"
-						bind:value={attachSeriesId}
-						options={[{ value: "", label: "Choose a series…" }, ...seriesOptions]}
-					/>
-				</Field>
-			{/if}
-		</FormSection>
-	{/if}
-
-	<div class="cols" class:after-chooser={isNew} class:with-photo={show.photo} class:split={show.slotsBeside} class:lone={part === "ops"}>
+	<div class="cols" class:with-photo={show.photo} class:split={show.slotsBeside} class:lone={part === "ops"}>
 		<div class="col col-main">
 			{#if show.what}
 				<FormSection
@@ -294,6 +227,21 @@
 							/>
 						{/if}
 					</Field>
+					{#if !inherits}
+						<Field
+							label="What is it?"
+							for="event-category"
+							hint="A promotion is a standing deal, like Happy Hour. A pop-up kitchen is a guest chef. What's on shows nights."
+						>
+							<Segmented
+								bind:value={form.category}
+								items={CATEGORY_CHOICES}
+								tone="soft"
+								size="sm"
+								ariaLabel="What is it?"
+							/>
+						</Field>
+					{/if}
 					{#if !isSeries}
 					<Field
 						class="span-4"
@@ -401,7 +349,7 @@
 							optional
 							help="Page address"
 							hint={webAddressChanged
-								? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes when you press Update website; old links still work.`
+								? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes a minute or two after you save; old links still work.`
 								: undefined}
 						>
 							<TextField
@@ -421,7 +369,7 @@
 							label="Play at Gwenda form"
 							for="event-taking-applications"
 							help="Taking applications"
-							hint="Artists applying to play can pick this series. Changes when you press Update website."
+							hint="Artists applying to play can pick this series. Changes a minute or two after you save."
 						>
 							<Switch
 								id="event-taking-applications"
@@ -605,14 +553,6 @@
 		container-name: event-board;
 	}
 
-	.board > :global(.chooser) {
-		border-bottom: 1px solid var(--border);
-	}
-
-	.cols.after-chooser {
-		padding-top: var(--space-5);
-	}
-
 	/* Narrow: one column of sections, the photo straight after What. */
 	.cols {
 		display: grid;
@@ -708,72 +648,6 @@
 		}
 	}
 
-	.kinds {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-		gap: var(--space-3);
-	}
-
-	.kind {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--space-3);
-		padding: var(--space-3) var(--space-4);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-md);
-		background: transparent;
-		cursor: pointer;
-		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out);
-	}
-
-	.kind:hover {
-		background: var(--surface-3);
-	}
-
-	.kind.on {
-		border-color: var(--primary);
-		background: var(--primary-wash);
-	}
-
-	.kind:has(input:focus-visible) {
-		outline: 2px solid var(--ring);
-		outline-offset: 2px;
-	}
-
-	.kind-icon {
-		display: grid;
-		place-items: center;
-		flex-shrink: 0;
-		width: 2rem;
-		height: 2rem;
-		border-radius: var(--radius-md);
-		background: var(--surface-2);
-		color: var(--muted-foreground);
-	}
-
-	.kind.on .kind-icon {
-		color: var(--primary);
-	}
-
-	.kind-text {
-		display: grid;
-		gap: 0.125rem;
-		min-width: 0;
-	}
-
-	.kind-title {
-		font-size: var(--text-base);
-		font-weight: 600;
-		color: var(--foreground);
-	}
-
-	.kind-blurb {
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-	}
-
 	/* Override and Use series value: small and quiet beside the label. */
 	.field-link {
 		padding: 0 var(--space-1);
@@ -854,10 +728,6 @@
 			margin-block: -0.75rem;
 			padding: 0 var(--space-2);
 			font-size: var(--text-sm);
-		}
-
-		.kind {
-			padding: var(--space-3);
 		}
 	}
 </style>

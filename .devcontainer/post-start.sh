@@ -42,6 +42,19 @@ fi
 if [ -d /home/node/.claude ]; then
   sudo chown node:node /home/node/.claude 2>/dev/null || true
 fi
+# Claude Code's settings file lives in that volume too (CLAUDE_CONFIG_DIR, docker-compose.yml), so
+# folder trust survives a rebuild. The first start with it takes home's copy in.
+claude_config="/home/node/.claude/.claude.json"
+if [ ! -e "$claude_config" ] && [ -f /home/node/.claude.json ]; then
+  cp -p /home/node/.claude.json "$claude_config"
+  chmod 600 "$claude_config"
+fi
+# Remote Control starts with the container, so claude.ai/code and the phone can open sessions in
+# here (README: Dev container). The script is the owner's dotfiles' (VS Code installs it); it
+# returns at once when Remote Control is already running, and is skipped where it isn't installed.
+if [ -x /home/node/.local/bin/claude-remote ]; then
+  /home/node/.local/bin/claude-remote </dev/null || true
+fi
 
 if [ -z "$ROOT" ]; then
   exit 0

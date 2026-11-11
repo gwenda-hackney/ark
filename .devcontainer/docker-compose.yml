@@ -5,6 +5,14 @@ services:
     working_dir: /src
     init: true
     command: sleep infinity
+    environment:
+      # Claude Code keeps its own settings file (folder trust, the sign-in's account) in the
+      # claude-config volume (devcontainer.json) instead of ~/.claude.json, which a rebuild wipes.
+      # Remote Control needs both, so it comes back after a rebuild without asking again.
+      CLAUDE_CONFIG_DIR: /home/node/.claude
+      # Remote Control (the dotfiles' claude-remote) names the container after the repo's folder,
+      # which is /src here: say "ark", the name to look for in claude.ai/code.
+      CLAUDE_REMOTE_NAME: ark
 volumes:
   ark-node-modules:
   ark-forge:

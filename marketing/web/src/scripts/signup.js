@@ -1,9 +1,8 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const SIGNUP_FOCUS_DELAY_MS = 650;
 const SIGNUP_GLOW_MS = 2000;
 
-/** @type {{ csrfToken: string, secret: string } | null} */
+/** @type {{ csrfToken: string } | null} */
 let subscribeAuth = null;
 /** @type {Promise<void> | null} */
 let subscribeAuthPromise = null;
@@ -16,11 +15,11 @@ async function loadSubscribeAuth() {
     throw new Error(data.error ?? "Something went wrong. Try again?");
   }
 
-  if (!data.csrfToken || !data.secret) {
+  if (!data.csrfToken) {
     throw new Error("Something went wrong. Try again?");
   }
 
-  subscribeAuth = { csrfToken: data.csrfToken, secret: data.secret };
+  subscribeAuth = { csrfToken: data.csrfToken };
 }
 
 function ensureSubscribeAuth() {
@@ -32,8 +31,7 @@ function ensureSubscribeAuth() {
   return subscribeAuthPromise;
 }
 
-function highlightSignupField() {
-  const field = document.querySelector(".signup-field");
+function highlightSignupField(field) {
   if (!field) return;
 
   field.classList.remove("is-targeted");
@@ -56,45 +54,74 @@ export function initSignupAnchors() {
   const email = document.getElementById("email");
   if (!email) return;
 
-  const focusEmail = () => {
-    const section = document.getElementById("list");
+  // The glow only: the cursor is focus-on-arrival.js's (data-focus-on-arrival).
+  const glowEmail = () => {
+    const section = email.closest(".signup");
     if (section?.classList.contains("is-confirmed")) return;
 
     const form = email.closest(".signup-form");
     if (form?.hidden || form?.classList.contains("is-success")) return;
 
-    highlightSignupField();
-
-    window.setTimeout(() => {
-      email.focus({ preventScroll: true });
-    }, SIGNUP_FOCUS_DELAY_MS);
+    highlightSignupField(email.closest(".signup-field"));
   };
 
   document.querySelectorAll('a[href="#list"]').forEach((link) => {
-    link.addEventListener("click", focusEmail, { signal });
+    link.addEventListener("click", glowEmail, { signal });
   });
 
   window.addEventListener(
     "hashchange",
     () => {
-      if (location.hash === "#list") focusEmail();
+      if (location.hash === "#list") glowEmail();
     },
     { signal },
   );
 
-  if (location.hash === "#list") focusEmail();
+  if (location.hash === "#list") glowEmail();
 }
 
-export function initSignup(form) {
-  const section = document.getElementById("list");
-  const confirmEl = document.getElementById("signup-confirm");
-  const errorEl = document.getElementById("signup-error");
+/** The sign-ups of the page in view: the next page's take their listeners away. */
+let signupsAbort = null;
+
+/**
+ * Every sign-up on the page (its own, on home, /contact or /join-list, and
+ * the one in the foot). Run on each page load.
+ */
+export function initSignups() {
+  signupsAbort?.abort();
+  signupsAbort = new AbortController();
+  const { signal } = signupsAbort;
+  for (const form of document.querySelectorAll("form.signup-form")) {
+    initSignup(form, { signal });
+  }
+}
+
+/**
+ * @param {HTMLFormElement} form
+ * @param {{ signal?: AbortSignal }} [options] ends every listener it adds
+ */
+export function initSignup(form, { signal } = {}) {
+  // The signup the form sits in, not whatever on the page is called #list:
+  // embedded in a page section (/contact#list, /join-list) they differ, and
+  // a page can carry two (its own and the one in the foot), so everything is
+  // looked up inside this one.
+  const section = form.closest(".signup");
+  const confirmEl = section?.querySelector(".signup-confirm") ?? null;
+  const errorEl = form.querySelector(".signup-error");
   const submitBtn = form.querySelector('button[type="submit"]');
   const defaultBtnText = submitBtn?.textContent ?? "";
 
-  ensureSubscribeAuth();
+  // The form is in the foot of every page: ask for the tokens (and their
+  // cookie) once someone starts filling it in, not on every page view.
+  form.addEventListener(
+    "focusin",
+    () => {
+      ensureSubscribeAuth().catch(() => {});
+    },
+    { once: true, signal },
+  );
 
-  form.addEventListener("submit", async (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     clearError(errorEl);
 
@@ -145,36 +172,35 @@ export function initSignup(form) {
       );
       setLoading(form, submitBtn, false, defaultBtnText);
     }
-  });
+  };
+  form.addEventListener("submit", onSubmit, { signal });
 
-  document
-    .querySelector(".signup-confirm-back")
-    ?.addEventListener("click", () => {
-      resetSignup({
-        section,
-        confirmEl,
-        form,
-        errorEl,
-        submitBtn,
-        defaultBtnText,
-      });
+  const reset = () =>
+    resetSignup({
+      section,
+      confirmEl,
+      form,
+      errorEl,
+      submitBtn,
+      defaultBtnText,
     });
 
-  window.addEventListener("hashchange", () => {
-    if (
-      section?.classList.contains("is-confirmed") &&
-      location.hash !== "#list"
-    ) {
-      resetSignup({
-        section,
-        confirmEl,
-        form,
-        errorEl,
-        submitBtn,
-        defaultBtnText,
-      });
-    }
-  });
+  section
+    ?.querySelector(".signup-confirm-back")
+    ?.addEventListener("click", reset, { signal });
+
+  window.addEventListener(
+    "hashchange",
+    () => {
+      if (
+        section?.classList.contains("is-confirmed") &&
+        location.hash !== "#list"
+      ) {
+        reset();
+      }
+    },
+    { signal },
+  );
 }
 
 /** @returns {Promise<"ok" | "retry">} */
@@ -189,7 +215,6 @@ async function postSubscribe(form, email) {
     headers: {
       "Content-Type": "application/json",
       "X-CSRF-Token": subscribeAuth.csrfToken,
-      "X-Subscribe-Secret": subscribeAuth.secret,
     },
     body: JSON.stringify({
       email,
@@ -212,14 +237,26 @@ async function postSubscribe(form, email) {
   return "ok";
 }
 
+/**
+ * The thanks takes the form's place, and the keyboard with it: the button
+ * that had it is gone, and a screen reader reads out what now has it.
+ */
 function showConfirmation(section, confirmEl) {
   if (!section || !confirmEl) return;
 
   confirmEl.setAttribute("aria-hidden", "false");
   section.classList.add("is-confirmed");
+  confirmEl.setAttribute("tabindex", "-1");
+  confirmEl.focus({ preventScroll: true });
 
+  const reduced = window.matchMedia?.(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
   window.requestAnimationFrame(() => {
-    section.scrollIntoView({ behavior: "smooth", block: "center" });
+    section.scrollIntoView({
+      behavior: reduced ? "auto" : "smooth",
+      block: "center",
+    });
   });
 }
 

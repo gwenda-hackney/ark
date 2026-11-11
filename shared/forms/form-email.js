@@ -15,15 +15,20 @@ import {
   formatFormReceiptSubject,
   replyToFromAnswers,
 } from "./format.js";
+import { emailLogoUrl } from "../email/shell.js";
 import { fetchImageBuffer, LOGO_CID } from "../email-image.js";
-import {
-  SITE_ADDRESS,
-  SITE_DOMAIN,
-  SITE_INSTAGRAM,
-  VENUE_MAPS_URL,
-} from "../site-location.js";
+import { SITE_DOMAIN } from "../site-location.js";
+import { opsUrlFor } from "../website-pass.js";
 
-const LOGO_URL = `${SITE_DOMAIN}/brand/logo-email.png`;
+/** The logo travels with the email (an inline attachment), read from the live site. */
+const LOGO_URL = emailLogoUrl(SITE_DOMAIN);
+
+/** A submission's page in this environment's ops, for the team's email. */
+export function formSubmissionOpsUrl(env, rowId) {
+  const id = String(rowId ?? "").trim();
+  if (!id) return "";
+  return `${opsUrlFor(env?.SITE_ENV?.trim())}/forms/${encodeURIComponent(id)}`;
+}
 const log = createLogger();
 
 function mailSkipFields(env, from, to) {
@@ -72,8 +77,10 @@ export function resolveFormReplyTo(form) {
  */
 export async function sendFormNotificationEmail(
   env,
-  { form, answers, changes, updated = false, to: toOverride = "", subjectPrefix = "" },
+  { form, answers, changes, updated = false, rowId = "", to: toOverride = "", subjectPrefix = "" },
 ) {
+  // rowId: the saved submission, so the email can link to it in ops.
+  const opsUrl = formSubmissionOpsUrl(env, rowId);
   // toOverride / subjectPrefix: the post-deploy form test sends to alerts@,
   // never the form's inbox, with subjects mail filters can catch.
   const to = toOverride || (await resolveFormNotifyTo(env, form));
@@ -93,18 +100,16 @@ export async function sendFormNotificationEmail(
     answers,
     changes,
     updated: isUpdate,
+    opsUrl,
   });
   const html = formatFormNotifyHtml({
     form,
     answers,
     changes,
     updated: isUpdate,
+    opsUrl,
     logoUrl: LOGO_URL,
     logoCid: logoBuffer ? LOGO_CID : null,
-    siteAddress: SITE_ADDRESS,
-    siteDomain: SITE_DOMAIN,
-    siteInstagram: SITE_INSTAGRAM,
-    venueMapsUrl: VENUE_MAPS_URL,
   });
   const attachments = [];
   if (logoBuffer) {
@@ -174,7 +179,7 @@ export async function sendFormNotificationEmail(
 }
 
 /**
- * Receipt email to the applicant: same summary as ops, plus a link to change it.
+ * Receipt email to the sender: "Got it", what they sent, and a link to change it.
  * Verify-email flow is left in the codebase but unused.
  */
 export async function sendFormReceiptEmail(
@@ -208,10 +213,6 @@ export async function sendFormReceiptEmail(
     updated,
     logoUrl: LOGO_URL,
     logoCid: logoBuffer ? LOGO_CID : null,
-    siteAddress: SITE_ADDRESS,
-    siteDomain: SITE_DOMAIN,
-    siteInstagram: SITE_INSTAGRAM,
-    venueMapsUrl: VENUE_MAPS_URL,
   });
   const attachments = [];
   if (logoBuffer) {

@@ -1,31 +1,136 @@
 ---
 import { isPreview } from "../config/env";
 import { buildLabel } from "../config/build";
+import { environmentRibbon } from "../lib/environment-ribbon.js";
 
 /**
- * Which environment this is. Hosted builds set PUBLIC_ENV_LABEL (the dev
- * website says "Dev" / "Dev · preview"); prod's preview says "Preview"
- * (docs/sanity.md). A local dev server shows the Gwenda Dev copy, published
- * only under `npm run web:dev:live`.
+ * A ribbon across the top-right corner on every copy of the site that is
+ * not the live one: "Local" on a dev server ("Local · live" under
+ * `npm run web:dev:live`), the hosted label on the dev website ("Dev",
+ * "Dev · preview"), "Preview" on prod's preview (docs/sanity.md). Never on
+ * a production build: `import.meta.env.DEV` is false there and the live
+ * site is not a preview.
  */
-const envLabel =
-  import.meta.env.PUBLIC_ENV_LABEL ||
-  (import.meta.env.DEV
-    ? process.env.SANITY_PERSPECTIVE === "published"
-      ? "Dev · live"
-      : "Dev"
-    : "Preview");
+const ribbon = environmentRibbon({
+  dev: import.meta.env.DEV,
+  isPreview,
+  envLabel: import.meta.env.PUBLIC_ENV_LABEL,
+  sanityPerspective: process.env.SANITY_PERSPECTIVE,
+});
 ---
 
 {
-  isPreview && (
+  ribbon && (
     <div
       class="preview-ribbon"
       role="status"
-      aria-label={`${envLabel} environment. Build ${buildLabel()}.`}
-      title={`Build ${buildLabel()}`}
+      aria-label={`${ribbon.label} environment. Build ${buildLabel()}.`}
     >
-      <span>{envLabel}</span>
+      <span class="preview-ribbon-text" aria-hidden="true">
+        {ribbon.text}
+      </span>
     </div>
   )
 }
+
+<style is:global>
+  /*
+   * Flat teal, so it reads as "not the real site": the brand is black
+   * leather, cream, mustard and red pen, all warm. Teal is the one hue it
+   * never uses, sits opposite the red, and holds white caps at 5:1.
+   *
+   * The box is a square in the corner, never rotated. The band is a
+   * clip-path between two 45° lines, --ribbon-near and --ribbon-far from the
+   * corner along its diagonal, so its ends sit square on the page edges.
+   */
+  .preview-ribbon {
+    --ribbon-near: 3.6rem;
+    --ribbon-far: 5.1rem;
+    --ribbon-mid: calc((var(--ribbon-near) + var(--ribbon-far)) / 2);
+    position: fixed;
+    top: 0;
+    /* The right-hand corner: the left is the Chart's menu button */
+    right: 0;
+    /* Above site-header / subpage-chrome (110); below preview-banner (200). */
+    z-index: 130;
+    /* Stay painted across view transitions. A fixed corner inside the root
+       snapshot is dropped on some client navigations until a full reload. */
+    view-transition-name: preview-ribbon;
+    width: calc(var(--ribbon-far) * 1.41421);
+    aspect-ratio: 1;
+    clip-path: polygon(
+      calc(100% - var(--ribbon-near) * 1.41421) 0,
+      0 0,
+      100% 100%,
+      100% calc(var(--ribbon-near) * 1.41421)
+    );
+    background: #0f7a72;
+    pointer-events: none;
+    transition:
+      opacity 0.3s var(--ease-out, ease-out),
+      visibility 0.3s;
+  }
+
+  /* The older pages (Subpage) keep their menu button in this corner. Run
+     the band further out, so the button sits clear inside it and the bar's
+     last link stays clear outside it. */
+  body:has(.site-header-menu-btn) .preview-ribbon {
+    --ribbon-near: 4.85rem;
+    --ribbon-far: 6.35rem;
+  }
+
+  .preview-ribbon-text {
+    position: absolute;
+    /* The band's centre line meets the corner's diagonal here. */
+    top: calc(var(--ribbon-mid) * 0.70711);
+    right: calc(var(--ribbon-mid) * 0.70711);
+    translate: 50% -50%;
+    rotate: 45deg;
+    white-space: nowrap;
+    font-family:
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1;
+    /* Centre the capitals, not the font's ascent and descent. */
+    text-box: trim-both cap alphabetic;
+    letter-spacing: 0.14em;
+    /* Letter-spacing trails the last letter; balance it to stay centred. */
+    padding-left: 0.14em;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  body.site-nav-open .preview-ribbon {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .preview-ribbon {
+      transition: none;
+    }
+  }
+
+  @media print {
+    .preview-ribbon {
+      display: none;
+    }
+  }
+
+  /* The ribbon is fixed chrome. Leave it out of the page crossfade. */
+  ::view-transition-group(preview-ribbon) {
+    animation: none;
+    z-index: 130;
+  }
+
+  ::view-transition-old(preview-ribbon),
+  ::view-transition-new(preview-ribbon) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+</style>

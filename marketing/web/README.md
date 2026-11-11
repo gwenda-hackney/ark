@@ -31,6 +31,8 @@ npm run web:dev
 npm run web:dev
 ```
 
+Browser tests: `npm run test:e2e` (Playwright, `e2e/`, against the dev server; see [docs/testing.md](../../docs/testing.md#in-a-browser)).
+
 Local builds use the Gwenda Dev Sanity project by default (`LOCAL_DEFAULTS` in `scripts/lib/load-env.mjs`). `npm run web:dev` overlays Sanity drafts, like a preview; live builds use published documents only (`SANITY_PERSPECTIVE`). See [docs/sanity.md](../../docs/sanity.md).
 
 ## Branch flow

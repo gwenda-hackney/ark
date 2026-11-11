@@ -1,41 +1,22 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
-import Subpage from "../components/Subpage.astro";
-import MenuDisplay from "../components/MenuDisplay.astro";
+/**
+ * The menu is two pages now (#240). Old links to /menu land on the bar.
+ * A page rather than an Astro redirect: that one bakes in the production
+ * domain, which would send a preview's visitors to the live site.
+ */
 import { siteConfig } from "../config/site";
-import { getAvailableItems } from "../data/menu";
-import { withHome } from "../lib/site-nav.js";
-import { fetchMenu } from "../lib/sanity/menu";
-
-const menu = await fetchMenu();
-const { title: pageTitle, description: pageDescription } = siteConfig.seo.menu;
-
-function chapterHasContent(section: (typeof menu.sections)[number]): boolean {
-  if (getAvailableItems(section).length > 0) return true;
-  return (section.subsections ?? []).some(
-    (sub) => getAvailableItems(sub).length > 0,
-  );
-}
-
-const menuNav = withHome(
-  menu.sections.filter(chapterHasContent).map((chapter) => ({
-    href: `#${chapter.id}`,
-    label: chapter.title,
-  })),
-);
 ---
 
-<BaseLayout title={pageTitle} description={pageDescription}>
-  <link rel="prefetch" href="/" slot="head" />
-
-  <Subpage
-    class="menu-page"
-    innerClass="menu-inner"
-    navItems={menuNav}
-    eyebrow="Tabula"
-    title="Menu"
-  >
-    <p slot="lead">Craft cocktails, Italian small plates, and natural wine.</p>
-    <MenuDisplay menu={menu} showPrices />
-  </Subpage>
-</BaseLayout>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0;url=/bar" />
+    <link rel="canonical" href={new URL("/bar/", siteConfig.domain).href} />
+    <meta name="robots" content="noindex" />
+    <title>Bar · {siteConfig.name}</title>
+  </head>
+  <body>
+    <a href="/bar">The bar</a>
+  </body>
+</html>

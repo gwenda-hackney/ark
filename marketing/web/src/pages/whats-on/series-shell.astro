@@ -1,30 +1,103 @@
 ---
 /**
- * The series page, filled in per request by functions/_lib/event-pages.js
- * (#25). The __EVENT_…__ tokens and <series-…> tags are replaced there.
+ * An event's own page (#240), filled in per request by
+ * functions/_lib/event-pages.js (#25): the __EVENT_…__ tokens and the
+ * <series-…> tags are replaced there, with the page lib/event-page.js draws.
+ *
+ * A <series-part> holds what only the build knows (Book a table's words when
+ * bookings are on, the guest chef's mark, where a pop-up's menu
+ * is, each contact form's button). The fill cuts
+ * them all out and places the ones the event needs.
  */
+import { Image } from "astro:assets";
+import "../../styles/chart.css";
+import "../../styles/chart-nights.css";
+import "../../styles/chart-photos.css";
+import "../../styles/chart-event.css";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import FollowUpdatesLink from "../../components/FollowUpdatesLink.astro";
-import Subpage from "../../components/Subpage.astro";
+import ChartFooter from "../../components/chart/ChartFooter.astro";
+import ChartNav from "../../components/chart/ChartNav.astro";
+import { siteConfig } from "../../config/site";
+import { menuChapters } from "../../data/menu";
+import { guestChefLogo } from "../../lib/chart-assets";
+import { followUpdatesLink } from "../../lib/follow-updates.js";
+import { popupMenuHref } from "../../lib/popup-kitchen.js";
+import { fetchFormButtons } from "../../lib/sanity/forms";
+import { fetchMenu } from "../../lib/sanity/menu";
+import { fetchSiteSettings } from "../../lib/sanity/site-settings";
 import { DATES_PENDING_LABEL } from "../../../functions/_lib/event-series.js";
+
+const { bookingEnabled } = await fetchSiteSettings();
+const menu = await fetchMenu().catch(() => ({ sections: [] }));
+const chapters = menuChapters(menu, "kitchen");
+/** Each pop-up kitchen's own chapter on the food page. */
+const popupMenus = [
+  ...new Set(chapters.map((chapter) => chapter.popupSeriesId).filter(Boolean)),
+].map((seriesId) => ({ seriesId, href: popupMenuHref(seriesId, chapters) }));
+/** Each contact form's button, for an event whose link in ops is that form. */
+const formButtons = await fetchFormButtons().catch(() => []);
+const { guestChef } = siteConfig;
+const guestKey = guestChef.name.trim().toLowerCase();
+const follow = followUpdatesLink();
 ---
 
 <BaseLayout
   title="__EVENT_TITLE__ · Gwenda"
   description="__EVENT_DESCRIPTION__"
+  showBooking={false}
 >
-  <Subpage
-    class="whats-on-series-page events-page __EVENT_LAYOUT__"
-    innerClass="events-inner whats-on-series-inner"
-    eyebrow="__EVENT_EYEBROW__"
-    title="__EVENT_TITLE__"
-  >
-    <Fragment slot="lead"><series-lead></series-lead></Fragment>
-    <series-body>
-      <section class="events-empty whats-on-series-pending">
-        <h2>{DATES_PENDING_LABEL}</h2>
-        <FollowUpdatesLink />
-      </section>
-    </series-body>
-  </Subpage>
+  <div class="ch-page" data-chart="closed">
+    <ChartNav />
+    <main class="ch-main ch-event ch-event--__EVENT_KIND__" id="main">
+      <p class="ch-event-back"><a href="/whats-on">← What’s on</a></p>
+      <header class="ch-page-head ch-event-head">
+        <p class="ch-caps ch-event-kicker">__EVENT_EYEBROW__</p>
+        <h1 class="ch-title">__EVENT_TITLE__</h1>
+      </header>
+
+      {
+        bookingEnabled && (
+          <series-part name="book">{siteConfig.copy.bookingCta}</series-part>
+        )
+      }
+      <series-part name={`logo:${guestKey}`}>
+        <Image {...guestChefLogo} width={416} alt={guestChef.name} />
+      </series-part>
+      <series-part name={`line:${guestKey}`}>{guestChef.line}</series-part>
+      <series-part name={`page:${guestKey}`}>{guestChef.instagram}</series-part>
+      {
+        popupMenus.map((popup) => (
+          <series-part name={`menu:${popup.seriesId}`}>
+            {popup.href}
+          </series-part>
+        ))
+      }
+
+      {
+        formButtons.map((form) => (
+          <series-part name={`form:${form.slug}`}>{form.label}</series-part>
+        ))
+      }
+
+      <series-body>
+        <section class="ch-event-pending">
+          <h2>{DATES_PENDING_LABEL}</h2>
+          {
+            follow && (
+              <p>
+                <a href={follow.href} target="_blank" rel="noopener noreferrer">
+                  {follow.label}
+                </a>
+              </p>
+            )
+          }
+        </section>
+      </series-body>
+
+      <p class="ch-event-foot">
+        <a href="/whats-on" class="ch-btn">Back to What’s on</a>
+      </p>
+    </main>
+    <ChartFooter />
+  </div>
 </BaseLayout>

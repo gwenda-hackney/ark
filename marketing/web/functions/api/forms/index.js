@@ -42,13 +42,8 @@ export async function onRequestGet(context) {
   }
 
   const secure = new URL(context.request.url).protocol === "https:";
-  const issued = issueSubscribeTokens(context.env, { secure });
-
-  if (issued.kind === "error") {
-    return json({ error: issued.error }, issued.status);
-  }
-
-  return json({ csrfToken: issued.csrfToken, secret: issued.secret }, 200, {
+  const issued = issueSubscribeTokens({ secure });
+  return json({ csrfToken: issued.csrfToken }, 200, {
     "Set-Cookie": issued.setCookie,
   });
 }
@@ -62,7 +57,7 @@ export async function onRequestPost(context) {
     return formRateLimitResponse(limited.retryAfterSec);
   }
 
-  const auth = validateSubscribeRequest(context.request, context.env);
+  const auth = validateSubscribeRequest(context.request);
   if (!auth.ok) {
     return json({ error: auth.error }, auth.status);
   }
@@ -160,6 +155,7 @@ export async function onRequestPost(context) {
       answers: validated.answers,
       changes: updated ? changes : undefined,
       updated,
+      rowId,
     });
     if (sent.ok && !sent.dryRun) {
       await markFormSubmissionEmailSent(context.env, rowId, "notify");

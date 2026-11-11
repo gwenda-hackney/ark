@@ -154,7 +154,7 @@ export const SECRET_OWNERS = {
     "GATE_BYPASS_KEY",
     "SANITY_DEPLOY_TOKEN",
     "UNIFI_SITE_MANAGER_API_KEY",
-    // Script-only (sm-export): the Mailchimp sync Worker.
+    // The Mailchimp sync Worker (script-only, sm-export) and production ops (the weekly email).
     "MAILCHIMP_API_KEY",
     "SUBSCRIBE_MAILCHIMP_SYNC_SECRET",
   ],
@@ -209,6 +209,9 @@ export const APP_SECRETS = {
       "SITE_HEALTH_STATUS_TOKEN",
       // Reads Sentry issues for the dashboard (api/health/errors.js).
       "SENTRY_READ_TOKEN",
+      // The weekly email (src/email). Production-only (PRODUCTION_ONLY): dev
+      // ops never gets it, so there the page is preview only.
+      "MAILCHIMP_API_KEY",
     ],
     rename: {
       BASEROW_API_KEY: "BASEROW_OPS_API_KEY",

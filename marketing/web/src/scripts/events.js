@@ -5,13 +5,14 @@ import {
   formatEventRecurrence,
   formatEventSpan,
 } from "../data/events";
+import { sizedImageUrl } from "../../functions/_lib/sanity-image-url.js";
 
 const EVENT_FEED_PAGE_SIZE = 6;
 
 function heroImageUrl(event, width) {
   const url = event.heroImageUrl || event.heroImage?.url;
   if (!url) return null;
-  return `${url}${url.includes("?") ? "&" : "?"}w=${width}&auto=format&q=86`;
+  return sizedImageUrl(url, width);
 }
 
 function eventMedia(event, eager) {

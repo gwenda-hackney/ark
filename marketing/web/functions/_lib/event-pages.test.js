@@ -16,10 +16,13 @@ const SHELLS = {
 <meta name="description" content="__EVENT_DESCRIPTION__">
 <link rel="canonical" href="${ORIGIN}${SERIES_SHELL}/">
 <script type="application/ld+json">{"name":"__EVENT_TITLE__ · Gwenda"}</script></head>
-<body><main class="whats-on-series-page __EVENT_LAYOUT__"><a href="/whats-on">Back</a>
-<p class="section-eyebrow">__EVENT_EYEBROW__</p><h1>__EVENT_TITLE__</h1>
-<div class="page-header-lead"><series-lead></series-lead></div>
-<series-body><section class="whats-on-series-pending">Check back soon</section></series-body></main></body></html>`,
+<body><main class="ch-event ch-event--__EVENT_KIND__"><a href="/whats-on">Back</a>
+<p class="ch-event-kicker">__EVENT_EYEBROW__</p><h1>__EVENT_TITLE__</h1>
+<series-part name="book">Book a table</series-part>
+<series-part name="logo:chez pickle"><img src="/chez-pickle.webp" alt="Chez Pickle"></series-part>
+<series-part name="menu:chez-pickle">/kitchen#chez-pickle</series-part>
+<series-part name="form:party">Book your party</series-part>
+<series-body><section class="ch-event-pending">Check back soon</section></series-body></main></body></html>`,
   [`${NIGHT_SHELL}/`]: `<html><head><title>__EVENT_TITLE__ · Gwenda</title>
 <meta property="og:url" content="${ORIGIN}${NIGHT_SHELL}">
 <meta property="og:image" content="${ORIGIN}/og/events/__EVENT_SLUG__.jpg">
@@ -94,10 +97,25 @@ describe("series page", () => {
     expect(html).toContain(`href="${ORIGIN}/whats-on/negroni-chess/"`);
     expect(html).toContain('{"name":"Negroni & Chess · Gwenda"}');
     expect(html).toContain("Every Tuesday");
-    expect(html).toContain('id="series-nights" data-series-id="negroni-chess"');
+    expect(html).toContain('class="ch-event ch-event--event"');
+    // The next night: its date on the sticker, the words, the way to book.
+    expect(html).toContain("<span>Tue</span><b>6</b><span>Jan</span>");
+    expect(html).toContain("Chess, negronis &amp; &lt;friends&gt;.");
+    expect(html).toContain(">Book a table for Tue 6 Jan</a>");
+    // OpenTable opened on that night (7pm: the night has no time of its own)
+    expect(html).toContain("dateTime=2099-01-06T19:00");
+    expect(html).not.toContain("series-part");
     expect(html).not.toContain("__EVENT_");
     expect(html).not.toContain("series-body>");
     expect(html).not.toContain("Check back soon");
+  });
+
+  it("shows the record in a night's empty frame, not the faded logo (#240)", async () => {
+    const html = await (await render("/whats-on/negroni-chess")).text();
+    expect(html).toMatch(
+      /<span class="[^"]*ch-event-photo--mark"\s*><svg\b[^>]*\sclass="ch-record ch-night-mark"/,
+    );
+    expect(html).not.toMatch(/<img\b[^>]*ch-night-mark/);
   });
 
   it("shows the series' gallery when it has one", async () => {
@@ -118,20 +136,130 @@ describe("series page", () => {
     expect(html).toContain('alt="Negroni &amp; Chess, photo 1"');
   });
 
+  it("shows a promotion as a deal: its days and hours, not a night", async () => {
+    sanity.series = [
+      series("cocktail-hour", {
+        title: "Cocktail Hour",
+        category: "promotion",
+        recurrence: "Every Wednesday and Thursday and Friday and Saturday",
+      }),
+    ];
+    sanity.events = [
+      night("cocktail-hour", "2099-01-07", {
+        title: "Cocktail Hour",
+        startTime: "17:00",
+        endTime: "18:30",
+        offer: "20% off",
+      }),
+    ];
+    const html = await (await render("/whats-on/cocktail-hour")).text();
+    expect(html).toContain("ch-event--promotion");
+    expect(html).toContain('<span class="ch-stand-tag">Deal</span>');
+    expect(html).toContain("Wed to Sat, 5–6:30pm");
+    expect(html).toContain("20% off");
+    expect(html).not.toContain("ch-night-date");
+    expect(html).not.toMatch(/Next up|More dates/);
+  });
+
+  it("shows a pop-up kitchen with its own mark and the way to its menu", async () => {
+    sanity.series = [
+      series("chez-pickle", {
+        title: "Chez Pickle",
+        category: "popup",
+        schedule: "once",
+        recurrence: "",
+      }),
+    ];
+    sanity.events = [
+      night("chez-pickle", "2099-01-08", {
+        title: "Chez Pickle",
+        recurrence: "",
+        startTime: "17:00",
+        endTime: "22:00",
+      }),
+    ];
+    const html = await (await render("/whats-on/chez-pickle")).text();
+    expect(html).toContain("ch-event--popup");
+    expect(html).toContain('<span class="ch-stand-tag">Pop-up kitchen</span>');
+    expect(html).toContain('src="/chez-pickle.webp"');
+    expect(html).toContain('<a class="ch-btn" href="/kitchen#chez-pickle">');
+    expect(html).toContain("Thu 8 Jan, 5–10pm");
+  });
+
+  it("sends people to a form when the event's link in ops is one of ours", async () => {
+    // Hiring the place: no dates, and its Link is the party enquiry form.
+    sanity.series = [
+      series("hire-gwenda", {
+        title: "Hire Gwenda",
+        schedule: "manual",
+        recurrence: "",
+        datesPending: true,
+        pageUrl: "https://gwenda.co.uk/contact/party",
+      }),
+    ];
+    sanity.events = [];
+    const html = await (await render("/whats-on/hire-gwenda")).text();
+    expect(html).toContain(
+      '<a class="ch-btn ch-btn--solid" href="/contact/party">Book your party</a>',
+    );
+    // In place of Book a table, and not as a link off the site
+    expect(html).not.toContain("Book a table");
+    expect(html).not.toContain('href="https://gwenda.co.uk/contact/party"');
+  });
+
+  it("has no form button for an event with no such link, nor Book a table before it has a date", async () => {
+    sanity.series = [
+      series("hire-gwenda", {
+        title: "Hire Gwenda",
+        schedule: "manual",
+        recurrence: "",
+        datesPending: true,
+      }),
+    ];
+    sanity.events = [];
+    const html = await (await render("/whats-on/hire-gwenda")).text();
+    // No night to book for: the menu bar's Book a table is the way in.
+    expect(html).not.toContain("Book a table");
+    expect(html).not.toContain("Book your party");
+  });
+
   it("sends a former web address to the new one straight away", async () => {
     const response = await render("/whats-on/negroni-night/");
     expect(response.status).toBe(301);
     expect(response.headers.get("Location")).toBe("/whats-on/negroni-chess/");
   });
 
-  it("sends an unknown address to What's on, not the homepage", async () => {
-    const response = await render("/whats-on/no-such-series");
+  it("sends a series that has ended to What's on", async () => {
+    sanity.series.push(series("summer-nights", { title: "Summer nights" }));
+    sanity.events.push(night("summer-nights", "2000-07-04"));
+    const response = await render("/whats-on/summer-nights");
     expect(response.status).toBe(302);
     expect(response.headers.get("Location")).toBe("/whats-on/");
   });
 
-  it("leaves the static schedule page and other paths alone", async () => {
-    expect(await render("/whats-on/schedule/")).toBeNull();
+  it("leaves an address that was never a series to the site's 404 page", async () => {
+    // Not an event page: the static site answers, and it has no such page
+    expect(await render("/whats-on/no-such-series")).toBeNull();
+    expect(await render("/whats-on/no-such-series/")).toBeNull();
+  });
+
+  it("sends the old schedule to What's on for good (#240)", async () => {
+    for (const path of ["/whats-on/schedule", "/whats-on/schedule/"]) {
+      const response = await render(path);
+      expect(response.status).toBe(301);
+      expect(response.headers.get("Location")).toBe("/whats-on/");
+    }
+  });
+
+  it("sends a built shell to What's on: it's no page of its own", async () => {
+    for (const path of [SERIES_SHELL, NIGHT_SHELL, TICKET_SHELL]) {
+      const response = await render(`${path}/`);
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe("/whats-on/");
+    }
+  });
+
+  it("leaves other paths alone", async () => {
     expect(await render("/menu")).toBeNull();
     expect(await render("/whats-on/a/b/c")).toBeNull();
   });
@@ -216,6 +344,13 @@ describe("night and ticket pages", () => {
     const response = await render("/whats-on/negroni-chess/2099-02-01");
     expect(response.status).toBe(302);
     expect(response.headers.get("Location")).toBe("/whats-on/negroni-chess/");
+  });
+
+  it("leaves a night under an address that was never a series to the 404 page", async () => {
+    expect(await render("/whats-on/no-such-series/2099-02-01")).toBeNull();
+    expect(
+      await render("/whats-on/no-such-series/2099-02-01/ticket"),
+    ).toBeNull();
   });
 });
 

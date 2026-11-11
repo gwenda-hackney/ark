@@ -61,7 +61,7 @@ Each environment has its own Cloudflare account, because a Cloudflare token can'
 | `CLOUDFLARE_API_TOKEN__DEV` | SM `ark-dev` | The gwenda-dev account: `gwenda-web-dev`, `gwenda-ops-dev`, `gwenda-brand-dev` and their branch previews. Pages · Edit, Workers AI · Read (local `ops:dev`). |
 | `CLOUDFLARE_ACCOUNT_ID__PRODUCTION` / `__DEV` | SM `ark` / `ark-dev` | Each account's id. The Workers' `wrangler.toml` `account_id` is production's. |
 
-Dev's Cloudflare token is named like its SM key; production's is called `CLOUDFLARE_API_TOKEN` in Cloudflare. A developer's machine loads dev, so scripts that change production (`setup:ops`, `setup:site-deploy`, `setup:site-health`, `setup:subscribe-mailchimp-sync`, `setup:wifi-portal`) ask for production's token explicitly (`cloudflareFor` in `scripts/lib/bitwarden-sm.mjs`). For a hand-run command on production, use `node scripts/with-production-cloudflare.mjs <command>`; it also gives Wrangler its own cache, since Wrangler prefers its cached Pages account over `CLOUDFLARE_ACCOUNT_ID`. A Pages project with too many deployments for the dashboard to delete goes with `scripts/pages-delete-project.mjs`, which refuses any project serving a custom domain.
+Dev's Cloudflare token is named like its SM key; production's is called `CLOUDFLARE_API_TOKEN` in Cloudflare. A developer's machine loads dev, so scripts that change production (`setup:ops`, `setup:site-deploy`, `setup:site-health`, `setup:subscribe-mailchimp-sync`, `setup:wifi-portal`) ask for production's token explicitly (`cloudflareFor` in `scripts/lib/bitwarden-sm.mjs`). For a hand-run command on production, use `node scripts/with-production-cloudflare.mjs <command>`; it also gives Wrangler its own cache, since Wrangler prefers its cached Pages account over `CLOUDFLARE_ACCOUNT_ID`. A Pages project with too many deployments for the dashboard to delete goes with `scripts/pages-delete-project.mjs`, which refuses any project serving a custom domain. Old deployments are trimmed by `pages-cleanup.yml` (`scripts/pages-cleanup.mjs`, dry run unless `--apply`); it needs Pages · Edit, which both tokens have.
 
 ## Secrets Manager pulls
 
@@ -107,7 +107,7 @@ Baserow workspaces and tokens per env: see [config.md](./config.md#ops-baserow-w
 Some secrets are for scripts, not app runtimes, so they are not in `APP_SECRETS`. CI exports them with `node scripts/sm-export.mjs NAME ...` (masked).
 
 - `DISPATCH_TOKEN__PRODUCTION` (Ark): GitHub token the site-deploy Worker starts workflows with (`workers.yml` puts it on the Worker as `GITHUB_TOKEN`).
-- `MAILCHIMP_API_KEY__PRODUCTION`, `SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION` (Ark/Web): the Mailchimp sync Worker (`workers.yml`, `setup:subscribe-mailchimp-sync`).
+- `MAILCHIMP_API_KEY__PRODUCTION`, `SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION` (Ark/Web): the Mailchimp sync Worker (`workers.yml`, `setup:subscribe-mailchimp-sync`). The key is also an ops runtime secret, on production only, for the weekly email (`APP_SECRETS.ops`).
 - `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD` (Ark/Ops): Baserow login for the clone scripts, which create tables and columns. **Required by `copy-prod-to-dev.yml`** (ops Developer tools → Copy production to dev), which also exports `SANITY_API_TOKEN__PRODUCTION` and `SANITY_API_TOKEN__DEV` to copy the Sanity content. Prefer a dedicated Baserow user that can see production and the copies.
 
 ## Email

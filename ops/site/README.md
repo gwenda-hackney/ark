@@ -52,6 +52,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/sections` | Guest menu sections |
 | `/web` | The website and its preview: what is waiting, health, publish |
 | `/forms` | People who submitted a site form |
+| `/venue` | Venue details: the opening hours and the party facts (how many fit, what's included, how soon we reply), which go on the website when saved |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow config database) |
 
@@ -112,6 +113,45 @@ The menu and inventory tables above (sections, drinks, recipe lines, placements,
 
 Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section) from Baserow into Sanity as **drafts**, and points each drink at its photo's asset. It matches by stored Sanity ID or name, creates missing sections/items, and the preview site rebuilds once edits go quiet. They go live when ops publishes them (Website → Preview → live). In local ops this writes the Gwenda Dev copy instead.
 
+## Weekly email
+
+The "what's on" email to the Mailchimp mailing list, managed at `/email` (Programme → Weekly email). Code: `src/email/` (rules in `server/weekly-email-model.js`, use cases in `server/weekly-email.js`), the Mailchimp client `src/platform/mailchimp.js`, the generator `shared/weekly-email/`.
+
+**What the page shows.** This week's email as it would go out right now (subject, preview line, the email at phone and desktop width), built from the published website data, so it matches What's on. "Send me a test" sends it to your own address only. Status says where this week's stands, when the next is due, and lists the last few with a link to each campaign in Mailchimp. Everyone signed in can look and send themselves a test; only admins (`ops.admin_emails`) change the schedule or send.
+
+**It is off until an admin switches it on, and only production sends.**
+
+- There is one Mailchimp audience, the real list. Only hosted production ops can send to it: on dev, on a developer's machine and on `ops:prod`, the send refuses before any request is made (`sendCampaignToAudience`), the scheduler's email step does nothing, and no week is recorded. Dev ops has no Mailchimp key at all (`MAILCHIMP_API_KEY` is production-only in Secrets Manager), so there the page is preview only.
+- On production nothing is sent until **Send the weekly email** is switched on (the setting `weekly_email.sending` = `on`; no row, or anything else, is off).
+
+**The off switch.** Schedule → Send the weekly email → Off → Save. Or, without ops:
+
+```bash
+npm run config:set -- --env production --key weekly_email.sending --value off
+```
+
+Either is read within a minute. While it's off nothing is sent, a waiting draft can't be approved, and tests to yourself still work.
+
+**Turning it on in production.**
+
+1. The key and the table arrive with the deploy: `MAILCHIMP_API_KEY` is in `APP_SECRETS.ops`, so the production ops deploy ([Apps](../../.github/workflows/apps.yml), app `ops`, target production, from `release`) puts it on gwenda-ops and applies `db/ops/migrations/0012_weekly_email.sql`. To push the secret without a deploy: `gh workflow run ops-secrets.yml --ref release`, then redeploy. The value is the existing `MAILCHIMP_API_KEY__PRODUCTION`; nothing new to create.
+2. On production ops, open Weekly email. Status should say "Switched off", not "Preview only" (which means the key hasn't arrived).
+3. Send yourself a test and read it in your inbox.
+4. Choose how (below), the day and time, then switch it on and Save. It asks once to confirm.
+
+**What happens each week** (Tuesday 11:00 London unless the settings say otherwise; the default is `DEFAULT_SEND` in `weekly-email-model.js`):
+
+- The five-minute tick (`/api/web/tick?step=email`) sees the time has come and claims the week: one row per week in `weekly_emails`. Whoever inserts the row has the week, so a second tick, or the cron firing twice, does nothing.
+- It builds the email from the published website. **No nights that week: it isn't sent**, and Status says why. If it can't be built, or Mailchimp refuses, it's marked "Didn't send" with the reason and the admins are emailed. It is not retried by itself.
+- **Send automatically** (the default): a campaign is made in Mailchimp and sent to the list.
+- **Approve first**: the campaign is made as a draft and waits. Whoever is in "Who to tell" (the admins if empty) gets an email. An admin presses **Approve and send**, confirms the number of people, and it goes, rebuilt from the website as it is at that moment. A draft nobody approves is never sent; the next week gets its own.
+- Changing the mode mid-week never resends anything: a week that's sent stays sent, and a draft that's waiting keeps waiting for an admin even if the mode goes back to automatic.
+- Switching it on after that week's time has passed (more than six hours ago) doesn't send that week's by surprise: it starts the week after. An admin can press **Try again** to get this week's ready, then Approve and send.
+- **Try again** (after a failure, a skipped week or a missed time) prepares this week's and always leaves it waiting for Approve and send. **Send again** sends a second email for a week that already went, after a confirmation.
+- If a send's answer is lost, or a Worker dies mid-send, ops asks Mailchimp whether the campaign went and records that; it never sends again to find out. Mailchimp itself refuses to send a campaign twice.
+
+Times are London wall-clock, so 11:00 stays 11:00 across the clock changes.
+
 ## Local
 
 ```bash
@@ -138,7 +178,7 @@ npm run ops:prod
 
 The same local app (HMR, stack traces in your terminal) with **production powers**: production Ops DB (Gwenda / Gwenda Ops, reached with the production token), production secrets straight from Secrets Manager, `SITE_ENV=production`. Saves, **Update website** and **Update website now** change the real Ops DB and gwenda.co.uk, exactly like hosted ops. The app shows a red **LOCAL COPY ON LIVE DATA** banner. Stop it and run plain `npm run ops:dev` to go back to the dev copy. Don't run both at once: they use the same ports.
 
-Resending form emails from `/forms` locally sends them from this machine: notifications go to your `FORMS_NOTIFY_EMAIL`, receipts to the applicant on the dev row. No website needs to be running.
+Resending a notification from `/forms` locally sends it from this machine, to your `FORMS_NOTIFY_EMAIL`. A receipt is sent by the hosted dev website (its link is signed with the website's key, which ops doesn't hold), so it goes to the dev site's safe inbox. No local website needs to be running.
 
 Build:
 

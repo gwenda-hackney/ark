@@ -8,6 +8,8 @@
  * (from soft and faint to sharp), and photos glide (a CSS transition) when the
  * columns change. Reduced motion
  * turns the movement off. Without this script, CSS columns show the photos.
+ * A list marked data-gallery-row (home's few photos) keeps the page's own
+ * layout: no columns, the rest the same.
  */
 let installed = false;
 
@@ -243,6 +245,11 @@ function arrangeLists(doc) {
     if (arranged.has(list)) continue;
     arranged.add(list);
     fadeInWhenLoaded(list);
+    // A row of a few (home's photos): the page lays it out, no columns.
+    if (list.hasAttribute("data-gallery-row")) {
+      if (!still) revealOnScroll(win, items(list));
+      continue;
+    }
     // First placement without gliding from the corner.
     list.classList.add("is-masonry", "is-settling");
     layout(list);

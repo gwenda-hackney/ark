@@ -6,6 +6,7 @@ import {
   type SanityImageField,
 } from "./images";
 import { portableTextToRich } from "../../../functions/_lib/rich-text.js";
+import { categoryOf, withSeriesCategory } from "../promotions.js";
 import { EVENTS_QUERY, SERIES_QUERY } from "./queries";
 
 type PortableTextBlock = {
@@ -21,6 +22,7 @@ type SanityEvent = {
   pageUrl?: string | null;
   seriesId?: string | null;
   seriesTitle?: string | null;
+  category?: string | null;
   recurrence?: string | null;
   isSpecialEdition?: boolean | null;
   time?: string | null;
@@ -68,6 +70,7 @@ function mapEvent(doc: SanityEvent): Event | null {
     pageUrl: doc.pageUrl?.trim() || "",
     seriesId: doc.seriesId?.trim() || doc.id,
     seriesTitle: doc.seriesTitle?.trim() || "",
+    category: categoryOf(doc),
     recurrence: doc.recurrence?.trim() || "",
     isSpecialEdition: Boolean(doc.isSpecialEdition),
     time: doc.time?.trim() || "",
@@ -93,6 +96,7 @@ export async function fetchEvents(): Promise<Event[]> {
 type SanitySeries = {
   id: string | null;
   title: string;
+  category?: string | null;
   schedule?: string | null;
   recurrence?: string | null;
   replacesSeriesId?: string | null;
@@ -111,6 +115,7 @@ function mapSeries(doc: SanitySeries): EventSeries | null {
   return {
     seriesId: doc.id,
     title: doc.title,
+    category: categoryOf(doc),
     schedule:
       doc.schedule === "repeating"
         ? "repeating"
@@ -146,5 +151,6 @@ export async function fetchWhatsOnCatalog(): Promise<{
     fetchSeries(),
     fetchEvents(),
   ]);
-  return { series, occurrences };
+  // A night follows its series: a promotion's nights are promotions.
+  return { series, occurrences: withSeriesCategory(occurrences, series) };
 }

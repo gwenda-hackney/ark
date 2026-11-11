@@ -1,0 +1,192 @@
+---
+/**
+ * The pages the links in a form's emails open (#240): /contact/verify
+ * confirms the address, /contact/edit opens the application again. Each
+ * reads its link's token and asks the forms API, every time the page is
+ * shown: on arriving, and on coming Back to it through the site's router,
+ * which doesn't run a page's script again (so it listens for
+ * astro:page-load instead).
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "./chart/ChartPage.astro";
+import "../styles/chart-form-link.css";
+import { siteConfig } from "../config/site";
+import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
+
+interface Props {
+  kind: "verify" | "edit";
+}
+
+const { kind } = Astro.props;
+const PAGES = {
+  verify: {
+    title: `Confirm · ${siteConfig.name}`,
+    description: "Confirm your form submission.",
+    pending: "Confirming…",
+    line: "One moment while we confirm your email.",
+  },
+  edit: {
+    title: `Your application · ${siteConfig.name}`,
+    description: "Open your application to make changes.",
+    pending: "Opening…",
+    line: "One moment while we prepare your application.",
+  },
+};
+const page = PAGES[kind];
+---
+
+<BaseLayout
+  title={page.title}
+  description={page.description}
+  showBooking={false}
+  noindex
+>
+  <ChartPage
+    class="ch-form-link"
+    title={page.pending}
+    titleId="form-link-title"
+  >
+    <div data-form-link={kind}>
+      <p class="ch-lead" id="form-link-message">{page.line}</p>
+      <p class="contact-error" id="form-link-error" role="alert" hidden></p>
+      <p class="ch-form-link-ways">
+        {
+          kind === "verify" && (
+            <a href="/" class="ch-btn ch-btn--solid" id="form-link-home" hidden>
+              Back to Gwenda
+            </a>
+          )
+        }
+        <a
+          href={formPublicPath(PLAY_FORM_SLUG)}
+          class="ch-btn"
+          id="form-link-retry"
+          hidden>Back to the form</a
+        >
+      </p>
+    </div>
+  </ChartPage>
+</BaseLayout>
+
+<script>
+  import { formPublicPath } from "../lib/form-paths";
+  import { seedFormDraft, slugFromToken } from "../lib/form-draft.js";
+
+  /** What each page says when its link can't be used. */
+  const SAYS = {
+    verify: {
+      noToken: "Open the link from your email, or submit the form again.",
+      invalid: "Submit the form again to get a new link.",
+      broken: "Try the link again, or submit the form once more.",
+    },
+    edit: {
+      noToken: "Open the link from your email, or fill the form again.",
+      invalid: "Open the form again to make changes.",
+      broken: "Try the link again, or open the form directly.",
+    },
+  };
+
+  function elements() {
+    const byId = (id) => document.getElementById(id);
+    return {
+      title: byId("form-link-title"),
+      message: byId("form-link-message"),
+      error: byId("form-link-error"),
+      home: byId("form-link-home"),
+      retry: byId("form-link-retry"),
+    };
+  }
+
+  function say(els, title, message) {
+    if (els.title) els.title.textContent = title;
+    if (els.message) els.message.textContent = message;
+  }
+
+  /** The way back to the form: the API's, else the token's own form. */
+  function showRetry(els, formPath, token) {
+    if (!(els.retry instanceof HTMLAnchorElement)) return;
+    els.retry.hidden = false;
+    if (formPath) {
+      els.retry.href = formPath;
+      return;
+    }
+    const slug = slugFromToken(token);
+    if (slug) els.retry.href = formPublicPath(slug);
+  }
+
+  async function ask(kind, token) {
+    const res = await fetch(
+      `/api/forms/${kind}?t=${encodeURIComponent(token)}`,
+      { credentials: "same-origin" },
+    );
+    return { res, data: await res.json().catch(() => ({})) };
+  }
+
+  async function verify(els, token) {
+    const { res, data } = await ask("verify", token);
+    // A good or a spent link may send the answers back, to open the form with
+    if (data.formPath || data.draftAnswers)
+      seedFormDraft(data.formPath, data.draftAnswers);
+    if (!res.ok || !data.ok) {
+      say(
+        els,
+        data.reason === "expired"
+          ? "This link has expired"
+          : "This link isn't valid",
+        data.error || SAYS.verify.invalid,
+      );
+      showRetry(els, data.formPath, token);
+      return;
+    }
+    say(
+      els,
+      data.successTitle || "You're confirmed",
+      data.successMessage || "Thanks for writing. We'll be in touch.",
+    );
+    if (els.home) els.home.hidden = false;
+    showRetry(els, data.formPath, token);
+  }
+
+  async function edit(els, token) {
+    const { res, data } = await ask("edit", token);
+    if (!res.ok || !data.ok) {
+      say(els, "This link isn't valid", data.error || SAYS.edit.invalid);
+      showRetry(els, data.formPath, token);
+      return;
+    }
+    seedFormDraft(data.formPath, data.draftAnswers);
+    const form =
+      typeof data.formPath === "string" && data.formPath.startsWith("/")
+        ? data.formPath
+        : formPublicPath(slugFromToken(token));
+    window.location.replace(form);
+  }
+
+  async function run() {
+    const root = document.querySelector("[data-form-link]");
+    if (!(root instanceof HTMLElement)) return;
+    const kind = root.dataset.formLink === "edit" ? "edit" : "verify";
+    const els = elements();
+    const token = new URLSearchParams(window.location.search).get("t") || "";
+    if (!token) {
+      say(els, "This link isn't valid", "");
+      if (els.error) {
+        els.error.hidden = false;
+        els.error.textContent = SAYS[kind].noToken;
+      }
+      if (els.retry) els.retry.hidden = false;
+      return;
+    }
+    try {
+      await (kind === "edit" ? edit(els, token) : verify(els, token));
+    } catch {
+      say(els, "Something went wrong", SAYS[kind].broken);
+      showRetry(els, "", token);
+    }
+  }
+
+  // Every time a page is shown: on arriving, and on coming Back through the
+  // router, which swaps the page in fresh ("Confirming…") without running
+  // this module again. It fires on a full page load too.
+  document.addEventListener("astro:page-load", run);
+</script>

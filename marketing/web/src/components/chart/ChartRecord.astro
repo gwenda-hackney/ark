@@ -1,0 +1,21 @@
+---
+/**
+ * The record with the logo's skull (#240), inline: in a night's empty frame,
+ * on the trail at the foot of every page, the mark on Apply to play. The
+ * drawing is the site icon's, on no board (lib/chart-record.js, which the
+ * event pages use too). Sized by the CSS of the place it sits in.
+ * Decorative unless given a label.
+ */
+import { recordSvg } from "../../lib/chart-record.js";
+
+interface Props {
+  /** small: for a mark of 20 to 40px; large: the grooved one, for a frame */
+  size?: "small" | "large";
+  label?: string;
+  class?: string;
+}
+
+const { size = "small", label = "", class: className = "" } = Astro.props;
+---
+
+<Fragment set:html={recordSvg({ size, label, className })} />

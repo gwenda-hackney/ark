@@ -1,5 +1,8 @@
 import type { MenuItemImage } from "./menu";
 
+/** A night, a promotion (a standing deal) or a pop-up kitchen: set in ops. */
+export type EventCategory = "event" | "promotion" | "popup";
+
 export type Event = {
   id: string;
   title: string;
@@ -9,6 +12,8 @@ export type Event = {
   pageUrl?: string;
   seriesId?: string;
   seriesTitle?: string;
+  /** What its series is; What's on shows nights ("event") only. */
+  category?: EventCategory;
   recurrence?: string;
   isSpecialEdition?: boolean;
   time?: string;
@@ -34,6 +39,7 @@ export type Event = {
 export type EventSeries = {
   seriesId: string;
   title: string;
+  category?: EventCategory;
   description: string;
   shortDescription?: string;
   recurrence?: string;
@@ -43,12 +49,21 @@ export type EventSeries = {
   schedule?: "manual" | "repeating" | "once";
   /** No nights yet: What's on shows "Check back soon for the next date". */
   datesPending?: boolean;
-  /** Photos from the series' Drive gallery, copied by ops. */
+  /**
+   * The series' gallery from ops (its Images tab), newest first: on its own
+   * page, and on /photos (lib/photo-sources.ts).
+   */
   gallery?: Array<{
     url: string;
     width: number;
     height: number;
     alt?: string | null;
+    /** A night's photo: YYYY-MM-DD. */
+    date?: string | null;
+    /** When it was uploaded. */
+    added?: string | null;
+    lqip?: string | null;
+    color?: string | null;
   }>;
   offer?: string;
   nightSchedule?: Array<{

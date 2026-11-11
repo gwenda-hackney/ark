@@ -33,9 +33,30 @@ Pick `app` by which deploy the change belongs to: the app whose new code needs i
 
 **Every migration must be safe to run again.** Nothing records which ones ran: every deploy runs them all, and each checks the real state first. A record would be wrong after `copy-prod-to-dev` replaces a copy from production. Also add new columns to the matching `setup:baserow-*` script, so a table built from scratch has them.
 
-Delete a migration once it has run in production. Two standing migrations are the exception and stay: `config-retired-settings.mjs` removes whatever is listed in `RETIRED_SETTINGS`, and `smoke-test-cleanup.mjs` removes the deploy smoke test's sign-up from Subscribers and, in production, Mailchimp, if a run left it behind.
+Delete a migration once it has run in production (if it made a form the deploy test submits, take its `createdBy` off `SMOKE_FORMS` in `marketing/web/functions/_lib/form-smoke.js` in the same change; a test fails until you do). Two standing migrations are the exception and stay: `config-retired-settings.mjs` removes whatever is listed in `RETIRED_SETTINGS`, and `smoke-test-cleanup.mjs` removes the deploy smoke test's sign-up from Subscribers and, in production, Mailchimp, if a run left it behind.
 
 Code that uses a new column should cope without it (see `saveFormEditLink` in `marketing/web/functions/_lib/form-store.js`). Then a local database, or a deploy that skipped migrations, still works.
+
+## Changing menu or event data, and dry runs
+
+A migration that changes records in D1 (menu sections, dishes, event series) goes through the feature's use cases, not SQL: `opsDataForMigration` (`scripts/lib/ops-migration.mjs`) hands `up` an `env` whose repositories are this environment's D1, and logs every write as what changed. See `2026-11-10-menu-plain-sections.mjs`.
+
+With `--dry-run` (and `--only`) the same code runs against a throwaway copy of the data instead (`scripts/lib/d1-rehearsal.mjs`): an in-memory SQLite with every `db/ops/migrations/*.sql` applied, filled with the real rows. Nothing is written, and the log is what the real run will do, also when the environment's D1 schema is behind the code: the dry run then names what is missing, and the real run refuses until the schema is applied:
+
+```bash
+node scripts/with-ops-env.mjs node scripts/migrate.mjs --app ops --phase post --env dev --only 2026-11-10-menu-plain-sections --dry-run
+node scripts/with-ops-env.mjs node scripts/d1-migrate.mjs --env dev --db ops   # the D1 schema; --dry-run lists what is pending
+```
+
+Only D1 has a copy to rehearse on. A dry run gets no Google service account, so nothing it runs can change the calendar or Drive, but a use case that writes to Sanity would write for real: on a dry run a migration says what it would do there instead of calling it (see `2026-11-10-one-happy-hour.mjs`, which deletes a series and publishes the removal).
+
+Migrations run in file-name order, and one may need another's result (Chez Pickle's menu chapter belongs to the series that `2026-11-10-a-series-categories.mjs` marks a pop-up kitchen; `2026-11-10-z-promotions-on-website.mjs` goes last). When the order matters, say so in the name, with a letter after the date.
+
+## Rehearsing a rollout on dev
+
+`npm run rehearse:rollout` (`scripts/rehearse-rollout.mjs`) does on dev what a release will do in production, from production's data: it copies production's menu, events and artists (D1) and website content (Sanity) over dev, applies the D1 schema, runs the ops post-deploy migrations the branch adds (the ones `main` doesn't have), brings the website content up to date as ops does by itself (the menu's Update website, the events' website job), and checks the result. It only ever writes dev; production is read. `-- --dry-run` says what it would do, `-- --no-copy` keeps dev's data.
+
+Production's series point at production's Drive folders, and dev uses the same Google service account, so `data:move` leaves those behind on any copy out of production (see [db/README.md](../db/README.md)): they never reach dev. Hosted dev ops runs `main` on the same data every five minutes; while a branch changes what the website job compares, the rehearsal holds hosted dev off the series concerned (see `holdHostedDev` in the script).
 
 ## Where CI runs them
 

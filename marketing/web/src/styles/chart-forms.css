@@ -1,0 +1,479 @@
+/*
+ * The long forms (play, collaborate): /contact/<slug>. One column that
+ * reads top to bottom: the page's head, the decks and a few words on the
+ * play form, then the form. The markup is ContactForm.astro; the inputs,
+ * the tick boxes and the error lines share their rules with the list
+ * signup in chart.css, so every form on the site looks the same.
+ */
+.ch-main.ch-sheet-form-page {
+  max-width: 64rem;
+}
+
+/* A form's own line above its name ("Work with us"), not trailing the lead */
+.ch-sheet-form-page .ch-page-head > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ch-sheet-form-page .ch-page-head .ch-caps {
+  order: -1;
+  margin-bottom: 0.5rem;
+}
+
+/*
+ * The play form's opening, one block: the call in a big line, who it is
+ * for, and a note in pen pointing down at the form; beside it the decks,
+ * a print taped up (.ch-print) that rides up level with the title.
+ */
+.ch-sheet-form-page .ch-page-head {
+  margin-bottom: 1.5rem;
+}
+
+.ch-form-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 3.5rem;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.ch-form-intro-text p {
+  margin: 0 0 1rem;
+  font-size: 1.1875rem;
+  line-height: 1.55;
+  color: var(--ch-ink-2);
+}
+
+.ch-form-intro-text .ch-form-intro-lead {
+  font-size: clamp(1.5rem, 2.6vw, 1.875rem);
+  line-height: 1.25;
+  color: var(--ch-cream);
+  text-wrap: balance;
+}
+
+/* In pen, leaning, with an arrow down to the form */
+.ch-form-intro-text .ch-form-intro-cue {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.875rem;
+  line-height: 1.1;
+  color: var(--ch-mustard);
+  transform: rotate(-2deg);
+  transform-origin: left center;
+}
+
+.ch-form-intro-cue svg {
+  flex: none;
+  width: 1.5rem;
+  height: 2.125rem;
+  margin-bottom: -0.875rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (min-width: 56.0625rem) {
+  .ch-form-intro .ch-print {
+    margin-top: -5.5rem;
+  }
+
+  .ch-form-intro-text {
+    padding-bottom: 1rem;
+  }
+}
+
+@media (max-width: 56rem) {
+  .ch-form-intro {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
+    margin-bottom: 2rem;
+  }
+
+  .ch-form-intro-text .ch-form-intro-cue {
+    font-size: 1.625rem;
+  }
+
+  /* On a phone the print comes first, the full width, nearly straight */
+  .ch-form-intro .ch-print {
+    --tilt: 0.75deg;
+    order: -1;
+    margin-top: 0.75rem;
+  }
+}
+
+/* The form: one comfortable column */
+.ch-sheet-form-page .ch-form {
+  max-width: 42rem;
+}
+
+.ch-page .ch-form .contact-form {
+  gap: 3rem;
+  margin-top: 0;
+  font-family: var(--ch-book);
+}
+
+.ch-page .ch-form .contact-section-header {
+  margin-bottom: 1.25rem;
+}
+
+/* A section's name: the chapter head (.ch-sheet-head), a size down */
+.ch-page .ch-form .contact-section-header h2 {
+  margin: 0;
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: 1.625rem;
+  letter-spacing: 0;
+  color: var(--ch-cream);
+}
+
+.ch-page .ch-form .contact-stack {
+  gap: 1.5rem;
+}
+
+/* Labels as written, not in capitals */
+.ch-page .ch-form .contact-field-heading {
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.ch-page .ch-form .contact-tags > .contact-field-label {
+  margin-bottom: 0.25rem;
+}
+
+.ch-page .ch-form .contact-tags > .contact-help {
+  margin: 0 0 0.25rem;
+}
+
+.ch-page .ch-form .contact-label-text,
+.ch-page .ch-form .contact-other label {
+  font-family: var(--ch-press);
+  font-weight: 600;
+  font-size: 1.125rem;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ch-cream);
+}
+
+/* "* Required": the same mark on a field and in the note above them */
+.ch-page .ch-form .contact-required {
+  gap: 0.25rem;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+.ch-page .ch-form .contact-required-note .contact-required {
+  margin-left: 0;
+}
+
+.ch-page .ch-form .contact-required-mark {
+  color: var(--ch-mustard);
+  font-weight: 700;
+}
+
+.ch-page .ch-form .contact-required-text {
+  font-family: var(--ch-press);
+  font-style: normal;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  letter-spacing: 0;
+  color: var(--ch-mustard);
+}
+
+/* The note belongs to the first section: pulled in from the form's wide gap */
+.ch-page .ch-form .contact-required-note {
+  margin: 0 0 -1.5rem;
+  font-family: var(--ch-book);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--ch-ink-2);
+}
+
+.ch-page .ch-form .contact-help {
+  max-width: none;
+  font-family: var(--ch-book);
+  font-style: normal;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--ch-ink-3);
+}
+
+/* Text fields: the list signup's field (chart.css), a line to write on */
+.ch-page .ch-form .gw-field input,
+.ch-page .ch-form .gw-field textarea {
+  min-height: 3rem;
+  font-size: 1.0625rem;
+  transition: border-color 0.2s ease;
+}
+
+/* In focus a field shows the ring and a gold line, as the list's does
+   (chart.css); open, the picker's line stays gold */
+.ch-page .ch-form .gw-select.is-open .gw-select-trigger {
+  border-color: var(--ch-gold);
+}
+
+.ch-page .ch-form .contact-field.is-invalid > input,
+.ch-page .ch-form .contact-field.is-invalid > textarea,
+.ch-page .ch-form .contact-field.is-invalid > select,
+.ch-page .ch-form .contact-field.is-invalid .gw-select-trigger,
+.ch-page .ch-form .contact-other.is-invalid input {
+  border-color: var(--ch-red-ink);
+  box-shadow: none;
+}
+
+/*
+ * A pick-one list (scripts/themed-select.js). Closed, it is the same line as
+ * a text field with a caret at the end. Open, the list is a solid board with
+ * the option under the pointer or the keys marked in mustard.
+ *
+ * The native select is what shows before the script runs, with no script,
+ * and on phones (which keep their own picker): the same closed field, and
+ * where the browser draws the list itself, a dark one.
+ */
+.ch-page .ch-form .gw-field > select,
+.ch-page .ch-form .gw-select-trigger {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 3rem;
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ch-rule);
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--ch-ink);
+  font-family: var(--ch-book);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: normal;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.ch-page .ch-form .gw-field > select {
+  appearance: none;
+  /* A select's own line box is 1px shorter than a text field's */
+  min-height: 3.075rem;
+  padding-right: 2.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 9' fill='none' stroke='%23c9a24a' stroke-width='1.5'%3E%3Cpath d='M1 1.5l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 0.875rem auto;
+  color-scheme: dark;
+}
+
+.ch-page .ch-form .gw-field > select:invalid,
+.ch-page .ch-form .gw-field > select:has(option[value=""]:checked) {
+  color: var(--ch-ink-3);
+}
+
+.ch-page .ch-form .gw-field > select option {
+  background: var(--ch-board-2);
+  color: var(--ch-ink);
+  font-family: var(--ch-book);
+}
+
+.ch-page .ch-form .gw-select-value {
+  line-height: normal;
+}
+
+.ch-page .ch-form .gw-select-trigger.is-placeholder .gw-select-value {
+  color: var(--ch-ink-3);
+}
+
+.ch-page .ch-form .gw-field > select:hover,
+.ch-page .ch-form .gw-select-trigger:hover {
+  border-color: var(--ch-gold);
+}
+
+.ch-page .ch-form .gw-select-chevron {
+  border-color: var(--ch-gold);
+}
+
+.ch-page .ch-form .gw-select-menu {
+  top: calc(100% + 0.25rem);
+  padding: 0.25rem 0;
+  border: 1px solid var(--ch-gold);
+  border-radius: 0;
+  background: var(--ch-board-2);
+  box-shadow: 0 1rem 2rem rgb(0 0 0 / 0.55);
+}
+
+.ch-page .ch-form .gw-select.is-drop-up .gw-select-menu {
+  top: auto;
+  bottom: calc(100% + 0.25rem);
+}
+
+.ch-page .ch-form .gw-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+  padding: 0.5rem 1rem;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--ch-book);
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  color: var(--ch-ink);
+  transition: none;
+}
+
+/* The pointer and the keys move the same focus, so there is one marked row */
+.ch-page .ch-form .gw-select-option:hover,
+.ch-page .ch-form .gw-select-option:focus {
+  outline: none;
+  background: var(--ch-board-3);
+  box-shadow: inset 0.25rem 0 0 var(--ch-mustard);
+  color: var(--ch-cream);
+}
+
+.ch-page .ch-form .gw-select-option.is-selected {
+  color: var(--ch-mustard);
+}
+
+.ch-page .ch-form .gw-select-option.is-selected::after {
+  content: "";
+  flex: none;
+  width: 0.4rem;
+  height: 0.8rem;
+  margin-right: 0.25rem;
+  border: solid var(--ch-mustard);
+  border-width: 0 2px 2px 0;
+  transform: translateY(-0.1rem) rotate(45deg);
+}
+
+/*
+ * Pick-several lists: tick boxes, the list signup's own (the box itself is
+ * drawn in chart.css), set out in columns. Each row is a 44px target.
+ */
+.ch-page .ch-form .contact-tag-list {
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0 1.25rem;
+}
+
+.ch-page .ch-form .contact-tag,
+.ch-page .ch-form .contact-tag:hover,
+.ch-page .ch-form .contact-tag:has(input:checked),
+.ch-page .ch-form .contact-tag:has(input:focus-visible) {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 0;
+  padding: 0.625rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--ch-book);
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  text-align: left;
+  color: var(--ch-ink);
+}
+
+.ch-page .ch-form .contact-tag input {
+  position: static;
+  opacity: 1;
+}
+
+.ch-page .ch-form .contact-tag span {
+  width: auto;
+  line-height: inherit;
+  text-align: left;
+}
+
+.ch-page .ch-form .contact-other {
+  margin-top: 0.5rem;
+}
+
+.ch-page .ch-form .contact-other label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+/* What's wrong, under the field it belongs to (the signup's error line) */
+.ch-page .ch-form .contact-field-error {
+  position: static;
+  margin: 0.5rem 0 0;
+}
+
+.ch-page .ch-form .contact-error {
+  margin: 0;
+}
+
+.ch-page .ch-form .contact-actions {
+  gap: 1rem;
+  padding-top: 2rem;
+  /* Not global.css's ruled line: a trail over it, chart-rules.css */
+  border-top: 0;
+}
+
+.ch-page .ch-form .contact-submit {
+  margin-top: 0;
+}
+
+/* A date field: the browser's own picker, drawn for a dark page */
+.ch-page .ch-form .gw-field input[type="date"] {
+  color-scheme: dark;
+  min-height: 2.875rem;
+}
+
+/*
+ * Sent (/contact/<slug>/submitted): which form, "Got it" in the page's
+ * title face, a line on what happens next, and the ways on from here.
+ */
+.ch-sent-page .ch-page-head {
+  margin-bottom: 1.25rem;
+}
+
+.ch-sent-message {
+  max-width: 36rem;
+  margin: 0 0 2rem;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--ch-ink-2);
+}
+
+.ch-sent-actions,
+.ch-sent-verify {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.ch-sent-verify {
+  flex-direction: column;
+  margin-bottom: 2rem;
+}
+
+.ch-sent-resend {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  max-width: 24rem;
+  justify-items: start;
+}
+
+.ch-sent-resend .gw-field {
+  width: 100%;
+}
+
+/* [hidden] loses to the display rules above without this */
+.ch-sent [hidden] {
+  display: none;
+}

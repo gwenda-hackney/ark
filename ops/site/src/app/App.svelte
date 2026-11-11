@@ -12,9 +12,11 @@
 	import SuppliersPage from "../inventory/SuppliersPage.svelte";
 	import ConfigPage from "../config/ConfigPage.svelte";
 	import UsersPage from "../users/UsersPage.svelte";
+	import VenuePage from "../venue/VenuePage.svelte";
 	import WebPage from "../website/WebPage.svelte";
 	import DevToolsPage from "../website/DevToolsPage.svelte";
 	import SettingsPage from "../website/SettingsPage.svelte";
+	import WeeklyEmailPage from "../email/WeeklyEmailPage.svelte";
 	import FormsPage from "../forms/FormsPage.svelte";
 	import EventsPage from "../events/EventsPage.svelte";
 	import ArtistsPage from "../artists/ArtistsPage.svelte";
@@ -81,6 +83,8 @@
 						<SuppliersPage />
 					{:else if key === "users"}
 						<UsersPage />
+					{:else if key === "venue"}
+						<VenuePage />
 					{:else if key === "web"}
 						{#if parseShellPath(current).view === "dev"}
 							<DevToolsPage />
@@ -89,6 +93,8 @@
 						{:else}
 							<WebPage />
 						{/if}
+					{:else if key === "email"}
+						<WeeklyEmailPage {me} />
 					{:else if key === "forms"}
 						<FormsPage path={current} />
 					{:else if key === "events"}

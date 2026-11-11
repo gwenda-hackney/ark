@@ -1,0 +1,726 @@
+/*
+ * Home (#240): what's on and the menu, set like a gig poster in the logo's
+ * colours. Tokens, buttons and the hero are in chart.css; this is only the
+ * page's own sections.
+ */
+.ch-home .ch-btn {
+  min-height: 3.5rem;
+  padding: 0 2rem;
+  font-size: 1.0625rem;
+}
+
+/* Side room grows with the screen, so the titles clear the menu button */
+.ch-home-section {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2.5rem clamp(var(--ch-gutter), 6vw, 4.75rem) 3.5rem;
+  box-sizing: content-box;
+}
+
+.ch-home-head-note {
+  margin: 0 0 0.5rem;
+  max-width: 24rem;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.625rem;
+  line-height: 1.15;
+  color: var(--ch-mustard);
+  transform: rotate(-1.5deg);
+}
+
+.ch-home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2.75rem;
+}
+
+/* On a phone: the page's one gutter, as on every other page */
+@media (max-width: 40rem) {
+  .ch-home-section {
+    padding-inline: var(--ch-gutter);
+    padding-bottom: 2.5rem;
+  }
+
+  .ch-home-head {
+    margin-bottom: 1.75rem;
+  }
+}
+
+/* The menu: drinks and food side by side, each on its own board */
+.ch-menu-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.75rem;
+  /* Both boards the same height, whatever is on them */
+  align-items: stretch;
+}
+
+.ch-menu-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.75rem 1.75rem 2rem;
+  border: 1.5px solid rgb(242 232 210 / 0.2);
+  border-radius: 0.625rem;
+  background: var(--ch-board);
+}
+
+.ch-menu-side > * {
+  width: 100%;
+}
+
+/*
+ * The line to the whole menu sits at the foot of its board, level with the
+ * other side's: the spare room on the shorter board goes above it (above
+ * the snapshots, if any).
+ */
+.ch-menu-side > :nth-last-child(2) {
+  margin-bottom: auto;
+}
+
+/*
+ * The whole menu: a line in the tiles' caps, not a button, so it doesn't
+ * outweigh what's on the board. As tall as a thumb, still.
+ */
+.ch-menu-side > .ch-menu-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+  min-height: 2.75rem;
+  margin: -0.25rem 0 -0.625rem;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ch-mustard);
+  transition: color 0.2s ease;
+}
+
+.ch-menu-all > span {
+  font-size: 1.125rem;
+  transition: transform 0.2s ease;
+}
+
+.ch-menu-side > .ch-menu-all:hover,
+.ch-menu-side > .ch-menu-all:focus-visible {
+  color: var(--ch-cream);
+}
+
+.ch-menu-all:hover > span,
+.ch-menu-all:focus-visible > span {
+  transform: translateX(0.25rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-menu-all > span {
+    transition: none;
+  }
+}
+
+.ch-menu-side-head h3 {
+  margin: 0;
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 3.8vw, 2.25rem);
+  line-height: 1.05;
+  color: var(--ch-mustard);
+}
+
+/*
+ * The board's title is the way to its menu. It is mustard already, so under
+ * the mouse or the keyboard it turns cream, as the board's other mustard
+ * links do (the rest of a list, the whole menu); nothing moves.
+ */
+.ch-menu-side-head h3 a {
+  transition: color 0.2s ease;
+}
+
+.ch-menu-side-head h3 a:hover,
+.ch-menu-side-head h3 a:focus-visible,
+.ch-menu-side-head h3 a:active {
+  color: var(--ch-cream);
+}
+
+.ch-menu-side-head p {
+  margin: 0.5rem 0 0;
+  font-size: 1.125rem;
+  line-height: 1.45;
+  color: var(--ch-ink-2);
+}
+
+.ch-menu-chapter {
+  margin: 0.5rem 0 -0.5rem;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ch-cream);
+}
+
+.ch-menu-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ch-menu-items li {
+  padding: 0.625rem 0;
+  /* a trail under each: chart-rules.css */
+}
+
+.ch-menu-item-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ch-menu-item-name {
+  font-family: var(--ch-book);
+  font-weight: 500;
+  font-size: 1.3125rem;
+  line-height: 1.2;
+  color: var(--ch-cream);
+}
+
+.ch-menu-item-price {
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 1.125rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--ch-mustard);
+  white-space: nowrap;
+}
+
+.ch-menu-item-desc {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ch-ink-3);
+}
+
+/* .ch-menu-side in front: the pages' plain links take their text's colour
+   (.ch-page a in chart.css), and this one is mustard */
+.ch-menu-side .ch-menu-rest {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--ch-mustard);
+}
+
+.ch-menu-rest:hover,
+.ch-menu-rest:focus-visible {
+  color: var(--ch-cream);
+}
+
+/*
+ * The rest of the menu: each chapter by name, and what it starts from. Every
+ * tile is a link to that part of the menu's page (lib/menu-anchors.js).
+ * Name and price share a line where the tiles are wide; on narrow ones every
+ * price goes under its name (below). Should a long name still not fit, its
+ * price goes under, and every tile in its row grows with it, its words
+ * centred, so a row is always even.
+ */
+.ch-menu-more {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  container-type: inline-size;
+}
+
+.ch-menu-more > li {
+  display: flex;
+}
+
+.ch-menu-more a {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  align-content: center;
+  justify-content: space-between;
+  gap: 0.125rem 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  /* Solid, and its line too: at rest the line is the tile's own colour */
+  background: var(--ch-board-2);
+  box-shadow: inset 0 0 0 1.5px var(--ch-board-2);
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Wherever the dock shows (a touch screen), a tile is a full-size target.
+   Narrow tiles are taller still (below) */
+@media not all and (min-width: 62.5rem) {
+  .ch-menu-more a {
+    min-height: 2.75rem;
+  }
+}
+
+/*
+ * Under the mouse, the keyboard or a thumb: the theme's mustard round the
+ * tile and on its name. The line is drawn inside, so the tile, its row and
+ * the board stay the size they were.
+ */
+.ch-menu-more a:hover,
+.ch-menu-more a:focus-visible,
+.ch-menu-more a:active {
+  background: var(--ch-board-3);
+  box-shadow: inset 0 0 0 1.5px var(--ch-mustard);
+}
+
+.ch-menu-more a > span:first-child {
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ch-cream);
+  transition: color 0.2s ease;
+}
+
+.ch-menu-more a:hover > span:first-child,
+.ch-menu-more a:focus-visible > span:first-child,
+.ch-menu-more a:active > span:first-child {
+  color: var(--ch-mustard);
+}
+
+.ch-menu-more a > span + span {
+  font-size: 0.9375rem;
+  color: var(--ch-mustard);
+  white-space: nowrap;
+}
+
+/* Narrow tiles (a phone, a small laptop): each name over what it starts
+   from, so every tile is alike whatever the length of its name */
+@container (max-width: 30rem) {
+  .ch-menu-more a {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.125rem;
+    min-height: 3.5rem;
+  }
+}
+
+.ch-menu-soon {
+  margin: 0;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.625rem;
+  line-height: 1.1;
+  color: var(--ch-cream);
+}
+
+/* Over a booked pop-up's menu, before its first night: who, and from when */
+.ch-menu-ahead {
+  margin: 0 0 0.5rem;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.15;
+  color: var(--ch-cream);
+}
+
+/*
+ * Prints from the gallery taped up on each board, just above the line to the
+ * whole menu: two, the second (the newer photo) across and down from the
+ * first, turned the other way and stuck over it, its tape on the lower print. The taped-print
+ * look is .ch-print (chart.css): the paper, its tape, its shadow. Food's are
+ * Drinks' in the mirror, at the same height, so the boards match; the spare
+ * room on the shorter board goes above them.
+ */
+.ch-menu-side > .ch-menu-photos {
+  /* A print's width (a narrow phone's a little less); the second sits this
+     far across and down */
+  --print: min(13rem, 52vw);
+  --across: calc(var(--print) * 0.4);
+  --down: calc(var(--print) * 0.27);
+  display: grid;
+  justify-content: center;
+  margin: auto 0 0;
+  /* Room for the first print's tape and tilt */
+  padding: 1.5rem 0 0.75rem;
+}
+
+/* Both in one cell; the second's margins set it across and down */
+.ch-menu-photos > .ch-menu-photo {
+  --tilt: -3deg;
+  grid-area: 1 / 1;
+  width: var(--print);
+  margin: 0 var(--across) var(--down) 0;
+  padding: 0.5rem 0.5rem 1.75rem;
+  box-sizing: border-box;
+}
+
+.ch-menu-photos > .ch-menu-photo + .ch-menu-photo {
+  --tilt: 3.5deg;
+  margin: var(--down) 0 0 var(--across);
+}
+
+/* Food's: the same, in the mirror */
+.ch-menu-side--food .ch-menu-photos > .ch-menu-photo {
+  --tilt: 3deg;
+  margin: 0 0 var(--down) var(--across);
+}
+
+.ch-menu-side--food .ch-menu-photos > .ch-menu-photo + .ch-menu-photo {
+  --tilt: -3.5deg;
+  margin: var(--down) var(--across) 0 0;
+}
+
+/* Square, like the instant film: any photo crops to it from its middle */
+.ch-menu-photos .ch-menu-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+@media (max-width: 56rem) {
+  .ch-menu-sides {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  /* A board inside the gutter: its own padding stays small, so the list
+     isn't set in twice */
+  .ch-menu-side {
+    padding: 1.25rem 1rem 1.5rem;
+  }
+}
+
+/* Wherever the dock shows (a touch screen): full-size targets for the links
+   that are only words, in the same place as before */
+@media not all and (min-width: 62.5rem) {
+  .ch-menu-side-head h3 a,
+  .ch-menu-rest {
+    display: inline-block;
+    padding-block: 0.625rem;
+    margin-block: -0.625rem;
+  }
+}
+
+/*
+ * What's on is one block: this week's nights, then the deals and the pop-up
+ * kitchen side by side (StandingCards), then the way to the lot. Each part's
+ * title is a size down from the section's.
+ */
+.ch-home-nights h3.ch-poster {
+  font-size: clamp(1.625rem, 3vw, 2.125rem);
+}
+
+/* This week sits under What's on's own title: no second red stroke */
+.ch-home-sub {
+  margin-bottom: 2rem;
+}
+
+.ch-poster.ch-home-sub::after {
+  content: none;
+}
+
+.ch-stand-row {
+  display: grid;
+  /* Two abreast where each gets 24rem; one kind alone takes the row */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: 3rem;
+  /* A column with more cards than the other doesn't stretch the other's */
+  align-items: start;
+  margin-top: 3.5rem;
+}
+
+/* Nothing in it on any more, since the build (scripts/stand-cards.js) */
+.ch-stand-row[hidden] {
+  display: none;
+}
+
+.ch-home .ch-stand-row > .ch-stand-section {
+  margin: 0;
+}
+
+/* In a half row, a section's cards go one under another */
+.ch-stand-row .ch-stands {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The rest of a kind, on What's on: a quiet line under its cards */
+.ch-page .ch-stand-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  margin-top: 1rem;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ch-mustard);
+  transition: color 0.2s ease;
+}
+
+.ch-page .ch-stand-more:hover,
+.ch-page .ch-stand-more:focus-visible {
+  color: var(--ch-cream);
+}
+
+@media (min-width: 40.0625rem) {
+  .ch-stand-row .ch-home-head {
+    margin-bottom: 1.75rem;
+  }
+}
+
+/* Two abreast on a small laptop: the pictures a little shorter */
+@media (min-width: 40.0625rem) and (max-width: 75rem) {
+  .ch-stand-row .ch-stand {
+    --stand-h: 12.5rem;
+    gap: 1.25rem;
+  }
+
+  .ch-stand-row .ch-stand .ch-night-time {
+    font-size: 1.625rem;
+  }
+
+  /* The tag on one line across the shorter picture */
+  .ch-stand-row .ch-stand-tag {
+    white-space: nowrap;
+    font-size: 0.875rem;
+  }
+}
+
+/*
+ * More than one card in a column (lib/home-stands.js): each a compact row,
+ * a small picture beside its name, when, and its line. One kind alone takes
+ * the row, so its cards go abreast.
+ */
+@media (min-width: 40.0625rem) {
+  .ch-stand-row--compact .ch-stands {
+    gap: 1.75rem;
+  }
+
+  .ch-stand-row--compact > .ch-stand-section:only-child .ch-stands {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  }
+
+  .ch-stand-row--compact .ch-stand {
+    --stand-h: 8.5rem;
+    gap: 1.25rem;
+  }
+
+  .ch-stand-row--compact .ch-stand-body {
+    gap: 0.25rem;
+  }
+
+  .ch-stand-row--compact .ch-stand-name {
+    font-size: 1.5rem;
+  }
+
+  .ch-stand-row--compact .ch-stand .ch-night-time {
+    font-size: 1.375rem;
+  }
+
+  .ch-stand-row--compact .ch-stand .ch-night-note {
+    font-size: 1rem;
+  }
+
+  .ch-stand-row--compact .ch-stand-links {
+    margin-top: 0.125rem !important;
+    font-size: 0.8125rem;
+  }
+
+  /* The tag stays on its small picture's corner, on one line */
+  .ch-stand-row--compact .ch-stand-tag,
+  .ch-stand-row--compact .ch-stand--deal .ch-stand-tag {
+    top: -0.5rem;
+    left: -0.5rem;
+    max-width: none;
+    white-space: nowrap;
+    padding: 0.25rem 0.4375rem 0.3125rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* On a phone, several in a kind: a narrower picture column, smaller words */
+@media (max-width: 40rem) {
+  .ch-stand-row--compact .ch-stands {
+    gap: 2rem;
+  }
+
+  /* Words level with the picture's top, so the tag over it (wider than a
+     small picture) sits above the name, not across it */
+  .ch-stand-row--compact .ch-stand {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .ch-stand-row--compact .ch-stand-body {
+    padding-top: 0.625rem;
+  }
+
+  .ch-stand-row--compact .ch-stand-name {
+    font-size: 1.375rem;
+  }
+
+  .ch-stand-row--compact .ch-stand .ch-night-time {
+    font-size: 1.25rem;
+  }
+
+  .ch-stand-row--compact .ch-stand .ch-night-note {
+    font-size: 0.9375rem;
+  }
+
+  .ch-stand-row--compact .ch-stand-tag,
+  .ch-stand-row--compact .ch-stand--deal .ch-stand-tag {
+    font-size: 0.6875rem;
+  }
+}
+
+/*
+ * Bookings (IV, HomeBookings): a party and playing here side by side on
+ * the leather, the same width and built the same way: heading, line, kinds and
+ * its button. On a phone, one under the other.
+ */
+.ch-bookings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem clamp(2rem, 5vw, 4.5rem);
+  align-items: start;
+}
+
+.ch-booking {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.ch-booking h3 {
+  margin: 0;
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 3.8vw, 2.25rem);
+  line-height: 1;
+  color: var(--ch-cream);
+}
+
+.ch-booking-line {
+  max-width: 30rem;
+  margin: 0;
+  font-size: 1.1875rem;
+  line-height: 1.45;
+  color: var(--ch-ink-2);
+}
+
+/* The kinds of party, from the form: gold capitals, each on a tag */
+.ch-booking-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ch-gold);
+}
+
+.ch-booking-kinds li {
+  position: relative;
+  isolation: isolate;
+  padding: 0.5rem 0.75rem;
+}
+
+/* The tag's edge, cut by hand like the buttons' (#ch-cut) */
+.ch-booking-kinds li::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1.5px solid rgb(201 162 74 / 0.45);
+  filter: url(#ch-cut);
+}
+
+/* The button to its form */
+.ch-booking-go {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  padding-top: 0.75rem;
+}
+
+@media (max-width: 48rem) {
+  .ch-bookings {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3.5rem;
+  }
+
+  .ch-booking-go {
+    padding-top: 0.5rem;
+  }
+}
+
+/* Photos last: one row, and the way to the rest beside the title */
+.ch-home-photos .ch-home-head {
+  margin-bottom: 1.5rem;
+}
+
+.ch-page .ch-photos-more-link {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.625rem;
+  line-height: 1.15;
+  color: var(--ch-mustard);
+  transform: rotate(-1.5deg);
+  transition: color 0.2s ease;
+}
+
+.ch-page .ch-photos-more-link:hover,
+.ch-page .ch-photos-more-link:focus-visible {
+  color: var(--ch-cream);
+}
+
+/* Wherever the dock shows (a touch screen), a full-size target, in the same
+   place as before */
+@media not all and (min-width: 62.5rem) {
+  .ch-page .ch-photos-more-link {
+    display: inline-block;
+    padding-block: 0.5rem;
+    margin-block: -0.5rem;
+  }
+}
+
+/* The foot lines up with home's sections */
+.ch-home .ch-footer {
+  box-sizing: content-box;
+  padding-inline: clamp(var(--ch-gutter), 6vw, 4.75rem);
+}
+
+@media (max-width: 40rem) {
+  .ch-home .ch-footer {
+    padding-inline: var(--ch-gutter);
+  }
+}

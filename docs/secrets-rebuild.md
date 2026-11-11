@@ -64,7 +64,7 @@ Claude Code's auto mode blocks production deploys and secret deletion unless you
 - `npm run env:secrets:refresh`: nothing missing for dev. For production, compare `SECRET_OWNERS` against `resolveSecretsForEnv(raw, "production")`.
 - Live form and email, end to end. Web promote runs this every time. To run it by hand:
   `node scripts/with-env.mjs sh -c 'cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --deep --send-email --form-test'`
-  It sends three emails to alerts@, all with subjects starting "Smoke test:".
+  It sends five emails to alerts@ (the test email, and two for each form: Play at Gwenda and the party enquiry), all with subjects starting "Smoke test:".
 - Dev website deep health returns 200 (a 401 means it hasn't been redeployed since its secrets changed).
 
 ## Cleanup

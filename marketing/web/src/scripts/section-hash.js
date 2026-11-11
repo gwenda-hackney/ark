@@ -26,12 +26,17 @@ function syncHash(sectionId) {
 }
 
 /**
+ * The old home's only (Hero.astro, /preview). The new look's pages
+ * (`.ch-page`, #240) leave their jumps to the router, so each is a step Back
+ * undoes: taking them here made Back after home's Skip to content or Back to
+ * top leave the site.
+ *
  * @param {object} [options]
  * @param {(sectionId: string) => void} [options.onSectionChange]
  */
 export function initSectionHash(options = {}) {
   const hero = document.getElementById("hero");
-  if (!hero) return () => {};
+  if (!hero || document.querySelector(".ch-page")) return () => {};
 
   const onAnchorClick = (event) => {
     const link = event.target.closest('a[href^="#"]');

@@ -39,10 +39,21 @@ export type MenuItem = {
   producer?: string;
 };
 
+export type MenuKind = "bar" | "kitchen";
+
 export type MenuSection = {
+  /**
+   * What the section goes by: its slug, which ops writes once and never
+   * changes (its document id if it has none). Its links are made of it
+   * (lib/menu-anchors.js); its title is free to change.
+   */
   id: string;
   title: string;
   subtitle?: string;
+  /** Which menu a chapter belongs to; subsections follow their parent. */
+  kind?: MenuKind;
+  /** The pop-up kitchen (a series in ops) whose chapter this is, if any. */
+  popupSeriesId?: string;
   items: MenuItem[];
   /** Nested groups under a chapter (e.g. Spritz under By the Book). */
   subsections?: MenuSection[];

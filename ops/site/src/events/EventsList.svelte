@@ -29,6 +29,7 @@
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
 	import SeriesCards from "./SeriesCards.svelte";
 	import { seriesCardRow } from "./series-card";
+	import { CATEGORY_FILTER_ITEMS, filterByCategory, type CategoryFilter } from "./event-category";
 	import {
 		compareSeriesByWeekday,
 		countEventScheduleRows,
@@ -71,6 +72,10 @@
 
 	let seriesQuery = $state("");
 
+	/** Nights, promotions or pop-up kitchens only; "all" for everything. Both views share it. */
+	let categoryFilter = $state<string>("all");
+	const shownEvents = $derived(filterByCategory(events, categoryFilter as CategoryFilter));
+
 	let scheduleEventIds = $state<string[]>([]);
 
 	let scheduleQuery = $state("");
@@ -100,7 +105,7 @@
 		{ id: "calendar", label: "Calendar" },
 	];
 
-	const schedule = $derived(groupEventSchedule(events));
+	const schedule = $derived(groupEventSchedule(shownEvents));
 
 	const eventFilterOptions = $derived(
 		[...events]
@@ -122,7 +127,7 @@
 
 	const filteredSeries = $derived.by(() => {
 		const q = seriesQuery.trim().toLowerCase();
-		return [...events]
+		return [...shownEvents]
 			.filter((event) => event.repeatUnit !== "once")
 			.filter((event) => {
 				if (!q) return true;
@@ -141,10 +146,11 @@
 			.sort(compareSeriesByWeekday);
 	});
 
-	const seriesFiltersActive = $derived(Boolean(seriesQuery.trim()));
+	const seriesFiltersActive = $derived(Boolean(seriesQuery.trim()) || categoryFilter !== "all");
 
 	const scheduleFiltersActive = $derived(
-		scheduleEventIds.length > 0 ||
+		categoryFilter !== "all" ||
+			scheduleEventIds.length > 0 ||
 			Boolean(scheduleQuery.trim()) ||
 			Boolean(scheduleFrom) ||
 			Boolean(scheduleTo),
@@ -339,6 +345,14 @@
 					{/if}
 				{/if}
 			{/snippet}
+			<!-- Always here, in both views, so nothing moves when the view or the choice changes. -->
+			<Segmented
+				bind:value={categoryFilter}
+				items={CATEGORY_FILTER_ITEMS}
+				tone="soft"
+				size="sm"
+				ariaLabel="Show nights, promotions or pop-up kitchens"
+			/>
 		</PageHeader>
 		<div class="list-main fill" class:bleed={listView === "series" && seriesRows.length > 0 && !loading}>
 			{#if error && !editing && !missing && !events.length}

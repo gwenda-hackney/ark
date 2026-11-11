@@ -4,9 +4,9 @@
  *
  * Homepage cocktail gallery images are optional (siteSettings.cocktailGalleryEnabled).
  * A successful CMS fetch is proven by gallery tiles, Sanity CDN URLs, or menu sections
- * on /menu/.
+ * on /menu/ or, in The Chart (#240), chapters on /bar/ and /kitchen/.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const distDir = resolve(process.cwd(), "dist");
@@ -17,7 +17,16 @@ const sanityImageRe = /cdn\.sanity\.io\/images\/[a-z0-9]+\/([^/"']+)/;
 const datasetMatch = home.match(sanityImageRe) ?? menu.match(sanityImageRe);
 const dataset = datasetMatch?.[1] ?? process.env.SANITY_DATASET ?? "unknown";
 const galleryTiles = (home.match(/menu-tease-cocktail/g) ?? []).length;
-const menuSections = (menu.match(/class="menu-section[\s"]/g) ?? []).length;
+const chartMenus = ["bar", "kitchen"]
+  .map((page) => resolve(distDir, page, "index.html"))
+  .filter((file) => existsSync(file))
+  .map((file) => readFileSync(file, "utf8"));
+const menuSections =
+  (menu.match(/class="menu-section[\s"]/g) ?? []).length +
+  chartMenus.reduce(
+    (n, html) => n + (html.match(/class="ch-chapter[\s"]/g) ?? []).length,
+    0,
+  );
 const menuEmpty = menu.includes("being prepared");
 const hasComingSoon =
   home.includes("menu-tease-empty") || home.includes("Coming soon");

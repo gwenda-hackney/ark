@@ -1,0 +1,70 @@
+---
+/**
+ * Every gallery photo (#240). Home shows the newest few and links here.
+ * Under the venue's own, the photos from events: each event's gallery in
+ * ops, its newest few under its name (lib/photos.js eventPhotoGroups), in
+ * the event galleries' wall (renderGallery, as on the event's own page).
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import PhotoWall from "../components/chart/PhotoWall.astro";
+import { renderGallery } from "../lib/event-card.js";
+import { eventPhotos, galleryPhotos } from "../lib/photo-sources";
+import { eventPhotoGroups } from "../lib/photos.js";
+
+const photos = galleryPhotos();
+const { events } = await eventPhotos();
+/** A picture already on the venue's wall isn't shown again under an event. */
+const groups = eventPhotoGroups(events, {
+  shownElsewhere: photos.map((photo) => photo.hash),
+});
+---
+
+<BaseLayout
+  title="Photos · Gwenda"
+  description="Photos from Gwenda in Hackney Wick: the food, the room, the terrace, the decks and our nights."
+  showBooking={false}
+>
+  <ChartPage
+    class="ch-photos-page ch-photos"
+    title="Photos"
+    lead="The food, the room, the terrace and the decks."
+  >
+    <PhotoWall photos={photos} />
+
+    {
+      groups.length > 0 && (
+        <section class="ch-photos-events" aria-labelledby="photos-events">
+          <h2 class="ch-poster" id="photos-events">
+            From our events
+          </h2>
+          {groups.map((group) => (
+            <section class="ch-photos-event" aria-label={group.title}>
+              <h3 class="ch-photos-event-name">
+                {group.href ? (
+                  <a href={group.href}>
+                    {group.title} <span aria-hidden="true">→</span>
+                  </a>
+                ) : (
+                  group.title
+                )}
+              </h3>
+              <Fragment
+                set:html={renderGallery(group.photos, {
+                  title: group.title,
+                  row: true,
+                })}
+              />
+              {group.more > 0 && group.href && (
+                <a class="ch-photos-event-more" href={group.href}>
+                  {group.more} more on its page{" "}
+                  <span aria-hidden="true">→</span>
+                </a>
+              )}
+            </section>
+          ))}
+        </section>
+      )
+    }
+  </ChartPage>
+</BaseLayout>

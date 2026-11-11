@@ -158,6 +158,8 @@ function framingFromOccurrence(event, occurrence) {
 }
 
 const SERIES_PREVIEWS_KEY = "site.series_previews";
+/** The same, for what last went on the website: `{ [id]: seriesPreviewHash }`. */
+const SERIES_LIVE_KEY = "site.series_live";
 
 /**
  * A series waiting for dates has no nights to hold a preview snapshot, so the
@@ -167,27 +169,33 @@ export function seriesPreviewHash(event) {
   return occurrenceHash(event, "");
 }
 
-export async function readSeriesPreviews(env) {
+async function readSeriesHashes(env, key) {
   try {
-    const parsed = JSON.parse(
-      (await readState(env, "ops", SERIES_PREVIEWS_KEY, environmentOf(env))) || "{}",
-    );
+    const parsed = JSON.parse((await readState(env, "ops", key, environmentOf(env))) || "{}");
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch {
     return {};
   }
 }
 
-async function recordSeriesPreview(env, event, datesPending) {
-  const previews = await readSeriesPreviews(env);
+async function recordSeriesHash(env, key, event, datesPending) {
+  const hashes = await readSeriesHashes(env, key);
   const id = String(event.id);
   const hash = datesPending ? seriesPreviewHash(event) : undefined;
-  if (previews[id] === hash) return;
-  const next = { ...previews };
+  if (hashes[id] === hash) return;
+  const next = { ...hashes };
   if (hash) next[id] = hash;
   else delete next[id];
-  await writeState(env, "ops", SERIES_PREVIEWS_KEY, environmentOf(env), JSON.stringify(next));
+  await writeState(env, "ops", key, environmentOf(env), JSON.stringify(next));
 }
+
+export const readSeriesPreviews = (env) => readSeriesHashes(env, SERIES_PREVIEWS_KEY);
+
+/** Series waiting for dates as the website last got them, by event id. */
+export const readSeriesLive = (env) => readSeriesHashes(env, SERIES_LIVE_KEY);
+
+const recordSeriesPreview = (env, event, datesPending) =>
+  recordSeriesHash(env, SERIES_PREVIEWS_KEY, event, datesPending);
 
 /** A gallery photo kept in ops, as a Sanity image on the series. */
 function opsGalleryImage(photo) {
@@ -225,10 +233,19 @@ export function rollingNightsGoLive(event, wanted, byDate) {
   return (date) => date > lastLive && !added.has(date) && !byDate.get(date)?.snapshots?.production;
 }
 
+/**
+ * Stage an event: write its series and nights to the preview as drafts.
+ * `maxNights` caps how many nights one call stages or drops (the background
+ * website job goes a step at a time, so a long series never makes one
+ * request run for minutes); `remaining` says how many are left for the next.
+ * `force` writes every night again, also one ops believes is in step: for
+ * when the documents themselves are known to differ (a migration that found
+ * them written by older code).
+ */
 export async function publishEventPreview(
   env,
   id,
-  _options = {},
+  { maxNights = Infinity, force = false } = {},
 ) {
   const event = await getEvent(env, id);
   // Series and night pages are built ahead of time; the diary is read live.
@@ -254,6 +271,8 @@ export async function publishEventPreview(
   const existingByDate = new Map(event.dates.map((row) => [row.date, row]));
   const occurrences = [];
   const mutations = [];
+  let staged = 0;
+  let remaining = 0;
   const goesLive =
     drop.length || datesPending ? () => false : rollingNightsGoLive(event, wanted, existingByDate);
   const liveMutations = [];
@@ -276,6 +295,8 @@ export async function publishEventPreview(
       gallery: (event.gallery || []).map(galleryImage),
       formerSlugs: event.formerSlugs || [],
       takingApplications: event.takingApplications === true,
+      category: event.category,
+      pageUrl: event.pageUrl,
     }),
   });
 
@@ -302,7 +323,7 @@ export async function publishEventPreview(
   for (const date of wanted) {
     const previous = existingByDate.get(date);
     const hash = occurrenceHash(event, previous || date);
-    if (previous?.sanityId && previous?.snapshots?.preview?.hash === hash) {
+    if (!force && previous?.sanityId && previous?.snapshots?.preview?.hash === hash) {
       occurrences.push({
         // Nothing to write back unless its ClickUp task changes below.
         unchanged: true,
@@ -319,6 +340,11 @@ export async function publishEventPreview(
       });
       continue;
     }
+    if (staged >= maxNights) {
+      remaining += 1;
+      continue;
+    }
+    staged += 1;
     if (!previous?.sanityId) pagesChanged = true;
     const content = resolveOccurrenceContent(event, previous || date);
     // A night keeps its slug when the series gets a new web address: RSVPs
@@ -354,6 +380,7 @@ export async function publishEventPreview(
       endTime: content.endTime,
       nightSchedule: content.nightSchedule || [],
       isSpecialEdition: content.isSpecialEdition,
+      category: event.category,
     });
     // A new night of a series that's live and unchanged goes on the website
     // now, so the series doesn't run dry 12 weeks after its last publish.
@@ -389,10 +416,14 @@ export async function publishEventPreview(
 
   const warnings = [];
   if (drop.length) pagesChanged = true;
-  const dropped = await markNightsRemoved(env, drop);
+  // Dropped nights not marked yet, within what is left of this call's allowance.
+  const unmarked = drop.filter((row) => !row.snapshots?.preview?.removed);
+  const dropNow = unmarked.slice(0, Math.max(0, maxNights - staged));
+  remaining += unmarked.length - dropNow.length;
+  const dropped = await markNightsRemoved(env, dropNow);
   warnings.push(...dropped.warnings);
   // Keep the rows when marking failed, so the next run tries again.
-  if (!dropped.warnings.length) warnings.push(...(await settleDroppedRows(env, drop, dropped.live)));
+  if (!dropped.warnings.length) warnings.push(...(await settleDroppedRows(env, dropNow, dropped.live)));
   const retired = await retireFormerSeries(
     env,
     event,
@@ -401,10 +432,14 @@ export async function publishEventPreview(
   if (retired.changed) pagesChanged = true;
   warnings.push(...retired.warnings);
 
+  // ClickUp is asked only about nights that changed or have no task yet: a
+  // night staged before with nothing new keeps its task as it is, so one
+  // edited night of a long series costs one task, not one per night.
+  const forTasks = occurrences.filter((row) => !row.unchanged || !row.clickupTaskId);
   const tasks =
     siteEnvName(env) === "dev"
-      ? { dates: occurrences, warnings: [] }
-      : await syncSocialTasks(env, event, occurrences);
+      ? { dates: forTasks, warnings: [] }
+      : await syncSocialTasks(env, event, forTasks);
   warnings.push(...tasks.warnings);
   // One Baserow write per changed night only: a series has a dozen nights and
   // Cloudflare allows 50 outbound calls per request on the free plan.
@@ -427,6 +462,7 @@ export async function publishEventPreview(
     pagesChanged,
     target: "preview",
     published: liveMutations.length,
+    remaining,
   };
 }
 
@@ -670,9 +706,11 @@ export async function previewEventOnWebsite(env, id) {
 /**
  * "Update website" for one event: bring the drafts up to date from ops, then
  * publish only this event's documents (and anything they need).
- * The site pages follow on the next automatic update.
+ * The site pages follow on the next automatic update. The background website
+ * job does the same after a save, `maxDocuments` at a time; `remaining` says
+ * how many documents are left for its next step.
  */
-export async function putEventOnWebsite(env, id) {
+export async function putEventOnWebsite(env, id, { maxDocuments = Infinity } = {}) {
   // Saving already staged it; only stage again if the drafts are behind ops.
   const current = await getEvent(env, id);
   const staged =
@@ -680,12 +718,18 @@ export async function putEventOnWebsite(env, id) {
     ? await publishEventPreview(env, id)
     : { event: current, warnings: [] };
   const ids = await eventDocumentIds(env, staged.event);
-  const result = await publishRelease(env, { ids });
+  const result = await publishRelease(env, { ids, limit: maxDocuments });
   const warnings = [...(staged.warnings || []), ...result.warnings];
   try {
     // Everything in scope now matches the website, copied or not, so mark it
     // all: events copied live by the old whole-dataset promote get fixed here.
-    await markReleasedInOps(env, [...ids, ...result.written], { deleted: result.deleted });
+    // With more still to go, only what this call wrote.
+    await markReleasedInOps(env, result.remaining ? result.written : [...ids, ...result.written], {
+      deleted: result.deleted,
+    });
+    if (!result.remaining) {
+      await recordSeriesHash(env, SERIES_LIVE_KEY, staged.event, seriesAwaitingDates(staged.event));
+    }
   } catch (error) {
     warnings.push(`On the website, but ops status did not update: ${error?.message || "unknown error"}.`);
   }
@@ -694,6 +738,7 @@ export async function putEventOnWebsite(env, id) {
     written: result.written,
     deleted: result.deleted,
     included: result.included,
+    remaining: result.remaining,
     warnings,
   };
 }

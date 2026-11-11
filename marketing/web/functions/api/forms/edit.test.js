@@ -11,7 +11,8 @@ const { fetchFormSubmission, draftAnswersFromSubmission } = vi.hoisted(() => ({
 vi.mock("../../_lib/form-verify-auth.js", () => ({
   parseFormEditToken,
 }));
-vi.mock("../../_lib/form-store.js", () => ({
+vi.mock("../../_lib/form-store.js", async (importOriginal) => ({
+  submissionBelongsTo: (await importOriginal()).submissionBelongsTo,
   fetchFormSubmission,
   draftAnswersFromSubmission,
 }));

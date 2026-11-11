@@ -301,7 +301,7 @@ The website sends guests links that must not be guessable or editable: RSVP tick
 
 - **Owner:** Gwenda: a random value we generate.
 - **SM:** `SUBSCRIBE_SECRET__DEV` ([`ark/web-dev`](#arkweb-dev)), `SUBSCRIBE_SECRET__PRODUCTION` ([`ark/web`](#arkweb)). Random.
-- **What:** signs the website's own links and cookies: the subscribe form's CSRF cookie, RSVP ticket links (`/events/<slug>/ticket` and the Apple Wallet pass), and form email-verification and edit links.
+- **What:** signs the website's own links: RSVP ticket links (`/events/<slug>/ticket` and the Apple Wallet pass, while `TICKET_SECRET` is unset), and form email-verification and edit links. It never leaves the server: the sign-up and form posts are protected by a CSRF cookie and same-origin check, not by this.
 - **Used by:** website functions.
 - **Gets there by:** Pages secret (`web-secrets.yml`).
 - **Expires:** never.
@@ -380,10 +380,10 @@ Subscribers sign up on the website (stored in Baserow); the sync Worker copies t
 - **Owner:** Mailchimp user **dscalamogna@gwenda.co.uk**, in the Gwenda account. It stops working if that user is removed.
 - **SM:** `MAILCHIMP_API_KEY__PRODUCTION`, in [`ark/web`](#arkweb).
 - **What:** the Mailchimp API key for the real audience.
-- **Used by:** the Mailchimp sync Worker, `setup:subscribe-mailchimp-sync`, `upload-mailchimp-template.mjs`.
-- **Gets there by:** `workers.yml` puts it on the Worker.
+- **Used by:** the Mailchimp sync Worker, `setup:subscribe-mailchimp-sync`, `upload-mailchimp-template.mjs`, and production ops for the weekly email (`ops/site/src/email`, [ops README](../ops/site/README.md#weekly-email)). Dev ops never gets it: there is one audience, the real one.
+- **Gets there by:** `workers.yml` puts it on the Worker; `ops-secrets.yml` and the production ops deploy (`apps.yml`) put it on gwenda-ops as a Pages secret (it is in `APP_SECRETS.ops`).
 - **Expires:** **yes, after a year. The current key stops working around 2027-10-01.**
-- **Changing it:** create a key in Mailchimp, check it (`/3.0/ping`), store it, rerun Workers on `release` (or `setup:subscribe-mailchimp-sync`), then revoke the old key. Check you're revoking the right one.
+- **Changing it:** create a key in Mailchimp, check it (`/3.0/ping`), store it, rerun Workers on `release` (or `setup:subscribe-mailchimp-sync`) and `ops-secrets.yml` on `release`, then revoke the old key. Check you're revoking the right one.
 
 ### `SUBSCRIBE_MAILCHIMP_SYNC_SECRET`
 

@@ -10,29 +10,21 @@
  * server (astro.config.mjs).
  */
 import { createImageUrlBuilder } from "@sanity/image-url";
+import { escapeHtml, renderGallery } from "../../src/lib/event-card.js";
 import {
-  escapeHtml,
-  nightCardModel,
-  renderEventCard,
-  renderGallery,
-  seriesCardModel,
-} from "../../src/lib/event-card.js";
-import {
-  eventDescriptionParagraphs,
-  formatEventRecurrence,
-} from "../../src/data/events";
-import { EVENT_FEED_PAGE_SIZE, diaryCacheControl } from "./event-feed.js";
+  eventPageModel,
+  renderEventPage as renderEventBody,
+} from "../../src/lib/event-page.js";
+import { londonToday } from "../../src/lib/london-day.js";
+import { categoryOf } from "../../src/lib/promotions.js";
+import { diaryCacheControl } from "./event-feed.js";
 import {
   buildSeriesDetail,
   nightPagePaths,
   seriesGallery,
   seriesRedirects,
 } from "./event-series.js";
-import {
-  portableTextToRich,
-  richParagraphHtml,
-  richToPlain,
-} from "./rich-text.js";
+import { portableTextToRich, richToPlain } from "./rich-text.js";
 import {
   sanityDatasetForEnv,
   sanityProjectId,
@@ -40,22 +32,49 @@ import {
 } from "./sanity-query.js";
 import { fetchPublishedCatalog } from "./sanity-events.js";
 
-/** Built shells. Visiting one directly finds no such series and goes to What's on. */
+/** Built shells. Visiting one directly goes to What's on. */
 export const SERIES_SHELL = "/whats-on/series-shell";
 export const NIGHT_SHELL = "/whats-on/series-shell/night-shell";
 export const TICKET_SHELL = `${NIGHT_SHELL}/ticket`;
 
-/** Static pages under /whats-on that are not a series. */
-const STATIC_PAGES = new Set(["schedule"]);
+/**
+ * Pages under /whats-on that are gone, and where they went for good: the
+ * old schedule listed what What's on lists, week by week (#240).
+ */
+const MOVED_PAGES = new Map([["schedule", "/whats-on/"]]);
 
 const TOKENS = {
   title: "__EVENT_TITLE__",
   description: "__EVENT_DESCRIPTION__",
   eyebrow: "__EVENT_EYEBROW__",
-  layout: "__EVENT_LAYOUT__",
+  kind: "__EVENT_KIND__",
   slug: "__EVENT_SLUG__",
 };
 const BODY = /<series-body>([\s\S]*?)<\/series-body>/;
+const PART = /<series-part name="([^"]*)"[^>]*>([\s\S]*?)<\/series-part>/g;
+
+/**
+ * What only the build knows, cut out of the shell by name: Book a table's
+ * words when bookings are on (the button is the night's own, lib/event-page.js),
+ * a guest chef's mark, where a pop-up's menu is, each contact form's
+ * button
+ * (src/pages/whats-on/series-shell.astro writes them, lib/event-page.js
+ * places them).
+ */
+function shellParts(html) {
+  const parts = new Map();
+  const rest = html.replace(PART, (_all, name, inner) => {
+    parts.set(
+      name
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, "&"),
+      inner.trim(),
+    );
+    return "";
+  });
+  return { parts, rest };
+}
 
 const NIGHT_PAGES_QUERY = `{
   "events": *[_type == "event" && defined(slug.current) && removed != true] {
@@ -72,8 +91,11 @@ const NIGHT_PAGES_QUERY = `{
 const HERO_IMAGE_QUERY = `*[_type == "event" && slug.current == $slug && removed != true][0].heroImage { crop, hotspot, asset }`;
 
 /**
- * What to send for a path under /whats-on: `null` when it isn't an event
- * page, else `{ redirect, status }` or `{ shell, fill }` for renderEventPage.
+ * What to send for a path under /whats-on: `{ redirect, status }` or
+ * `{ shell, fill }` for renderEventPage; `null` when it isn't an event page,
+ * or is under an address that was never a series, for the static site to
+ * answer: it has no such page either, so that is its "Nothing here" page
+ * with a 404 (src/pages/404.astro), not home.
  */
 export async function resolveEventPage(env, pathname) {
   if (!pathname.startsWith("/whats-on/")) return null;
@@ -82,9 +104,12 @@ export async function resolveEventPage(env, pathname) {
     .split("/")
     .slice(2)
     .map(decodeURIComponent);
-  if (!parts.length || parts.length > 3 || STATIC_PAGES.has(parts[0]))
-    return null;
+  if (!parts.length || parts.length > 3) return null;
   if (parts.length === 3 && parts[2] !== "ticket") return null;
+  if (parts.length === 1 && MOVED_PAGES.has(parts[0]))
+    return { redirect: MOVED_PAGES.get(parts[0]), status: 301 };
+  if (`/whats-on/${parts[0]}` === SERIES_SHELL)
+    return { redirect: "/whats-on/", status: 302 };
   if (parts.length === 1) return resolveSeries(env, parts[0]);
   return resolveNight(env, parts[0], parts[1], parts.length === 3);
 }
@@ -92,30 +117,47 @@ export async function resolveEventPage(env, pathname) {
 async function resolveSeries(env, seriesId) {
   const { occurrences, series } = await fetchPublishedCatalog(env);
   const detail = buildSeriesDetail(occurrences, seriesId, {
-    limit: EVENT_FEED_PAGE_SIZE,
+    // Every day of an event on the one page (the feed's most).
+    limit: 24,
     series,
   });
   if (!detail) {
     // A web address changed in ops: the old one leads to the series.
     const moved = seriesRedirects(series).find((row) => row.from === seriesId);
-    return moved
-      ? { redirect: `/whats-on/${moved.to}/`, status: 301 }
-      : { redirect: "/whats-on/", status: 302 };
+    if (moved) return { redirect: `/whats-on/${moved.to}/`, status: 301 };
+    // A series that has had its last night: what's on now instead.
+    const known =
+      series.some((row) => row.seriesId === seriesId) ||
+      occurrences.some((night) => night.seriesId === seriesId);
+    return known ? { redirect: "/whats-on/", status: 302 } : null;
   }
-  const rich = Boolean(detail.richDetail);
+  const record = series.find((row) => row.seriesId === detail.seriesId);
+  const nights = occurrences
+    .filter((night) => night.seriesId === detail.seriesId)
+    .sort((x, y) => String(x.date).localeCompare(String(y.date)));
+  // A night follows its series; one written before ops had categories keeps its own.
+  const category =
+    categoryOf(record) !== "event"
+      ? categoryOf(record)
+      : categoryOf(detail.nights[0]);
   return {
     shell: SERIES_SHELL,
     fill: (html) => {
-      const pending = BODY.exec(html)?.[1] || "";
-      const body = [
-        rich ? "" : renderEventCard(seriesCardModel(detail)),
-        detail.datesPending ? pending : "",
-        seriesNightsHtml(detail),
-        // Photos ops copied from the series' Drive gallery (#30); none while ops has it off.
-        renderGallery(detail.gallery, { title: detail.title }),
-      ].join("");
+      const { parts, rest } = shellParts(html);
+      const pending = BODY.exec(rest)?.[1] || "";
+      const model = eventPageModel(
+        // The series' own line of days and its fixed-run flag, for a pop-up's
+        // "when"; and its own link, for a series with no night to carry one.
+        {
+          ...detail,
+          schedule: record?.schedule || detail.schedule,
+          pageUrl: record?.pageUrl || "",
+        },
+        { category, nights, today: londonToday(), parts },
+      );
+      const body = renderEventBody(model, { pending });
       return fillShell(
-        html.replace(BODY, () => body),
+        rest.replace(BODY, () => body),
         {
           path: [SERIES_SHELL, `/whats-on/${detail.seriesId}`],
           values: {
@@ -123,43 +165,13 @@ async function resolveSeries(env, seriesId) {
             [TOKENS.description]: seriesSummary(
               richToPlain(detail.description),
             ),
-            [TOKENS.eyebrow]: detail.scheduleLabel
-              ? formatEventRecurrence(detail.scheduleLabel)
-              : "Regular events",
-            [TOKENS.layout]: rich
-              ? "whats-on-series-page--rich"
-              : "whats-on-series-page--recurring",
-          },
-          html: {
-            "<series-lead></series-lead>": rich
-              ? eventDescriptionParagraphs(detail.description)
-                  .map(richParagraphHtml)
-                  .join("")
-              : "",
+            [TOKENS.eyebrow]: model.kicker,
+            [TOKENS.kind]: model.kind,
           },
         },
       );
     },
   };
-}
-
-function seriesNightsHtml(detail) {
-  const rich = Boolean(detail.richDetail);
-  const cards = rich
-    ? `<ol class="events-list">${detail.nights
-        .map((night, index) =>
-          renderEventCard(
-            nightCardModel(night, {
-              eager: index === 0,
-              seriesSchedule: detail.nightSchedule,
-            }),
-          ),
-        )
-        .join("")}</ol>`
-    : "";
-  return `<div id="series-nights" data-series-id="${escapeHtml(detail.seriesId)}" data-series-next="${escapeHtml(
-    detail.next ? JSON.stringify(detail.next) : "",
-  )}" data-series-rich="${rich}"${rich ? "" : " hidden"}>${cards}</div>`;
 }
 
 async function resolveNight(env, seriesId, date, ticket) {
@@ -187,7 +199,11 @@ async function resolveNight(env, seriesId, date, ticket) {
         redirect: `${moved.to}${ticket ? "/ticket" : ""}/`,
         status: 301,
       };
-    return { redirect: `/whats-on/${seriesId}/`, status: 302 };
+    // A night no longer on the website: its series, if there ever was one.
+    const known =
+      (data.series || []).some((row) => row.seriesId === seriesId) ||
+      pages.some((row) => row.series === seriesId);
+    return known ? { redirect: `/whats-on/${seriesId}/`, status: 302 } : null;
   }
   const { event } = page;
   // The night's own photos from the series gallery (#30).

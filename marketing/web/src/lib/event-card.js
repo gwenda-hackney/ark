@@ -1,6 +1,7 @@
 /**
- * One event card for What's on and the series pages, used by the Astro pages
- * (first paint) and by the live refresh in scripts/whats-on.js.
+ * One event card for the old What's on list, used by the Astro pages (first
+ * paint) and by the live refresh in scripts/whats-on.js. An event's own page
+ * is lib/event-page.js; it shares the helpers and the gallery here.
  *
  * A model builder decides what a card shows; renderEventCard turns any model
  * into HTML. Change the card here, not in the pages or the refresh script.
@@ -20,12 +21,12 @@ import {
 import { followUpdatesLink } from "./follow-updates.js";
 import { richParagraphHtml } from "../../functions/_lib/rich-text.js";
 import {
+  IMAGE_LARGEST,
+  imageSrcset,
   isWholeFit,
-  withImageParams,
+  sizedImageUrl,
+  tinyImageUrl,
 } from "../../functions/_lib/sanity-image-url.js";
-
-/** How many nights "Nights ahead" lists under a repeating series. */
-const NIGHTS_AHEAD = 3;
 
 const ESCAPES = {
   "&": "&amp;",
@@ -39,7 +40,7 @@ export function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ESCAPES[char]);
 }
 
-class SafeHtml {
+export class SafeHtml {
   constructor(value) {
     this.value = value;
   }
@@ -57,7 +58,7 @@ function part(value) {
 }
 
 /** Tagged template: interpolations are escaped unless they are html`` too. */
-function html(strings, ...values) {
+export function html(strings, ...values) {
   let out = strings[0];
   values.forEach((value, index) => {
     out += part(value) + strings[index + 1];
@@ -65,7 +66,7 @@ function html(strings, ...values) {
   return new SafeHtml(out);
 }
 
-function attrs(map) {
+export function attrs(map) {
   return new SafeHtml(
     Object.entries(map)
       .filter(([, value]) => value != null && value !== false && value !== "")
@@ -80,32 +81,6 @@ function text(value) {
   return String(value ?? "").trim();
 }
 
-/** Sanity image URL at a width, unless it is already framed. */
-export function sizedImageUrl(url, width) {
-  const src = text(url);
-  if (!src) return "";
-  if (/[?&](rect|fit|w)=/.test(src)) return src;
-  return withImageParams(src, `w=${width}&auto=format&q=86`);
-}
-
-/**
- * A tiny, blurred copy of a Sanity photo (a few hundred bytes) to show while
- * the real one loads. "" for anything that isn't a Sanity image.
- */
-export function tinyImageUrl(url) {
-  try {
-    const tiny = new URL(text(url));
-    if (tiny.hostname !== "cdn.sanity.io") return "";
-    tiny.searchParams.set("w", "48");
-    tiny.searchParams.set("q", "30");
-    tiny.searchParams.set("blur", "30");
-    tiny.searchParams.set("auto", "format");
-    return tiny.href;
-  } catch {
-    return "";
-  }
-}
-
 function scheduleRows(slots) {
   return (Array.isArray(slots) ? slots : [])
     .map((slot) => ({
@@ -113,10 +88,6 @@ function scheduleRows(slots) {
       when: formatEventSpan(slot?.startTime, slot?.endTime),
     }))
     .filter((row) => row.label);
-}
-
-function hasSlots(slots) {
-  return scheduleRows(slots).length > 0;
 }
 
 /** Guest/collaborator: their link (usually Instagram) sits on the name. */
@@ -211,108 +182,6 @@ export function diaryCardModel(event, { eager = false } = {}) {
       teaser("Next", event.upcomingDate, event.upcomingName),
     ].filter(Boolean),
     moreDates: Number(event.nightCount) > 1,
-    dates: [],
-  };
-}
-
-/**
- * Series page, repeating series: the next night as one large card. The page
- * heading already names the series, so the card leads with the date.
- */
-export function seriesCardModel(detail) {
-  const featured = detail.featuredGuest || null;
-  const next = featured || detail.nights?.[0] || null;
-  const guest = guestModel(next?.artist, next?.pageUrl);
-  const nextDate = text(detail.nextDate || next?.date);
-  return {
-    tag: "section",
-    className: "whats-on-series-main event-card",
-    href: "",
-    ariaLabel: "",
-    hit: null,
-    media: mediaModel({
-      src: sizedImageUrl(featured?.heroImageUrl || detail.heroImageUrl, 1800),
-      alt: featured?.heroImage?.alt || detail.title,
-      position:
-        featured?.heroImage?.objectPosition ||
-        featured?.heroObjectPosition ||
-        detail.heroImage?.objectPosition ||
-        detail.heroObjectPosition,
-      eager: true,
-      captionLabel: featured?.imageCaption,
-      captionName: featured?.imageCaptionName,
-    }),
-    when: nextDate ? { label: "Next night" } : null,
-    nextLine: [
-      formatShortEventDate(nextDate),
-      formatEventSpan(
-        next?.startTime || detail.startTime,
-        next?.endTime || detail.endTime,
-        next?.time || detail.time,
-      ),
-    ]
-      .filter(Boolean)
-      .join(" · "),
-    title: "",
-    guest,
-    teasers: [],
-    offer: text(featured?.offer || detail.offer),
-    schedule: scheduleRows(
-      hasSlots(featured?.nightSchedule)
-        ? featured.nightSchedule
-        : detail.nightSchedule,
-    ),
-    description: eventDescriptionParagraphs(
-      text(featured?.description || detail.description),
-    ),
-    pageLink: guest?.href ? null : eventPageLink(next?.pageUrl),
-    followLink: null,
-    follow: [],
-    moreDates: false,
-    // The next night leads the card, so the list starts after it.
-    dates: (Array.isArray(detail.upcomingDates) ? detail.upcomingDates : [])
-      .filter((night) => night.displaced || night.date !== nextDate)
-      .slice(0, NIGHTS_AHEAD),
-  };
-}
-
-/** Series page, scheduled series: one card per night. */
-export function nightCardModel(
-  night,
-  { eager = false, seriesSchedule = [] } = {},
-) {
-  const guest = guestModel(night.artist, night.pageUrl);
-  return {
-    tag: "li",
-    className: "event-card",
-    href: "",
-    ariaLabel: "",
-    hit: null,
-    media: mediaModel({
-      src: sizedImageUrl(night.heroImageUrl || night.heroImage?.url, 1800),
-      alt: night.heroImage?.alt || night.title,
-      position: night.heroImage?.objectPosition || night.heroObjectPosition,
-      eager,
-      captionLabel: night.imageCaption,
-      captionName: night.imageCaptionName,
-    }),
-    when: { date: text(night.date) },
-    nextLine: formatEventSpan(night.startTime, night.endTime, night.time),
-    title: text(night.title),
-    guest,
-    teasers: [],
-    offer: text(night.offer),
-    schedule: scheduleRows(
-      hasSlots(night.nightSchedule) ? night.nightSchedule : seriesSchedule,
-    ),
-    description: eventDescriptionParagraphs(
-      text(night.description),
-      night.time,
-    ),
-    pageLink: guest?.href ? null : eventPageLink(night.pageUrl),
-    followLink: null,
-    follow: [],
-    moreDates: false,
     dates: [],
   };
 }
@@ -491,7 +360,24 @@ export function renderEventCard(model) {
 /** Photos shown before "Show all" (scripts/gallery.js reveals the rest). */
 export const GALLERY_FIRST = 12;
 
-export function renderGallery(images, { title = "" } = {}) {
+/**
+ * How wide a gallery photo is shown: its own column where the browser can
+ * tell (auto, for a lazy image), else the widest a column gets: half the
+ * screen on a phone, half the page's 64rem beyond (styles/global.css,
+ * scripts/gallery.js).
+ */
+const GALLERY_SIZES = "auto, (max-width: 40rem) 50vw, 30rem";
+/** In a strip (`row`): a third of a phone, a quarter of a tablet, a sixth of /photos' 72rem. */
+const GALLERY_ROW_SIZES =
+  "auto, (max-width: 40rem) 33vw, (max-width: 64rem) 25vw, 12rem";
+
+/**
+ * @param {Array<object>} images
+ * @param {{ title?: string, row?: boolean }} [options] `row`: laid out by the
+ *   page's CSS in even rows (data-gallery-row), not in columns: /photos'
+ *   strip of each event's few
+ */
+export function renderGallery(images, { title = "", row = false } = {}) {
   const photos = (Array.isArray(images) ? images : []).filter(
     (image) => image?.url && image.width > 0 && image.height > 0,
   );
@@ -509,11 +395,17 @@ export function renderGallery(images, { title = "" } = {}) {
       hidden: index >= GALLERY_FIRST,
     })}><a${attrs({
       href: image.url,
-      "data-full": sizedImageUrl(image.url, 1800),
+      "data-full": sizedImageUrl(image.url, IMAGE_LARGEST),
       target: "_blank",
       rel: "noopener",
     })}><img${attrs({
-      src: sizedImageUrl(image.url, 900),
+      src: sizedImageUrl(image.url, 640),
+      srcset: imageSrcset(image.url),
+      sizes: imageSrcset(image.url)
+        ? row
+          ? GALLERY_ROW_SIZES
+          : GALLERY_SIZES
+        : "",
       alt,
       loading: "lazy",
       width: image.width,
@@ -522,7 +414,7 @@ export function renderGallery(images, { title = "" } = {}) {
   });
   return String(
     html`<section class="series-gallery" aria-label="Photos">
-      <ul class="series-gallery-list">
+      <ul class="series-gallery-list" ${attrs({ "data-gallery-row": row })}>
         ${items}
       </ul>
       ${

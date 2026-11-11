@@ -23,7 +23,7 @@ export async function handleAuthFailure(res: Response): Promise<boolean> {
   return false;
 }
 
-async function request<T = unknown>(
+export async function request<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
@@ -64,6 +64,7 @@ export function getMenu() {
     request<{
       sections: import("../menu/types").MenuSection[];
       posMenus?: import("../menu/types").PosMenu[];
+      popups?: import("../menu/types").MenuPopup[];
     }>("/api/menu"),
   );
 }
@@ -445,6 +446,30 @@ export function deleteOpsUser(id: string) {
   });
 }
 
+export function getVenueDetails() {
+  return coalesce("venue", () =>
+    request<import("../venue/types").VenueDetailsResponse>("/api/venue"),
+  );
+}
+
+/** Save the whole week of opening hours; it goes on the website by itself. */
+export function saveOpeningHours(days: import("../venue/types").OpeningDay[]) {
+  return request<import("../venue/types").SaveHoursResponse>("/api/venue/hours", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ days }),
+  });
+}
+
+/** Save the party facts, all at once, any of them blank; they go on the website by itself. */
+export function saveParties(parties: import("../venue/types").PartyForm) {
+  return request<import("../venue/types").SavePartiesResponse>("/api/venue/parties", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ parties }),
+  });
+}
+
 export function analyzeRecipeNote(body: { item: unknown; analysis: unknown }) {
   return request<{ ok: boolean; text: string; model?: string }>(
     "/api/menu/analyze",
@@ -590,7 +615,8 @@ export type CodeDiff = {
 };
 
 export type SitePendingItem = {
-  kind: "document" | "artist";
+  /** "popup": a pop-up kitchen the built site still shows has ended (site-pending.js). */
+  kind: "document" | "artist" | "popup";
   id: string;
   change: "added" | "changed" | "removed";
   label: string;
@@ -804,6 +830,8 @@ export type OpsEvent = {
   offer: string;
   /** Listed on the website's Play at Gwenda form (#41). */
   takingApplications?: boolean;
+  /** What the series is: a night (or run of nights), a promotion, or a pop-up kitchen. */
+  category?: import("../events/event-category").EventCategory;
   pageUrl: string;
   description: string;
   shortDescription: string;
@@ -949,7 +977,7 @@ export function restageEvent(id: string) {
   });
 }
 
-/** A saved event still being got ready for the website (calendar + preview copy). */
+/** A saved event still on its way to the website (calendar, preview copy, then the website). */
 export type WebsiteJob = {
   eventId: string;
   name: string;

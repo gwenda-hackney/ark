@@ -70,12 +70,34 @@ export const eventSeries = defineType({
         "Set by ops when the series has no nights yet. What's on shows it with “Check back soon for the next date”.",
     }),
     defineField({
+      name: "category",
+      title: "What it is",
+      type: "string",
+      readOnly: true,
+      description:
+        "Set by ops. Left empty for a night; a promotion (a standing deal such as Happy Hour) or a pop-up kitchen otherwise. What's on shows nights only.",
+      options: {
+        list: [
+          { title: "A promotion", value: "promotion" },
+          { title: "A pop-up kitchen", value: "popup" },
+        ],
+      },
+    }),
+    defineField({
       name: "takingApplications",
       title: "Taking applications",
       type: "boolean",
       readOnly: true,
       description:
         "Set by ops. Lists this series on forms with a “Series taking applications” field, such as Play at Gwenda.",
+    }),
+    defineField({
+      name: "pageUrl",
+      title: "Link",
+      type: "url",
+      description:
+        "From ops: the event's own link. A link to one of the website's forms (gwenda.co.uk/contact/party) puts that form's button on the event's page.",
+      readOnly: true,
     }),
     defineField({
       name: "shortDescription",
@@ -134,7 +156,7 @@ export const eventSeries = defineType({
       type: "array",
       readOnly: true,
       description:
-        "The series' gallery from ops (its Images tab). Shown at the bottom of its What's on page; a night's photos also on that night's page.",
+        "The series' gallery from ops (its Images tab). Shown at the bottom of its What's on page (a night's photos also on that night's page), and the newest few on the website's Photos page.",
       of: [
         {
           type: "image",

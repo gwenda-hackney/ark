@@ -9,14 +9,30 @@
  *                    both Baserow databases, config DB, the three D1 databases
  *                    (migrated, a test row written and deleted) and Gmail login
  *   --send-email     with --deep, send a test email to alerts@gwenda.co.uk
- *   --form-test      with --deep, submit the play form end to end: row saved, team and
- *                    applicant emails to alerts@ (not play@), row deleted afterwards;
- *                    and sign up a test address twice (tags merged), row deleted
+ *   --form-test      with --deep, submit every form the site tests (SMOKE_FORMS in
+ *                    functions/_lib/form-smoke.js: play, party) end to end: row saved,
+ *                    team and applicant emails to alerts@ (not the form's inbox), row
+ *                    deleted afterwards; and sign up a test address twice (tags
+ *                    merged), row deleted. A form that a post-deploy migration has
+ *                    yet to make is reported as WAIT and listed in the step output
+ *                    `forms-pending`
+ *   --forms a,b      with --form-test, submit only these forms, which must exist, and
+ *                    skip the sign-up: for the forms left waiting, once the
+ *                    post-deploy migrations have run
  */
+import { appendFileSync } from "node:fs";
 import {
   assertHealthPayload,
   assertHomePageHealthy,
+  assertNotFoundPage,
+  assertPicturesSized,
+  assertSubscribeTokens,
   collectSameOriginAssetPaths,
+  deepCheckLine,
+  iconPaths,
+  manifestPath,
+  parseFormsArg,
+  pendingForms,
 } from "./smoke-test-lib.mjs";
 
 const args = process.argv.slice(2);
@@ -35,6 +51,7 @@ const expectedVersion =
 const deep = args.includes("--deep");
 const sendEmail = args.includes("--send-email");
 const formTest = args.includes("--form-test");
+const onlyForms = parseFormsArg(getArg("--forms"));
 const gateBypassKey =
   getArg("--gate-bypass-key") || process.env.SMOKE_TEST_GATE_BYPASS_KEY || "";
 const retries = Number(
@@ -141,10 +158,12 @@ async function checkSubscribeApi(cookie = "") {
     throw new Error(`${url} expected application/json, got ${type}`);
   }
   const data = await res.json();
-  if (!data.csrfToken || !data.secret) {
-    throw new Error(`${url} missing csrfToken or secret in response`);
+  try {
+    assertSubscribeTokens(data);
+  } catch (error) {
+    throw new Error(`${url} ${error.message}`);
   }
-  console.log(`OK ${url} (200, subscribe tokens issued)`);
+  console.log(`OK ${url} (200, CSRF token issued)`);
 }
 
 async function checkRsvpApi(cookie = "") {
@@ -199,19 +218,71 @@ async function runChecks() {
   assertHomePageHealthy(html);
   console.log("OK homepage content checks passed");
 
+  // No flyer downloads bigger than it shows, on home or What's on (#240).
+  assertPicturesSized(html, "/");
+  const whatsOn = await checkPath("/whats-on", { cookie });
+  assertPicturesSized(await whatsOn.text(), "/whats-on");
+  console.log("OK flyers are offered at the sizes they show");
+
   await checkSubscribeApi(cookie);
   await checkRsvpApi(cookie);
   await checkCriticalAssets(html, cookie);
   await checkPath("/robots.txt", { expectVersionHeader: false, cookie });
-  await checkPath("/favicon.ico", { expectVersionHeader: false, cookie });
-  await checkPath("/favicon.png", { expectVersionHeader: false, cookie });
+  await checkNotFound(cookie);
+  await checkIcons(html, cookie);
   await checkPath("/brand/logo-organization.png", {
     expectVersionHeader: false,
     cookie,
   });
+}
 
-  if (!html.includes('href="/favicon.ico"')) {
-    throw new Error("Homepage missing stable favicon link");
+/**
+ * A wrong address gets the "Nothing here" page and a 404 (#240), not home
+ * with a 200; one under What's on too, where a Pages Function answers first.
+ */
+async function checkNotFound(cookie) {
+  for (const path of [
+    "/smoke-test-no-such-page",
+    "/whats-on/smoke-test-no-such-night",
+  ]) {
+    const url = `${baseUrl}${path}`;
+    const res = await fetch(url, { ...fetchInit(cookie), redirect: "manual" });
+    assertNotFoundPage({
+      path: url,
+      status: res.status,
+      html: await res.text(),
+    });
+    console.log(`OK ${url} (404, the "Nothing here" page)`);
+  }
+}
+
+/**
+ * Home links the record icon in every form (#240), and each is served as an
+ * image: a missing file can come back as a page of HTML with a 200.
+ */
+async function checkIcons(html, cookie) {
+  const paths = iconPaths(html);
+  for (const path of [
+    "/favicon.ico",
+    "/favicon.svg",
+    "/apple-touch-icon.png",
+  ]) {
+    if (!paths.includes(path)) {
+      throw new Error(`Homepage missing icon link ${path}`);
+    }
+  }
+  // The manifest, and the Android home-screen icons it lists
+  const manifest = manifestPath(html);
+  if (!manifest) throw new Error("Homepage missing the web app manifest link");
+  const res = await checkPath(manifest, { expectVersionHeader: false, cookie });
+  const listed = ((await res.json()).icons || []).map((icon) => icon.src);
+  if (listed.length === 0) throw new Error(`${manifest} lists no icons`);
+  for (const path of new Set([...paths, ...listed])) {
+    const res = await checkPath(path, { expectVersionHeader: false, cookie });
+    const type = res.headers.get("content-type") || "";
+    if (!type.startsWith("image/")) {
+      throw new Error(`${baseUrl}${path} expected an image, got ${type}`);
+    }
   }
 }
 
@@ -227,14 +298,25 @@ async function runDeepChecks() {
       Authorization: `Bearer ${secret}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ sendEmail, formTest, label }),
+    body: JSON.stringify({
+      sendEmail,
+      formTest,
+      ...(onlyForms.length ? { forms: onlyForms } : {}),
+      label,
+    }),
   });
   const data = await res.json().catch(() => null);
   if (!data?.checks) throw new Error(`/api/health/deep returned ${res.status}`);
   for (const check of data.checks) {
-    const line = `${check.name}: ${check.ok ? check.detail : check.error} (${check.ms}ms)`;
-    if (check.ok) console.log(`OK ${line}`);
-    else console.error(`FAIL ${line}`);
+    if (check.ok) console.log(deepCheckLine(check));
+    else console.error(deepCheckLine(check));
+  }
+  // Forms still waiting for their migration: the workflow submits them after it.
+  if (process.env.GITHUB_OUTPUT) {
+    appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `forms-pending=${pendingForms(data.checks).join(",")}\n`,
+    );
   }
   if (!data.ok)
     throw new Error("Deep health check failed (see FAIL lines above).");

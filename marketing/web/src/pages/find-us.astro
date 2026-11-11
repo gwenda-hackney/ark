@@ -1,0 +1,22 @@
+---
+/**
+ * Finding us is part of Contact now (#240). Old links to /find-us land on
+ * it. A page rather than an Astro redirect: that one bakes in the
+ * production domain, which would send a preview's visitors to the live site.
+ */
+import { siteConfig } from "../config/site";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0;url=/contact#find-us" />
+    <link rel="canonical" href={new URL("/contact/", siteConfig.domain).href} />
+    <meta name="robots" content="noindex" />
+    <title>Find us · {siteConfig.name}</title>
+  </head>
+  <body>
+    <a href="/contact#find-us">Find us</a>
+  </body>
+</html>

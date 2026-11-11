@@ -42,6 +42,8 @@ export const BASEROW_MENU_TABLES = {
       parentId: ["Parent", "link"],
       order: ["Order", "number"],
       sanityId: ["Sanity ID", "text"],
+      kind: ["Kind", "text"],
+      popupSeriesId: ["Pop-up series", "number"],
     },
   },
   pos_menus: {

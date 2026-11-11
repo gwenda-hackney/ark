@@ -47,6 +47,29 @@ export function matchesSecret(provided, expected) {
   return diff === 0;
 }
 
+async function sha256(value) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return new Uint8Array(digest);
+}
+
+/**
+ * Whether a typed password is the gate's, in constant time. Both are hashed
+ * first and every byte of the hashes compared, so the time taken shows
+ * neither where they differ nor how long the password is.
+ */
+export async function matchesPassword(provided, expected) {
+  if (typeof provided !== "string" || typeof expected !== "string")
+    return false;
+  if (!expected) return false;
+  const [a, b] = await Promise.all([sha256(provided), sha256(expected)]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
 export function gateBypassRedirectPath(url) {
   const clean = new URL(url);
   if (!clean.searchParams.has(GATE_BYPASS_PARAM)) return null;
@@ -57,7 +80,7 @@ export function gateBypassRedirectPath(url) {
   }
 
   const search = clean.searchParams.toString();
-  return clean.pathname + (search ? `?${search}` : "");
+  return safeRedirectPath(clean.pathname + (search ? `?${search}` : ""));
 }
 
 export function parseCookies(header) {
@@ -82,8 +105,14 @@ export function buildAuthCookie(token, { secure = true } = {}) {
   return parts.join("; ");
 }
 
+/**
+ * Search engines and the bots that build link previews, by the names they
+ * send, each a whole word of the User-Agent: a common word ("preview",
+ * "teams") or a person's app (Teams, Outlook) is not a bot. WhatsApp sends
+ * only "WhatsApp/<version>", so its name must open the User-Agent.
+ */
 const SEARCH_ENGINE_BOTS =
-  /googlebot|google-inspectiontool|storebot-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|whatsapp|telegrambot|microsoft office|ms-office|skypeuripreview|teams|opengraphxyzbot|iframely|embedly|preview/i;
+  /^whatsapp\/\d|\b(?:googlebot|google-inspectiontool|storebot-google|bingbot|yahoo! slurp|duckduckbot|baiduspider|yandexbot|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|skypeuripreview|opengraphxyzbot|iframely|embedly)\b/i;
 
 const AI_READING_BOTS =
   /gptbot|chatgpt-user|oai-searchbot|claudebot|anthropic-ai|google-extended|googleother|google-cloudvertexbot|bytespider|ccbot|meta-externalagent|amazonbot|applebot-extended|cloudflarebrowserrenderingcrawler|perplexitybot|cohere-ai|diffbot|youbot|ai2bot|phindbot|duckassistbot|petalbot|tiktokspider/i;
@@ -172,7 +201,11 @@ export function isPublicPath(pathname) {
   if (pathname === "/sitemap.xml") return true;
   if (pathname === "/favicon.ico") return true;
   if (pathname === "/favicon.png") return true;
+  if (pathname === "/favicon.svg") return true;
   if (pathname === "/apple-touch-icon.png") return true;
+  // The manifest is fetched without cookies, and with it its icons
+  if (pathname === "/site.webmanifest") return true;
+  if (pathname === "/icon-192.png" || pathname === "/icon-512.png") return true;
   if (pathname.startsWith("/brand/")) return true;
   if (pathname.startsWith("/og/")) return true;
   if (pathname.startsWith("/_astro/")) return true;
@@ -181,8 +214,26 @@ export function isPublicPath(pathname) {
   return false;
 }
 
+/** Stands in for this site's origin when reading `next` (never fetched). */
+const REDIRECT_BASE = "https://this-site.invalid";
+
+/**
+ * Where to send someone after the gate: a path on this site, or "/".
+ * `next` is read as a browser would read the Location (backslashes count as
+ * slashes, tabs and newlines vanish), so `/\evil.example` and the like can't
+ * leave the site; only the path, query and anchor are kept.
+ */
 export function safeRedirectPath(next) {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/";
-  if (next.startsWith("/gate")) return "/";
-  return next;
+  if (typeof next !== "string" || !next.startsWith("/")) return "/";
+  let url;
+  try {
+    url = new URL(next, REDIRECT_BASE);
+  } catch {
+    return "/";
+  }
+  if (url.origin !== REDIRECT_BASE) return "/";
+  // "/.//evil.example" reads as the path "//evil.example": protocol-relative.
+  if (url.pathname.startsWith("//")) return "/";
+  if (url.pathname.startsWith("/gate")) return "/";
+  return url.pathname + url.search + url.hash;
 }

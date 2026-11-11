@@ -1,0 +1,263 @@
+/*
+ * Contact (#240, pages/contact.astro): the four ways in as cards at the
+ * top, and Find us as one block, the map beside the address and the hours.
+ */
+
+/*
+ * The cards: solid boards, each a link straight to its place. Under the
+ * mouse, the keyboard or a thumb, the mustard round the card and on its
+ * name; the line is drawn inside, so nothing moves.
+ */
+.ch-contact-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: -0.5rem 0 0.5rem;
+}
+
+.ch-contact-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.375rem;
+  padding: 1rem 2.5rem 1.125rem 1.125rem;
+  border-radius: 0.375rem;
+  background: var(--ch-board);
+  box-shadow: inset 0 0 0 1.5px var(--ch-board);
+  text-decoration: none;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ch-contact-card:hover,
+.ch-contact-card:focus-visible,
+.ch-contact-card:active {
+  background: var(--ch-board-2);
+  box-shadow: inset 0 0 0 1.5px var(--ch-mustard);
+}
+
+.ch-contact-card-title {
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ch-cream);
+  transition: color 0.2s ease;
+}
+
+/* Its arrow in the corner: down to Find us, across to the others */
+.ch-contact-card-arrow {
+  position: absolute;
+  top: 0.875rem;
+  right: 1rem;
+  color: var(--ch-mustard);
+}
+
+.ch-contact-card:hover .ch-contact-card-title,
+.ch-contact-card:focus-visible .ch-contact-card-title,
+.ch-contact-card:active .ch-contact-card-title {
+  color: var(--ch-mustard);
+}
+
+.ch-contact-card-line {
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ch-ink-2);
+}
+
+/* Two by two on a tablet and a phone */
+@media (max-width: 56rem) {
+  .ch-contact-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 30rem) {
+  .ch-contact-cards {
+    gap: 0.5rem;
+    margin-top: -1rem;
+  }
+
+  .ch-contact-card {
+    padding: 0.75rem 2rem 0.875rem 0.875rem;
+    gap: 0.25rem;
+  }
+
+  .ch-contact-card-arrow {
+    top: 0.625rem;
+    right: 0.75rem;
+  }
+
+  .ch-contact-card-title {
+    font-size: 0.875rem;
+    letter-spacing: 0.06em;
+  }
+
+  .ch-contact-card-line {
+    font-size: 0.9375rem;
+  }
+}
+
+/*
+ * Find us: the map large on the left; beside it the address, the way in a
+ * word, the directions link, the hours and the towpath; the walk in words
+ * under the lot. On a phone: the address and hours, then the map, then the
+ * walk.
+ */
+.ch-find-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-areas:
+    "map where"
+    "map hours"
+    "map towpath"
+    "walk walk";
+  grid-template-rows: auto auto 1fr auto;
+  gap: 2rem 3rem;
+  align-items: start;
+  margin-top: 2rem;
+}
+
+.ch-find-where {
+  grid-area: where;
+}
+
+.ch-find-hours {
+  grid-area: hours;
+}
+
+.ch-find-map {
+  grid-area: map;
+}
+
+.ch-find-towpath {
+  grid-area: towpath;
+}
+
+.ch-find-walk {
+  grid-area: walk;
+}
+
+.ch-find-address {
+  margin: 0 0 0.75rem;
+  font-family: var(--ch-press);
+  font-weight: 500;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  color: var(--ch-cream);
+}
+
+/* How to reach us, under the address: phone and the general email */
+.ch-find-reach {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  font-size: 1.0625rem;
+}
+
+.ch-find-reach li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
+.ch-find-reach .ch-caps {
+  min-width: 3.75rem;
+  color: var(--ch-mustard);
+}
+
+.ch-find-intro {
+  margin: 0 0 1.25rem;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--ch-ink-2);
+}
+
+.ch-find-head {
+  margin: 0 0 0.75rem;
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  color: var(--ch-cream);
+}
+
+.ch-find-towpath p {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--ch-ink-2);
+}
+
+/* The walk in words: three steps abreast under the map, then the way by the water */
+.ch-find-walk {
+  padding-top: 2rem;
+  /* a trail over it: chart-rules.css */
+}
+
+.ch-find-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem 2rem;
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  line-height: 1.5;
+}
+
+.ch-find-steps li::marker {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.25rem;
+  color: var(--ch-mustard);
+}
+
+.ch-find-by-water {
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+  color: var(--ch-ink-2);
+}
+
+.ch-find-note {
+  margin: 0;
+  font-style: italic;
+  color: var(--ch-ink-3);
+}
+
+/* A tablet: one column, the map no wider than a phone held sideways */
+@media (max-width: 56rem) {
+  .ch-find-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "where"
+      "hours"
+      "map"
+      "walk"
+      "towpath";
+    grid-template-rows: none;
+    gap: 2rem;
+  }
+
+  .ch-find-map {
+    width: 100%;
+    max-width: 34rem;
+    justify-self: center;
+  }
+
+  .ch-find-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  /* The directions button fits a narrow phone */
+  .ch-find-where .ch-btn {
+    max-width: 100%;
+    padding: 0 0.875rem;
+    font-size: 0.9375rem;
+  }
+}

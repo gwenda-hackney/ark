@@ -1,3 +1,4 @@
+import { sizedImageUrl } from "../../functions/_lib/sanity-image-url.js";
 import {
   bindRsvpPickForm,
   prepareRsvpConfirmation,
@@ -153,7 +154,7 @@ function renderEvent(event) {
   }
 
   if (!event.heroImageUrl) return;
-  const heroUrl = `${event.heroImageUrl}${event.heroImageUrl.includes("?") ? "&" : "?"}w=960&auto=format`;
+  const heroUrl = sizedImageUrl(event.heroImageUrl, 960);
   const hero = document.getElementById("rsvp-hero-personal");
   const wrap = document.getElementById("rsvp-hero-personal-wrap");
   if (hero instanceof HTMLImageElement) {

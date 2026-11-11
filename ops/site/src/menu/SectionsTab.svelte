@@ -6,16 +6,19 @@
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
-	import type { MenuSection } from "./types";
+	import type { MenuPopup, MenuSection } from "./types";
 	import SectionsPanel from "./SectionsPanel.svelte";
 
 	let sections = $state<MenuSection[]>([]);
+	/** Pop-up kitchens (event series marked as one) a food chapter can belong to. */
+	let popups = $state<MenuPopup[]>([]);
 	let loading = $state(true);
 	let error = $state("");
 
 	async function refresh() {
 		const data = await api.getMenu();
 		sections = data.sections || [];
+		popups = data.popups || [];
 	}
 
 	async function load() {
@@ -60,7 +63,7 @@
 		<Skeleton rows={6} lines={1} label="Loading sections…" />
 	{:else}
 		<div in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-			<SectionsPanel {sections} busy={false} {onchanged} />
+			<SectionsPanel {sections} {popups} busy={false} {onchanged} />
 		</div>
 	{/if}
 </div>

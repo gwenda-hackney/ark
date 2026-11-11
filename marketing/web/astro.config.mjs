@@ -2,6 +2,7 @@ import { defineConfig, envField } from "astro/config";
 import { resolve } from "node:path";
 import { loadEnv } from "vite";
 import { devSiteGate } from "./scripts/dev-site-gate.js";
+import { devOwnOrigin } from "./scripts/lib/dev-own-origin.mjs";
 import { missingLocalSettings } from "../../shared/config.js";
 import {
   issueSubscribeTokens,
@@ -58,7 +59,6 @@ const gatePlugin = devSiteGate({
 });
 
 const subscribeEnv = () => ({
-  SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
   BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
   BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
   BASEROW_DATABASE_ID:
@@ -156,16 +156,11 @@ function devSubscribeApi() {
         const runtimeEnv = subscribeEnv();
 
         if (req.method === "GET") {
-          const issued = issueSubscribeTokens(runtimeEnv, { secure: false });
-          if (issued.kind === "error") {
-            sendJson(res, issued.status, { error: issued.error });
-            return;
-          }
-
+          const issued = issueSubscribeTokens({ secure: false });
           sendJson(
             res,
             200,
-            { csrfToken: issued.csrfToken, secret: issued.secret },
+            { csrfToken: issued.csrfToken },
             { "Set-Cookie": issued.setCookie },
           );
           return;
@@ -179,7 +174,7 @@ function devSubscribeApi() {
         const auth = validateSubscribeAuth({
           getHeader: (name) => req.headers[name.toLowerCase()],
           cookies: parseCookies(req.headers.cookie),
-          env: runtimeEnv,
+          origin: `http://${req.headers.host || "localhost:4321"}`,
         });
         if (!auth.ok) {
           sendJson(res, auth.status, { error: auth.error });
@@ -708,10 +703,15 @@ function devEventPages() {
               // Dev annotates every tag (<series-body data-astro-source-file=…>),
               // which hides the tags the fill replaces; the build doesn't.
               (
-                await (
-                  await fetch(new URL(path, url), {
-                    headers: { cookie: req.headers.cookie || "" },
-                  })
+                await // From the server itself, not the address the browser used:
+                // a forwarded port (localhost:4322) isn't open in here.
+                (
+                  await fetch(
+                    new URL(path, devOwnOrigin(server.httpServer?.address())),
+                    {
+                      headers: { cookie: req.headers.cookie || "" },
+                    },
+                  )
                 ).text()
               ).replace(/ data-astro-source-(?:file|loc)="[^"]*"/g, ""),
           );
@@ -758,6 +758,12 @@ function devFeaturedArtistApi() {
 export default defineConfig({
   site: "https://gwenda.co.uk",
   output: "static",
+  // What <ViewTransitions /> turns on anyway, said here: every link fetches
+  // its page on hover (or focus), and pages are kept a minute
+  // (scripts/lib/pages-serving.mjs), so the click shows that copy. A phone
+  // has no hover: the menu's and the dock's links fetch as they come into
+  // view instead (ChartNav).
+  prefetch: { prefetchAll: true, defaultStrategy: "hover" },
   env: {
     schema: {
       SITE_PASSWORD: envField.string({

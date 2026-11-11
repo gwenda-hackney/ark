@@ -1,0 +1,20 @@
+---
+/**
+ * A badge (#240): one round frame with a drawing in it, a waypoint where a
+ * section's trail starts (lib/chart-badge.js). The compass for finding us,
+ * the logo's bottle for a party, the record for playing here. The frame's
+ * colours are chart-badge.css's; the place sizes it (.ch-waypoint in
+ * chart-rules.css). Always decorative: the heading carries the meaning.
+ */
+import "../../styles/chart-badge.css";
+import { badgeSvg } from "../../lib/chart-badge.js";
+
+interface Props {
+  kind: "record" | "compass" | "bottle";
+  class?: string;
+}
+
+const { kind, class: className = "" } = Astro.props;
+---
+
+<Fragment set:html={badgeSvg(kind, { className })} />

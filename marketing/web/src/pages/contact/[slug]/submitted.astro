@@ -1,12 +1,17 @@
 ---
-import { Image } from "astro:assets";
+/**
+ * After a form is sent (#240): the same page for every form, in the Chart's
+ * look like the form itself. What it says comes from ContactFormStatus.
+ */
 import BaseLayout from "../../../layouts/BaseLayout.astro";
-import Subpage from "../../../components/Subpage.astro";
+import ChartFooter from "../../../components/chart/ChartFooter.astro";
+import ChartNav from "../../../components/chart/ChartNav.astro";
 import ContactFormStatus from "../../../components/ContactFormStatus.astro";
 import { siteConfig } from "../../../config/site";
-import { PLAY_FORM_SLUG, isReservedFormSlug } from "../../../lib/form-paths";
+import { isReservedFormSlug } from "../../../lib/form-paths";
 import { fetchFormBySlug, fetchFormSlugs } from "../../../lib/sanity/forms";
-import turnTable from "../../../assets/images/play/turn-table.jpg";
+import "../../../styles/chart.css";
+import "../../../styles/chart-forms.css";
 
 export async function getStaticPaths() {
   try {
@@ -30,8 +35,7 @@ if (!form) {
   return Astro.redirect("/contact");
 }
 
-const pageTitle = `Submitted · ${form.heading} · ${siteConfig.name}`;
-const showTurntable = form.slug === PLAY_FORM_SLUG;
+const pageTitle = `Sent · ${form.heading} · ${siteConfig.name}`;
 ---
 
 <BaseLayout
@@ -39,39 +43,11 @@ const showTurntable = form.slug === PLAY_FORM_SLUG;
   description="Your form submission."
   showBooking={false}
 >
-  <Subpage
-    class:list={[
-      "contact-page",
-      "contact-page--submitted",
-      showTurntable && "contact-page--play",
-    ]}
-    innerClass="contact-inner"
-    href="/contact"
-    layout={showTurntable ? "split" : "stack"}
-  >
-    {
-      showTurntable ? (
-        <aside slot="aside" class="contact-visual">
-          <div class="contact-visual-bg" aria-hidden="true" />
-          <div class="contact-visual-stage" aria-hidden="true">
-            <Image
-              src={turnTable}
-              alt=""
-              widths={[720, 1080, 1440]}
-              sizes="(min-width: 900px) 33vw, 100vw"
-              class="contact-visual-image"
-              loading="eager"
-              fetchpriority="high"
-            />
-          </div>
-          <div class="contact-visual-overlay" aria-hidden="true" />
-          <div class="contact-visual-vignette" aria-hidden="true" />
-        </aside>
-      ) : null
-    }
-
-    <div id="contact-panel" class="contact-panel">
+  <div class="ch-page" data-chart="closed">
+    <ChartNav />
+    <main class="ch-main ch-sheet-form-page ch-sent-page" id="main">
       <ContactFormStatus form={form} />
-    </div>
-  </Subpage>
+    </main>
+    <ChartFooter />
+  </div>
 </BaseLayout>

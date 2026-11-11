@@ -52,3 +52,7 @@ A use case that finds a real bug stays in the suite, written as `it.fails("… (
 ## Website
 
 The same approach applies to the website (`npm test -w @gwenda/web`): drive the Pages Functions with faked Baserow, Sanity and email. Its shared fakes are still to come (#48).
+
+### In a browser
+
+What a visitor does on the site (click, scroll, go Back) is tested with **Playwright** in `marketing/web/e2e/` (Vitest leaves that folder alone): `npm run test:e2e -w @gwenda/web`. It reuses the dev server on 4321, or starts one; `E2E_BASE_URL=<url>` runs against any other copy. The first time on a machine: `npx playwright install chromium-headless-shell`. A failure leaves a trace and an HTML report in `marketing/web/.e2e/` (`npx playwright show-report .e2e/report`).

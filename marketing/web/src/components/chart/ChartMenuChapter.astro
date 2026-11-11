@@ -1,0 +1,67 @@
+---
+/**
+ * One chapter of the menu (#240): its head, a line under it when it has
+ * one, then its own items and each group's, names and prices on one line.
+ * What is drawn, and the id each part is linked to by, are the page's
+ * model (menuSheet in lib/menu-layout.js); nothing is worked out here.
+ */
+import type { MenuSection } from "../../types/menu";
+import { formatMenuPrice, menuPrices } from "../../types/menu";
+import { getAvailableItems } from "../../data/menu";
+
+interface Props {
+  chapter: MenuSection;
+  /** The chapter's id on the page: where a link to it lands. */
+  id: string;
+  /** Its own items (under no head), then each group with something on it. */
+  groups: Array<{ section: MenuSection; id?: string }>;
+  /** Its place among the chapters, for a phone, where they stack in order. */
+  order: number;
+}
+
+const { chapter, id, groups, order } = Astro.props;
+---
+
+<section class="ch-chapter" id={id} style={`order: ${order}`}>
+  <h2 class="ch-sheet-head">{chapter.title}</h2>
+  {chapter.subtitle && <p class="ch-chapter-note">{chapter.subtitle}</p>}
+  <div class="ch-groups">
+    {
+      groups.map(({ section: group, id: groupId }) => (
+        <div class="ch-group" id={groupId}>
+          {group !== chapter && <h3>{group.title}</h3>}
+          {group !== chapter && group.subtitle && (
+            <p class="ch-group-note">{group.subtitle}</p>
+          )}
+          <ul class="ch-list">
+            {getAvailableItems(group).map((item) => {
+              const price = formatMenuPrice(item);
+              const rows = price ? [] : menuPrices(item);
+              return (
+                <li>
+                  <span class="ch-item-line">
+                    <span class="ch-item-name">{item.name}</span>
+                    {price && <span class="ch-price">{price}</span>}
+                  </span>
+                  {item.description && (
+                    <span class="ch-item-desc">{item.description}</span>
+                  )}
+                  {rows.length > 0 && (
+                    <span class="ch-item-sizes">
+                      {rows.map((row) => (
+                        <span>
+                          {row.name || row.size}{" "}
+                          <span class="ch-price">{row.price}</span>
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))
+    }
+  </div>
+</section>

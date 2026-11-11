@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Saved events catching up with the calendar and website, from anywhere
+	 * Saved events going onto the calendar and the website, from anywhere
 	 * in ops. A pill in the corner while anything is waiting, stuck, or just
 	 * finished; it opens a drawer with the list and "Try again".
 	 */
@@ -103,7 +103,7 @@
 
 <PageDrawer {open} onclose={() => (open = false)} title="Saving to the website">
 	<p class="intro">
-		After you save, the calendar and the website copy catch up here. It takes a minute or
+		After you save, the calendar and the website update by themselves. It takes a minute or
 		two. You can keep working.
 	</p>
 
@@ -130,7 +130,7 @@
 	{/if}
 
 	{#if busyCount}
-		<h3>Getting ready</h3>
+		<h3>Website updating</h3>
 		<ul>
 			{#each waiting as job (job.eventId)}
 				<li>
@@ -148,7 +148,7 @@
 	{/if}
 
 	{#if !stuck.length && !busyCount}
-		<p class="empty">Nothing waiting. Everything you've saved is ready.</p>
+		<p class="empty">Nothing waiting. Everything you've saved is on the website.</p>
 	{/if}
 
 	{#if jobs.recent.length}

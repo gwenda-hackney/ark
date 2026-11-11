@@ -97,6 +97,17 @@ test("series template is a first-class sanity document", () => {
   assert.equal("formerSlugs" in document, false);
 });
 
+test("a series carries the event's link, for a page with no night to carry it", () => {
+  const base = { slug: "hire-gwenda", title: "Hire Gwenda", datesPending: true };
+  assert.equal(
+    sanitySeriesDocument({ ...base, pageUrl: " https://gwenda.co.uk/contact/party " }).pageUrl,
+    "https://gwenda.co.uk/contact/party",
+  );
+  // Left off when there is none, so series without a link stay unchanged
+  assert.equal("pageUrl" in sanitySeriesDocument(base), false);
+  assert.equal("pageUrl" in sanitySeriesDocument({ ...base, pageUrl: "" }), false);
+});
+
 test("a series lists its former web addresses for the website to redirect", () => {
   const document = sanitySeriesDocument({
     slug: "gwenda-nights",
@@ -522,6 +533,22 @@ test("a series with no start date and no nights ahead waits for dates", () => {
   // Left off otherwise, so series already on the website stay unchanged.
   const dated = sanitySeriesDocument({ slug: "vinyl-club", title: "Vinyl Club" });
   assert.equal("datesPending" in dated, false);
+});
+
+test("a promotion or pop-up kitchen says so on its series and night documents and in its change hash; a night says nothing", () => {
+  const base = { slug: "happy-hour", title: "Happy Hour", description: "Deals.", schedule: "repeating", nightSchedule: [] };
+  assert.equal("category" in sanitySeriesDocument(base), false);
+  assert.equal("category" in sanitySeriesDocument({ ...base, category: "event" }), false);
+  assert.equal(sanitySeriesDocument({ ...base, category: "promotion" }).category, "promotion");
+  assert.equal(sanitySeriesDocument({ ...base, category: "popup" }).category, "popup");
+  const night = { slug: "happy-hour-2026-11-11", title: "Happy Hour", date: "2026-11-11", seriesId: "happy-hour" };
+  assert.equal("category" in sanityEventDocument(night), false);
+  assert.equal(sanityEventDocument({ ...night, category: "promotion" }).category, "promotion");
+  const event = { name: "Happy Hour", slug: "happy-hour", repeatUnit: "week", dates: [{ date: "2026-11-11", overrides: {} }] };
+  const plain = JSON.stringify(occurrencePayload(event, "2026-11-11"));
+  assert.equal(JSON.stringify(occurrencePayload({ ...event, category: "event" }, "2026-11-11")), plain);
+  assert.ok(!plain.includes("seriesCategory"));
+  assert.equal(occurrencePayload({ ...event, category: "promotion" }, "2026-11-11").seriesCategory, "promotion");
 });
 
 test("a series taking applications says so on its Sanity document and in its change hash (#41)", () => {

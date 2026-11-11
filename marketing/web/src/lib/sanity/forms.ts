@@ -1,5 +1,9 @@
 import { createSanityClient } from "./client";
-import { FORM_BY_SLUG_QUERY, FORM_SLUGS_QUERY } from "./queries";
+import {
+  FORM_BUTTONS_QUERY,
+  FORM_BY_SLUG_QUERY,
+  FORM_SLUGS_QUERY,
+} from "./queries";
 import { withSeriesChoices } from "../../../../../shared/forms/series-choice.js";
 
 export type FormFieldOption = {
@@ -8,7 +12,15 @@ export type FormFieldOption = {
 };
 
 export type FormFieldType =
-  "text" | "email" | "tel" | "url" | "textarea" | "select" | "multiSelect";
+  | "text"
+  | "email"
+  | "tel"
+  | "url"
+  | "date"
+  | "number"
+  | "textarea"
+  | "select"
+  | "multiSelect";
 
 export type FormField = {
   key: string;
@@ -93,4 +105,21 @@ export async function fetchFormBySlug(slug: string): Promise<FormPage | null> {
       (field) => field?.key && field?.label && field?.type,
     ),
   };
+}
+
+/**
+ * Each form's button: where it is and what it says (the form's heading, "Book
+ * your party"). For a page that sends people to a form.
+ */
+export async function fetchFormButtons(): Promise<
+  Array<{ slug: string; label: string }>
+> {
+  const client = createSanityClient();
+  const rows =
+    await client.fetch<Array<{ slug: string; heading: string | null }>>(
+      FORM_BUTTONS_QUERY,
+    );
+  return (rows ?? [])
+    .filter((row) => row.slug && row.heading?.trim())
+    .map((row) => ({ slug: row.slug, label: String(row.heading).trim() }));
 }

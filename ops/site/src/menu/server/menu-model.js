@@ -8,7 +8,8 @@
  * one link to many, a drink's POS menus, is `posMenuIds` (ids, ascending),
  * which D1 keeps in a junction table.
  *
- *   menu_sections        { id, name, slug, subtitle, parentId, order, sanityId }
+ *   menu_sections        { id, name, slug, subtitle, parentId, order, sanityId,
+ *                          kind, popupSeriesId }
  *   pos_menus            { id, name, order, isDefault }
  *   menu_items           { id, name, sectionId, menuLine, lockMenuLine, price,
  *                          altPrice, prices, drinkType, cocktailType, notes,
@@ -29,6 +30,13 @@
  * `prices` and `publishSnapshots` are JSON values (or null); `analysisNote`
  * is the stored text as is (analyze-note.js reads it). A photo is a Sanity
  * asset id (#183).
+ *
+ * A chapter (a section with no parent) is drinks or food, its `kind`
+ * (SECTION_KINDS), and may belong to a pop-up kitchen: `popupSeriesId`, the
+ * id of an event series whose category is "popup" (the events domain's, so
+ * a plain number here, not a link the menu follows). A group carries
+ * neither ("" and null): it follows its chapter (sectionKind,
+ * sectionPopupSeriesId).
  */
 
 /** Field kinds: text ("" when empty), number (or null), bool, link (an id or null), links (ids), json. */
@@ -40,6 +48,8 @@ export const MENU_COLLECTIONS = {
     parentId: { link: "menu_sections" },
     order: "number",
     sanityId: "text",
+    kind: "text",
+    popupSeriesId: "number",
   },
   pos_menus: {
     name: "text",
@@ -129,6 +139,32 @@ export const MENU_COLLECTIONS = {
     price: "number",
   },
 };
+
+/** What a chapter of the menu is: drinks ("bar") or food ("kitchen"). */
+export const SECTION_KINDS = ["bar", "kitchen"];
+
+/** A kind as given → "kitchen" or "bar"; anything else (also "") is drinks. */
+export function cleanSectionKind(value) {
+  return String(value ?? "").trim().toLowerCase() === "kitchen"
+    ? "kitchen"
+    : "bar";
+}
+
+/** The chapter a section record answers to: itself, or its parent when it is a group. */
+function chapterOf(section, byId) {
+  const parent = section?.parentId != null ? byId.get(section.parentId) : null;
+  return parent || section;
+}
+
+/** Drinks or food for a section record: a chapter's own kind, a group's chapter's. `byId`: records by id. */
+export function sectionKind(section, byId = new Map()) {
+  return cleanSectionKind(chapterOf(section, byId)?.kind);
+}
+
+/** The pop-up kitchen (an event series' id, or null) a section record belongs to: a chapter's own, a group's chapter's. */
+export function sectionPopupSeriesId(section, byId = new Map()) {
+  return chapterOf(section, byId)?.popupSeriesId ?? null;
+}
 
 /** Collections parents first: the order a copy writes them in. */
 export const MENU_COLLECTION_NAMES = Object.keys(MENU_COLLECTIONS);

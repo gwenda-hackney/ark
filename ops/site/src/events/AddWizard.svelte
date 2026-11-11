@@ -1,43 +1,64 @@
 <script lang="ts">
 	/**
-	 * Add something to What's on, one question at a time (#245). Each answer
-	 * fills the editor's form; Next waits until the step is answered, so a
-	 * repeating series can't be saved without its first night. Finishing
-	 * saves through the editor, and puts it on the website unless it's a draft.
+	 * Add something to What's on, one question at a time (#245). It starts
+	 * with the type (a night, a deal, a pop-up kitchen or a special night of a
+	 * series), which decides the fields (event-category.ts CATEGORY_FIELDS).
+	 * Each answer fills the editor's form; Next waits until the step is
+	 * answered, so a repeating series can't be saved without its first night.
+	 * Finishing saves through the editor, and puts it on the website unless
+	 * it's a draft.
 	 */
 	import { tick } from "svelte";
 	import { Icon } from "../app/shell";
 	import { Button, ComboBox, DateField, Dialog, Field, NativeSelect, TextArea, TextField, TimeField } from "../ui";
+	import { CATEGORY_FIELDS, type FieldNeed } from "./event-category";
 	import MethodEditor from "../menu/MethodEditor.svelte";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
 	import NightScheduleFields from "./tabs/NightScheduleFields.svelte";
-	import type { EventEditor, NewEventKind } from "./event-editor.svelte";
+	import type { EventEditor } from "./event-editor.svelte";
+	import { seriesText } from "./event-form.svelte";
 	import { formatClock, formatDate, WEEKDAY_LABELS } from "./event-labels";
 	import { WEEKDAYS } from "./event-recurrence.js";
 	import { descriptionReadout } from "./description-links";
 	import {
 		HOW_OFTEN,
-		STEP_TITLES,
+		WIZARD_TYPES,
+		categoryFor,
 		howOftenId,
+		kindForType,
+		pickType,
+		readyToSave,
 		stepErrors,
-		stepOfField,
+		stepTitle,
+		typeAnswered,
 		whenSentence,
+		wizardErrors,
 		wizardSteps,
-		wizardWhenErrors,
+		wizardType,
 		type WizardStep,
+		type WizardType,
 	} from "./add-wizard";
 
 	let { editor, onclose }: { editor: EventEditor; onclose: () => void } = $props();
 
 	const form = $derived(editor.form);
 	const kind = $derived(editor.newKind);
-	const steps = $derived(wizardSteps(kind));
+	// Nothing is picked until they pick; Add night comes with its series picked.
+	let picked = $state(false);
+	const type = $derived(wizardType(kind, form.category, picked));
+	// Whose fields it asks for: its own type's, or a special night's series'.
+	const category = $derived(categoryFor(kind, form, editor.parentSeries));
+	const fields = $derived(CATEGORY_FIELDS[category]);
+	const steps = $derived(wizardSteps(kind, category));
 	let index = $state(0);
 	// Add night on a series picks the series as the page opens: start at the
-	// date. Not when someone picks one here (`touched`).
+	// date, once, so Back still reaches step one. Not when someone picks here.
 	let touched = false;
 	$effect(() => {
-		if (!touched && index === 0 && editor.creatingNight && editor.attachSeriesId) index = 1;
+		if (!touched && index === 0 && editor.creatingNight && editor.attachSeriesId) {
+			touched = true;
+			index = 1;
+		}
 	});
 	const step = $derived(steps[Math.min(index, steps.length - 1)]);
 	const last = $derived(index >= steps.length - 1);
@@ -46,20 +67,16 @@
 	let showProblems = $state(false);
 	let noEnd = $state(true);
 
-	const KINDS: { id: NewEventKind; title: string; blurb: string; icon: string }[] = [
-		{ id: "once", title: "A one-off event", blurb: "One date, like a gig or a party.", icon: "star" },
-		{ id: "series", title: "Something that repeats", blurb: "Like a weekly quiz or Happy Hour.", icon: "refresh" },
-		{ id: "night", title: "A special night in a series we already run", blurb: "One date of a series, say with a guest.", icon: "events" },
-	];
-
 	function problems(at: WizardStep): Record<string, string> {
-		return stepErrors({ ...editor.validate(), ...(at === "when" ? wizardWhenErrors(form, kind) : {}) }, at);
+		return stepErrors({ ...editor.validate(), ...wizardErrors(form, kind, type, { noEnd }) }, at);
 	}
-
 
 	async function focusFirst() {
 		await tick();
-		const el = document.querySelector<HTMLElement>(".wizard-body input:not(.sr-only), .wizard-body textarea, .wizard-body [contenteditable='true']");
+		// Step one (after Back): the card picked. Elsewhere: the first field.
+		const el = document.querySelector<HTMLElement>(
+			".wizard-body .kind[aria-pressed='true'], .wizard-body input:not(.sr-only), .wizard-body textarea, .wizard-body [contenteditable='true']",
+		);
 		el?.focus({ preventScroll: true });
 	}
 
@@ -77,18 +94,48 @@
 		go(index + 1);
 	}
 
-	// A series here always repeats (it's the preselected answer, so don't wait
-	// for a tap); weekly is the usual one.
+	// Something that repeats starts with a pattern (it's the preselected answer,
+	// so don't wait for a tap): weekly with no end, or for a pop-up kitchen
+	// every day up to a last day.
 	$effect(() => {
 		if (kind === "series" && (form.repeatUnit === "none" || form.repeatUnit === "once")) {
-			form.repeatUnit = "week";
+			form.repeatUnit = fields.repeatsAs.unit;
 			form.repeatEvery = "1";
+			setNoEnd(!fields.repeatsAs.lastDay);
 		}
 	});
 
-	function choose(id: NewEventKind) {
+	/**
+	 * Step one: the type sets the fields, and once or repeats until they say
+	 * otherwise, then it's straight on to the next step (pickType). A special
+	 * night asks which series first.
+	 */
+	async function chooseType(id: WizardType) {
+		if (busy) return;
 		touched = true;
-		editor.setNewKind(id);
+		const { change, advance } = pickType(type, id, editor.attachSeriesId);
+		picked = true;
+		if (change) {
+			if (id !== "night") form.category = id;
+			editor.setNewKind(kindForType(id));
+		}
+		if (advance) {
+			go(index + 1);
+			return;
+		}
+		await tick();
+		document.getElementById("event-series")?.focus();
+	}
+
+	/** A special night's series picked: straight on to its date. */
+	function chooseSeries(seriesId: string) {
+		touched = true;
+		if (typeAnswered(type, seriesId)) go(index + 1);
+	}
+
+	/** Top of When: switching keeps what's typed (setNewKind). */
+	function setRepeats(repeats: boolean) {
+		editor.setNewKind(repeats ? "series" : "once");
 	}
 
 	function setHowOften(id: string) {
@@ -107,7 +154,7 @@
 		const hit = editor.approvedArtists.find((row) => row.id === id);
 		if (!hit) return;
 		form.artist = hit.name;
-		if (hit.link) form.pageUrl = hit.link;
+		if (hit.link && fields.pageUrl.need !== "off") form.pageUrl = hit.link;
 	}
 
 	async function finish(publish: boolean) {
@@ -120,11 +167,8 @@
 				return;
 			}
 		}
-		if (kind === "night") {
-			// What's typed is the night's own; what's left empty follows the series.
-			form.defaultsUnlocked = true;
-			form.ownPhoto = Boolean(editor.pendingPhoto);
-		}
+		// What the type doesn't ask for isn't saved; a night's empty fields follow its series.
+		readyToSave(form, { kind, category, ownPhoto: Boolean(editor.pendingPhoto) });
 		editor.publishAfterSave = publish;
 		await editor.onSave(new Event("submit"));
 	}
@@ -143,16 +187,20 @@
 			.map((slot) => [slot.label.trim(), [formatClock(slot.startTime), formatClock(slot.endTime)].filter(Boolean).join("–")].filter(Boolean).join(" "))
 			.join(", "),
 	);
-	const kindTitle = $derived(KINDS.find((row) => row.id === kind)?.title || "");
+	const typeTitle = $derived(WIZARD_TYPES.find((row) => row.id === type)?.title || "");
+	/** The guest, link and offer the type asks for: on Name, or a night's own step. */
+	const typedRows = $derived(
+		(["artist", "pageUrl", "offer"] as const)
+			.filter((key) => fields[key].need !== "off")
+			.map((key) => ({ label: fields[key].label, value: form[key].trim(), at: (kind === "night" ? "guest" : "name") as WizardStep })),
+	);
 	const checkRows = $derived(
 		[
-			{ label: "What", value: kind === "night" ? `${kindTitle}: ${editor.parentSeriesName}` : kindTitle, at: "kind" as WizardStep },
+			{ label: "What", value: kind === "night" ? `${typeTitle}: ${editor.parentSeriesName}` : typeTitle, at: "type" as WizardStep },
 			{ label: "Name", value: form.name.trim(), at: "name" as WizardStep },
 			{ label: "When", value: whenSentence(form, kind), at: "when" as WizardStep },
 			{ label: "Running order", value: slotsText, at: "running" as WizardStep },
-			{ label: "Guest", value: form.artist.trim(), at: (kind === "night" ? "guest" : "name") as WizardStep },
-			{ label: "Guest link", value: form.pageUrl.trim(), at: (kind === "night" ? "guest" : "name") as WizardStep },
-			{ label: "Offer", value: form.offer.trim(), at: (kind === "night" ? "guest" : "name") as WizardStep },
+			...typedRows,
 			{ label: "Card line", value: form.shortDescription.trim(), at: "about" as WizardStep },
 			{ label: "Description", value: descriptionReadout(form.description).slice(0, 220), at: "about" as WizardStep },
 			{ label: "Picture", value: editor.framingUrl ? "Added" : "None yet", at: "picture" as WizardStep },
@@ -160,7 +208,48 @@
 		].filter((row) => steps.includes(row.at)),
 	);
 	const shown = $derived<Record<string, string>>(showProblems ? problems(step) : {});
+
+	/** How a typed field is marked: a special night's are all optional (empty follows the series). */
+	function marks(need: FieldNeed, night: boolean) {
+		const required = need === "required" && !night;
+		return { required, optional: !required, reserve: required };
+	}
+
+	/** A special night shows its series' value, which is what an empty field keeps. */
+	function placeholderFor(key: "artist" | "pageUrl" | "offer", night: boolean): string {
+		return (night && seriesText(editor.parentSeries, key)) || fields[key].placeholder;
+	}
+	const endsRequired = $derived(fields.endTime === "required" && kind !== "night");
 </script>
+
+{#snippet typedFields(night: boolean)}
+	{#if fields.artist.need !== "off"}
+		<Field label={fields.artist.label} for="event-artist" {...marks(fields.artist.need, night)} error={shown["event-artist"]}>
+			<ComboBox
+				id="event-artist"
+				bind:value={form.artist}
+				placeholder={placeholderFor("artist", night)}
+				emptyText="No approved artists yet."
+				options={editor.approvedArtists.map((row) => ({ value: row.id, label: row.name }))}
+				onpick={(option) => pickArtist(option.value)}
+			/>
+		</Field>
+	{/if}
+	{#if fields.pageUrl.need !== "off" || fields.offer.need !== "off"}
+		<div class="pair">
+			{#if fields.pageUrl.need !== "off"}
+				<Field label={fields.pageUrl.label} for="event-page-url" {...marks(fields.pageUrl.need, night)} error={shown["event-page-url"]}>
+					<TextField id="event-page-url" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={form.pageUrl} placeholder={placeholderFor("pageUrl", night)} />
+				</Field>
+			{/if}
+			{#if fields.offer.need !== "off"}
+				<Field label={fields.offer.label} for="event-offer" {...marks(fields.offer.need, night)} error={shown["event-offer"]}>
+					<TextField id="event-offer" bind:value={form.offer} placeholder={placeholderFor("offer", night)} />
+				</Field>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
 
 {#snippet foot()}
 	<div class="wizard-foot">
@@ -186,7 +275,7 @@
 <div class="wizard">
 	<header class="wizard-head">
 		<p class="wizard-count">Step {index + 1} of {steps.length}</p>
-		<h1 class="wizard-title">{STEP_TITLES[step]}</h1>
+		<h1 class="wizard-title">{stepTitle(step, category)}</h1>
 		<div class="wizard-progress" aria-hidden="true">
 			{#each steps as s, i (s)}
 				<span class:done={i < index} class:here={i === index}></span>
@@ -195,31 +284,35 @@
 	</header>
 
 	<div class="wizard-body">
-		{#if step === "kind"}
-			<div class="kinds" role="radiogroup" aria-label="What are you adding?">
-				{#each KINDS as option (option.id)}
-					<label class="kind" class:on={kind === option.id}>
-						<input
-							class="sr-only"
-							type="radio"
-							name="wizard-kind"
-							value={option.id}
-							checked={kind === option.id}
-							onchange={() => choose(option.id)}
-						/>
+		{#if step === "type"}
+			<!-- Buttons, not radios: a tap, Enter or Space picks and moves on; arrow keys don't. -->
+			<div class="kinds" id="wizard-type" role="group" aria-label="What are you adding?">
+				{#each WIZARD_TYPES as option (option.id)}
+					<button
+						type="button"
+						class="kind"
+						class:on={type === option.id}
+						aria-pressed={type === option.id}
+						disabled={busy}
+						onclick={() => void chooseType(option.id)}
+					>
 						<span class="kind-icon" aria-hidden="true"><Icon name={option.icon} size={18} /></span>
 						<span class="kind-text">
 							<span class="kind-title">{option.title}</span>
 							<span class="kind-blurb">{option.blurb}</span>
 						</span>
-					</label>
+					</button>
 				{/each}
 			</div>
+			{#if kind !== "night"}
+				<!-- A line kept for "Pick one." so it doesn't push anything when it shows. -->
+				<p class="error" role="alert">{shown["wizard-type"] || ""}</p>
+			{/if}
 			{#if kind === "night"}
 				<Field label="Which series?" for="event-series" required reserve error={shown["event-series"]}>
 					<NativeSelect
 						id="event-series"
-						onchange={() => (touched = true)}
+						onchange={(e) => chooseSeries(e.currentTarget.value)}
 						bind:value={editor.attachSeriesId}
 						options={[{ value: "", label: "Choose a series…" }, ...editor.seriesOptions]}
 					/>
@@ -227,27 +320,27 @@
 			{/if}
 		{:else if step === "name"}
 			<Field label="Name" for="event-name" required reserve error={shown["event-name"]}>
-				<TextField id="event-name" bind:value={form.name} placeholder={kind === "series" ? "Happy Hour" : "Halloween party"} />
+				<TextField id="event-name" bind:value={form.name} placeholder={fields.namePlaceholder} />
 			</Field>
-			<Field label="Guest or artist" for="event-artist" optional>
-				<ComboBox
-					id="event-artist"
-					bind:value={form.artist}
-					placeholder="Artist, DJ or collaborator"
-					emptyText="No approved artists yet."
-					options={editor.approvedArtists.map((row) => ({ value: row.id, label: row.name }))}
-					onpick={(option) => pickArtist(option.value)}
-				/>
-			</Field>
-			<div class="pair">
-				<Field label="Guest link" for="event-page-url" optional>
-					<TextField id="event-page-url" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={form.pageUrl} placeholder="instagram.com/… or @handle" />
-				</Field>
-				<Field label="Offer" for="event-offer" optional>
-					<TextField id="event-offer" bind:value={form.offer} placeholder="£10 Negroni" />
-				</Field>
-			</div>
+			{@render typedFields(false)}
 		{:else if step === "when"}
+			{#if kind !== "night"}
+				<Field
+					label="Once or repeats?"
+					for="wizard-repeats"
+					required
+					hint={category === "popup" ? "On for a few days in a row? Pick It repeats and give it a last date." : undefined}
+				>
+					<div class="choices" id="wizard-repeats" role="radiogroup" aria-label="Once or repeats?">
+						<button type="button" class="choice" class:on={kind === "once"} aria-pressed={kind === "once"} onclick={() => setRepeats(false)}>
+							Just once
+						</button>
+						<button type="button" class="choice" class:on={kind === "series"} aria-pressed={kind === "series"} onclick={() => setRepeats(true)}>
+							It repeats
+						</button>
+					</div>
+				</Field>
+			{/if}
 			{#if kind === "series"}
 				<Field label="How often?" for="wizard-how-often" required>
 					<div class="choices" id="wizard-how-often" role="radiogroup" aria-label="How often?">
@@ -304,7 +397,7 @@
 				<Field label="Starts" for="event-start-time" required={kind !== "night"} optional={kind === "night"} reserve error={shown["event-start-time"]}>
 					<TimeField id="event-start-time" bind:value={form.startTime} />
 				</Field>
-				<Field label="Ends" for="event-end-time" optional>
+				<Field label="Ends" for="event-end-time" required={endsRequired} optional={!endsRequired} reserve error={shown["event-end-time"]}>
 					<TimeField id="event-end-time" bind:value={form.endTime} />
 				</Field>
 			</div>
@@ -324,24 +417,7 @@
 			</p>
 			<NightScheduleFields {form} {busy} />
 		{:else if step === "guest"}
-			<Field label="Guest or artist" for="event-artist" optional>
-				<ComboBox
-					id="event-artist"
-					bind:value={form.artist}
-					placeholder="Who's playing or hosting?"
-					emptyText="No approved artists yet."
-					options={editor.approvedArtists.map((row) => ({ value: row.id, label: row.name }))}
-					onpick={(option) => pickArtist(option.value)}
-				/>
-			</Field>
-			<div class="pair">
-				<Field label="Guest link" for="event-page-url" optional>
-					<TextField id="event-page-url" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={form.pageUrl} placeholder="instagram.com/… or @handle" />
-				</Field>
-				<Field label="Offer" for="event-offer" optional>
-					<TextField id="event-offer" bind:value={form.offer} placeholder="£10 Negroni" />
-				</Field>
-			</div>
+			{@render typedFields(true)}
 			<Field label="Anything special about this night?" for="event-description" optional>
 				<MethodEditor
 					id="event-description"
@@ -452,13 +528,18 @@
 		display: flex;
 		align-items: flex-start;
 		gap: var(--space-3);
+		width: 100%;
 		padding: var(--space-3) var(--space-4);
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		text-align: left;
 		cursor: pointer;
 	}
 
-	.kind:hover {
+	.kind:hover:not(:disabled) {
 		background: var(--surface-3);
 	}
 
@@ -467,7 +548,7 @@
 		background: var(--primary-wash);
 	}
 
-	.kind:has(input:focus-visible) {
+	.kind:focus-visible {
 		outline: 2px solid var(--ring);
 		outline-offset: 2px;
 	}

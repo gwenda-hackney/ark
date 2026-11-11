@@ -34,6 +34,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/sections/") ||
     p === "/users" ||
     p.startsWith("/users/") ||
+    p === "/venue" ||
+    p.startsWith("/venue/") ||
     p === "/events" ||
     p.startsWith("/events/") ||
     p === "/artists" ||
@@ -42,6 +44,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/web/") ||
     p === "/forms" ||
     p.startsWith("/forms/") ||
+    p === "/email" ||
+    p.startsWith("/email/") ||
     p === "/more"
   );
 }
@@ -202,6 +206,7 @@ export function parseShellPath(path) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
+  if (p === "/venue" || p.startsWith("/venue/")) return { page: "venue" };
   if (p === "/more") return { page: "more" };
   if (p === "/events" || p === "/events/nights" || p === "/events/schedule") {
     return {
@@ -269,6 +274,7 @@ export function parseShellPath(path) {
   // Old link to the release page: the Website page covers it now.
   if (p === "/web/release") return { page: "web", view: null };
   if (p === "/web" || p.startsWith("/web/")) return { page: "web", view: null };
+  if (p === "/email" || p.startsWith("/email/")) return { page: "email" };
   if (p === "/forms") return { page: "forms", slug: null };
   if (p.startsWith("/forms/")) {
     const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");
@@ -415,10 +421,12 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "breakeven" ||
     from === "cashflow" ||
     from === "users" ||
+    from === "venue" ||
     from === "more" ||
     from === "events" ||
     from === "artists" ||
     from === "web" ||
+    from === "email" ||
     from === "forms"
   ) {
     return false;

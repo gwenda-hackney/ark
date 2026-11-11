@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import { Image } from "astro:assets";
 import Fonts from "../components/Fonts.astro";
+import FaviconLinks from "../components/FaviconLinks.astro";
 import PreviewRibbon from "../components/PreviewRibbon.astro";
 import { siteConfig } from "../config/site";
 import { compactLogo } from "../lib/hero-assets";
@@ -15,13 +16,7 @@ import { compactLogo } from "../lib/hero-assets";
     <meta name="robots" content="noindex, nofollow" />
     <title>You're on the list — {siteConfig.name}</title>
     <Fonts />
-    <link rel="icon" href={siteConfig.brand.faviconPath} sizes="any" />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes={`${siteConfig.brand.faviconSize}x${siteConfig.brand.faviconSize}`}
-      href={siteConfig.brand.faviconPngPath}
-    />
+    <FaviconLinks />
   </head>
   <body class="thanks-page">
     <PreviewRibbon />
@@ -33,7 +28,7 @@ import { compactLogo } from "../lib/hero-assets";
         class="thanks-logo"
         loading="eager"
       />
-      <p class="thanks-eyebrow">Thank you</p>
+      <p class="thanks-eyebrow">Cheers</p>
       <h1 class="thanks-title">{siteConfig.copy.signupSuccessTitle}</h1>
       <p class="thanks-lead">{siteConfig.copy.signupSuccessLead}</p>
       <a href="/#hero" class="btn btn-primary thanks-back"

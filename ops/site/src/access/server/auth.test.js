@@ -7,6 +7,7 @@ import {
   gateRedirectPath,
   isProtectedApiPath,
   isRequestAuthed,
+  matchesPassword,
   opsUserForbiddenResponse,
   requestOrigin,
   resolveAuth,
@@ -124,6 +125,20 @@ describe("ops auth", () => {
     assert.equal(safeRedirectPath("/api/inventory"), "/inventory");
     assert.equal(safeRedirectPath("/api/suppliers"), "/suppliers");
     assert.equal(gateRedirectPath("/stock/"), "/gate/?next=%2Fstock");
+  });
+
+  it("matches a password only when it is the same one", async () => {
+    assert.equal(await matchesPassword("canal-side", "canal-side"), true);
+    assert.equal(await matchesPassword("canal-sidf", "canal-side"), false);
+    assert.equal(await matchesPassword("canal", "canal-side"), false);
+    assert.equal(await matchesPassword("canal-side!", "canal-side"), false);
+  });
+
+  it("matches nothing that isn't a password, or with none set", async () => {
+    assert.equal(await matchesPassword(undefined, "canal-side"), false);
+    assert.equal(await matchesPassword(["canal-side"], "canal-side"), false);
+    assert.equal(await matchesPassword("", ""), false);
+    assert.equal(await matchesPassword("canal-side", undefined), false);
   });
 
   it("returns 403 when the email is not a user", async () => {

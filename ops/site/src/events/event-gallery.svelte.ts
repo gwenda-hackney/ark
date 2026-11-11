@@ -65,7 +65,7 @@ export class EventGallery {
 		}
 	}
 
-	/** Remove one photo; it leaves the website on Update website. */
+	/** Remove one photo; it leaves the website in the background. */
 	async remove(eventId: string, key: string) {
 		const before = this.photos;
 		this.photos = this.photos.filter((photo) => photo.key !== key);
@@ -73,7 +73,7 @@ export class EventGallery {
 			const { event } = await deleteGalleryPhoto(eventId, key);
 			this.photos = event.gallery || [];
 			this.onChange(event);
-			toast.ok("Photo removed. It leaves the website when you press Update website.");
+			toast.ok("Photo removed. It leaves the website in a minute or two.");
 		} catch (err) {
 			this.photos = before;
 			toast.error(err instanceof Error ? err.message : "Could not remove the photo.");

@@ -418,19 +418,14 @@
 												eventId={editor.eventId}
 												occurrenceDate={editor.occurrenceDate}
 												busy={editor.busy}
-												isNew={Boolean(editor.route.isNew)}
-												newKind={editor.newKind}
 												creatingNight={editor.creatingNight}
 												creatingOnce={editor.creatingOnce}
 												editingOnce={editor.editingOnce}
 												editingOccurrence={editor.editingOccurrence}
-												bind:attachSeriesId={editor.attachSeriesId}
-												seriesOptions={editor.seriesOptions}
 												approvedArtists={editor.approvedArtists}
 												webAddressChanged={editor.webAddressChanged}
 												framingUrl={editor.framingUrl}
 												previewDates={editor.previewDates}
-												onkind={editor.setNewKind}
 												onoverride={editor.overrideField}
 												onuseseries={editor.useSeriesValue}
 												onoverridephoto={editor.overridePhoto}
@@ -454,7 +449,7 @@
 										{#if editor.websiteJob?.state === "failed" && !editor.formDirty}
 											<div class="job-failed" role="alert">
 												<p>
-													Saved, but it couldn't be got ready for the website: {editor.websiteJob.error ||
+													Saved, but the website did not update: {editor.websiteJob.error ||
 														"something went wrong."}
 												</p>
 												<Button

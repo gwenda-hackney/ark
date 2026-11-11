@@ -1,0 +1,47 @@
+---
+/**
+ * What the food says about the pop-up kitchen (#240), over its menu or in
+ * place of one: which line is lib/popup-kitchen.js kitchenLine's call, who
+ * is kitchenNow's. Home's Food side and the food page both say it.
+ */
+interface Props {
+  /** kitchenLine: "ahead", "next", "soon", "none" or "" (nothing). */
+  line: string;
+  popup: { title: string; href: string; from: string } | null;
+  /** While a pop-up is cooking but its list isn't up yet. */
+  soon: string;
+  class?: string;
+}
+
+const { line, popup, soon, class: className } = Astro.props;
+---
+
+{
+  line === "ahead" && popup ? (
+    <p class={className}>
+      <a href={popup.href}>{popup.title}</a>, from {popup.from}
+    </p>
+  ) : line === "next" && popup ? (
+    <p class={className}>
+      Next up: <a href={popup.href}>{popup.title}</a>, from {popup.from}
+    </p>
+  ) : line === "soon" ? (
+    <p class={className}>{soon}</p>
+  ) : line === "none" ? (
+    <p class={className}>No kitchen in right now, back soon.</p>
+  ) : null
+}
+
+<style>
+  a {
+    color: var(--ch-mustard);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+  }
+
+  a:hover,
+  a:focus-visible {
+    color: var(--ch-cream);
+  }
+</style>

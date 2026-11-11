@@ -43,6 +43,7 @@ dist/          Build output (gitignored)
 - **No `public/` folder.** Static assets go in `src/assets/` and are imported in `.astro` files.
 - **Share preview image:** `src/assets/images/social/logo-board.png` → `SocialMeta.astro` (Open Graph / Twitter).
 - **SEO files** (`robots.txt`, `sitemap.xml`, `_headers`) are generated at build time by scripts in `scripts/`.
+- **What runs Functions:** the live site's build writes `_routes.json` so only the Functions' own addresses (`/api/*`, `/whats-on/*`, …) run them, and built pages come straight from Cloudflare's cache; gated builds (dev, previews) send every address through `_middleware.js`. Pages are kept a minute (`private` when gated), `/_astro/*` a year. See `scripts/lib/pages-serving.mjs`.
 - **Version headers:** CalVer `YYYY.MM.DD+shortsha` via `scripts/compute-build-version.mjs`.
 
 ## Data and domain (DDD)
@@ -64,7 +65,7 @@ Server code is organised by domain-driven design, so a storage change (Baserow �
 | -------------------------------------- | -------------------------------------------------------- |
 | `functions/_middleware.js`             | Password gate (previews, dev website)                    |
 | `functions/_lib/site-auth.js`          | Gate tokens, cookies, redirect safety, crawler allowlist |
-| `functions/_lib/subscribe-auth.js`     | CSRF + secret header for subscribe POST                  |
+| `functions/_lib/subscribe-auth.js`     | CSRF + same-origin check for subscribe and form POSTs    |
 | `functions/_lib/subscribe-honeypot.js` | Bot honeypot (silent success)                            |
 | `functions/_lib/subscribe.js`          | Newsletter sign-up (guests repository)                   |
 | `functions/api/subscribe.js`           | Subscribe API (production)                               |
@@ -81,7 +82,7 @@ Server code is organised by domain-driven design, so a storage change (Baserow �
 - **Production custom domains:** `ensure-pages-domain.mjs` for `gwenda.co.uk` and `www.gwenda.co.uk` only (production deploy).
 - **Preview URL:** `preview.gwenda-blue.pages.dev` only — no custom domain in zone (keeps the preview out of prod Web Analytics).
 - **Web Analytics:** Cloudflare dashboard zone auto-inject on production only; no analytics CI scripts or manual HTML beacons.
-- **Smoke tests:** `scripts/ci/smoke-test.mjs` — homepage (gate bypass on previews), `/api/subscribe`, critical `/_astro/` assets, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`.
+- **Smoke tests:** `scripts/ci/smoke-test.mjs` — homepage (gate bypass on previews), `/api/subscribe`, critical `/_astro/` assets, `/robots.txt`, a wrong address gets the "Nothing here" page with a 404 (`src/pages/404.astro` → `404.html`), `X-Gwenda-Version` must match `--expected-version`.
 - **Secrets:** Bitwarden SM is source of truth (Ark / Ark/Ops / Ark/Web). GitHub keeps only `BWS_ACCESS_TOKEN`. Never commit secrets.
 
 ## Code quality

@@ -14,3 +14,12 @@ export function siteUrls(env = {}) {
   }
   return { live: "https://gwenda.co.uk", preview: "https://preview.gwenda-blue.pages.dev" };
 }
+
+/**
+ * The public website of this environment, for things read outside ops (an
+ * email's links and logo): the hosted site, on a developer's machine too,
+ * since nobody's inbox can open localhost.
+ */
+export function publicSiteOrigin(env = {}) {
+  return isLocalOps(env) ? "https://gwenda-web-dev.pages.dev" : "https://gwenda.co.uk";
+}

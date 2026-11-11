@@ -1,0 +1,84 @@
+---
+/**
+ * Home's Bookings (#240), IV in the navigation: having a party here and
+ * playing here, side by side and built the same way, kept short: a
+ * heading, a line, the kinds (each read from its form's own choices) and
+ * the button to its form, where the rest is. A table has its own button on
+ * every page, so it isn't here. The halves keep the `#party` and `#play`
+ * anchors, so links to them land.
+ */
+import { siteConfig } from "../../config/site";
+import {
+  PARTY_FORM_SLUG,
+  PLAY_FORM_SLUG,
+  formPublicPath,
+} from "../../lib/form-paths";
+import { partyOccasions, playKinds } from "../../lib/party-facts.js";
+import { fetchFormBySlug } from "../../lib/sanity/forms";
+
+const { bookings: words, contactPage } = siteConfig.copy;
+const [partyForm, playForm] = await Promise.all([
+  fetchFormBySlug(PARTY_FORM_SLUG).catch(() => null),
+  fetchFormBySlug(PLAY_FORM_SLUG).catch(() => null),
+]);
+
+/** The two halves, in the same shape, the party first. */
+const halves = [
+  {
+    id: "party",
+    heading: words.partyHeading,
+    line: words.partyLine,
+    kindsLabel: "Kinds of party",
+    kinds: partyOccasions(partyForm),
+    href: formPublicPath(PARTY_FORM_SLUG),
+    cta: contactPage.partyCta,
+  },
+  {
+    id: "play",
+    heading: contactPage.playHeading,
+    line: words.playLine,
+    kindsLabel: "Who plays here",
+    kinds: playKinds(playForm),
+    href: formPublicPath(PLAY_FORM_SLUG),
+    cta: contactPage.playCta,
+  },
+];
+---
+
+<section
+  class="ch-home-section ch-home-bookings"
+  id="bookings"
+  aria-labelledby="home-bookings"
+>
+  <header class="ch-home-head">
+    <h2 class="ch-poster" id="home-bookings">{words.heading}</h2>
+    <p class="ch-home-head-note">{words.note}</p>
+  </header>
+
+  <div class="ch-bookings">
+    {
+      halves.map((half) => (
+        <article
+          class={`ch-booking ch-booking--${half.id}`}
+          id={half.id}
+          aria-labelledby={`home-${half.id}`}
+        >
+          <h3 id={`home-${half.id}`}>{half.heading}</h3>
+          <p class="ch-booking-line">{half.line}</p>
+          {half.kinds.length > 0 && (
+            <ul class="ch-booking-kinds" aria-label={half.kindsLabel}>
+              {half.kinds.map((kind) => (
+                <li>{kind}</li>
+              ))}
+            </ul>
+          )}
+          <div class="ch-booking-go">
+            <a href={half.href} class="ch-btn ch-btn--solid">
+              {half.cta}
+            </a>
+          </div>
+        </article>
+      ))
+    }
+  </div>
+</section>

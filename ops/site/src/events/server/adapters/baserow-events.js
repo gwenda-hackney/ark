@@ -24,6 +24,7 @@ import { parseNightSchedule, serializeNightSchedule } from "../night-schedule.js
 import {
   REPEAT_UNITS,
   clockTime,
+  eventCategory,
   isoDate,
   linksFrom,
   parseHeroCrops,
@@ -42,13 +43,15 @@ const SHORT_DESCRIPTION_OVERRIDE = "Short description override";
 const FORMER_SLUGS = "Former slugs";
 const DELETED_AT = "Deleted at";
 const TAKING_APPLICATIONS = "Taking applications";
+/** What the series is (event-model.js EVENT_CATEGORIES). Added after events moved to D1. */
+const CATEGORY = "Category";
 /** The series' gallery photos as JSON (#183). */
 const GALLERY = "Gallery";
 const CALENDAR_EVENT = "Google calendar event id";
 /** Calendar links lived in Notes before their own column. */
 const CALENDAR_FALLBACK = "Notes";
 /** Columns added by migrations: a database without them yet saves without them. */
-const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS];
+const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS, CATEGORY];
 
 const fieldNamesCache = new Map();
 
@@ -149,6 +152,7 @@ export function eventFromRow(row) {
     formerSlugs: slugList(row[FORMER_SLUGS]),
     deletedAt: text(row[DELETED_AT]),
     takingApplications: row[TAKING_APPLICATIONS] === true,
+    category: eventCategory(row[CATEGORY]),
     replacesSeries: text(row["Replaces series"]),
     driveFolderId: text(row["Drive folder id"]),
     mainImage: imageFromRow(row["Hero asset"]),
@@ -197,6 +201,7 @@ export function eventToRow(fields, columns) {
   put("offer", "Offer", text);
   put("pageUrl", PAGE_LINK, text);
   put("takingApplications", TAKING_APPLICATIONS, (value) => value === true);
+  put("category", CATEGORY, eventCategory);
   put("shortDescription", "Short description", text);
   put("description", "Description", text);
   put("operationsNotes", "Operations notes", text);

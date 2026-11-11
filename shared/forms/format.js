@@ -1,8 +1,33 @@
 /**
  * Form emails: subjects, plain text and HTML for the notification (to the
- * form's inbox) and the receipt (to the applicant). Used by the website when a
- * form is submitted and by ops when it resends one.
+ * form's inbox) and the receipt (to the sender). Used by the website when a
+ * form is submitted and by ops when it resends one. They wear the look every
+ * Gwenda email shares (shared/email/shell.js), like the weekly email.
  */
+import {
+  COLOURS,
+  FONTS,
+  button,
+  emailDocument,
+  esc,
+  heading,
+  href,
+  logoHeader,
+  paragraph,
+  row,
+  rule,
+  table,
+  title,
+  transactionalFoot,
+} from "../email/shell.js";
+import {
+  SITE_ADDRESS,
+  SITE_DOMAIN,
+  SITE_INSTAGRAM,
+  SITE_NAME,
+  SITE_SOCIAL,
+  VENUE_MAPS_URL,
+} from "../site-location.js";
 import { isValidEmail } from "./field-rules.js";
 import { APPLICATION_SERIES_PROJECTION } from "./series-choice.js";
 
@@ -52,32 +77,40 @@ function displayWho(answers) {
   );
 }
 
-/** Ops subject: "Dan applied · Play at Gwenda" / "Dan updated their application · …" */
-export function formatFormNotifySubject(form, answers, { updated = false } = {}) {
-  const title = form?.title || "Form";
-  const who = displayWho(answers);
-  if (updated) {
-    return who
-      ? `${who} updated their application · ${title}`
-      : `Application updated · ${title}`;
-  }
-  return who ? `${who} applied · ${title}` : `New application · ${title}`;
+/** "Saturday 12 December 2026" as "Sat 12 Dec"; anything else as it is. */
+function shortDay(value) {
+  const match = /^([A-Za-z]+) (\d{1,2}) ([A-Za-z]+) \d{4}$/.exec(String(value ?? "").trim());
+  return match ? `${match[1].slice(0, 3)} ${match[2]} ${match[3].slice(0, 3)}` : String(value ?? "").trim();
 }
 
-/** Applicant subject: "Play at Gwenda | Thank you" / "… | We received your update" */
+/**
+ * What a submission is about, at a glance: the day and the head count, when
+ * the form asks for them under the keys `date` and `people` (the party
+ * enquiry does). Empty for a form with neither.
+ */
+function atAGlance(answers, { short = false } = {}) {
+  const date = answerValue(answers, "date");
+  const people = answerValue(answers, "people");
+  return [
+    date ? (short ? shortDay(date) : date) : "",
+    people ? `${people} ${people === "1" ? "person" : "people"}` : "",
+  ].filter(Boolean);
+}
+
+/**
+ * The team's subject, what it is at a glance: "Play at Gwenda: DJ Alex",
+ * "Party enquiry: Sam, Sat 12 Dec, 40 people", "Party enquiry updated: …".
+ */
+export function formatFormNotifySubject(form, answers, { updated = false } = {}) {
+  const title = `${form?.title || "Form"}${updated ? " updated" : ""}`;
+  const bits = [displayWho(answers), ...atAGlance(answers, { short: true })].filter(Boolean);
+  return bits.length ? `${title}: ${bits.join(", ")}` : title;
+}
+
+/** The sender's subject: "Got it: Play at Gwenda" / "Got your changes: …". */
 export function formatFormReceiptSubject(form, { updated = false } = {}) {
   const title = form?.title || "Gwenda";
-  return updated
-    ? `${title} | We received your update`
-    : `${title} | Thank you`;
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+  return updated ? `Got your changes: ${title}` : `Got it: ${title}`;
 }
 
 /**
@@ -133,59 +166,53 @@ export function groupAnswersBySection(form, answers) {
   return groups;
 }
 
+const LINK_STYLE = `color:${COLOURS.mustard};text-decoration:underline;word-break:break-word;`;
+const STRUCK_STYLE = `color:${COLOURS.ink2};text-decoration-color:${COLOURS.ink2};`;
+
 function formatAnswerHtml(value) {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
 
-  const escaped = escapeHtml(raw).replaceAll("\n", "<br />");
-  const linkStyle = `color:#c9a84c;text-decoration:underline;text-decoration-color:rgba(201,168,76,0.45);word-break:break-word;`;
+  const escaped = esc(raw).replaceAll("\n", "<br>");
 
-  if (/^https?:\/\//i.test(raw)) {
-    return `<a href="${escapeHtml(raw)}" style="${linkStyle}">${escaped}</a>`;
+  if (/^https?:\/\/\S+$/i.test(raw)) {
+    return `<a href="${href(raw)}" style="${LINK_STYLE}">${escaped}</a>`;
   }
   if (/^[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(raw)) {
-    return `<a href="mailto:${escapeHtml(raw)}" style="${linkStyle}">${escaped}</a>`;
+    return `<a href="mailto:${esc(raw)}" style="${LINK_STYLE}">${escaped}</a>`;
   }
   if (/^@[\w.]+$/.test(raw)) {
     const handle = raw.slice(1);
-    return `<a href="https://instagram.com/${escapeHtml(handle)}" style="${linkStyle}">${escaped}</a>`;
+    return `<a href="https://instagram.com/${esc(handle)}" style="${LINK_STYLE}">${escaped}</a>`;
   }
   return escaped;
 }
 
 function formatStruckHtml(value) {
   const raw = String(value ?? "").trim();
-  if (!raw) {
-    return `<s style="color:${COLORS.muted};text-decoration-color:${COLORS.muted};">(empty)</s>`;
-  }
-  return `<s style="color:${COLORS.muted};text-decoration-color:${COLORS.muted};">${formatAnswerHtml(raw)}</s>`;
+  return `<s style="${STRUCK_STYLE}">${raw ? formatAnswerHtml(raw) : "(empty)"}</s>`;
 }
 
 function formatChangeHtml(change) {
+  const cleared = `<span style="color:${COLOURS.ink2};">(cleared)</span>`;
   if (change.kind === "multi") {
     const removed = Array.isArray(change.removed) ? change.removed : [];
     const struck =
       removed.length > 0
         ? removed
-            .map(
-              (item) =>
-                `<s style="color:${COLORS.muted};text-decoration-color:${COLORS.muted};margin-right:0.35em;">${escapeHtml(item)}</s>`,
-            )
+            .map((item) => `<s style="${STRUCK_STYLE}margin-right:0.35em;">${esc(item)}</s>`)
             .join("")
         : !change.from
-          ? `<s style="color:${COLORS.muted};text-decoration-color:${COLORS.muted};margin-right:0.35em;">(empty)</s>`
+          ? `<s style="${STRUCK_STYLE}margin-right:0.35em;">(empty)</s>`
           : "";
-    const current = change.to
-      ? formatAnswerHtml(change.to)
-      : `<span style="color:${COLORS.muted};">(cleared)</span>`;
-    return `${struck}${current}`;
+    return `${struck}${change.to ? formatAnswerHtml(change.to) : cleared}`;
   }
 
   if (!change.from && change.to) {
     return formatAnswerHtml(change.to);
   }
   if (change.from && !change.to) {
-    return `${formatStruckHtml(change.from)} <span style="color:${COLORS.muted};">(cleared)</span>`;
+    return `${formatStruckHtml(change.from)} ${cleared}`;
   }
   return `${formatStruckHtml(change.from)} ${formatAnswerHtml(change.to)}`;
 }
@@ -206,6 +233,37 @@ function formatChangeText(change) {
 }
 
 /**
+ * The words both the HTML and the plain-text email say, so they can't drift:
+ * the line over the name, the name, what happens next, and the foot's reason.
+ */
+function emailWords({ form, answers, updated, isApplicant }) {
+  const title = form?.title || "Form";
+  const first = firstNameFromAnswers(answers);
+  const who = displayWho(answers);
+  if (isApplicant) {
+    const thanks = first ? `Thanks, ${first}.` : "Thanks.";
+    return {
+      kicker: title,
+      heading: updated ? "Got your changes" : "Got it",
+      lead: updated
+        ? `${thanks} We’ve got your changes and we’ll come back to you soon. Here’s how it reads now.`
+        : `${thanks} That’s landed with us and we’ll come back to you soon. Here’s what you sent.`,
+      glance: "",
+      why: `You’re getting this because you filled in ${title} on gwenda.co.uk.`,
+    };
+  }
+  return {
+    kicker: updated ? `${title} · updated` : title,
+    heading: who || title,
+    lead: updated
+      ? `${who || "Someone"} sent ${title} again with changes.`
+      : `New from the website’s ${title} form.`,
+    glance: atAGlance(answers).join(" · "),
+    why: `Sent to the team because someone filled in ${title} on the website.`,
+  };
+}
+
+/**
  * Plain-text body for form notifications (ops or applicant).
  */
 export function formatFormEmail({
@@ -215,34 +273,17 @@ export function formatFormEmail({
   updated: updatedFlag = false,
   variant = "ops",
   editUrl = "",
+  opsUrl = "",
 }) {
   const groups = groupAnswersBySection(form, answers);
   const hasChanges = Array.isArray(changes) && changes.length > 0;
   const updated = Boolean(updatedFlag) || hasChanges;
   const isApplicant = variant === "applicant";
-  const title = form?.title || "Form";
-  const first = firstNameFromAnswers(answers);
-  const who = displayWho(answers);
+  const words = emailWords({ form, answers, updated, isApplicant });
 
-  const header = [];
-  if (isApplicant) {
-    header.push(first ? `Hi ${first},` : "Hello,");
-    header.push("");
-    header.push(
-      updated
-        ? `Thank you for the update. We've taken in your latest note for ${title}. Our team will get in touch with you shortly.`
-        : `Thank you for writing. We've taken in your note for ${title}. Our team will get in touch with you shortly.`,
-    );
-  } else {
-    header.push(updated ? "Update" : "New application");
-    header.push(who || title);
-    header.push("");
-    header.push(
-      updated
-        ? `${who || "Someone"} updated their information for ${title}.`
-        : `New application for ${title}.`,
-    );
-  }
+  const header = isApplicant
+    ? [words.heading, "", words.lead]
+    : [words.kicker, words.heading, ...(words.glance ? [words.glance] : []), "", words.lead];
 
   const body = [];
   if (!isApplicant && hasChanges) {
@@ -266,28 +307,49 @@ export function formatFormEmail({
   }
 
   if (isApplicant && editUrl) {
-    body.push("Change your application");
+    body.push("Need to change something?");
     body.push(editUrl);
+    body.push("Or send the form again with the same email and we’ll update it.");
     body.push("");
   }
+  if (!isApplicant) {
+    body.push("Reply to this email to write back to them.");
+    if (opsUrl) body.push(`In ops: ${opsUrl}`);
+    body.push("");
+  }
+
+  body.push("--", `${SITE_NAME} ${SITE_SOCIAL}, ${SITE_ADDRESS}`, words.why);
 
   return [...header, "", ...body].join("\n").trimEnd() + "\n";
 }
 
-const COLORS = {
-  bg: "#0d0d0d",
-  card: "#1a1a1a",
-  text: "#e8e4dc",
-  muted: "#8a8680",
-  gold: "#c9a84c",
-};
-const FONT_DISPLAY = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
-const FONT_BODY = "Lora, Georgia, 'Times New Roman', serif";
-const GOLD_BORDER = "rgba(201, 168, 76, 0.12)";
-const GOLD_UNDERLINE = "rgba(201, 168, 76, 0.45)";
+/** A small line in capitals: over the name, and each question's label. */
+function caps(text, { size = 13, colour = COLOURS.mustard, spacing = "0.08em" } = {}) {
+  return `<div class="slab" style="font-family:${FONTS.slab};font-size:${size}px;line-height:1.4;font-weight:700;letter-spacing:${spacing};text-transform:uppercase;color:${colour};">${esc(text)}</div>`;
+}
+
+/** The answers as a list: each question in small capitals, what they said under it. */
+function answerRows(rows, value) {
+  return table(
+    rows
+      .map(
+        (item, index) =>
+          `<tr><td style="padding:${index ? 14 : 0}px 0 0;">${caps(item.label)}<div class="slab" style="font-family:${FONTS.slab};font-size:18px;line-height:1.45;color:${COLOURS.ink};padding-top:3px;word-break:break-word;overflow-wrap:anywhere;">${value(item)}</div></td></tr>`,
+      )
+      .join(""),
+  );
+}
 
 /**
- * Branded HTML for form notifications (ops + applicant receipt).
+ * The form emails as HTML, in the look every Gwenda email shares
+ * (shared/email/shell.js): the team's notification (`variant: "ops"`) and the
+ * sender's receipt (`variant: "applicant"`).
+ *
+ * @param {object} email
+ * @param {string} [email.editUrl] receipt: where the sender changes what they sent
+ * @param {string} [email.opsUrl] notification: the submission in ops
+ * @param {string} [email.logoUrl] the logo's address; the site's own copy unless given
+ * @param {string|null} [email.logoCid] the logo as an inline attachment, when it travels with the email
  */
 export function formatFormNotifyHtml({
   form,
@@ -296,216 +358,102 @@ export function formatFormNotifyHtml({
   updated: updatedFlag = false,
   variant = "ops",
   editUrl = "",
-  logoUrl = "https://gwenda.co.uk/brand/logo-email.png",
+  opsUrl = "",
+  logoUrl = "",
   logoCid = null,
-  year = new Date().getFullYear(),
-  siteAddress = "",
-  siteDomain = "https://gwenda.co.uk",
-  siteInstagram = "",
-  venueMapsUrl = "",
+  siteAddress = SITE_ADDRESS,
+  siteDomain = SITE_DOMAIN,
+  siteInstagram = SITE_INSTAGRAM,
+  venueMapsUrl = VENUE_MAPS_URL,
 }) {
   const groups = groupAnswersBySection(form, answers);
-  const title = form?.title || "Form";
-  const first = firstNameFromAnswers(answers);
-  const who =
-    displayWho(answers) || (variant === "applicant" ? "there" : "Application");
   const hasChanges = Array.isArray(changes) && changes.length > 0;
   const updated = Boolean(updatedFlag) || hasChanges;
   const isApplicant = variant === "applicant";
-  const logoSrc = logoCid ? `cid:${logoCid}` : logoUrl;
+  const words = emailWords({ form, answers, updated, isApplicant });
+  const subject = isApplicant
+    ? formatFormReceiptSubject(form, { updated })
+    : formatFormNotifySubject(form, answers, { updated });
 
-  const eyebrow = isApplicant
-    ? title
-    : updated
-      ? "Update"
-      : "New application";
+  const rows = [
+    ...logoHeader({
+      origin: siteDomain,
+      name: SITE_NAME,
+      social: SITE_SOCIAL,
+      logo: logoCid ? `cid:${logoCid}` : logoUrl,
+    }),
+    row(
+      `<div style="padding-bottom:8px;">${caps(words.kicker, { spacing: "0.14em" })}</div>${title(words.heading)}` +
+        (words.glance
+          ? `<div class="pen" style="font-family:${FONTS.pen};font-size:26px;line-height:1.15;font-weight:700;font-style:italic;font-synthesis:none;color:${COLOURS.mustard};padding-top:12px;">${esc(words.glance)}</div>`
+          : "") +
+        paragraph(esc(words.lead), { margin: "14px 0 0" }),
+    ),
+  ];
 
-  const heading = isApplicant ? (first ? `Hi ${first},` : "Hello,") : who;
-
-  const lead = isApplicant
-    ? updated
-      ? `Thank you for the update. We've taken in your latest note for ${title}. Our team will get in touch with you shortly.`
-      : `Thank you for writing. We've taken in your note for ${title}. Our team will get in touch with you shortly.`
-    : updated
-      ? `${who} updated their information.`
-      : `New application for ${title}.`;
-
-  const changesHtml =
-    !isApplicant && hasChanges
-      ? `
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:0 0 8px;">
-                <tr>
-                  <td style="padding:18px 0 8px;font-family:${FONT_DISPLAY};font-size:11px;font-weight:600;letter-spacing:0.28em;text-transform:uppercase;color:${COLORS.muted};">
-                    What changed
-                  </td>
-                </tr>
-                <tr>
-                  <td width="32" height="1" bgcolor="${COLORS.gold}" style="font-size:0;line-height:0;height:1px;width:32px;background-color:${COLORS.gold};">&nbsp;</td>
-                </tr>
-                ${changes
-                  .map(
-                    (change) => `
-                <tr>
-                  <td style="padding:14px 0 4px;font-family:${FONT_DISPLAY};font-size:11px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:${COLORS.gold};">
-                    ${escapeHtml(change.label)}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:0 0 14px;font-family:${FONT_BODY};font-size:16px;line-height:1.65;color:${COLORS.text};border-bottom:1px solid ${GOLD_BORDER};">
-                    ${formatChangeHtml(change)}
-                  </td>
-                </tr>`,
-                  )
-                  .join("")}
-              </table>`
-      : "";
-
-  const sectionsHtml = groups
-    .map((group) => {
-      const rows = group.rows
-        .map(
-          (row) => `
-                <tr>
-                  <td style="padding:14px 0 4px;font-family:${FONT_DISPLAY};font-size:11px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:${COLORS.gold};">
-                    ${escapeHtml(row.label)}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:0 0 14px;font-family:${FONT_BODY};font-size:17px;line-height:1.65;color:${COLORS.text};border-bottom:1px solid ${GOLD_BORDER};">
-                    ${formatAnswerHtml(row.value)}
-                  </td>
-                </tr>`,
-        )
-        .join("");
-
-      return `
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:0 0 8px;">
-                <tr>
-                  <td style="padding:18px 0 8px;font-family:${FONT_DISPLAY};font-size:11px;font-weight:600;letter-spacing:0.28em;text-transform:uppercase;color:${COLORS.muted};">
-                    ${escapeHtml(group.title)}
-                  </td>
-                </tr>
-                <tr>
-                  <td width="32" height="1" bgcolor="${COLORS.gold}" style="font-size:0;line-height:0;height:1px;width:32px;background-color:${COLORS.gold};">&nbsp;</td>
-                </tr>
-                ${rows}
-              </table>`;
-    })
-    .join("");
-
-  const editButton =
-    isApplicant && editUrl
-      ? `<div style="margin:1.75rem 0 0;">
-                <a href="${escapeHtml(editUrl)}" style="display:inline-block;padding:0.9rem 2.2rem;background-color:${COLORS.gold};background:${COLORS.gold};color:${COLORS.bg};text-decoration:none;font-family:${FONT_DISPLAY};font-weight:600;letter-spacing:0.08em;text-transform:uppercase;font-size:13px;border-radius:2px;border:1px solid ${COLORS.gold};">
-                  Change your application
-                </a>
-              </div>
-              <p style="margin:0.85rem 0 0;font-family:${FONT_BODY};font-size:15px;line-height:1.6;color:${COLORS.muted};">
-                Use the same email when you send again and we'll update this note.
-              </p>`
-      : "";
-
-  const closingNote = isApplicant
-    ? ""
-    : `<p style="margin:1.5rem 0 0;font-family:${FONT_BODY};font-size:15px;line-height:1.6;color:${COLORS.muted};">
-                Reply to write back to the applicant.
-              </p>`;
-
-  const addressLink =
-    siteAddress && venueMapsUrl
-      ? `<p style="margin:0 0 0.65rem;font-family:${FONT_BODY};font-size:0.95rem;line-height:1.6;">
-                <a href="${escapeHtml(venueMapsUrl)}" style="color:${COLORS.muted};text-decoration:underline;text-decoration-color:${GOLD_UNDERLINE};">${escapeHtml(siteAddress)}</a>
-              </p>`
-      : "";
-  const socialBits = [];
-  if (siteInstagram) {
-    socialBits.push(
-      `<a href="${escapeHtml(siteInstagram)}" style="color:${COLORS.muted};text-decoration:underline;text-decoration-color:${GOLD_UNDERLINE};">Instagram</a>`,
+  if (!isApplicant && hasChanges) {
+    rows.push(
+      rule(),
+      row(heading("What changed"), { bottom: 18 }),
+      row(answerRows(changes, formatChangeHtml)),
     );
   }
-  if (siteDomain) {
-    socialBits.push(
-      `<a href="${escapeHtml(siteDomain)}" style="color:${COLORS.muted};text-decoration:underline;text-decoration-color:${GOLD_UNDERLINE};">gwenda.co.uk</a>`,
+
+  for (const group of groups) {
+    rows.push(
+      rule(),
+      row(heading(group.title), { bottom: 18 }),
+      row(answerRows(group.rows, (item) => formatAnswerHtml(item.value))),
     );
   }
-  const socialHtml = socialBits.length
-    ? `<p style="margin:0 0 0.65rem;font-family:${FONT_BODY};font-size:0.95rem;line-height:1.6;">
-                ${socialBits.join(`<span style="color:${COLORS.muted};"> · </span>`)}
-              </p>`
-    : "";
 
-  return `<!DOCTYPE html>
-<html lang="en-GB" xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="dark only" />
-  <meta name="supported-color-schemes" content="dark only" />
-  <title>${escapeHtml(title)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&amp;family=Lora:ital,wght@0,400;1,400&amp;display=swap" rel="stylesheet" />
-  <style type="text/css">
-    :root { color-scheme: dark only; supported-color-schemes: dark only; }
-    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-collapse: collapse !important; }
-    img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
-    a { color: ${COLORS.gold}; }
-    @media screen and (max-width: 620px) {
-      .gw-pad { padding-left: 20px !important; padding-right: 20px !important; }
-    }
-  </style>
-</head>
-<body style="margin:0;padding:0;width:100%;background-color:${COLORS.bg};background:${COLORS.bg};color:${COLORS.text};-webkit-font-smoothing:antialiased;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="${COLORS.bg}" style="background-color:${COLORS.bg};width:100%;">
-    <tr>
-      <td align="center" bgcolor="${COLORS.bg}" style="background-color:${COLORS.bg};padding:32px 16px;">
-        <table role="presentation" width="560" border="0" cellspacing="0" cellpadding="0" style="width:100%;max-width:560px;">
-          <tr>
-            <td align="center" style="padding:0 0 28px;">
-              <a href="${escapeHtml(siteDomain)}" style="text-decoration:none;border:0;">
-                <img src="${escapeHtml(logoSrc)}" alt="Gwenda" width="160" style="display:block;width:160px;max-width:55%;height:auto;border:0;" />
-              </a>
-            </td>
-          </tr>
-          <tr>
-            <td bgcolor="${COLORS.card}" class="gw-pad" style="background-color:${COLORS.card};border:1px solid ${GOLD_BORDER};border-radius:2px;padding:32px 28px;">
-              <p style="margin:0 0 0.85rem;font-family:${FONT_DISPLAY};font-size:11px;font-weight:600;letter-spacing:0.28em;text-transform:uppercase;color:${COLORS.gold};">
-                ${escapeHtml(eyebrow)}
-              </p>
-              <h1 style="margin:0;font-family:${FONT_DISPLAY};font-weight:500;font-size:36px;letter-spacing:0.03em;line-height:1.2;color:${COLORS.text};">
-                ${escapeHtml(heading)}
-              </h1>
-              <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin:18px 0 14px;">
-                <tr>
-                  <td width="32" height="1" bgcolor="${COLORS.gold}" style="font-size:0;line-height:0;height:1px;background-color:${COLORS.gold};">&nbsp;</td>
-                </tr>
-              </table>
-              <p style="margin:0;font-family:${FONT_BODY};font-size:17px;line-height:1.65;color:${COLORS.text};">
-                ${escapeHtml(lead)}
-              </p>
-              ${changesHtml}
-              ${sectionsHtml}
-              ${editButton}
-              ${closingNote}
-            </td>
-          </tr>
-          <tr>
-            <td align="center" class="gw-pad" style="padding:28px 12px 8px;">
-              <p style="margin:0 0 0.85rem;font-family:${FONT_DISPLAY};font-size:11px;font-weight:600;letter-spacing:0.28em;text-transform:uppercase;color:${COLORS.gold};">
-                Connect
-              </p>
-              ${addressLink}
-              ${socialHtml}
-              <p style="margin:0;font-family:${FONT_BODY};font-size:0.85rem;line-height:1.5;color:${COLORS.muted};">
-                © ${year} Gwenda
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  if (isApplicant && editUrl) {
+    rows.push(
+      rule(),
+      row(
+        paragraph("Need to change something?", { margin: "0 0 18px", align: "center" }) +
+          button("Change it", editUrl) +
+          paragraph("Or send the form again with the same email and we’ll update it.", {
+            size: 15,
+            colour: COLOURS.ink2,
+            margin: "16px 0 0",
+            align: "center",
+          }),
+        { align: "center" },
+      ),
+    );
+  }
+  if (!isApplicant) {
+    rows.push(
+      rule(),
+      row(
+        paragraph("Reply to this email to write back to them.", { margin: opsUrl ? "0 0 18px" : "0", align: "center" }) +
+          (opsUrl ? button("Open in ops", opsUrl) : ""),
+        { align: "center" },
+      ),
+    );
+  }
+
+  rows.push(
+    ...transactionalFoot({
+      name: SITE_NAME,
+      social: SITE_SOCIAL,
+      address: siteAddress,
+      links: [
+        { text: "Instagram", href: siteInstagram },
+        { text: "What’s on", href: `${String(siteDomain).replace(/\/+$/, "")}/whats-on` },
+        { text: "Find us", href: venueMapsUrl },
+      ],
+      why: words.why,
+    }),
+  );
+
+  return emailDocument({
+    title: subject,
+    preheader: [words.glance, words.lead].filter(Boolean).join(" · "),
+    rows,
+    css: "@media (max-width:420px){.h1{font-size:36px !important}}",
+  });
 }
 
 export function replyToFromAnswers(answers) {

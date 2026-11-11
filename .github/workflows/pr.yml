@@ -43,6 +43,8 @@ jobs:
               - 'ops/site/**'
               - 'shared/**'
               - 'scripts/**'
+              # scripts/lib/pages-cleanup.mjs names branches with it.
+              - '.github/scripts/cloudflare-pages-branch.mjs'
               - 'vitest.config.mjs'
               - 'package-lock.json'
               - '.github/workflows/pr.yml'

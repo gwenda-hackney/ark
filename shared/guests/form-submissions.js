@@ -85,6 +85,20 @@ export function answersValue(entries, raw) {
   return entries;
 }
 
+/**
+ * Whether a submission was sent from this address: its reply-to, in any case.
+ * A link made out to an address shows or changes only that sender's record;
+ * a record without a reply-to belongs to no link.
+ */
+export function submissionBelongsTo(record, email) {
+  const clean = (value) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase();
+  const sender = clean(record?.replyTo);
+  return sender !== "" && sender === clean(email);
+}
+
 /** Newest `submittedAt` first; ties (and no date) by id, newest first. */
 export function newestFirst(a, b) {
   const time = (record) => Date.parse(record.submittedAt || "") || 0;

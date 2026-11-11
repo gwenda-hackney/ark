@@ -3,6 +3,7 @@ import { parseFormEditToken } from "../../_lib/form-verify-auth.js";
 import {
   draftAnswersFromSubmission,
   fetchFormSubmission,
+  submissionBelongsTo,
 } from "../../_lib/form-store.js";
 import {
   FORM_RATE_LIMITS,
@@ -52,8 +53,7 @@ export async function onRequestGet(context) {
   }
 
   const { submission } = loaded;
-  const replyTo = submission.replyTo;
-  if (replyTo && replyTo !== parsed.email) {
+  if (!submissionBelongsTo(submission, parsed.email)) {
     return json(
       {
         ok: false,

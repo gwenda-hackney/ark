@@ -27,10 +27,11 @@ html {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Smooth anchors on fresh loads. Stay instant for the whole back/forward
-     session so restore cannot fight CSS smooth scrolling (that flicker).
-     In-page CTAs still animate via scrollIntoView in section-hash.js. */
-  html:not(.navigation-restore):not(:active-view-transition) {
+  /* Jump links glide. Instant while a page change is under way, and while a
+     back/forward visit's restored offset lands (is-restoring-scroll,
+     navigation-restore.js), so the restore cannot glide there or fight a
+     smooth scroll (that flicker). */
+  html:not(.is-restoring-scroll):not(:active-view-transition) {
     scroll-behavior: smooth;
   }
 }
@@ -191,18 +192,6 @@ html.is-scrollbar-dragging {
   }
 }
 
-/* The ribbon is fixed chrome. Leave it out of the page crossfade. */
-::view-transition-group(preview-ribbon) {
-  animation: none;
-  z-index: 130;
-}
-
-::view-transition-old(preview-ribbon),
-::view-transition-new(preview-ribbon) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-
 main {
   width: 100%;
 }
@@ -212,42 +201,7 @@ main {
   color: var(--color-text);
 }
 
-.preview-ribbon {
-  --ribbon-fold: 5.5rem;
-  position: fixed;
-  top: 0;
-  left: 0;
-  /* Above site-header / subpage-chrome (110); below preview-banner (200). */
-  z-index: 130;
-  /* Stay painted across view transitions. A fixed corner inside the root
-     snapshot is dropped on some client navigations until a full reload. */
-  view-transition-name: preview-ribbon;
-  width: var(--ribbon-fold);
-  height: var(--ribbon-fold);
-  overflow: hidden;
-  pointer-events: none;
-  transition:
-    opacity 0.3s var(--ease-out),
-    visibility 0.3s;
-}
-
-.preview-ribbon span {
-  position: absolute;
-  display: block;
-  width: 8.5rem;
-  top: 1.15rem;
-  left: -2.15rem;
-  padding: 0.3rem 0;
-  transform: rotate(-45deg);
-  text-align: center;
-  font-family: var(--font-display);
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-bg);
-  background: var(--color-gold);
-}
+/* The environment ribbon (.preview-ribbon) styles itself: PreviewRibbon.astro. */
 
 .preview-banner {
   position: fixed;
@@ -1162,11 +1116,6 @@ body.site-nav-open .site-header {
   border-bottom-color: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-}
-
-body.site-nav-open .preview-ribbon {
-  opacity: 0;
-  visibility: hidden;
 }
 
 body:has(.preview-banner) .site-header-nav {
@@ -4163,13 +4112,6 @@ html.fonts-ready .thanks {
 .subpage-chrome .page-back {
   margin: 0;
   flex-shrink: 0;
-}
-
-/* Corner fold overlaps the back chip; nudge it clear of the ribbon (desktop). */
-@media (min-width: 641px) {
-  body:has(.preview-ribbon) .subpage-chrome .page-back {
-    margin-left: 3.25rem;
-  }
 }
 
 .page-back {
@@ -7404,8 +7346,8 @@ a.event-card:focus-visible .event-title,
 
 @media (max-width: 640px) {
   /* Swipe instead; arrows would cover the photo. */
-  .gallery-lightbox-prev,
-  .gallery-lightbox-next {
+  .gallery-lightbox .gallery-lightbox-prev,
+  .gallery-lightbox .gallery-lightbox-next {
     display: none;
   }
 }
@@ -7903,10 +7845,12 @@ body.site-nav-open .menu-toc {
   transform: translateY(0);
 }
 
-/* Back navigation — render in final state, no entrance animations (set in head). */
-html.navigation-restore {
+/* Back/forward: the restored offset lands at once; the mark goes once it has. */
+html.is-restoring-scroll {
   scroll-behavior: auto !important;
 }
+
+/* Back navigation — render in final state, no entrance animations (set in head). */
 
 html.navigation-restore .reveal {
   opacity: 1;
@@ -8208,28 +8152,6 @@ html.navigation-restore #rsvp-loading {
 
   .subpage-chrome-logo-img {
     height: 2.35rem;
-  }
-
-  .preview-ribbon {
-    top: auto;
-    bottom: 0.75rem;
-    left: 0.75rem;
-    right: auto;
-    width: auto;
-    height: auto;
-    overflow: visible;
-  }
-
-  .preview-ribbon span {
-    position: static;
-    width: auto;
-    transform: none;
-    padding: 0.3rem 0.55rem;
-    font-size: 0.55rem;
-    letter-spacing: 0.16em;
-    border-radius: 2px;
-    opacity: 0.65;
-    box-shadow: none;
   }
 
   @media (prefers-reduced-motion: reduce) {

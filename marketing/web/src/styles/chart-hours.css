@@ -1,0 +1,60 @@
+/*
+ * Opening hours (#240, OpeningHours.astro): the week as a short table on
+ * Contact and in the foot of every page (chart-footer.css sizes it there),
+ * today's line written over it like the notes on the map.
+ */
+
+/* Contact lays the hours out beside the map (chart-contact.css) */
+.ch-hours .ch-find-head {
+  margin-bottom: 0.5rem;
+}
+
+/* Today, in the hand the map is annotated in */
+.ch-hours-today {
+  margin: 0 0 0.75rem;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: var(--ch-ink-2);
+}
+
+.ch-hours-today[data-open="true"] {
+  color: var(--ch-gold);
+}
+
+.ch-hours-table {
+  width: 100%;
+  max-width: 22rem;
+  border-collapse: collapse;
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ch-hours-table th,
+.ch-hours-table td {
+  padding: 0.4rem 0;
+  /* a trail under each row: chart-rules.css */
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.ch-hours-table th {
+  width: 6.5rem;
+  padding-right: 1rem;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ch-ink-3);
+}
+
+.ch-hours-table td {
+  color: var(--ch-ink);
+}
+
+.ch-hours-table .is-closed td {
+  color: var(--ch-ink-3);
+  font-style: italic;
+}

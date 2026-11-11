@@ -1,0 +1,69 @@
+---
+/**
+ * Home (#240): the logo on the leather and the way in (the five numbered
+ * places). Then the two things people come for: what's on (this week's
+ * nights, the deals and the pop-up kitchen) and the menu. Then Bookings, a
+ * table or a party, and a row of photos last. Finding us, the hours and
+ * the list are in the foot; who we are on /about.
+ */
+import "../../styles/chart.css";
+import "../../styles/chart-home.css";
+import { siteConfig } from "../../config/site";
+import { chartHeroLogo } from "../../lib/chart-assets";
+import { chartSections } from "../../lib/chart-nav";
+import ChartNav from "./ChartNav.astro";
+import ChartFooter from "./ChartFooter.astro";
+import HomeBookings from "./HomeBookings.astro";
+import HomeMenu from "./HomeMenu.astro";
+import HomeNights from "./HomeNights.astro";
+import HomePhotos from "./HomePhotos.astro";
+
+const { copy } = siteConfig;
+/**
+ * The way in, on the hero: the same numbered places as the menu panel, each
+ * going down to its own section here (`home` in lib/chart-nav), which links
+ * on to its page.
+ */
+const sections = chartSections("/");
+---
+
+<div class="ch-page ch-home">
+  <ChartNav home />
+  <main id="main">
+    <section class="ch-hero" id="hero">
+      <div class="ch-hero-content">
+        <h1 class="visually-hidden">{siteConfig.seoTitle}</h1>
+        <img
+          {...chartHeroLogo}
+          alt="Gwenda"
+          class="ch-hero-logo"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+        />
+        <p class="ch-hero-social">{copy.social}</p>
+        <p class="ch-hero-line">{copy.heroLine}</p>
+        <nav class="ch-hero-nav" aria-label="Site">
+          <ul>
+            {
+              sections.map((item) => (
+                <li>
+                  <a href={item.home ? `/#${item.home}` : item.href}>
+                    <span class="ch-ring">{item.numeral}</span>
+                    <span class="ch-caps">{item.label}</span>
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+      </div>
+    </section>
+
+    <HomeNights />
+    <HomeMenu />
+    <HomeBookings />
+    <HomePhotos />
+  </main>
+  <ChartFooter />
+</div>

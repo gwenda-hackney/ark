@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import SocialMeta from "./SocialMeta.astro";
 import Fonts from "./Fonts.astro";
+import FaviconLinks from "./FaviconLinks.astro";
 import PreviewRibbon from "./PreviewRibbon.astro";
 import { siteConfig } from "../config/site";
 
@@ -31,13 +32,7 @@ const { meta, occurrenceSlug = "" } = Astro.props;
       url={meta.url}
     />
     <Fonts />
-    <link rel="icon" href={siteConfig.brand.faviconPath} sizes="any" />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes={`${siteConfig.brand.faviconSize}x${siteConfig.brand.faviconSize}`}
-      href={siteConfig.brand.faviconPngPath}
-    />
+    <FaviconLinks />
   </head>
   <body data-occurrence-slug={occurrenceSlug}>
     <PreviewRibbon />
