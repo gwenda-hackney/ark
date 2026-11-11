@@ -52,13 +52,13 @@ test.describe("a wrong address", () => {
         "Nothing here",
       );
       await expectChart(page);
-      // The way on: the five places, each to its page (Bookings to home's)
+      // The way on: the five places, each to its page
       const places = page.getByRole("navigation", { name: "Try instead" });
       for (const [label, href] of [
         ["What's on", "/whats-on"],
         ["Drinks", "/bar"],
         ["Food", "/kitchen"],
-        ["Bookings", "/#bookings"],
+        ["Bookings", "/bookings"],
         ["Contact", "/contact"],
       ]) {
         await expect(

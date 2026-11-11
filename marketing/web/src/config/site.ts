@@ -38,6 +38,11 @@ export const siteConfig = {
       description:
         "Drinks and food at Gwenda, Hackney Wick: our own cocktails, the classics, cold beer, and what’s cooking.",
     },
+    bookings: {
+      title: "Bookings · Gwenda",
+      description:
+        "Have your party at Gwenda in Hackney Wick, or come and play. Tell us what you’re after and we’ll come back to you.",
+    },
     privacy: {
       title: "Privacy · Gwenda",
       description:
@@ -202,8 +207,9 @@ export const siteConfig = {
     bookTableHeading: "Book a table",
     bookTableLead: "Olive trees at Schwartz Wharf. A table, when you want one.",
     /**
-     * Home's Bookings (#240, HomeBookings.astro, IV in the navigation):
-     * having a party here and playing here, side by side, each to its form.
+     * Bookings (#240, IV in the navigation), on home and on /bookings
+     * (BookingHalves.astro): having a party here and playing here, side by
+     * side, each to its form.
      */
     bookings: {
       heading: "Bookings",

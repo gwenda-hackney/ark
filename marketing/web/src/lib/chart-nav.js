@@ -12,10 +12,12 @@ import { navPathname } from "./site-nav.js";
  * page): home's links go there, down the page, instead of to the page. A
  * place without one (Contact) goes to its page from home too.
  *
- * Bookings has no page of its own: a table is booked on OpenTable, a party
- * on its form. So it goes to its section on home from every page, both
- * choices side by side, and `pages` says which of the site's pages are in
- * it (the party form). Any other place's page is its `href`.
+ * Every place has its own page, its `href`. Bookings' page (/bookings) has
+ * the same two halves as its section on home, having a party and playing
+ * here (BookingHalves.astro); a table is booked on OpenTable, from the
+ * button on every page. `pages` names any other of the site's pages that
+ * are in a place: the party form is in Bookings, though its address is
+ * under Contact.
  */
 export const CHART_SECTIONS = [
   { numeral: "I", label: "What's on", href: "/whats-on", home: "whats-on" },
@@ -24,15 +26,15 @@ export const CHART_SECTIONS = [
   {
     numeral: "IV",
     label: "Bookings",
-    href: "/#bookings",
+    href: "/bookings",
     home: "bookings",
     pages: [formPublicPath(PARTY_FORM_SLUG)],
   },
   { numeral: "V", label: "Contact", href: "/contact" },
 ];
 
-/** The site's pages a place takes in: its `pages`, or else its `href`. */
-const pagesOf = (item) => item.pages ?? [item.href];
+/** The site's pages a place takes in: its own, and any others in `pages`. */
+const pagesOf = (item) => [item.href, ...(item.pages ?? [])];
 
 /**
  * The sections, with the one this page is in marked. A page is in the

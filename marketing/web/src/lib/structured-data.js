@@ -6,17 +6,13 @@ import { FOOT_LINKS, PRIVACY_LINK } from "./chart-footer.js";
  * The site's own navigation, as search engines read it (StructuredData.astro):
  * the five numbered places (chart-nav.js), then the foot's own (chart-footer.js),
  * each at its page's canonical address (with the slash, as the sitemap and
- * each page's canonical link give it), or a place on home where it has no
- * page of its own (Bookings: /#bookings).
+ * each page's canonical link give it).
  *
  * @param {string} domain
  */
 export function siteNavigation(domain) {
   const links = [...CHART_SECTIONS, ...FOOT_LINKS, PRIVACY_LINK];
-  const address = (href) =>
-    href.includes("#")
-      ? new URL(href, domain).href
-      : new URL(`${href.replace(/\/$/, "")}/`, domain).href;
+  const address = (href) => new URL(`${href.replace(/\/$/, "")}/`, domain).href;
   return {
     "@type": "ItemList",
     "@id": `${domain}/#navigation`,
