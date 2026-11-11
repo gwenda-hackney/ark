@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { evaluate, parse } from "groq-js";
-import { afterEach, beforeEach, describe, it } from "vitest";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { VENUE_DETAILS_QUERY, readVenueDetails } from "../../../../marketing/web/src/lib/venue-details.js";
 import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
@@ -18,6 +18,9 @@ import { onRequestDelete as deletePhoto, onRequestPatch as patchPhoto } from "..
 import { onRequestPut as putHours } from "../../functions/api/venue/hours.js";
 import { onRequestPut as putParties } from "../../functions/api/venue/parties.js";
 import { onRequestPost as updateWebsite } from "../../functions/api/web/release.js";
+import { onRequestPost as createEvent } from "../../functions/api/events/index.js";
+import { onRequestPost as addEventPhoto } from "../../functions/api/events/[id]/gallery.js";
+import { galleryFromEvents } from "./server/venue-gallery.js";
 
 let world;
 beforeEach(async () => {
@@ -302,5 +305,103 @@ describe("publish: the gallery goes on the website with the venue's details", ()
     assert.match(res.data.warnings[0], /^Saved in ops, but the website didn't get it/);
     assert.equal(res.data.photos[0].description, "The terrace at dusk");
     assert.deepEqual(await websiteWords(), ["The terrace"]);
+  });
+});
+
+describe("from events: the Photos page's events, under the venue's own, read-only", () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ["Date"] }));
+  afterEach(() => vi.useRealTimers());
+
+  /** An event, saved on the Events page. */
+  async function event(name) {
+    const res = await callApi(world, createEvent, { method: "POST", path: "/api/events", body: { name } });
+    assert.equal(res.status, 201, JSON.stringify(res.data));
+    return res.data.event;
+  }
+
+  /** A photo added on the event's Images tab at `at`; the same name is the same picture as a venue photo's. */
+  async function eventPhoto(event, name, at) {
+    vi.setSystemTime(new Date(at));
+    const body = new FormData();
+    body.set("file", photoFile(name));
+    const res = await callApi(world, addEventPhoto, {
+      method: "POST",
+      path: `/api/events/${event.id}/gallery`,
+      params: { id: event.id },
+      body,
+    });
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    return res.data.event.gallery[0];
+  }
+
+  const summary = (fromEvents) =>
+    fromEvents.map((group) => [group.name, group.photos.map((photo) => photo.key), group.more]);
+
+  it("is none until an event has photos", async () => {
+    await event("Quiz Night");
+    const res = await read();
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    assert.deepEqual(res.data.fromEvents, []);
+  });
+
+  it("puts each event's photos under its name, the event with the newest photo first", async () => {
+    const karaoke = await event("Karaoke with Ross");
+    const friday = await event("Friday, With Guests");
+    await event("Quiz Night");
+    const mic = await eventPhoto(karaoke, "mic", "2026-11-06T22:00:00Z");
+    const crowd = await eventPhoto(karaoke, "crowd", "2026-11-06T23:00:00Z");
+    const decks = await eventPhoto(friday, "decks", "2026-11-08T01:00:00Z");
+
+    const res = await read();
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    assert.deepEqual(summary(res.data.fromEvents), [
+      ["Friday, With Guests", [decks.key], 0],
+      ["Karaoke with Ross", [crowd.key, mic.key], 0],
+    ]);
+    assert.equal(res.data.fromEvents[0].id, String(friday.id));
+    // Each photo from the Sanity CDN, as the event's Images tab shows it
+    assert.deepEqual(res.data.fromEvents[0].photos[0], {
+      key: decks.key,
+      url: decks.url,
+      width: decks.width,
+      height: decks.height,
+      added: "2026-11-08T01:00:00.000Z",
+    });
+  });
+
+  it("leaves out a picture the venue's photos have, as the Photos page does", async () => {
+    const karaoke = await event("Karaoke with Ross");
+    const quiz = await event("Quiz Night");
+    await eventPhoto(karaoke, "terrace", "2026-11-06T22:00:00Z");
+    const crowd = await eventPhoto(karaoke, "crowd", "2026-11-06T21:00:00Z");
+    await eventPhoto(quiz, "terrace", "2026-11-09T21:00:00Z");
+    await addAll("terrace");
+
+    assert.deepEqual(summary((await read()).data.fromEvents), [["Karaoke with Ross", [crowd.key], 0]]);
+  });
+
+  it("shows the newest eight events and each one's newest six, as the Photos page does", async () => {
+    const sha = (n) => n.toString(16).padStart(40, "a");
+    const photo = (n, added) => ({
+      key: `k${n}`,
+      asset: `image-${sha(n)}-1600x1200-jpg`,
+      url: `https://cdn.sanity.io/images/proj/production/${sha(n)}-1600x1200.jpg`,
+      width: 1600,
+      height: 1200,
+      added,
+    });
+    const galleries = async () =>
+      Array.from({ length: 9 }, (_, i) => ({
+        id: String(i + 1),
+        name: `Night ${i + 1}`,
+        photos: Array.from({ length: i === 8 ? 9 : 1 }, (_, j) =>
+          photo(100 * (i + 1) + j, `2026-10-${10 + i}T${String(20 - j).padStart(2, "0")}:00:00Z`),
+        ),
+      }));
+    const fromEvents = await galleryFromEvents(world.env, [], { galleries });
+    assert.deepEqual(
+      fromEvents.map((group) => [group.name, group.photos.length, group.more]),
+      [["Night 9", 6, 3], ...[8, 7, 6, 5, 4, 3, 2].map((n) => [`Night ${n}`, 1, 0])],
+    );
   });
 });

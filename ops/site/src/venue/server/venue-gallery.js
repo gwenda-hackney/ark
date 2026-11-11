@@ -11,8 +11,14 @@
  * Sanity (platform/image-upload.js), the asset the photo's only copy, which
  * ops keeps the id of. The rules are gallery-model.js's; where the gallery is
  * kept, venue-repository.js's.
+ *
+ * Reading it also brings the photos from events the website's Photos page
+ * shows under the venue's own (galleryFromEvents), to see, not to change:
+ * they're managed on each event's Images tab.
  */
+import { photosPageEvents } from "../../../../../marketing/web/src/lib/photos.js";
 import { parseImageAssetId, sanityImageUrl } from "../../../../../shared/sanity-image.js";
+import { listEventGalleries } from "../../events/server/event-galleries.js";
 import { uploadImage } from "../../platform/image-upload.js";
 import { sanityProjectId } from "../../platform/sanity.js";
 import { assertValidPhotoChanges, assertWholeOrder, newPhotoKey } from "../gallery-model.js";
@@ -43,13 +49,50 @@ export function galleryPhotoView(photo, { projectId = "" } = {}) {
 
 const views = (env, photos) => photos.map((photo) => galleryPhotoView(photo, { projectId: sanityProjectId(env) }));
 
-/** The gallery, in its order, and where the venue's details stand on the website. */
-export async function getGallery(env, { onWebsite = venueOnWebsite } = {}) {
+/**
+ * The gallery, in its order, and where the venue's details stand on the
+ * website; and the photos from events the Photos page shows under it
+ * (galleryFromEvents).
+ */
+export async function getGallery(env, { onWebsite = venueOnWebsite, galleries = listEventGalleries } = {}) {
   const now = await venueDetailsNow(venueRepository(env));
+  const photos = views(env, now.gallery);
   return {
-    photos: views(env, now.gallery),
+    photos,
     website: hasVenueDetails(now) ? await websiteState(env, now.details, onWebsite) : "none",
+    fromEvents: await galleryFromEvents(env, photos, { galleries }),
   };
+}
+
+/** A photo with the hash of its picture, by which the website knows the same one twice. */
+const withHash = (photo) => ({ ...photo, hash: parseImageAssetId(photo.asset)?.sha1 || "" });
+
+/**
+ * The photos from events the website's Photos page shows under the venue's
+ * own, by the website's own rule (marketing/web/src/lib/photos.js
+ * photosPageEvents): the newest few events, the one with the newest photo
+ * first, each with its newest few (`more`: how many it leaves for the
+ * event's page); none too small to show sharp, and none the venue's photos
+ * have. Each event's photos come from events (event-galleries.js). The
+ * website orders them by when each asset was uploaded, ops by when each
+ * photo was added: for a photo added in ops, the same moment.
+ *
+ * @param {Array<{ asset: string, url: string }>} venuePhotos the venue's gallery (galleryPhotoView)
+ * @returns {Promise<Array<{ id: string, name: string, more: number,
+ *   photos: Array<{ key: string, url: string, width: number, height: number, added: string }> }>>}
+ */
+export async function galleryFromEvents(env, venuePhotos, { galleries = listEventGalleries } = {}) {
+  const events = (await galleries(env)).map((event) => ({
+    id: event.id,
+    title: event.name,
+    photos: event.photos.map(withHash),
+  }));
+  return photosPageEvents(venuePhotos.map(withHash), events).map((group) => ({
+    id: group.id,
+    name: group.title,
+    photos: group.photos.map(({ key, url, width, height, added }) => ({ key, url, width, height, added })),
+    more: group.more,
+  }));
 }
 
 /** After a change: the gallery as it is now, and how putting it on the website went. */
