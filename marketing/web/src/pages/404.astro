@@ -1,17 +1,16 @@
 ---
 /**
- * A wrong address (#240): "Nothing here", the logo's bottle tipped over with
- * nothing coming out, and the five places as the way on. Built as 404.html,
- * which Cloudflare Pages serves, with a 404, for any address it has no page
- * for (and so does a What's on address that was never an event,
- * functions/_lib/event-pages.js); the dev server does the same.
+ * A wrong address (#240): "Nothing here", the record with the logo's skull,
+ * and the five places as the way on. Built as 404.html, which Cloudflare
+ * Pages serves, with a 404, for any address it has no page for (and so does a
+ * What's on address that was never an event, functions/_lib/event-pages.js);
+ * the dev server does the same.
  */
-import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
 import "../styles/chart-gone.css";
 import { siteConfig } from "../config/site";
-import { dryBottle } from "../lib/chart-assets";
+import ChartRecord from "../components/chart/ChartRecord.astro";
 import { CHART_SECTIONS } from "../lib/chart-nav";
 
 const { notFound } = siteConfig.copy;
@@ -25,8 +24,7 @@ const { notFound } = siteConfig.copy;
 >
   <ChartPage class="ch-gone" title={notFound.title} pathname="/404">
     <div class="ch-gone-art" slot="art">
-      <Image {...dryBottle} alt="" loading="eager" />
-      <p class="ch-gone-caption">{notFound.caption}</p>
+      <ChartRecord size="large" class="ch-gone-record" />
     </div>
     <Fragment slot="head">
       <p class="ch-lead">{notFound.line}</p>

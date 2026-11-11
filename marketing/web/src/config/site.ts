@@ -223,8 +223,6 @@ export const siteConfig = {
       description: "That page doesn’t exist at Gwenda, or it’s moved.",
       title: "Nothing here",
       line: "That page doesn’t exist, or it’s moved. Try one of these instead.",
-      /** Handwritten under the bottle, tipped over with nothing coming out. */
-      caption: "all gone",
       /** The five places' name, for screen readers. */
       placesLabel: "Try instead",
     },
