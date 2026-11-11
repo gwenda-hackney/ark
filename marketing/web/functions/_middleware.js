@@ -3,6 +3,11 @@
  * Unauthenticated visitors are sent to /gate (themed login) instead of browser basic auth.
  * Optional GATE_BYPASS_KEY accepts ?access=<key> to set the gate cookie and strip the param.
  * Sign in with Google goes through ops, which sends you back with ?pass= (shared/website-pass.js).
+ *
+ * On the live site this runs only for the Functions' own addresses (/api/*,
+ * /whats-on/*, …): built pages skip Functions there (dist/_routes.json,
+ * scripts/lib/pages-serving.mjs). Anything a built page needs on every
+ * response goes in dist/_headers, not here. Gated sites run it everywhere.
  */
 import {
   AUTH_COOKIE_NAME,

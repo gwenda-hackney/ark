@@ -43,6 +43,7 @@ dist/          Build output (gitignored)
 - **No `public/` folder.** Static assets go in `src/assets/` and are imported in `.astro` files.
 - **Share preview image:** `src/assets/images/social/logo-board.png` → `SocialMeta.astro` (Open Graph / Twitter).
 - **SEO files** (`robots.txt`, `sitemap.xml`, `_headers`) are generated at build time by scripts in `scripts/`.
+- **What runs Functions:** the live site's build writes `_routes.json` so only the Functions' own addresses (`/api/*`, `/whats-on/*`, …) run them, and built pages come straight from Cloudflare's cache; gated builds (dev, previews) send every address through `_middleware.js`. Pages are kept a minute (`private` when gated), `/_astro/*` a year. See `scripts/lib/pages-serving.mjs`.
 - **Version headers:** CalVer `YYYY.MM.DD+shortsha` via `scripts/compute-build-version.mjs`.
 
 ## Data and domain (DDD)

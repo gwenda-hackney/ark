@@ -37,6 +37,13 @@ const [whatsOn] = sections;
 const placeHref = (item: (typeof sections)[number]) =>
   home && item.home ? `/#${item.home}` : item.href;
 const homeHref = home ? "/#hero" : "/";
+/**
+ * A phone has no hover, and a tap is too late to fetch ahead (the router's
+ * own fetch goes at the same moment): the menu's and the dock's pages are
+ * fetched as they come into view instead, all but the page you are on.
+ */
+const prefetchInView = (item: (typeof sections)[number]) =>
+  item.ariaCurrent === "page" ? "false" : "viewport";
 ---
 
 <a href="#main" class="ch-skip">Skip to content</a>
@@ -171,11 +178,19 @@ const homeHref = home ? "/#hero" : "/";
   {/* The compass rose, the same one as on Find us's badge */}
   <Fragment set:html={drawingSvg("compass", { className: "ch-rose" })} />
 
+  {
+    /* Fetched once the panel opens: it is off screen until then, and gone
+       on a desk screen */
+  }
   <ul class="ch-chart-list">
     {
       sections.map((item) => (
         <li>
-          <a href={placeHref(item)} aria-current={item.ariaCurrent}>
+          <a
+            href={placeHref(item)}
+            aria-current={item.ariaCurrent}
+            data-astro-prefetch={prefetchInView(item)}
+          >
             <span class="ch-ring">{item.numeral}</span>
             <span class="ch-caps">{item.label}</span>
           </a>
@@ -189,7 +204,8 @@ const homeHref = home ? "/#hero" : "/";
   <a
     href={placeHref(whatsOn)}
     class="ch-btn ch-btn--compact"
-    aria-current={whatsOn.ariaCurrent}>{whatsOn.label}</a
+    aria-current={whatsOn.ariaCurrent}
+    data-astro-prefetch={prefetchInView(whatsOn)}>{whatsOn.label}</a
   >
   {
     bookingEnabled && (

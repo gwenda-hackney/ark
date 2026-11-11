@@ -758,6 +758,12 @@ function devFeaturedArtistApi() {
 export default defineConfig({
   site: "https://gwenda.co.uk",
   output: "static",
+  // What <ViewTransitions /> turns on anyway, said here: every link fetches
+  // its page on hover (or focus), and pages are kept a minute
+  // (scripts/lib/pages-serving.mjs), so the click shows that copy. A phone
+  // has no hover: the menu's and the dock's links fetch as they come into
+  // view instead (ChartNav).
+  prefetch: { prefetchAll: true, defaultStrategy: "hover" },
   env: {
     schema: {
       SITE_PASSWORD: envField.string({
