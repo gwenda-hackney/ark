@@ -2,6 +2,7 @@ import {
   buildAuthCookie,
   createAuthToken,
   gateMisconfiguredResponse,
+  matchesPassword,
   resolveGate,
   safeRedirectPath,
 } from "../_lib/site-auth.js";
@@ -22,8 +23,7 @@ export async function onRequestPost(context) {
     return json({ error: "Invalid request." }, 400);
   }
 
-  const password = body.password ?? "";
-  if (password !== expected) {
+  if (!(await matchesPassword(body?.password, expected))) {
     return json({ error: "That password isn't right." }, 401);
   }
 

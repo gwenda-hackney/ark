@@ -47,6 +47,29 @@ export function matchesSecret(provided, expected) {
   return diff === 0;
 }
 
+async function sha256(value) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return new Uint8Array(digest);
+}
+
+/**
+ * Whether a typed password is the gate's, in constant time. Both are hashed
+ * first and every byte of the hashes compared, so the time taken shows
+ * neither where they differ nor how long the password is.
+ */
+export async function matchesPassword(provided, expected) {
+  if (typeof provided !== "string" || typeof expected !== "string")
+    return false;
+  if (!expected) return false;
+  const [a, b] = await Promise.all([sha256(provided), sha256(expected)]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
 export function gateBypassRedirectPath(url) {
   const clean = new URL(url);
   if (!clean.searchParams.has(GATE_BYPASS_PARAM)) return null;
