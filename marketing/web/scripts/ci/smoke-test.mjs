@@ -25,6 +25,7 @@ import {
   assertHealthPayload,
   assertHomePageHealthy,
   assertPicturesSized,
+  assertSubscribeTokens,
   collectSameOriginAssetPaths,
   deepCheckLine,
   iconPaths,
@@ -156,10 +157,12 @@ async function checkSubscribeApi(cookie = "") {
     throw new Error(`${url} expected application/json, got ${type}`);
   }
   const data = await res.json();
-  if (!data.csrfToken || !data.secret) {
-    throw new Error(`${url} missing csrfToken or secret in response`);
+  try {
+    assertSubscribeTokens(data);
+  } catch (error) {
+    throw new Error(`${url} ${error.message}`);
   }
-  console.log(`OK ${url} (200, subscribe tokens issued)`);
+  console.log(`OK ${url} (200, CSRF token issued)`);
 }
 
 async function checkRsvpApi(cookie = "") {

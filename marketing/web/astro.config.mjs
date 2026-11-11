@@ -59,7 +59,6 @@ const gatePlugin = devSiteGate({
 });
 
 const subscribeEnv = () => ({
-  SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
   BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
   BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
   BASEROW_DATABASE_ID:
@@ -157,16 +156,11 @@ function devSubscribeApi() {
         const runtimeEnv = subscribeEnv();
 
         if (req.method === "GET") {
-          const issued = issueSubscribeTokens(runtimeEnv, { secure: false });
-          if (issued.kind === "error") {
-            sendJson(res, issued.status, { error: issued.error });
-            return;
-          }
-
+          const issued = issueSubscribeTokens({ secure: false });
           sendJson(
             res,
             200,
-            { csrfToken: issued.csrfToken, secret: issued.secret },
+            { csrfToken: issued.csrfToken },
             { "Set-Cookie": issued.setCookie },
           );
           return;
@@ -180,7 +174,7 @@ function devSubscribeApi() {
         const auth = validateSubscribeAuth({
           getHeader: (name) => req.headers[name.toLowerCase()],
           cookies: parseCookies(req.headers.cookie),
-          env: runtimeEnv,
+          origin: `http://${req.headers.host || "localhost:4321"}`,
         });
         if (!auth.ok) {
           sendJson(res, auth.status, { error: auth.error });

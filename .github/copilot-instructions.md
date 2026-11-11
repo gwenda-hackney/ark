@@ -64,7 +64,7 @@ Server code is organised by domain-driven design, so a storage change (Baserow â
 | -------------------------------------- | -------------------------------------------------------- |
 | `functions/_middleware.js`             | Password gate (previews, dev website)                    |
 | `functions/_lib/site-auth.js`          | Gate tokens, cookies, redirect safety, crawler allowlist |
-| `functions/_lib/subscribe-auth.js`     | CSRF + secret header for subscribe POST                  |
+| `functions/_lib/subscribe-auth.js`     | CSRF + same-origin check for subscribe and form POSTs    |
 | `functions/_lib/subscribe-honeypot.js` | Bot honeypot (silent success)                            |
 | `functions/_lib/subscribe.js`          | Newsletter sign-up (guests repository)                   |
 | `functions/api/subscribe.js`           | Subscribe API (production)                               |

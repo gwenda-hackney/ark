@@ -301,7 +301,7 @@ The website sends guests links that must not be guessable or editable: RSVP tick
 
 - **Owner:** Gwenda: a random value we generate.
 - **SM:** `SUBSCRIBE_SECRET__DEV` ([`ark/web-dev`](#arkweb-dev)), `SUBSCRIBE_SECRET__PRODUCTION` ([`ark/web`](#arkweb)). Random.
-- **What:** signs the website's own links and cookies: the subscribe form's CSRF cookie, RSVP ticket links (`/events/<slug>/ticket` and the Apple Wallet pass), and form email-verification and edit links.
+- **What:** signs the website's own links: RSVP ticket links (`/events/<slug>/ticket` and the Apple Wallet pass, while `TICKET_SECRET` is unset), and form email-verification and edit links. It never leaves the server: the sign-up and form posts are protected by a CSRF cookie and same-origin check, not by this.
 - **Used by:** website functions.
 - **Gets there by:** Pages secret (`web-secrets.yml`).
 - **Expires:** never.

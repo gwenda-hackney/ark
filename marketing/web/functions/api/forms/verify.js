@@ -6,6 +6,7 @@ import {
   draftAnswersFromSubmission,
   fetchFormSubmission,
   markFormSubmissionVerified,
+  submissionBelongsTo,
 } from "../../_lib/form-store.js";
 
 export async function onRequestGet(context) {
@@ -54,14 +55,16 @@ export async function onRequestGet(context) {
 
   // Ops were notified on submit; verifying only flips the status.
 
+  // markFormSubmissionVerified has checked the row is this link's sender's.
   const loaded = await fetchFormSubmission(context.env, parsed.rowId);
-  const draftAnswers = loaded.ok
-    ? draftAnswersFromSubmission(loaded.submission)
-    : Object.fromEntries(
-        (marked.answers || [])
-          .filter((row) => row?.key)
-          .map((row) => [row.key, row.value ?? ""]),
-      );
+  const draftAnswers =
+    loaded.ok && submissionBelongsTo(loaded.submission, parsed.email)
+      ? draftAnswersFromSubmission(loaded.submission)
+      : Object.fromEntries(
+          (marked.answers || [])
+            .filter((row) => row?.key)
+            .map((row) => [row.key, row.value ?? ""]),
+        );
 
   return json({
     ok: true,
@@ -78,13 +81,16 @@ export async function onRequestGet(context) {
 }
 
 /**
+ * What a link that can't confirm still gives back: the form's address and,
+ * to its own sender only, their answers to fill the form in again.
  * @param {Record<string, string | undefined>} env
  * @param {{
+ *   ok: boolean,
  *   reason?: string,
  *   rowId?: string,
  *   email?: string,
  *   slug?: string,
- * }} claims
+ * }} claims  from parseFormVerifyToken
  */
 async function draftExtrasForClaims(env, claims) {
   const slug = typeof claims.slug === "string" ? claims.slug.trim() : "";
@@ -94,10 +100,13 @@ async function draftExtrasForClaims(env, claims) {
   if (slug && /^[a-z0-9-]+$/i.test(slug)) {
     extras.formPath = formPublicPath(slug);
   }
-  if (!rowId) return extras;
+  // Only a link this site signed (expired is fine) may look a row up.
+  const signed = claims.ok === true || claims.reason === "expired";
+  if (!signed || !rowId) return extras;
 
   const loaded = await fetchFormSubmission(env, rowId);
   if (!loaded.ok) return extras;
+  if (!submissionBelongsTo(loaded.submission, claims.email)) return extras;
 
   const draftAnswers = draftAnswersFromSubmission(loaded.submission);
   if (draftAnswers && Object.keys(draftAnswers).length > 0) {

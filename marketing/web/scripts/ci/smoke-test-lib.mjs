@@ -150,6 +150,22 @@ export function assertHealthPayload(data) {
   }
 }
 
+/**
+ * GET /api/subscribe hands a page its CSRF token and nothing secret: the key
+ * that signs form links once came back here as `secret`, readable by anyone.
+ * @param {unknown} data
+ */
+export function assertSubscribeTokens(data) {
+  if (!data || typeof data !== "object" || !data.csrfToken) {
+    throw new Error("missing csrfToken in response");
+  }
+  if ("secret" in data) {
+    throw new Error(
+      "response hands out a secret; the signing key must stay on the server",
+    );
+  }
+}
+
 /** `--forms play,party` as web addresses; empty when not given. */
 export function parseFormsArg(value) {
   return String(value ?? "")
