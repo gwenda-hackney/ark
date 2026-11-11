@@ -655,7 +655,7 @@ export function renderEventPage(model, { pending = "" } = {}) {
     )}${moreDatesHtml(model.moreDates)}${
       gallery
         ? html`<section class="ch-event-section ch-photos">
-            <h2 class="ch-poster">Photos</h2>
+            <h2 class="ch-poster">Photo Gallery</h2>
             ${raw(gallery)}
           </section>`
         : ""
