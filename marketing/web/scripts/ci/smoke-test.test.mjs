@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { createServer } from "node:http";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   assertHomePageHealthy,
   assertNotFoundPage,
+  checkNotFoundAt,
   collectSameOriginAssetPaths,
   assertPicturesSized,
   assertSubscribeTokens,
@@ -80,6 +82,45 @@ describe("assertNotFoundPage", () => {
     expect(() =>
       assertNotFoundPage({ path: "/nope", status: 404, html: "Not found" }),
     ).toThrow(/isn't the site's own/);
+  });
+});
+
+describe("checkNotFoundAt", () => {
+  /** A site on a local port: `answer(path)` gives [status, headers, body]. */
+  async function site(answer) {
+    const server = createServer((req, res) => {
+      const [status, headers, body] = answer(req.url);
+      res.writeHead(status, headers).end(body);
+    });
+    await new Promise((done) => server.listen(0, "127.0.0.1", done));
+    servers.push(server);
+    return `http://127.0.0.1:${server.address().port}`;
+  }
+  const servers = [];
+  afterEach(() => servers.splice(0).forEach((server) => server.close()));
+
+  const nothingHere =
+    "<title>Nothing here · Gwenda</title><h1>Nothing here</h1>";
+
+  it("follows www to the bare domain, which answers with the Nothing here page", async () => {
+    const apex = await site(() => [
+      404,
+      { "content-type": "text/html" },
+      nothingHere,
+    ]);
+    const www = await site((path) => [301, { location: `${apex}${path}` }, ""]);
+    await expect(checkNotFoundAt(`${www}/nope`)).resolves.toBeUndefined();
+  });
+
+  it("still refuses a wrong address sent home", async () => {
+    const www = await site((path) =>
+      path === "/"
+        ? [200, { "content-type": "text/html" }, "<title>Gwenda Social</title>"]
+        : [302, { location: "/" }, ""],
+    );
+    await expect(checkNotFoundAt(`${www}/nope`)).rejects.toThrow(
+      /\/nope returned 200, expected 404/,
+    );
   });
 });
 
