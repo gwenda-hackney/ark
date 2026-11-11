@@ -3,6 +3,8 @@ import { describe, it } from "vitest";
 import {
 	changedMessage,
 	droppedOrder,
+	eventSections,
+	fromEventsFootnote,
 	galleryFootnote,
 	movedOrder,
 	photoTiles,
@@ -83,5 +85,46 @@ describe("gallery page", () => {
 		assert.equal(galleryFootnote(0, false), "No photos yet. Add some and they go on the website.");
 		assert.match(galleryFootnote(1, false), /^1 photo\. Drag one/);
 		assert.match(galleryFootnote(12, true), /^12 photos\. Open one/);
+	});
+});
+
+describe("gallery page: from events", () => {
+	const cdn = (key: string) => `https://cdn.sanity.io/images/p/production/${key}-1600x1200.jpg`;
+
+	it("puts each event's photos under its name, linking to its Images tab, where they're managed", () => {
+		const sections = eventSections([
+			{
+				id: "12",
+				name: "Karaoke with Ross",
+				photos: [{ key: "a", url: cdn("a"), width: 1600, height: 1200, added: "2026-11-08T22:00:00Z" }],
+				more: 3,
+			},
+			{ id: "7", name: "Chez Pickle", photos: [], more: 0 },
+		]);
+		assert.deepEqual(sections[0], {
+			id: "12",
+			name: "Karaoke with Ross",
+			href: "/events/12/gallery",
+			tiles: [
+				{
+					key: "a",
+					thumb: `${cdn("a")}?w=400&h=400&fit=crop&auto=format`,
+					full: cdn("a"),
+					label: "Karaoke with Ross, photo 1",
+				},
+			],
+			more: "3 more on its Images tab",
+		});
+		assert.equal(sections[1].more, "");
+		assert.equal(sections[1].href, "/events/7/gallery");
+	});
+
+	it("says how many events the Photos page shows, or that there are none yet", () => {
+		assert.equal(fromEventsFootnote(0), "No event photos on the website yet. Add some on an event's Images tab.");
+		assert.equal(fromEventsFootnote(1), "1 event on the Photos page. Home's photo strip mixes in its newest photo.");
+		assert.equal(
+			fromEventsFootnote(5),
+			"5 events on the Photos page, newest first. Home's photo strip mixes in a couple of their newest.",
+		);
 	});
 });

@@ -8,6 +8,10 @@
 	 * sheet on phones): what it shows, the menu board on home it's pinned on,
 	 * and buttons to move it. Every change goes on the website by itself, as
 	 * saving the opening hours does (venue/server/venue-gallery.js).
+	 *
+	 * Under them, From events: the photos from events the Photos page shows
+	 * under the venue's own, each event's under its name with the way to its
+	 * Images tab, where they're managed. Here they're only to see.
 	 */
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
@@ -40,6 +44,8 @@
 		MENU_OPTIONS,
 		changedMessage,
 		droppedOrder,
+		eventSections,
+		fromEventsFootnote,
 		galleryFootnote,
 		movedOrder,
 		photoTiles,
@@ -48,7 +54,7 @@
 		type Move,
 	} from "./gallery-page";
 	import { websiteBadge } from "./venue-page";
-	import type { GalleryChangeResponse, PhotoMenu, VenuePhoto, WebsiteState } from "./types";
+	import type { EventPhotoGroup, GalleryChangeResponse, PhotoMenu, VenuePhoto, WebsiteState } from "./types";
 
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
@@ -57,6 +63,8 @@
 	let loadError = $state("");
 	let photos = $state<VenuePhoto[]>([]);
 	let website = $state<WebsiteState>("none");
+	/** The events' photos the Photos page shows, newest event first: read-only. */
+	let fromEvents = $state<EventPhotoGroup[]>([]);
 	/** Uploading, moving or taking one out: the controls wait, they don't go. */
 	let uploading = $state(false);
 	let working = $state(false);
@@ -78,6 +86,7 @@
 
 	const badge = $derived(websiteBadge(website, "photos"));
 	const tiles = $derived(photoTiles(photos));
+	const sections = $derived(eventSections(fromEvents));
 	const keys = $derived(photos.map((photo) => photo.key));
 	const open = $derived(photos.find((photo) => photo.key === editing) ?? null);
 	const openPlace = $derived(editing ? keys.indexOf(editing) : -1);
@@ -92,6 +101,7 @@
 			const data = await getVenueGallery();
 			photos = data.photos;
 			website = data.website;
+			fromEvents = data.fromEvents ?? [];
 			loaded = true;
 		} catch (err) {
 			loadError = err instanceof Error ? err.message : "Could not load the gallery.";
@@ -298,7 +308,7 @@
 				{/snippet}
 				<p class="hint">
 					These show in the photo strip on home and at the top of the Photos page, in this order. Photos from
-					events and pop-ups go on the event's Images tab instead, and show under its name.
+					events and pop-ups go on the event's Images tab instead, and show below.
 				</p>
 				<div
 					class="drive-drop"
@@ -373,6 +383,34 @@
 				</div>
 				{#snippet footer()}
 					<p class="meta">{galleryFootnote(photos.length, phone.matches)}</p>
+				{/snippet}
+			</Card>
+
+			<Card title="From events">
+				<p class="hint">These are managed on each event's Images tab.</p>
+				{#each sections as section (section.id)}
+					<section class="event" aria-label={`Photos from ${section.name}`}>
+						<div class="event-head">
+							<h3 class="event-name">{section.name}</h3>
+							<a class="event-link" href={section.href}>
+								Images tab
+								<Icon name="chevron-right" size={14} />
+							</a>
+						</div>
+						<ul class="gallery">
+							{#each section.tiles as tile (tile.key)}
+								<li class="tile">
+									<a class="open" href={tile.full} target="_blank" rel="noreferrer" title="Open the photo in a new tab">
+										<img src={tile.thumb} alt={tile.label} loading="lazy" />
+									</a>
+								</li>
+							{/each}
+						</ul>
+						{#if section.more}<p class="meta more">{section.more}</p>{/if}
+					</section>
+				{/each}
+				{#snippet footer()}
+					<p class="meta">{fromEventsFootnote(sections.length)}</p>
 				{/snippet}
 			</Card>
 		</div>
@@ -728,6 +766,47 @@
 
 	.board::before {
 		content: "· ";
+	}
+
+	.event + .event {
+		margin-top: var(--space-5);
+	}
+
+	.event-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-3);
+		margin-bottom: var(--space-2);
+	}
+
+	.event-name {
+		margin: 0;
+		min-width: 0;
+		overflow: hidden;
+		font-size: var(--text-base);
+		font-weight: 600;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.event-link {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--primary);
+		text-decoration: none;
+	}
+
+	.event-link:hover {
+		text-decoration: underline;
+	}
+
+	.meta.more {
+		margin-top: var(--space-2);
 	}
 
 	.photo-form {

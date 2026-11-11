@@ -2,9 +2,10 @@
  * Gallery page (#291), the parts without a screen: the photos as tiles,
  * where a drag or a move button puts one, and what a change says.
  */
+import { eventItemPath } from "../app/nav";
 import type { SelectOption } from "../ui/types";
 import { moveKey } from "./gallery-model.js";
-import type { GalleryChangeResponse, PhotoMenu, VenuePhoto } from "./types";
+import type { EventPhotoGroup, GalleryChangeResponse, PhotoMenu, VenuePhoto } from "./types";
 
 /** One photo as the page shows it. */
 export type PhotoTile = {
@@ -33,10 +34,13 @@ export function boardName(menu: PhotoMenu | string): string {
 	return MENU_OPTIONS.find((option) => option.value && option.value === menu)?.label ?? "";
 }
 
+/** A square for a tile, from the Sanity CDN. */
+const squareOf = (url: string) => (url ? `${url}?w=400&h=400&fit=crop&auto=format` : "");
+
 export function photoTiles(photos: VenuePhoto[]): PhotoTile[] {
 	return photos.map((photo, index) => ({
 		key: photo.key,
-		thumb: photo.url ? `${photo.url}?w=400&h=400&fit=crop&auto=format` : "",
+		thumb: squareOf(photo.url),
 		full: photo.url,
 		label: photo.description || "Not described yet",
 		described: Boolean(photo.description),
@@ -88,4 +92,37 @@ export function galleryFootnote(count: number, phone: boolean): string {
 	return phone
 		? `${photos}. Open one to say what it shows or move it.`
 		: `${photos}. Drag one to move it, or open it to say what it shows.`;
+}
+
+/** An event's photos as the page shows them: under its name, with the way to its Images tab. */
+export type EventSection = {
+	id: string;
+	name: string;
+	/** Its Images tab, where they're managed. */
+	href: string;
+	tiles: Array<{ key: string; thumb: string; full: string; label: string }>;
+	/** "3 more on its Images tab", or "". */
+	more: string;
+};
+
+export function eventSections(groups: EventPhotoGroup[]): EventSection[] {
+	return groups.map((group) => ({
+		id: group.id,
+		name: group.name,
+		href: eventItemPath(group.id, "gallery"),
+		tiles: group.photos.map((photo, index) => ({
+			key: photo.key,
+			thumb: squareOf(photo.url),
+			full: photo.url,
+			label: `${group.name}, photo ${index + 1}`,
+		})),
+		more: group.more > 0 ? `${group.more} more on its Images tab` : "",
+	}));
+}
+
+/** The line under the photos from events. */
+export function fromEventsFootnote(count: number): string {
+	if (!count) return "No event photos on the website yet. Add some on an event's Images tab.";
+	if (count === 1) return "1 event on the Photos page. Home's photo strip mixes in its newest photo.";
+	return `${count} events on the Photos page, newest first. Home's photo strip mixes in a couple of their newest.`;
 }
