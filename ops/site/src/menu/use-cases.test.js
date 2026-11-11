@@ -13,6 +13,12 @@ import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { onRequestPost as createItem } from "../../functions/api/menu/index.js";
 import { onRequestPatch as editItem } from "../../functions/api/menu/[id].js";
 import { onRequestPost as createSection } from "../../functions/api/menu/sections.js";
+import { onRequestPatch as editSection } from "../../functions/api/menu/sections/[id].js";
+import { onRequestGet as getMenu } from "../../functions/api/menu/index.js";
+import { onRequestPost as createEvent } from "../../functions/api/events/index.js";
+import { onRequestPatch as editEvent } from "../../functions/api/events/[id].js";
+import { onRequestPost as publishEvent } from "../../functions/api/events/[id]/publish.js";
+import { onRequestPost as createPosMenu } from "../../functions/api/pos-menus/index.js";
 import {
   onRequestDelete as removePhoto,
   onRequestPost as uploadPhoto,
@@ -28,9 +34,55 @@ function editor(world) {
     return res.data;
   };
   return {
-    async section(title) {
-      return ok(await callApi(world, createSection, { method: "POST", path: "/api/menu/sections", body: { title } }), 201)
-        .section;
+    async section(title, more = {}) {
+      return ok(
+        await callApi(world, createSection, { method: "POST", path: "/api/menu/sections", body: { title, ...more } }),
+        201,
+      ).section;
+    },
+    async editSection(section, body, status = 200) {
+      const res = await callApi(world, editSection, {
+        method: "PATCH",
+        path: `/api/menu/sections/${section._id}`,
+        params: { id: section._id },
+        body,
+      });
+      return status === 200 ? ok(res).section : (assert.equal(res.status, status, JSON.stringify(res.data)), res.data);
+    },
+    /** A series in Events: a night, a promotion or a pop-up kitchen. */
+    async series(body) {
+      return ok(await callApi(world, createEvent, { method: "POST", path: "/api/events", body }), 201).event;
+    },
+    async editSeries(series, body) {
+      return ok(
+        await callApi(world, editEvent, {
+          method: "PATCH",
+          path: `/api/events/${series.id}`,
+          params: { id: String(series.id) },
+          body,
+        }),
+      ).event;
+    },
+    /** The series' own Update website. */
+    async publishSeries(series) {
+      return ok(
+        await callApi(world, publishEvent, {
+          method: "POST",
+          path: `/api/events/${series.id}/publish`,
+          params: { id: String(series.id) },
+          body: {},
+        }),
+      );
+    },
+    /** What the menu pages load: the sections, and the pop-up kitchens a chapter can pick. */
+    async menu() {
+      return ok(await callApi(world, getMenu, { path: "/api/menu" }));
+    },
+    async posMenu(name) {
+      return ok(
+        await callApi(world, createPosMenu, { method: "POST", path: "/api/pos-menus", body: { name, isDefault: true } }),
+        201,
+      ).posMenu;
     },
     async create(body) {
       return ok(await callApi(world, createItem, { method: "POST", path: "/api/menu", body }), 201).item;
@@ -77,6 +129,12 @@ async function websiteMenu(world) {
 }
 
 const drink = (menu, section, name) => (menu[section] || []).find((item) => item.name === name);
+
+/** A document the website shows (published), by type and a field's value. */
+function published(world, type, field, value) {
+  const get = (doc) => (field === "slug" ? doc.slug?.current : doc[field]);
+  return world.sanity.view("published").find((doc) => doc._type === type && get(doc) === value);
+}
 
 // The same edits with the menu on Baserow and on D1 (#127).
 for (const store of ["baserow", "d1"]) describe(`menu on ${store}: each edit reaches /menu after Update website`, () => {
@@ -253,6 +311,112 @@ for (const store of ["baserow", "d1"]) describe(`menu on ${store}: each edit rea
     assert.equal(sectionOf(saved, "digital"), spritzes._id, "digital keeps its own section");
     await ops.updateWebsite();
     assert.ok(drink(await websiteMenu(world), "Spritzes", "Negroni"), "/menu shows the digital section");
+  });
+
+  it("a chapter is drinks unless it is made food; a group follows its chapter", async () => {
+    assert.equal(cocktails.kind, "bar");
+    const food = await ops.section("Kitchen", { kind: "kitchen" });
+    assert.equal(food.kind, "kitchen");
+    const burgers = await ops.section("Burgers", { parentId: food._id, kind: "bar" });
+    assert.equal(burgers.kind, "kitchen", "a group answers with its chapter's");
+    await ops.create({ name: "Burger", price: "12", sectionId: burgers._id, placements: [{ channel: "digital", sectionId: burgers._id }] });
+    await ops.updateWebsite();
+    assert.equal(published(world, "menuSection", "slug", "kitchen").kind, "kitchen");
+    assert.equal("kind" in published(world, "menuSection", "slug", "burgers"), false, "none on a group");
+    assert.equal(published(world, "menuSection", "slug", "cocktails").kind, "bar");
+
+    assert.equal((await ops.editSection(food, { kind: "bar" })).kind, "bar");
+    await ops.updateWebsite();
+    assert.equal(published(world, "menuSection", "slug", "kitchen").kind, "bar", "a chapter already on the website follows");
+    await ops.editSection(food, { kind: "pizza" }, 400);
+  });
+
+  it("food stays off the till; a drink still gets its POS menu", async () => {
+    await ops.posMenu("Bar till");
+    const food = await ops.section("Kitchen", { kind: "kitchen" });
+    const fries = await ops.create({
+      name: "Fries",
+      price: "6",
+      sectionId: food._id,
+      placements: [{ channel: "digital", sectionId: food._id }],
+    });
+    assert.deepEqual(fries.placements.map((row) => row.channel), ["digital"]);
+    assert.deepEqual(fries.posMenus, []);
+    const edited = await ops.edit(fries, { price: "6.5" });
+    assert.deepEqual(edited.placements.map((row) => row.channel), ["digital"], "still none after an edit");
+    const chips = await ops.create({ name: "Chips", price: "5", sectionId: food._id, onPrintMenu: false });
+    assert.equal(chips.placements.some((row) => row.channel === "pos"), false, "nor from the section alone");
+
+    const spritz = await ops.create({ name: "Spritz", price: "9", sectionId: cocktails._id });
+    assert.ok(spritz.placements.some((row) => row.channel === "pos"), "a drink is on the till");
+  });
+
+  it("a section already on the website follows ops: name, line, order and where it sits", async () => {
+    const beer = await ops.section("Draught Beer", { parentId: cocktails._id });
+    await ops.create({ name: "Pilsner", price: "6", sectionId: beer._id });
+    await ops.updateWebsite();
+    const before = published(world, "menuSection", "slug", "draught-beer");
+    assert.equal(before.title, "Draught Beer");
+    assert.equal(before.parent._ref, published(world, "menuSection", "slug", "cocktails")._id);
+
+    const chapter = await ops.section("Beer", { subtitle: "On draught and in bottles." });
+    await ops.editSection(beer, { title: "On Draught", parentId: chapter._id, orderRank: 40 });
+    await ops.editSection(cocktails, { title: "Our Cocktails", subtitle: "Made up here." });
+    await ops.updateWebsite();
+    const after = published(world, "menuSection", "slug", "draught-beer");
+    assert.equal(after._id, before._id, "the same document");
+    assert.equal(after.title, "On Draught");
+    assert.equal(after.slug.current, "draught-beer", "its address stays");
+    assert.equal(after.orderRank, "0|i00000040s:");
+    const parent = published(world, "menuSection", "slug", "beer");
+    assert.equal(after.parent._ref, parent._id);
+    assert.equal(parent.subtitle, "On draught and in bottles.");
+    const renamed = published(world, "menuSection", "slug", "cocktails");
+    assert.equal(renamed.title, "Our Cocktails");
+    assert.equal(renamed.subtitle, "Made up here.");
+    assert.ok(drink(await websiteMenu(world), "On Draught", "Pilsner"));
+    assert.equal((await ops.updateWebsite()).published, 0, "and then nothing is left to publish");
+  });
+
+  it("a food chapter can belong to a pop-up kitchen, and the website's section points at its series", async () => {
+    const night = await ops.series({ name: "Jazz Night", startsOn: "2027-01-08", repeatUnit: "once" });
+    const pickle = await ops.series({ name: "Chez Pickle", description: "Smashed burgers.", category: "popup" });
+    assert.deepEqual((await ops.menu()).popups, [{ id: String(pickle.id), name: "Chez Pickle" }], "only pop-up kitchens");
+
+    await ops.section("Not a pop-up", { kind: "kitchen", popupSeriesId: String(night.id) }).then(
+      () => assert.fail("a night is not a pop-up kitchen"),
+      () => {},
+    );
+    await ops.section("Drinks pop-up", { kind: "bar", popupSeriesId: String(pickle.id) }).then(
+      () => assert.fail("drinks can't belong to a pop-up kitchen"),
+      () => {},
+    );
+    const food = await ops.section("Chez Pickle", { kind: "kitchen", popupSeriesId: String(pickle.id) });
+    assert.equal(food.popupSeriesId, String(pickle.id));
+    const burgers = await ops.section("Burgers", { parentId: food._id });
+    assert.equal(burgers.popupSeriesId, String(pickle.id), "a group answers with its chapter's");
+    assert.equal((await ops.editSection(food, { title: "Chez Pickle" })).popupSeriesId, String(pickle.id), "kept when not sent");
+    await ops.create({ name: "OG Burger", price: "14", sectionId: burgers._id, placements: [{ channel: "digital", sectionId: burgers._id }] });
+
+    // Not on the website yet: the section goes up without pointing at it.
+    await ops.updateWebsite();
+    assert.equal("popupSeries" in published(world, "menuSection", "slug", "chez-pickle"), false);
+
+    await ops.publishSeries(pickle);
+    await ops.updateWebsite();
+    const section = published(world, "menuSection", "slug", "chez-pickle");
+    assert.equal(section.popupSeries._ref, "series-chez-pickle");
+    assert.equal(section.kind, "kitchen");
+    assert.equal("popupSeries" in published(world, "menuSection", "slug", "burgers"), false, "none on a group");
+    assert.equal((await ops.updateWebsite()).published, 0, "nothing left to publish");
+
+    // No longer a pop-up kitchen: the chapter lets go on the next update.
+    await ops.editSeries(pickle, { category: "event" });
+    assert.deepEqual((await ops.menu()).popups, []);
+    await ops.updateWebsite();
+    assert.equal("popupSeries" in published(world, "menuSection", "slug", "chez-pickle"), false);
+
+    assert.equal((await ops.editSection(food, { kind: "bar" })).popupSeriesId, null, "drinks carry none");
   });
 
   it("Update website with nothing changed publishes nothing", async () => {

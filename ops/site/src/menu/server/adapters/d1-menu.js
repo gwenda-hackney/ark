@@ -56,6 +56,9 @@ export const menuTables = Object.fromEntries(
 
 const JUNCTION = "menu_item_pos_menus";
 
+/** Every table the menu lives in, parents first: what a copy of the menu takes (scripts/lib/d1-rehearsal.mjs). */
+export const MENU_D1_TABLES = [...MENU_COLLECTION_NAMES, JUNCTION];
+
 /** The junction as importTables takes a table. */
 const junctionTable = {
   table: JUNCTION,

@@ -1,7 +1,9 @@
 /**
  * Per-channel menu placements: print / digital / POS each with its own location.
  *
- * Guest (print|digital) ⇒ at least one POS row. Archive clears all placements.
+ * Guest (print|digital) ⇒ at least one POS row, for drinks. Food (every guest
+ * placement in a kitchen chapter) is not sold through the drinks till, so it
+ * gets none unless one is given. Archive clears all placements.
  * Stored through the MenuRepository (collection menu_placements).
  */
 import {
@@ -204,12 +206,25 @@ export function placementsFromLegacyItem(item, { defaultPosMenuIds: defaults = [
   return normalizePlacements(out);
 }
 
-/** Ensure guest channels imply at least one POS placement. */
-export function ensurePosForGuest(placements, { defaultPosMenuIds: defaults = [], item } = {}) {
+/** Whether every guest placement is in a food section (`isFoodSection(sectionId)`); false with none. */
+function onlyFood(placements, isFoodSection) {
+  const guest = placements.filter((row) => row.channel === "print" || row.channel === "digital");
+  return guest.length > 0 && guest.every((row) => isFoodSection(row.sectionId));
+}
+
+/**
+ * Ensure guest channels imply at least one POS placement. Not for food:
+ * `isFoodSection(sectionId)` says which sections are in a kitchen chapter.
+ */
+export function ensurePosForGuest(
+  placements,
+  { defaultPosMenuIds: defaults = [], item, isFoodSection = () => false } = {},
+) {
   const list = normalizePlacements(placements);
   const hasGuest = list.some((row) => row.channel === "print" || row.channel === "digital");
   const hasPos = list.some((row) => row.channel === "pos");
   if (!hasGuest || hasPos) return list;
+  if (onlyFood(list, isFoodSection)) return list;
   const screen =
     parsePosScreenInput(defaultPosScreenForItem(item)) ||
     parsePosScreenInput(
@@ -411,9 +426,13 @@ export function attachPlacements(items, placementRecords, labels) {
 
 /**
  * Resolve placements for write: explicit input, else keep existing, else legacy.
- * Applies guest⇒POS rule. `archived: true` clears all.
+ * Applies guest⇒POS rule, which food is exempt from (`isFoodSection`, see
+ * ensurePosForGuest). `archived: true` clears all.
  */
-export function resolvePlacementsForWrite(input, { existingItem, defaultPosMenus = [] } = {}) {
+export function resolvePlacementsForWrite(
+  input,
+  { existingItem, defaultPosMenus = [], isFoodSection = () => false } = {},
+) {
   const defaults = defaultPosMenuIds(defaultPosMenus);
   if (input?.archived === true || input?.archive === true) {
     return archivedPlacements();
@@ -422,8 +441,19 @@ export function resolvePlacementsForWrite(input, { existingItem, defaultPosMenus
     return ensurePosForGuest(input.placements, {
       defaultPosMenuIds: defaults,
       item: { ...existingItem, ...input },
+      isFoodSection,
     });
   }
+  // Built from the item's own section and flags: food gets no default POS menus.
+  const fromLegacy = (item) => {
+    const food = isFoodSection(
+      String(item?.sectionId || item?.section?._id || item?.section?._ref || "").trim(),
+    );
+    return ensurePosForGuest(
+      placementsFromLegacyItem(item, { defaultPosMenuIds: food ? [] : defaults }),
+      { defaultPosMenuIds: defaults, item, isFoodSection },
+    );
+  };
   if (existingItem?.placements?.length) {
     const next = { ...existingItem, ...input };
     // Guest flag toggles without placements array still reshape.
@@ -435,23 +465,15 @@ export function resolvePlacementsForWrite(input, { existingItem, defaultPosMenus
       Object.prototype.hasOwnProperty.call(input || {}, "posMenus") ||
       Object.prototype.hasOwnProperty.call(input || {}, "lightspeedMenuScreen")
     ) {
-      return ensurePosForGuest(placementsFromLegacyItem(next, { defaultPosMenuIds: defaults }), {
-        defaultPosMenuIds: defaults,
-        item: next,
-      });
+      return fromLegacy(next);
     }
     return ensurePosForGuest(existingItem.placements, {
       defaultPosMenuIds: defaults,
       item: next,
+      isFoodSection,
     });
   }
-  return ensurePosForGuest(
-    placementsFromLegacyItem(
-      { ...existingItem, ...input },
-      { defaultPosMenuIds: defaults },
-    ),
-    { defaultPosMenuIds: defaults, item: { ...existingItem, ...input } },
-  );
+  return fromLegacy({ ...existingItem, ...input });
 }
 
 /** The drink's own copies of its placements (section, menu flags, POS menus), stored alongside them. */
