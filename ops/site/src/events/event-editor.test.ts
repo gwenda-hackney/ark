@@ -34,6 +34,7 @@ vi.mock("./website-jobs.svelte", () => ({
 }));
 
 const { EventEditor } = await import("./event-editor.svelte");
+const { readyToSave } = await import("./add-wizard");
 
 function night(date: string): OpsEventOccurrence {
 	return {
@@ -324,6 +325,22 @@ describe("EventEditor: the new-event chooser (#158)", () => {
 		editor.setNewKind("series");
 		assert.equal(editor.attachSeriesId, "", "a series doesn't join another series");
 		assert.equal(editor.creatingNight, false);
+	});
+
+	it("saves a pop-up kitchen from Add without the guest typed before picking it (#245)", async () => {
+		const editor = await open("/events/new");
+		editor.form.name = "Chez Pickle";
+		editor.form.artist = "DJ Shadow";
+		editor.form.pageUrl = "@chezpickle";
+		editor.form.description = "<p>Pickles.</p>";
+		editor.form.category = "popup";
+		editor.setNewKind("once");
+		editor.form.startsOn = "2026-11-20";
+		readyToSave(editor.form, { kind: editor.newKind, category: "popup", ownPhoto: false });
+		api.createEvent.mockResolvedValue({ event: series({ id: "ev3", repeatUnit: "once" }), warnings: [] });
+		await editor.onSave(submit());
+		const body = api.createEvent.mock.calls[0][0];
+		assert.deepEqual([body.category, body.artist, body.pageUrl], ["popup", "", "@chezpickle"]);
 	});
 
 	it("overrides a new night's field from the series it joins, and sends only that", async () => {
