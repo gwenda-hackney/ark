@@ -1,0 +1,100 @@
+/*
+ * "Nothing here" (404.astro, #240): the record on the left; the title, a line
+ * and the five places on the right. On a phone, one over the other.
+ */
+.ch-gone .ch-page-head {
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  gap: 3.5rem;
+  align-items: center;
+  min-height: 34rem;
+  margin-bottom: 0;
+  padding: 3rem 0 4rem;
+}
+
+.ch-gone-art {
+  display: grid;
+  justify-items: center;
+}
+
+.ch-gone-art .ch-gone-record {
+  display: block;
+  width: 100%;
+  max-width: 17rem;
+  height: auto;
+  aspect-ratio: 1;
+  filter: drop-shadow(0 0.5rem 0.75rem rgb(0 0 0 / 0.5));
+}
+
+.ch-gone .ch-lead {
+  margin-top: 1.25rem;
+}
+
+/* The way on: each place's ring over its name, as in the menu panel */
+.ch-gone-places ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem 2rem;
+  margin: 2.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ch-gone-places a {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  color: var(--ch-cream);
+}
+
+.ch-gone-places .ch-ring {
+  color: var(--ch-cream);
+}
+
+/* The names in the hand, as on home's hero */
+.ch-gone-places .ch-caps {
+  font-family: var(--ch-hand);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.375rem;
+  line-height: 1.1;
+  color: inherit;
+  transition: color 0.2s ease;
+}
+
+.ch-gone-places a:hover,
+.ch-gone-places a:focus-visible {
+  color: var(--ch-mustard);
+}
+
+.ch-gone-places a:hover .ch-ring,
+.ch-gone-places a:focus-visible .ch-ring {
+  color: var(--ch-gold);
+  border: 2px double var(--ch-gold);
+  opacity: 1;
+}
+
+.ch-gone-places a:focus-visible {
+  outline: 1px solid var(--ch-gold);
+  outline-offset: 3px;
+}
+
+@media (max-width: 40rem) {
+  .ch-gone .ch-page-head {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    min-height: 0;
+    padding: 1rem 0 3rem;
+  }
+
+  .ch-gone-art .ch-gone-record {
+    max-width: 11rem;
+  }
+
+  .ch-gone-places ul {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    justify-content: start;
+    gap: 1.25rem 1.75rem;
+  }
+}

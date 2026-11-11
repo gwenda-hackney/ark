@@ -1,14 +1,14 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "./chart/ChartPage.astro";
 import PageHeader from "./PageHeader.astro";
-import Subpage from "./Subpage.astro";
+import "../styles/chart-artist.css";
 import { siteConfig } from "../config/site";
 import {
   artistPagePath,
   bioParagraphs,
   websiteLabel,
 } from "../lib/featured-artist.js";
-import { artistNavItems } from "../lib/site-nav.js";
 
 const {
   artist = null,
@@ -25,12 +25,11 @@ const pageTitle = artist
   : siteConfig.seo.artists.title;
 const pageDescription =
   artist?.profile?.slice(0, 155) || siteConfig.seo.artists.description;
-const navItems = artistNavItems(artist ? { ...artist, art: works } : artist);
 const archive = (previous || []).filter((person) => artistPagePath(person));
 ---
 
-<BaseLayout title={pageTitle} description={pageDescription}>
-  <Subpage class="artist-page" innerClass="artist-inner" {navItems}>
+<BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
+  <ChartPage class="artist-page ch-artist" title="Featured artist">
     <div
       class="artist-live"
       data-artist-live={live ? artist?.slug || "" : undefined}
@@ -52,6 +51,7 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
               ) : null}
               <div class="artist-intro-copy">
                 <PageHeader
+                  as="h2"
                   eyebrow={archived ? "Previously" : "The wall"}
                   title={artist.name}
                   align={artist.portrait ? "beside" : "center"}
@@ -186,12 +186,10 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
           </>
         ) : (
           <>
-            <PageHeader eyebrow="The wall" title="Featured artist">
-              <p>
-                We collaborate with local artists, and give them the wall. A
-                place to show the work, here in the room.
-              </p>
-            </PageHeader>
+            <p class="artist-programme">
+              We collaborate with local artists, and give them the wall. A place
+              to show the work, here in the room.
+            </p>
             <p class="artist-lead artist-waiting">
               The next artist will hang here.
             </p>
@@ -204,16 +202,10 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
         <>
           {/* The wall page is built; scripts/artist-live.js swaps these in when ops has moved on since. */}
           <template data-artist-waiting>
-            <PageHeader
-              eyebrow="The wall"
-              title="Featured artist"
-              animate={false}
-            >
-              <p>
-                We collaborate with local artists, and give them the wall. A
-                place to show the work, here in the room.
-              </p>
-            </PageHeader>
+            <p class="artist-programme">
+              We collaborate with local artists, and give them the wall. A place
+              to show the work, here in the room.
+            </p>
             <p class="artist-lead artist-waiting">
               The next artist will hang here.
             </p>
@@ -225,6 +217,7 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
               </figure>
               <div class="artist-intro-copy">
                 <PageHeader
+                  as="h2"
                   eyebrow="The wall"
                   title=""
                   align="beside"
@@ -244,5 +237,5 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
         </>
       ) : null
     }
-  </Subpage>
+  </ChartPage>
 </BaseLayout>

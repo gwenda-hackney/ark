@@ -12,26 +12,39 @@ interface Props {
   title: string;
   lead?: string;
   class?: string;
+  /** The title's id, for a page whose script rewrites it. */
+  titleId?: string;
+  /**
+   * Where the page is, for the ring by the title and the navigation's
+   * current place: its own address by default. The "Nothing here" page is
+   * nowhere, whatever wrong address it answers.
+   */
+  pathname?: string;
 }
 
-const { title, lead, class: className } = Astro.props;
+const {
+  title,
+  lead,
+  class: className,
+  titleId,
+  pathname = Astro.url.pathname,
+} = Astro.props;
 /**
  * The ring beside the title: the number of the place in the navigation this
  * page is, or is a part of (the play form is a part of Contact). None on a
  * page outside the five, such as Photos.
  */
-const numeral = chartSections(Astro.url.pathname).find(
-  (item) => item.current,
-)?.numeral;
+const numeral = chartSections(pathname).find((item) => item.current)?.numeral;
 ---
 
 <div class="ch-page" data-chart="closed">
-  <ChartNav />
+  <ChartNav pathname={pathname} />
   <main class:list={["ch-main", className]} id="main">
     <header class="ch-page-head">
       {numeral && <span class="ch-ring ch-ring--title">{numeral}</span>}
+      <slot name="art" />
       <div>
-        <h1 class="ch-title">{title}</h1>
+        <h1 class="ch-title" id={titleId}>{title}</h1>
         {lead && <p class="ch-lead ch-ital">{lead}</p>}
         <slot name="head" />
       </div>

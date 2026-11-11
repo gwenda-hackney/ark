@@ -24,6 +24,7 @@ import { appendFileSync } from "node:fs";
 import {
   assertHealthPayload,
   assertHomePageHealthy,
+  assertNotFoundPage,
   assertPicturesSized,
   assertSubscribeTokens,
   collectSameOriginAssetPaths,
@@ -227,11 +228,32 @@ async function runChecks() {
   await checkRsvpApi(cookie);
   await checkCriticalAssets(html, cookie);
   await checkPath("/robots.txt", { expectVersionHeader: false, cookie });
+  await checkNotFound(cookie);
   await checkIcons(html, cookie);
   await checkPath("/brand/logo-organization.png", {
     expectVersionHeader: false,
     cookie,
   });
+}
+
+/**
+ * A wrong address gets the "Nothing here" page and a 404 (#240), not home
+ * with a 200; one under What's on too, where a Pages Function answers first.
+ */
+async function checkNotFound(cookie) {
+  for (const path of [
+    "/smoke-test-no-such-page",
+    "/whats-on/smoke-test-no-such-night",
+  ]) {
+    const url = `${baseUrl}${path}`;
+    const res = await fetch(url, { ...fetchInit(cookie), redirect: "manual" });
+    assertNotFoundPage({
+      path: url,
+      status: res.status,
+      html: await res.text(),
+    });
+    console.log(`OK ${url} (404, the "Nothing here" page)`);
+  }
 }
 
 /**

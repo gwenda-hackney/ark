@@ -1,27 +1,20 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Subpage from "../components/Subpage.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
 import CreditList from "../components/CreditList.astro";
+import "../styles/chart-text.css";
 import { siteConfig } from "../config/site";
 import { acknowledgements } from "../data/acknowledgements.js";
-import { withHome } from "../lib/site-nav.js";
 
 const { title, description } = siteConfig.seo.acknowledgements;
 ---
 
-<BaseLayout title={title} description={description}>
-  <link rel="prefetch" href="/" slot="head" />
-
-  <Subpage
-    class="credit-page"
-    innerClass="credit-inner"
-    navItems={withHome()}
-    eyebrow="The neighbourhood"
+<BaseLayout title={title} description={description} showBooking={false}>
+  <ChartPage
+    class="ch-text"
     title="Acknowledgements"
+    lead="People from the Wick we work with. Named here so you can go and find them."
   >
-    <p slot="lead">
-      People from the Wick we work with. Named here so you can go and find them.
-    </p>
     <CreditList items={acknowledgements} />
-  </Subpage>
+  </ChartPage>
 </BaseLayout>

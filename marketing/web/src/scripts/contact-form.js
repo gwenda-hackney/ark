@@ -4,6 +4,7 @@ import {
   londonToday,
 } from "../../../../shared/forms/field-rules.js";
 import { initThemedSelects } from "./themed-select.js";
+import { formDraftKey } from "../lib/form-draft.js";
 
 /** @typedef {{ csrfToken: string }} FormAuth */
 
@@ -149,10 +150,6 @@ function setError(errorEl, message) {
   errorEl.textContent = message || "";
 }
 
-function formStorageKey(slug) {
-  return slug ? `gwenda-form:${slug}` : "";
-}
-
 /**
  * @param {string} slug
  * @param {{
@@ -167,7 +164,7 @@ function formStorageKey(slug) {
  * }} payload
  */
 function persistFormSession(slug, payload) {
-  const key = formStorageKey(slug);
+  const key = formDraftKey(slug);
   if (!key || typeof sessionStorage === "undefined") return;
   try {
     sessionStorage.setItem(
@@ -180,7 +177,7 @@ function persistFormSession(slug, payload) {
 }
 
 function readFormSession(slug) {
-  const key = formStorageKey(slug);
+  const key = formDraftKey(slug);
   if (!key || typeof sessionStorage === "undefined") return null;
   try {
     const raw = sessionStorage.getItem(key);

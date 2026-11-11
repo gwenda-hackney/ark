@@ -15,6 +15,9 @@ export const FOOT_LINKS = [
   { label: "About", href: "/about" },
 ];
 
+/** The small print, last in that line, after Instagram. */
+export const PRIVACY_LINK = { label: "Privacy", href: "/privacy" };
+
 /**
  * The record on the trail over the small print: the way back up to the top
  * of the page, to its main, which every page with the foot has (as Skip to
