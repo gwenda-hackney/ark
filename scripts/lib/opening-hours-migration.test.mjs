@@ -35,7 +35,7 @@ describe("2026-11-11-opening-hours", () => {
     return weekRows(week).map((row) => `${row.days} ${row.hours}`);
   }
 
-  const GWENDA_ROWS = ["Mon Closed", "Tue 5–10pm", "Wed–Thu 5–10:30pm", "Fri 4–11:30pm", "Sat 4pm–1am", "Sun 4–10pm"];
+  const GWENDA_ROWS = ["Mon Closed", "Tue–Thu 5–10:30pm", "Fri 4–11:30pm", "Sat 4pm–1am", "Sun 4–10pm"];
 
   it("saves the venue's hours in ops and puts them on the website", async () => {
     const db = createTestD1("ops");
@@ -45,7 +45,7 @@ describe("2026-11-11-opening-hours", () => {
     assert.deepEqual(saved.days[5], { day: "sat", closed: false, opens: "16:00", closes: "01:00" });
     assert.equal(saved.updatedBy, hours.SAVED_BY);
     assert.deepEqual(await websiteRows(), GWENDA_ROWS);
-    assert.match(lines.join("\n"), /saved the opening hours in ops: Monday Closed; Tuesday 5pm – 10pm;.*Saturday 4pm – 1am \(Sunday morning\)/);
+    assert.match(lines.join("\n"), /saved the opening hours in ops: Monday Closed; Tuesday 5pm – 10:30pm;.*Saturday 4pm – 1am \(Sunday morning\)/);
   });
 
   it("does nothing the second time", async () => {
