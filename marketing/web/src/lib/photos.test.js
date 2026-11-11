@@ -2,10 +2,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  EVENT_PHOTO_EVENTS,
+  EVENT_PHOTOS_PER_EVENT,
   HOME_PHOTOS,
   MENU_BOARD_PHOTOS,
   PHOTO_MENUS,
   addPhoto,
+  eventPhotoGroups,
   homePhotoPlan,
   homePhotos,
   listPhotos,
@@ -205,6 +208,196 @@ describe("homePhotoPlan", () => {
     expect(names(home.row)).toEqual(
       names(listPhotos(list, files)).slice(0, HOME_PHOTOS),
     );
+  });
+});
+
+describe("homePhotoPlan with a pop-up kitchen", () => {
+  const entry = (name, menu) => ({
+    file: `gallery/${name}.webp`,
+    alt: `A photo of ${name}`,
+    ...(menu ? { menu } : {}),
+  });
+  const list = [
+    entry("room"),
+    entry("spritz", "drinks"),
+    entry("burger", "food"),
+    entry("margarita", "drinks"),
+    entry("fries", "food"),
+    entry("canal"),
+  ];
+  /** A venue photo's file, with the hash of its bytes (photo-sources.ts). */
+  const files = Object.fromEntries(
+    list.map(({ file }) => [
+      file,
+      { src: `/${file}`, width: 1200, height: 1500 },
+    ]),
+  );
+  const venue = () =>
+    listPhotos(list, files).map((photo) => ({
+      ...photo,
+      hash: `hash-${photo.file}`,
+    }));
+  /** A photo from the pop-up's gallery in ops, newest first. */
+  const kitchenPhoto = (name, hash = `hash-${name}`) => ({
+    url: `https://cdn.test/${name}.jpg`,
+    width: 1200,
+    height: 1500,
+    alt: "",
+    hash,
+  });
+  const names = (photos) =>
+    photos.map(
+      (photo) =>
+        photo.file?.replace(/^gallery\/|\.webp$/g, "") ||
+        photo.url.replace(/^.*\/|\.jpg$/g, ""),
+    );
+
+  it("puts the pop-up's newest gallery photos on the Food board", () => {
+    const home = homePhotoPlan(venue(), {
+      kitchen: ["smash", "pickles", "queue"].map((name) => kitchenPhoto(name)),
+    });
+    expect(names(home.food)).toEqual(["smash", "pickles"]);
+    // Drinks stays as it is
+    expect(names(home.drinks)).toEqual(["spritz", "margarita"]);
+  });
+
+  it("tops the board up with the food photos when the pop-up has fewer than it holds", () => {
+    const home = homePhotoPlan(venue(), { kitchen: [kitchenPhoto("smash")] });
+    expect(names(home.food)).toEqual(["smash", "burger"]);
+  });
+
+  it("is the food photos, as before, with no pop-up or nothing in its gallery", () => {
+    expect(names(homePhotoPlan(venue()).food)).toEqual(["burger", "fries"]);
+    expect(names(homePhotoPlan(venue(), { kitchen: [] }).food)).toEqual([
+      "burger",
+      "fries",
+    ]);
+  });
+
+  it("never puts the same picture up twice when the pop-up's photo is also a food photo", () => {
+    // The pop-up's gallery has the burger photo the venue list has too
+    const home = homePhotoPlan(venue(), {
+      kitchen: [kitchenPhoto("chez-burger", "hash-gallery/burger.webp")],
+    });
+    expect(names(home.food)).toEqual(["chez-burger", "fries"]);
+    expect(names(home.row)).not.toContain("burger");
+  });
+
+  it("sends the food photos the pop-up takes the place of back to the row", () => {
+    const home = homePhotoPlan(venue(), {
+      kitchen: [kitchenPhoto("smash"), kitchenPhoto("pickles")],
+    });
+    expect(names(home.row)).toEqual(["room", "burger", "fries", "canal"]);
+  });
+
+  it("leaves out a pop-up photo with no picture", () => {
+    const home = homePhotoPlan(venue(), {
+      kitchen: [{ url: "", width: 0, height: 0 }, kitchenPhoto("smash")],
+    });
+    expect(names(home.food)).toEqual(["smash", "burger"]);
+  });
+});
+
+describe("eventPhotoGroups", () => {
+  const shot = (
+    name,
+    { added = "2026-10-01T20:00:00Z", size = 1600 } = {},
+  ) => ({
+    url: `https://cdn.test/${name}.jpg`,
+    width: size,
+    height: Math.round(size * 0.75),
+    alt: "",
+    added,
+    hash: `hash-${name}`,
+  });
+  const names = (group) =>
+    group.photos.map((photo) => photo.url.replace(/^.*\/|\.jpg$/g, ""));
+
+  it("puts each event's photos under its name, the event with the newest photo first", () => {
+    const groups = eventPhotoGroups([
+      {
+        id: "karaoke",
+        title: "Karaoke with Ross",
+        href: "/whats-on/karaoke",
+        photos: [shot("k1", { added: "2026-10-02T21:00:00Z" })],
+      },
+      {
+        id: "friday",
+        title: "Friday, With Guests",
+        href: "/whats-on/friday",
+        photos: [shot("f1", { added: "2026-11-06T23:00:00Z" }), shot("f2")],
+      },
+    ]);
+    expect(groups.map((group) => group.title)).toEqual([
+      "Friday, With Guests",
+      "Karaoke with Ross",
+    ]);
+    expect(names(groups[0])).toEqual(["f1", "f2"]);
+    expect(groups[0]).toMatchObject({ href: "/whats-on/friday", more: 0 });
+  });
+
+  it("shows an event's newest few and counts the rest, so one big night can't take the page", () => {
+    expect(EVENT_PHOTOS_PER_EVENT).toBe(6);
+    const ten = Array.from({ length: 10 }, (_, i) => shot(`n${i}`));
+    const [group] = eventPhotoGroups([{ id: "x", title: "X", photos: ten }]);
+    expect(names(group)).toEqual(["n0", "n1", "n2", "n3", "n4", "n5"]);
+    expect(group.more).toBe(4);
+  });
+
+  it("shows the newest eight events, so the page doesn't grow for ever", () => {
+    expect(EVENT_PHOTO_EVENTS).toBe(8);
+    const events = Array.from({ length: 10 }, (_, i) => ({
+      id: `e${i}`,
+      title: `Event ${i}`,
+      photos: [shot(`p${i}`, { added: `2026-10-${String(10 + i)}T20:00:00Z` })],
+    }));
+    const groups = eventPhotoGroups(events);
+    expect(groups.map((group) => group.id)).toEqual([
+      "e9",
+      "e8",
+      "e7",
+      "e6",
+      "e5",
+      "e4",
+      "e3",
+      "e2",
+    ]);
+  });
+
+  it("leaves out a photo too small to show sharp in a column", () => {
+    const [group] = eventPhotoGroups([
+      {
+        id: "x",
+        title: "X",
+        photos: [shot("thumb", { size: 240 }), shot("big")],
+      },
+    ]);
+    expect(names(group)).toEqual(["big"]);
+  });
+
+  it("shows a photo once, however many events or walls it's on", () => {
+    const groups = eventPhotoGroups(
+      [
+        {
+          id: "chez",
+          title: "Chez Pickle",
+          photos: [
+            shot("burger", { added: "2026-11-10T20:00:00Z" }),
+            shot("fries"),
+          ],
+        },
+        { id: "karaoke", title: "Karaoke", photos: [shot("burger")] },
+        { id: "venue-too", title: "Already up", photos: [shot("terrace")] },
+      ],
+      { shownElsewhere: ["hash-fries", "hash-terrace"] },
+    );
+    expect(groups.map((group) => group.id)).toEqual(["chez"]);
+    expect(names(groups[0])).toEqual(["burger"]);
+  });
+
+  it("is empty with no events or no photos", () => {
+    expect(eventPhotoGroups(undefined)).toEqual([]);
+    expect(eventPhotoGroups([{ id: "x", title: "X", photos: [] }])).toEqual([]);
   });
 });
 

@@ -67,7 +67,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Gallery",
-		body: "Photos for the event's page, newest first. They go on the website by themselves a minute or two after you add them, and a copy goes in the event's Drive folder (website images) for collaborators. They are not the What's on flyer: the flyer is the photo on Details.",
+		body: "Photos from the event, newest first. They show on the event's page a minute or two after you add them, and in the main photo gallery on the website (the newest six, under the event's name, for the latest eight events) once the site next updates, which it does by itself a few minutes after edits stop. For a pop-up kitchen, the newest two are also the snaps on home's Food board, from when it's booked until its last night. A copy goes in the event's Drive folder (website images) for collaborators. They are not the What's on flyer: the flyer is the photo on Details.",
 	},
 	{
 		title: "Ops tab",

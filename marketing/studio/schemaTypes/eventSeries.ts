@@ -156,7 +156,7 @@ export const eventSeries = defineType({
       type: "array",
       readOnly: true,
       description:
-        "The series' gallery from ops (its Images tab). Shown at the bottom of its What's on page; a night's photos also on that night's page.",
+        "The series' gallery from ops (its Images tab). Shown at the bottom of its What's on page (a night's photos also on that night's page), and the newest few on the website's Photos page.",
       of: [
         {
           type: "image",

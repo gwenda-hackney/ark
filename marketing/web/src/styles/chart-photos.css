@@ -70,3 +70,100 @@
 .ch-photos-page {
   max-width: 72rem;
 }
+
+/*
+ * From our events: under the venue's own wall, each event's few photos
+ * under its name, the newest event first; the name leads to its page while
+ * it has one.
+ */
+.ch-photos-events {
+  margin-top: 4.5rem;
+}
+
+.ch-photos-events > .ch-poster {
+  width: fit-content;
+  margin-bottom: 2.25rem;
+}
+
+.ch-photos-event + .ch-photos-event {
+  margin-top: 2.75rem;
+}
+
+/*
+ * An event's few in one strip of squares, each photo cropped to its tile and
+ * whole when tapped: six abreast on a desk, four on a tablet, three on a
+ * phone. A short strip keeps its tiles' size and sits on the left.
+ */
+.ch-photos-event .series-gallery-list {
+  --across: 6;
+  --gap: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+  columns: auto;
+}
+
+.ch-photos-event .series-gallery-item {
+  flex: 0 0 calc((100% - (var(--across) - 1) * var(--gap)) / var(--across));
+  margin: 0;
+  aspect-ratio: 1;
+}
+
+.ch-photos-event .series-gallery-item a,
+.ch-photos-event .series-gallery-item img {
+  height: 100%;
+}
+
+.ch-photos-event .series-gallery-item img {
+  object-fit: cover;
+}
+
+@media (max-width: 64rem) {
+  .ch-photos-event .series-gallery-list {
+    --across: 4;
+  }
+}
+
+@media (max-width: 40rem) {
+  .ch-photos-event .series-gallery-list {
+    --across: 3;
+  }
+}
+
+.ch-photos-event-name {
+  margin: 0 0 1rem;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.875rem;
+  line-height: 1.1;
+  color: var(--ch-cream);
+}
+
+.ch-photos-event-name a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.ch-photos-event-name a span,
+.ch-photos-event-name a:hover,
+.ch-photos-event-name a:focus-visible {
+  color: var(--ch-mustard);
+}
+
+.ch-page .ch-photos-event-more {
+  display: inline-block;
+  margin-top: 1rem;
+  padding-block: 0.5rem;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  color: var(--ch-mustard);
+  text-decoration: none;
+}
+
+.ch-page .ch-photos-event-more:hover,
+.ch-page .ch-photos-event-more:focus-visible {
+  color: var(--ch-cream);
+}

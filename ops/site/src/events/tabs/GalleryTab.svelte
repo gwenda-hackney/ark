@@ -70,6 +70,10 @@
 				>
 			{/if}
 		</div>
+		<p class="hint">
+			These photos show on the event's page and in the main photo gallery on the website.
+			Photos only, not flyers: the flyer goes on Details.
+		</p>
 		{#if gallery.error}
 			<p class="error">{gallery.error}</p>
 		{/if}

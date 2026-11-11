@@ -56,7 +56,11 @@ export const SERIES_QUERY = `*[_type == "eventSeries" && removed != true] | orde
     "url": asset->url,
     "width": asset->metadata.dimensions.width,
     "height": asset->metadata.dimensions.height,
-    alt
+    alt,
+    date,
+    "added": asset->_createdAt,
+    "lqip": asset->metadata.lqip,
+    "color": asset->metadata.palette.dominant.background
   },
   recurrence,
   replacesSeriesId,

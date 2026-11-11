@@ -328,6 +328,16 @@
   color: var(--ch-cream);
 }
 
+/* Over a booked pop-up's menu, before its first night: who, and from when */
+.ch-menu-ahead {
+  margin: 0 0 0.5rem;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.15;
+  color: var(--ch-cream);
+}
+
 /*
  * Prints from the gallery taped up on each board, just above the line to the
  * whole menu: two, the second (the newer photo) across and down from the
