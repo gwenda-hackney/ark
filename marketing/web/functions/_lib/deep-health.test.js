@@ -31,28 +31,111 @@ describe("runDeepHealth", () => {
 });
 
 describe("runDeepHealth with formTest", () => {
-  it("runs the play form and the sign-up end to end", async () => {
-    const formSmoke = vi.fn(async () => "form ok");
+  const emailDeps = { token: async () => "t" };
+
+  it("runs every form and the sign-up end to end", async () => {
+    const formSmoke = vi.fn(async (_env, { slug }) => `${slug} ok`);
     const signupSmoke = vi.fn(async () => "signup ok");
     const result = await runDeepHealth(gmailEnv, {
       formTest: true,
+      requestUrl: "https://gwenda.co.uk/api/health/deep",
       checks: {},
-      emailDeps: { token: async () => "t" },
+      emailDeps,
       formSmoke,
       signupSmoke,
     });
     expect(result.checks.map((row) => [row.name, row.detail])).toEqual([
       ["email", "Gmail login works (no email sent)"],
-      ["form", "form ok"],
+      ["form:play", "play ok"],
+      ["form:party", "party ok"],
       ["signup", "signup ok"],
+    ]);
+    expect(formSmoke.mock.calls.map(([, options]) => options)).toEqual([
+      {
+        slug: "play",
+        createdBy: undefined,
+        requestUrl: "https://gwenda.co.uk/api/health/deep",
+      },
+      {
+        slug: "party",
+        createdBy: "2026-11-11-party-form.mjs",
+        requestUrl: "https://gwenda.co.uk/api/health/deep",
+      },
     ]);
     const plain = await runDeepHealth(gmailEnv, {
       checks: {},
-      emailDeps: { token: async () => "t" },
+      emailDeps,
+      formSmoke,
       signupSmoke,
     });
     expect(plain.checks.map((row) => row.name)).toEqual(["email"]);
     expect(signupSmoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes with a form still waiting for its migration, and says which", async () => {
+    const result = await runDeepHealth(gmailEnv, {
+      formTest: true,
+      checks: {},
+      emailDeps,
+      formSmoke: async (_env, { slug }) =>
+        slug === "party"
+          ? { pending: true, form: slug, detail: "not here yet" }
+          : "ok",
+      signupSmoke: async () => "signup ok",
+    });
+    expect(result.ok).toBe(true);
+    expect(result.checks[2]).toMatchObject({
+      name: "form:party",
+      ok: true,
+      pending: true,
+      form: "party",
+      detail: "not here yet",
+    });
+    expect(result.checks[1].pending).toBeUndefined();
+  });
+
+  it("fails when one form fails, and still reports the other", async () => {
+    const result = await runDeepHealth(gmailEnv, {
+      formTest: true,
+      checks: {},
+      emailDeps,
+      formSmoke: async (_env, { slug }) => {
+        if (slug === "party") throw new Error("Team email failed: denied");
+        return "ok";
+      },
+      signupSmoke: async () => "signup ok",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.checks.map((row) => [row.name, row.ok])).toEqual([
+      ["email", true],
+      ["form:play", true],
+      ["form:party", false],
+      ["signup", true],
+    ]);
+  });
+
+  it("after the migrations: only the forms asked for, which must exist, and no sign-up", async () => {
+    const formSmoke = vi.fn(async () => "ok");
+    const signupSmoke = vi.fn();
+    const result = await runDeepHealth(gmailEnv, {
+      formTest: true,
+      forms: ["party"],
+      requestUrl: "https://gwenda.co.uk/api/health/deep",
+      checks: {},
+      emailDeps,
+      formSmoke,
+      signupSmoke,
+    });
+    expect(result.checks.map((row) => row.name)).toEqual([
+      "email",
+      "form:party",
+    ]);
+    // No createdBy: a form still missing now is a failure, not a wait.
+    expect(formSmoke.mock.calls[0][1]).toEqual({
+      slug: "party",
+      requestUrl: "https://gwenda.co.uk/api/health/deep",
+    });
+    expect(signupSmoke).not.toHaveBeenCalled();
   });
 });
 

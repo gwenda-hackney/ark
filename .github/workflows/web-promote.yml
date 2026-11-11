@@ -160,12 +160,15 @@ jobs:
             (cd marketing/web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
           done
 
-      # Databases, config, and a real play-form submission on every promote:
-      # secrets change without code changing, so a broken key must show here.
-      # Two emails to alerts@gwenda.co.uk, subjects starting "Smoke test:";
-      # the test row is deleted.
+      # Databases, config, and a real submission of each form (play, party) on
+      # every promote: secrets change without code changing, so a broken key
+      # must show here. Two emails per form to alerts@gwenda.co.uk, subjects
+      # starting "Smoke test:"; the test rows are deleted.
+      # A form that a post-deploy migration has yet to make is reported as
+      # waiting (output forms-pending) and submitted after the migrations.
       # Content runs check the same, read-only: no test email or form row.
       - name: Deep health (databases, email, forms)
+        id: deep
         run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep ${{ inputs.reason != 'content' && '--form-test' || '' }}
 
       # Any failure since the deploy: put the previous deployment back (and its
@@ -244,3 +247,12 @@ jobs:
               ["Version","`${{ steps.buildmeta.outputs.version }}`"],
               ["Site","https://gwenda.co.uk"]
             ]}
+
+      # A form the post migrations have just made (its first release): submit
+      # it now, as the deep health above did the others. Last, because the
+      # release is live and past rolling back by then (the post migrations have
+      # run): the rebuild, Studio and the tag are done, and a form that fails
+      # still fails the run.
+      - name: Forms the migrations created
+        if: inputs.reason != 'content' && steps.deep.outputs.forms-pending != ''
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep --form-test --forms "${{ steps.deep.outputs.forms-pending }}"

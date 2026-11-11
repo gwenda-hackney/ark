@@ -40,3 +40,28 @@ export function assertHealthPayload(data) {
     throw new Error(`Health payload unexpected service: ${data.service}`);
   }
 }
+
+/** `--forms play,party` as web addresses; empty when not given. */
+export function parseFormsArg(value) {
+  return String(value ?? "")
+    .split(",")
+    .map((slug) => slug.trim())
+    .filter(Boolean);
+}
+
+/**
+ * One line of the deep health report. WAIT is a form its post-deploy
+ * migration hasn't made yet: not a failure, and not tested either.
+ * @param {{ name: string, ok: boolean, pending?: boolean, detail?: string, error?: string, ms?: number }} check
+ */
+export function deepCheckLine(check) {
+  const status = !check.ok ? "FAIL" : check.pending ? "WAIT" : "OK";
+  return `${status} ${check.name}: ${check.ok ? check.detail : check.error} (${check.ms}ms)`;
+}
+
+/** The forms a deep health run left untested, for the run after the migrations. */
+export function pendingForms(checks) {
+  return (checks ?? [])
+    .filter((check) => check?.ok && check.pending && check.form)
+    .map((check) => String(check.form));
+}

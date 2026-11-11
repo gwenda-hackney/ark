@@ -2,8 +2,8 @@
  * Deep health: can this deployment reach everything it depends on?
  * Run by the post-deploy smoke test (POST /api/health/deep). Read-only,
  * except a test row in each D1 database's `_meta` (deleted straight after)
- * and, when asked, a test email to alerts@gwenda.co.uk, a play form
- * submission and a sign-up (both deleted after).
+ * and, when asked, a test email to alerts@gwenda.co.uk, a submission of each
+ * form in SMOKE_FORMS and a sign-up (all deleted after).
  *
  * Each check is independent and reports ok/error and how long it took, so one
  * broken token doesn't hide the others.
@@ -21,7 +21,7 @@ import {
   sendGmail,
 } from "../../../../shared/gmail-send.js";
 import { NOTIFICATIONS_FROM } from "../../../../shared/mail-from.js";
-import { runFormSmoke } from "./form-smoke.js";
+import { SMOKE_FORMS, runFormSmoke } from "./form-smoke.js";
 import { runSignupSmoke } from "./signup-smoke.js";
 import { sanityDatasetForEnv, sanityQuery } from "./sanity-query.js";
 
@@ -89,7 +89,11 @@ export async function checkEmail(
 async function timed(name, run) {
   const started = Date.now();
   try {
-    return { name, ok: true, detail: await run(), ms: Date.now() - started };
+    // A check answers with its detail, or with more to report beside it
+    // (a form still waiting for its migration: { pending, form, detail }).
+    const result = await run();
+    const extra = typeof result === "string" ? { detail: result } : result;
+    return { name, ok: true, ...extra, ms: Date.now() - started };
   } catch (error) {
     return {
       name,
@@ -105,25 +109,37 @@ export async function runDeepHealth(
   {
     sendEmail = false,
     formTest = false,
+    forms,
     requestUrl,
     label = "",
     checks = CHECKS,
     emailDeps,
     formSmoke = runFormSmoke,
     signupSmoke = runSignupSmoke,
+    smokeForms = SMOKE_FORMS,
   } = {},
 ) {
+  // `forms` (web addresses) is the run after the post-deploy migrations: only
+  // those forms, each of which must be there by now, and no second sign-up.
+  const only = Array.isArray(forms) && forms.length ? forms : null;
+  const formChecks = only
+    ? only.map((slug) => ({ slug }))
+    : smokeForms.map(({ slug, createdBy }) => ({ slug, createdBy }));
   const results = await Promise.all([
     ...Object.entries(checks).map(([name, run]) => timed(name, () => run(env))),
     timed("email", () =>
       checkEmail(env, { send: sendEmail, label, deps: emailDeps }),
     ),
-    // A real submission of the play form, emails to alerts@, row deleted after.
+    // A real submission of each form, emails to alerts@, row deleted after.
     // A real sign-up of a test address (two tags), row deleted after.
     ...(formTest
       ? [
-          timed("form", () => formSmoke(env, { requestUrl })),
-          timed("signup", () => signupSmoke(env)),
+          ...formChecks.map((form) =>
+            timed(`form:${form.slug}`, () =>
+              formSmoke(env, { ...form, requestUrl }),
+            ),
+          ),
+          ...(only ? [] : [timed("signup", () => signupSmoke(env))]),
         ]
       : []),
   ]);
