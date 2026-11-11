@@ -367,8 +367,17 @@ export const GALLERY_FIRST = 12;
  * scripts/gallery.js).
  */
 const GALLERY_SIZES = "auto, (max-width: 40rem) 50vw, 30rem";
+/** In a strip (`row`): a third of a phone, a quarter of a tablet, a sixth of /photos' 72rem. */
+const GALLERY_ROW_SIZES =
+  "auto, (max-width: 40rem) 33vw, (max-width: 64rem) 25vw, 12rem";
 
-export function renderGallery(images, { title = "" } = {}) {
+/**
+ * @param {Array<object>} images
+ * @param {{ title?: string, row?: boolean }} [options] `row`: laid out by the
+ *   page's CSS in even rows (data-gallery-row), not in columns: /photos'
+ *   strip of each event's few
+ */
+export function renderGallery(images, { title = "", row = false } = {}) {
   const photos = (Array.isArray(images) ? images : []).filter(
     (image) => image?.url && image.width > 0 && image.height > 0,
   );
@@ -392,7 +401,11 @@ export function renderGallery(images, { title = "" } = {}) {
     })}><img${attrs({
       src: sizedImageUrl(image.url, 640),
       srcset: imageSrcset(image.url),
-      sizes: imageSrcset(image.url) ? GALLERY_SIZES : "",
+      sizes: imageSrcset(image.url)
+        ? row
+          ? GALLERY_ROW_SIZES
+          : GALLERY_SIZES
+        : "",
       alt,
       loading: "lazy",
       width: image.width,
@@ -401,7 +414,7 @@ export function renderGallery(images, { title = "" } = {}) {
   });
   return String(
     html`<section class="series-gallery" aria-label="Photos">
-      <ul class="series-gallery-list">
+      <ul class="series-gallery-list" ${attrs({ "data-gallery-row": row })}>
         ${items}
       </ul>
       ${

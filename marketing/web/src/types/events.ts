@@ -49,12 +49,21 @@ export type EventSeries = {
   schedule?: "manual" | "repeating" | "once";
   /** No nights yet: What's on shows "Check back soon for the next date". */
   datesPending?: boolean;
-  /** Photos from the series' Drive gallery, copied by ops. */
+  /**
+   * The series' gallery from ops (its Images tab), newest first: on its own
+   * page, and on /photos (lib/photo-sources.ts).
+   */
   gallery?: Array<{
     url: string;
     width: number;
     height: number;
     alt?: string | null;
+    /** A night's photo: YYYY-MM-DD. */
+    date?: string | null;
+    /** When it was uploaded. */
+    added?: string | null;
+    lqip?: string | null;
+    color?: string | null;
   }>;
   offer?: string;
   nightSchedule?: Array<{

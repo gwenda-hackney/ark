@@ -13,15 +13,22 @@ import ChartMenuChapter from "./ChartMenuChapter.astro";
 interface Props {
   /** One menu's chapters as they were fetched: all of them, in order. */
   sections: MenuSection[];
-  /** Shown when the menu has no chapters yet. */
-  empty: string;
+  /** Shown when the menu has no chapters yet (or the `empty` slot). */
+  empty?: string;
 }
 
-const { sections, empty } = Astro.props;
+const { sections, empty = "" } = Astro.props;
 const { chapters, rows } = menuSheet(sections);
 ---
 
-{chapters.length === 0 && <p class="ch-ital">{empty}</p>}
+{
+  chapters.length === 0 &&
+    (Astro.slots.has("empty") ? (
+      <slot name="empty" />
+    ) : (
+      <p class="ch-ital">{empty}</p>
+    ))
+}
 {
   chapters.length > 1 && (
     <nav class="ch-jump" aria-label="Menu chapters">

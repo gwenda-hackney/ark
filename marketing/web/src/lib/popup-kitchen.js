@@ -93,6 +93,102 @@ export function popupMenuHref(seriesId, chapters) {
 }
 
 /**
+ * Whether a pop-up counts as in: from when it's booked (it has a night on
+ * the website still to come) through its last night, and not the day after.
+ * The one test for everything that follows the pop-up: its chapter of the
+ * menu (kitchenChaptersOn), what home's Food side says (kitchenNow,
+ * kitchenLine) and its photos on the Food board (lib/photo-sources.ts).
+ * Saving a pop-up in ops rebuilds the site, and ops rebuilds it the morning
+ * after a last night, so the build's day is enough.
+ *
+ * @param {string} seriesId the pop-up's series
+ * @param {Array<object>} occurrences every night, past ones too
+ * @param {string} todayIso YYYY-MM-DD
+ */
+export function popupIsBookedOrOn(seriesId, occurrences, todayIso) {
+  return upcomingNights(seriesId, occurrences, todayIso).length > 0;
+}
+
+/**
+ * The kitchen menu's chapters to show: one that belongs to a pop-up
+ * (`popupSeriesId`) from when it's booked through its last night; one with
+ * no pop-up always. Home's Food side and the food page both take these.
+ *
+ * @template {{ popupSeriesId?: string }} C
+ * @param {C[]} chapters the kitchen menu's chapters, in the menu's order
+ * @param {Array<object>} occurrences every night, past ones too
+ * @param {string} todayIso YYYY-MM-DD
+ * @returns {C[]}
+ */
+export function kitchenChaptersOn(chapters, occurrences, todayIso) {
+  return (chapters || []).filter(
+    (chapter) =>
+      !chapter.popupSeriesId ||
+      popupIsBookedOrOn(chapter.popupSeriesId, occurrences, todayIso),
+  );
+}
+
+/**
+ * Who's in the kitchen: the pop-up booked or on that cooks soonest, with
+ * its page, the day it starts ("Thu 12 Nov") and whether it has; null when
+ * nothing is booked.
+ *
+ * @param {Array<object>} series the catalog's series
+ * @param {Array<object>} occurrences every night, past ones too
+ * @param {string} todayIso YYYY-MM-DD
+ * @returns {{ popup: null | { id: string, title: string, href: string, from: string, started: boolean } }}
+ */
+export function kitchenNow(series, occurrences, todayIso) {
+  const [soonest] = (series || [])
+    .filter((row) => categoryOf(row) === "popup")
+    .map((row) => ({
+      row,
+      next: String(
+        upcomingNights(row.seriesId, occurrences, todayIso)[0]?.date || "",
+      ),
+      first: String(
+        upcomingNights(row.seriesId, occurrences, "")[0]?.date || "",
+      ),
+    }))
+    .filter(({ row }) => popupIsBookedOrOn(row.seriesId, occurrences, todayIso))
+    .sort(
+      (a, b) =>
+        a.next.localeCompare(b.next) || a.row.title.localeCompare(b.row.title),
+    );
+  if (!soonest) return { popup: null };
+  return {
+    popup: {
+      id: soonest.row.seriesId,
+      title: soonest.row.title,
+      href: `/whats-on/${encodeURIComponent(soonest.row.seriesId)}/`,
+      from: shortDate(soonest.first),
+      started: soonest.first <= todayIso,
+    },
+  };
+}
+
+/**
+ * What the food says about the pop-up, over its menu or in place of one:
+ * - "ahead": its menu is up before its first night: "Chez Pickle, from Thu
+ *   12 Nov" over it (home only: the food page's card says so already);
+ * - "next": it's booked with no menu of its own up: "Next up: …";
+ * - "soon": it has started with nothing on the menu: the list's on its way;
+ * - "none": nothing booked and nothing on the menu: nobody's in;
+ * - "": nothing to say (its menu is up and it's cooking, or the house menu
+ *   with nobody booked).
+ *
+ * @param {null | { id: string, started: boolean }} popup kitchenNow's
+ * @param {Array<object>} chapters the chapters shown (kitchenChaptersOn)
+ */
+export function kitchenLine(popup, chapters) {
+  const withItems = (chapters || []).filter(hasItems);
+  if (!popup) return withItems.length ? "" : "none";
+  const own = withItems.some((chapter) => chapter.popupSeriesId === popup.id);
+  if (!popup.started) return own ? "ahead" : "next";
+  return own || withItems.length ? "" : "soon";
+}
+
+/**
  * The pop-up kitchens on now, in the order they next cook: a popup series
  * with a night today or later. The hours are its next night's. Each has its
  * own page on What's on (href) and its menu on the food page (menuHref).
@@ -124,7 +220,11 @@ export function popupKitchens(series, occurrences, chapters, todayIso) {
       next: next.date,
       /** Its own page, where the whole card leads. */
       href: `/whats-on/${encodeURIComponent(row.seriesId)}`,
-      menuHref: popupMenuHref(row.seriesId, chapters),
+      // Its chapter, as the food page shows it (kitchenChaptersOn).
+      menuHref: popupMenuHref(
+        row.seriesId,
+        kitchenChaptersOn(chapters, occurrences, todayIso),
+      ),
     });
   }
   return kitchens.sort(

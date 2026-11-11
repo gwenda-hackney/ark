@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { popupKitchens, popupMenuHref, popupWhen } from "./popup-kitchen.js";
+import {
+  kitchenChaptersOn,
+  kitchenLine,
+  kitchenNow,
+  popupIsBookedOrOn,
+  popupKitchens,
+  popupMenuHref,
+  popupWhen,
+} from "./popup-kitchen.js";
 
 const today = "2026-11-10";
 
@@ -171,5 +179,174 @@ describe("popupMenuHref", () => {
         },
       ]),
     ).toBe("/kitchen");
+  });
+});
+
+describe("a pop-up and its menu", () => {
+  // Chez Pickle cooks Thu 12 to Sat 14 Nov; Pasta Club is booked for December
+  const run = [
+    night("chez-pickle", "2026-11-12"),
+    night("chez-pickle", "2026-11-13"),
+    night("chez-pickle", "2026-11-14"),
+    night("pasta-club", "2026-12-03"),
+    night("pasta-club", "2026-12-04"),
+    night("open-decks", "2026-11-19"),
+  ];
+  const kitchens = [
+    ...series,
+    { seriesId: "pasta-club", title: "Pasta Club", category: "popup" },
+  ];
+
+  it("counts from when it's booked through its last night, and not the day after", () => {
+    // Booked: a night on the website, not started yet
+    expect(popupIsBookedOrOn("chez-pickle", run, "2026-11-01")).toBe(true);
+    expect(popupIsBookedOrOn("chez-pickle", run, "2026-11-12")).toBe(true);
+    expect(popupIsBookedOrOn("chez-pickle", run, "2026-11-14")).toBe(true);
+    expect(popupIsBookedOrOn("chez-pickle", run, "2026-11-15")).toBe(false);
+    expect(popupIsBookedOrOn("nobody", run, "2026-11-13")).toBe(false);
+  });
+
+  describe("kitchenChaptersOn", () => {
+    const menu = [
+      {
+        id: "chez-pickle",
+        title: "Chez Pickle",
+        kind: "kitchen",
+        popupSeriesId: "chez-pickle",
+        items: [{ id: "og" }],
+      },
+      {
+        id: "pasta",
+        title: "Pasta Club",
+        kind: "kitchen",
+        popupSeriesId: "pasta-club",
+        items: [{ id: "cacio" }],
+      },
+      {
+        id: "snacks",
+        title: "Snacks",
+        kind: "kitchen",
+        items: [{ id: "olives" }],
+      },
+    ];
+    const ids = (list) => list.map((chapter) => chapter.id);
+
+    it("shows a booked pop-up's menu ahead of its first night", () => {
+      expect(ids(kitchenChaptersOn(menu, run, "2026-11-10"))).toEqual([
+        "chez-pickle",
+        "pasta",
+        "snacks",
+      ]);
+    });
+
+    it("drops a pop-up's menu the day after its last night", () => {
+      expect(ids(kitchenChaptersOn(menu, run, "2026-11-15"))).toEqual([
+        "pasta",
+        "snacks",
+      ]);
+      expect(ids(kitchenChaptersOn(menu, run, "2026-12-05"))).toEqual([
+        "snacks",
+      ]);
+    });
+
+    it("always shows a chapter that belongs to no pop-up", () => {
+      expect(ids(kitchenChaptersOn(menu, [], "2026-11-13"))).toEqual([
+        "snacks",
+      ]);
+    });
+  });
+
+  describe("kitchenNow", () => {
+    it("is the pop-up that's on, started", () => {
+      expect(kitchenNow(kitchens, run, "2026-11-13")).toEqual({
+        popup: {
+          id: "chez-pickle",
+          title: "Chez Pickle",
+          href: "/whats-on/chez-pickle/",
+          from: "Thu 12 Nov",
+          started: true,
+        },
+      });
+    });
+
+    it("is the next one booked, and the day it starts, before it has", () => {
+      expect(kitchenNow(kitchens, run, "2026-11-15").popup).toEqual({
+        id: "pasta-club",
+        title: "Pasta Club",
+        href: "/whats-on/pasta-club/",
+        from: "Thu 3 Dec",
+        started: false,
+      });
+    });
+
+    it("is nobody when nothing's booked", () => {
+      expect(kitchenNow(kitchens, run, "2026-12-05")).toEqual({ popup: null });
+    });
+
+    it("counts only pop-ups, not a night or a deal", () => {
+      expect(
+        kitchenNow(series, [night("open-decks", "2026-11-19")], today),
+      ).toEqual({ popup: null });
+    });
+  });
+
+  describe("kitchenLine", () => {
+    const chez = (started) => ({
+      id: "chez-pickle",
+      title: "Chez Pickle",
+      href: "/whats-on/chez-pickle/",
+      from: "Thu 12 Nov",
+      started,
+    });
+    const own = {
+      id: "chez-pickle",
+      title: "Chez Pickle",
+      popupSeriesId: "chez-pickle",
+      items: [{ id: "og" }],
+    };
+    const house = { id: "snacks", title: "Snacks", items: [{ id: "olives" }] };
+
+    it("says who and from when over a booked pop-up's menu, before its first night", () => {
+      expect(kitchenLine(chez(false), [own])).toBe("ahead");
+    });
+
+    it("says nothing over the menu once the pop-up has started", () => {
+      expect(kitchenLine(chez(true), [own])).toBe("");
+    });
+
+    it("says who's next when the booked pop-up has no menu up", () => {
+      expect(kitchenLine(chez(false), [])).toBe("next");
+      expect(kitchenLine(chez(false), [house])).toBe("next");
+    });
+
+    it("says the list is on its way when the pop-up has started with no menu", () => {
+      expect(kitchenLine(chez(true), [])).toBe("soon");
+    });
+
+    it("says nobody's in when nothing's booked and nothing's on the menu", () => {
+      expect(kitchenLine(null, [])).toBe("none");
+      // A chapter with nothing on it is no menu
+      expect(kitchenLine(null, [{ ...house, items: [] }])).toBe("none");
+    });
+
+    it("says nothing over the house menu when nothing's booked", () => {
+      expect(kitchenLine(null, [house])).toBe("");
+    });
+  });
+
+  it("sends a booked pop-up's menu link to its chapter before it starts", () => {
+    const linked = [
+      {
+        id: "pasta",
+        title: "Pasta Club",
+        kind: "kitchen",
+        popupSeriesId: "pasta-club",
+        items: [{ id: "cacio" }],
+      },
+    ];
+    const card = popupKitchens(kitchens, run, linked, "2026-11-20").find(
+      (row) => row.id === "pasta-club",
+    );
+    expect(card.menuHref).toBe("/kitchen#pasta");
   });
 });

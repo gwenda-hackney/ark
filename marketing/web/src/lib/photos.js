@@ -50,6 +50,28 @@ export function listPhotos(list, files) {
 }
 
 /**
+ * What makes two photos the same picture: the file it is built from (`src`),
+ * its address (`url`, a photo from ops), and the hash of its bytes (`hash`),
+ * which a venue photo and the same picture uploaded in ops share
+ * (lib/photo-sources.ts works them out).
+ *
+ * @param {{ image?: { src?: string }, url?: string, hash?: string }} photo
+ */
+function photoKeys(photo) {
+  return [photo?.image?.src, photo?.url, photo?.hash].filter(Boolean);
+}
+
+/** Whether `photo` is one of the pictures in `keys` (photoKeys). */
+function isAmong(photo, keys) {
+  return photoKeys(photo).some((key) => keys.has(key));
+}
+
+/** A photo from ops that has a picture to show. */
+function hasPicture(photo) {
+  return Boolean(photo?.url) && photo.width > 0 && photo.height > 0;
+}
+
+/**
  * Home's share: the newest few, leaving out any that home already shows
  * somewhere else (the menu boards' snapshots), so no photo is on it twice;
  * and how many more there are on /photos.
@@ -57,7 +79,8 @@ export function listPhotos(list, files) {
  * @template {{ image?: { src?: string } }} T
  * @param {T[]} photos newest first
  * @param {{ limit?: number, shownElsewhere?: string[] }} [options]
- *   `shownElsewhere`: the image files (their `src`) home shows already
+ *   `shownElsewhere`: the pictures home shows already (photoKeys: a file's
+ *   `src`, an address, a hash)
  */
 export function homePhotos(
   photos,
@@ -65,7 +88,7 @@ export function homePhotos(
 ) {
   const elsewhere = new Set(shownElsewhere.filter(Boolean));
   const shown = photos
-    .filter((photo) => !elsewhere.has(photo?.image?.src))
+    .filter((photo) => !isAmong(photo, elsewhere))
     .slice(0, limit);
   return { photos: shown, more: photos.length - shown.length };
 }
@@ -84,23 +107,123 @@ export function menuPhotos(photos, menu, { limit = MENU_BOARD_PHOTOS } = {}) {
 }
 
 /**
+ * The Food board's prints: the pop-up kitchen's own gallery (the one cooking
+ * now or next, lib/popup-kitchen.js), newest first. When it has fewer than
+ * the board holds, the photos marked food top it up; with no pop-up, or
+ * nothing in its gallery, the board has those as before. The same picture is
+ * never up twice.
+ *
+ * @param {Array<object>} photos the venue photos, newest first (listPhotos)
+ * @param {Array<{ url: string, width: number, height: number }>} kitchen
+ *   the pop-up's gallery photos, newest first
+ * @param {{ limit?: number }} [options]
+ */
+export function foodBoardPhotos(
+  photos,
+  kitchen = [],
+  { limit = MENU_BOARD_PHOTOS } = {},
+) {
+  const own = [];
+  const up = new Set();
+  for (const photo of kitchen || []) {
+    if (own.length >= limit) break;
+    if (!hasPicture(photo) || isAmong(photo, up)) continue;
+    own.push(photo);
+    for (const key of photoKeys(photo)) up.add(key);
+  }
+  const rest = (photos || []).filter((photo) => !isAmong(photo, up));
+  return [...own, ...menuPhotos(rest, "food", { limit: limit - own.length })];
+}
+
+/**
  * Who gets which photo on home, decided here once: the menu boards pick
  * first (the newest marked for each, so a photo just added for one goes
- * straight up on it), then the photo row takes the newest of the rest. No
- * photo is on home twice; every one is still on /photos (`more`: how many
- * the row leaves for there).
+ * straight up on it; the Food board takes the pop-up kitchen's own first,
+ * foodBoardPhotos), then the photo row takes the newest of the rest. No
+ * picture is on home twice; every venue photo is still on /photos (`more`:
+ * how many the row leaves for there).
  *
  * @template {{ menu?: string, image?: { src?: string } }} T
  * @param {T[]} photos newest first (listPhotos)
- * @returns {{ drinks: T[], food: T[], row: T[], more: number }}
+ * @param {{ kitchen?: Array<{ url: string, width: number, height: number }> }} [options]
+ *   `kitchen`: the pop-up kitchen's gallery photos, newest first
+ * @returns {{ drinks: T[], food: Array<object>, row: T[], more: number }}
  */
-export function homePhotoPlan(photos) {
+export function homePhotoPlan(photos, { kitchen = [] } = {}) {
   const drinks = menuPhotos(photos, "drinks");
-  const food = menuPhotos(photos, "food");
+  const food = foodBoardPhotos(photos, kitchen);
   const { photos: row, more } = homePhotos(photos || [], {
-    shownElsewhere: [...drinks, ...food].map((photo) => photo.image?.src),
+    shownElsewhere: [...drinks, ...food].flatMap(photoKeys),
   });
   return { drinks, food, row, more };
+}
+
+/**
+ * /photos shows each event's newest few; the rest are on the event's own
+ * page. Two rows of three on a desk, so one big night can't take the page.
+ */
+export const EVENT_PHOTOS_PER_EVENT = 6;
+
+/**
+ * An event photo smaller than this on its long side would show soft in a
+ * column of /photos (about 380px across, sharp at 2x): it stays on the
+ * event's page only.
+ */
+export const EVENT_PHOTO_MIN = 800;
+
+/** /photos shows the newest few events; older ones keep their own pages. */
+export const EVENT_PHOTO_EVENTS = 8;
+
+/**
+ * The photos from events on /photos, under the venue's own: each event's
+ * gallery from ops, under its name, the event with the newest photo first,
+ * the newest few events (EVENT_PHOTO_EVENTS). Each shows its newest few
+ * photos (`more`: how many it leaves for its own page);
+ * one too small to show sharp is left out; a picture already on the page
+ * (`shownElsewhere`, photoKeys) or on another event's shows once.
+ *
+ * @template {{ url: string, width: number, height: number, added?: string }} P
+ * @param {Array<{ id: string, title: string, href?: string, photos: P[] }>} events
+ *   each event's photos newest first; `href` its page, while it has one
+ * @param {{ perEvent?: number, min?: number, limit?: number, shownElsewhere?: string[] }} [options]
+ * @returns {Array<{ id: string, title: string, href?: string, photos: P[], more: number }>}
+ */
+export function eventPhotoGroups(
+  events,
+  {
+    perEvent = EVENT_PHOTOS_PER_EVENT,
+    min = EVENT_PHOTO_MIN,
+    limit = EVENT_PHOTO_EVENTS,
+    shownElsewhere = [],
+  } = {},
+) {
+  const newest = (event) =>
+    (event.photos || [])
+      .map((photo) => String(photo?.added || ""))
+      .sort()
+      .at(-1) || "";
+  const seen = new Set(shownElsewhere.filter(Boolean));
+  const groups = [];
+  const byNewest = (Array.isArray(events) ? events : [])
+    .filter((event) => event?.id && event.title)
+    .sort((a, b) => newest(b).localeCompare(newest(a)));
+  for (const event of byNewest) {
+    if (groups.length >= limit) break;
+    const photos = [];
+    for (const photo of event.photos || []) {
+      if (!hasPicture(photo) || isAmong(photo, seen)) continue;
+      if (Math.max(photo.width, photo.height) < min) continue;
+      photos.push(photo);
+      for (const key of photoKeys(photo)) seen.add(key);
+    }
+    if (!photos.length) continue;
+    groups.push({
+      ...event,
+      photos: photos.slice(0, perEvent),
+      more: Math.max(0, photos.length - perEvent),
+    });
+  }
+  return groups;
 }
 
 /** A file name from whatever a phone or WhatsApp called the photo. */
