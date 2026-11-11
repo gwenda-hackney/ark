@@ -5,7 +5,7 @@
  * <series-…> tags are replaced there, with the page lib/event-page.js draws.
  *
  * A <series-part> holds what only the build knows (Book a table's words when
- * bookings are on, the logo, the guest chef's mark, where a pop-up's menu
+ * bookings are on, the guest chef's mark, where a pop-up's menu
  * is, each contact form's button). The fill cuts
  * them all out and places the ones the event needs.
  */
@@ -19,7 +19,7 @@ import ChartFooter from "../../components/chart/ChartFooter.astro";
 import ChartNav from "../../components/chart/ChartNav.astro";
 import { siteConfig } from "../../config/site";
 import { menuChapters } from "../../data/menu";
-import { chartFlag, guestChefLogo } from "../../lib/chart-assets";
+import { guestChefLogo } from "../../lib/chart-assets";
 import { followUpdatesLink } from "../../lib/follow-updates.js";
 import { popupMenuHref } from "../../lib/popup-kitchen.js";
 import { fetchFormButtons } from "../../lib/sanity/forms";
@@ -60,9 +60,6 @@ const follow = followUpdatesLink();
           <series-part name="book">{siteConfig.copy.bookingCta}</series-part>
         )
       }
-      <series-part name="mark">
-        <Image {...chartFlag} alt="" class="ch-night-mark" />
-      </series-part>
       <series-part name={`logo:${guestKey}`}>
         <Image {...guestChefLogo} width={416} alt={guestChef.name} />
       </series-part>

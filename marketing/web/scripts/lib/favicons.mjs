@@ -16,6 +16,44 @@ export const ICON_SOURCES = {
 };
 
 /**
+ * The record as the pages draw it inline (src/lib/chart-record.js): a
+ * source's drawing without its board square, cropped to the record's rim so
+ * it sits on whatever is behind it. Comments and line breaks go; the shapes
+ * are kept as drawn.
+ * @param {string} svg the source SVG
+ * @returns {{ viewBox: string, body: string }}
+ */
+export function recordDrawing(svg) {
+  const [, open, inner] = /(<svg\b[^>]*>)([\s\S]*)<\/svg>/.exec(svg) || [];
+  if (!inner) throw new Error("No <svg> in the drawing");
+  const [, , , width, height] = /viewBox="([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/
+    .exec(open)
+    .map(Number);
+  const body = inner
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/>\s+</g, "><")
+    .trim()
+    // The board: a square as big as the drawing
+    .replace(/<rect\b[^>]*\/>/g, (rect) =>
+      rect.includes(`width="${width}"`) && rect.includes(`height="${height}"`)
+        ? ""
+        : rect,
+    );
+  const rims = [
+    ...body.matchAll(
+      /<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"[^>]*\/>/g,
+    ),
+  ].map((match) => match.slice(1).map(Number));
+  if (!rims.length) throw new Error("No record (a circle) in the drawing");
+  const [cx, cy, r] = rims.reduce((big, rim) => (rim[2] > big[2] ? rim : big));
+  return {
+    viewBox: [cx - r, cy - r, 2 * r, 2 * r].join(" "),
+    body,
+  };
+}
+
+/**
  * Render an SVG to a square PNG `size` pixels across. The SVG is rasterised
  * at exactly that size, so a drawing made on the pixel grid stays crisp.
  * With `background`, the result is flattened onto it and has no alpha (iOS

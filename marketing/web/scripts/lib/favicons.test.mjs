@@ -3,7 +3,14 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import sharp from "sharp";
 import { siteConfig } from "../../src/config/site.ts";
-import { ICON_SOURCES, packIco, readIco, svgToPng } from "./favicons.mjs";
+import { RECORD_DRAWINGS } from "../../src/lib/chart-record-drawings.js";
+import {
+  ICON_SOURCES,
+  packIco,
+  readIco,
+  recordDrawing,
+  svgToPng,
+} from "./favicons.mjs";
 
 const web = resolve(import.meta.dirname, "../..");
 const publicFile = (name) => readFileSync(resolve(web, "public", name));
@@ -66,5 +73,36 @@ describe("the site's icons in public/ (npm run generate:favicons)", () => {
     const meta = await sharp(publicFile("apple-touch-icon.png")).metadata();
     expect([meta.width, meta.height]).toEqual([180, 180]);
     expect(meta.hasAlpha).toBe(false);
+  });
+});
+
+describe("recordDrawing", () => {
+  it("takes the home-screen icon's board away and crops to the record's rim", () => {
+    const { viewBox, body } = recordDrawing(
+      sourceFile(ICON_SOURCES.app).toString(),
+    );
+    expect(viewBox).toBe("3 3 174 174");
+    expect(body).not.toMatch(/<rect\b/);
+    expect(body).toMatch(/^<circle cx="90" cy="90" r="87" fill="#f2e8d2"\/>/);
+    // The three grooves and the skull stay
+    expect(body.match(/<circle r=/g)).toHaveLength(3);
+    expect(body).toMatch(/<path fill="#0b0a08" fill-rule="evenodd"/);
+  });
+
+  it("keeps the tab's drawing on its own pixel grid, comments and all whitespace out", () => {
+    const { viewBox, body } = recordDrawing(
+      sourceFile(ICON_SOURCES.tab).toString(),
+    );
+    expect(viewBox).toBe("0 0 32 32");
+    expect(body).not.toMatch(/<!--|\n|>\s+</);
+  });
+});
+
+describe("the record on the site's pages (npm run generate:favicons)", () => {
+  it("is the icons' own drawing, without the board", () => {
+    expect(RECORD_DRAWINGS).toEqual({
+      small: recordDrawing(sourceFile(ICON_SOURCES.tab).toString()),
+      large: recordDrawing(sourceFile(ICON_SOURCES.app).toString()),
+    });
   });
 });

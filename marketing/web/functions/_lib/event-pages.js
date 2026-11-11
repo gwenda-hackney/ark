@@ -53,8 +53,8 @@ const PART = /<series-part name="([^"]*)"[^>]*>([\s\S]*?)<\/series-part>/g;
 /**
  * What only the build knows, cut out of the shell by name: Book a table's
  * words when bookings are on (the button is the night's own, lib/event-page.js),
- * the logo, a guest chef's mark, where a pop-up's menu is, each contact
- * form's button
+ * a guest chef's mark, where a pop-up's menu is, each contact form's
+ * button
  * (src/pages/whats-on/series-shell.astro writes them, lib/event-page.js
  * places them).
  */

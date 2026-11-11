@@ -651,6 +651,19 @@
   color: var(--ch-mustard);
 }
 
+/* Apply to play's mark: the record (ChartRecord), as on Contact's button */
+.ch-home-more-link:has(.ch-record) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ch-home-more-link .ch-record {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
 @media (max-width: 48rem) {
   .ch-home-more {
     grid-template-columns: minmax(0, 1fr);
