@@ -105,8 +105,14 @@ export function buildAuthCookie(token, { secure = true } = {}) {
   return parts.join("; ");
 }
 
+/**
+ * Search engines and the bots that build link previews, by the names they
+ * send, each a whole word of the User-Agent: a common word ("preview",
+ * "teams") or a person's app (Teams, Outlook) is not a bot. WhatsApp sends
+ * only "WhatsApp/<version>", so its name must open the User-Agent.
+ */
 const SEARCH_ENGINE_BOTS =
-  /googlebot|google-inspectiontool|storebot-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|whatsapp|telegrambot|microsoft office|ms-office|skypeuripreview|teams|opengraphxyzbot|iframely|embedly|preview/i;
+  /^whatsapp\/\d|\b(?:googlebot|google-inspectiontool|storebot-google|bingbot|yahoo! slurp|duckduckbot|baiduspider|yandexbot|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|skypeuripreview|opengraphxyzbot|iframely|embedly)\b/i;
 
 const AI_READING_BOTS =
   /gptbot|chatgpt-user|oai-searchbot|claudebot|anthropic-ai|google-extended|googleother|google-cloudvertexbot|bytespider|ccbot|meta-externalagent|amazonbot|applebot-extended|cloudflarebrowserrenderingcrawler|perplexitybot|cohere-ai|diffbot|youbot|ai2bot|phindbot|duckassistbot|petalbot|tiktokspider/i;
