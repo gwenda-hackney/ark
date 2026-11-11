@@ -76,7 +76,9 @@ const follow = followUpdatesLink();
       <series-part name={`page:${guestKey}`}>{guestChef.instagram}</series-part>
       {
         popupMenus.map((popup) => (
-          <series-part name={`menu:${popup.seriesId}`}>{popup.href}</series-part>
+          <series-part name={`menu:${popup.seriesId}`}>
+            {popup.href}
+          </series-part>
         ))
       }
 

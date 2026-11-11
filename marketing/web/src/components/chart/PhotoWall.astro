@@ -55,7 +55,12 @@ const tiles = await Promise.all(
     {
       tiles.map(({ photo, thumb, full }) => (
         <li class="series-gallery-item" style={`--ratio: ${photo.ratio}`}>
-          <a href={full.src} data-full={full.src} target="_blank" rel="noopener">
+          <a
+            href={full.src}
+            data-full={full.src}
+            target="_blank"
+            rel="noopener"
+          >
             <img
               src={thumb.src}
               srcset={thumb.srcSet.attribute}
