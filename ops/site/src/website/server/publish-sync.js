@@ -36,23 +36,81 @@ export function slugifySection(title, fallback = "section") {
   return slug || fallback;
 }
 
-async function resolveSanityItemId(env, item) {
-  if (item.sanityId) {
-    const exists = await sanityQuery(
-      env,
-      PREVIEW,
-      `*[_id == $id][0]._id`,
-      { id: item.sanityId },
-    );
-    if (exists) return exists;
-  }
-  const found = await sanityQuery(
-    env,
-    PREVIEW,
-    `*[_type == "menuItem" && name == $name && !(_id in path("drafts.**"))][0]._id`,
-    { name: item.name },
-  );
-  return found || null;
+/**
+ * Mutations one Sanity request carries, as one transaction. Cloudflare caps
+ * the outside calls one request makes (50 on the free plan), so a publish
+ * sends its writes together instead of one call per drink or section.
+ */
+export const MUTATIONS_PER_REQUEST = 50;
+
+const SECTION_FIELDS = `_id, title, subtitle, orderRank, kind, "parent": parent._ref, "popupSeries": popupSeries._ref`;
+
+/** The whole menu as the preview has it: few documents, small fields, one query. */
+const PREVIEW_MENU_QUERY = `{
+  "items": *[_type == "menuItem"]{ _id, name },
+  "sections": *[_type == "menuSection"]{ ${SECTION_FIELDS}, "slug": slug.current }
+}`;
+
+/**
+ * The menu's documents on the preview, read once, so a publish finds each
+ * drink and section without a call of its own: a drink by its link or else
+ * by name, a section by its link or else by slug. What this publish creates
+ * or changes goes in as it is planned, so a later lookup sees it as a query
+ * sent after that write would have.
+ */
+async function previewMenu(env) {
+  const result = (await sanityQuery(env, PREVIEW, PREVIEW_MENU_QUERY)) || {};
+  const itemById = new Map();
+  const itemByName = new Map();
+  const sectionById = new Map();
+  const sectionBySlug = new Map();
+  const index = {
+    addItem(doc) {
+      itemById.set(doc._id, doc);
+      if (doc.name && !itemByName.has(doc.name)) itemByName.set(doc.name, doc);
+    },
+    addSection(doc) {
+      sectionById.set(doc._id, doc);
+      if (doc.slug && !sectionBySlug.has(doc.slug)) sectionBySlug.set(doc.slug, doc);
+    },
+    itemId(item) {
+      const doc = (item.sanityId && itemById.get(item.sanityId)) || itemByName.get(item.name);
+      return doc?._id || null;
+    },
+    section(sanityId, slug) {
+      return (sanityId && sectionById.get(sanityId)) || sectionBySlug.get(slug) || null;
+    },
+  };
+  for (const doc of result.items || []) index.addItem(doc);
+  for (const doc of result.sections || []) index.addSection(doc);
+  return index;
+}
+
+/**
+ * Writes to the preview, planned first and sent at the end in transactions
+ * of MUTATIONS_PER_REQUEST. `then` records what ops keeps about a write
+ * (links, snapshots) once its transaction is in, so a failed one records
+ * nothing it didn't do.
+ */
+function previewWrites() {
+  const queue = [];
+  return {
+    add(mutation, then = () => {}) {
+      queue.push({ mutation, then });
+    },
+    async send(env) {
+      while (queue.length) {
+        const batch = queue.splice(0, MUTATIONS_PER_REQUEST);
+        await sanityMutate(env, batch.map((entry) => entry.mutation));
+        for (const entry of batch) entry.then();
+      }
+    },
+  };
+}
+
+/** A new document's id, chosen here so its create can travel with the other writes. */
+function newDocumentId() {
+  return crypto.randomUUID();
 }
 
 /**
@@ -121,11 +179,6 @@ function persistSectionLink(pending, section, sanityId) {
   section.sanityId = sanityId;
 }
 
-async function createdDocId(result) {
-  const id = result?.results?.[0]?.id;
-  return typeof id === "string" && id ? id : null;
-}
-
 function reference(id) {
   return { _type: "reference", _ref: id };
 }
@@ -175,8 +228,6 @@ async function popupSeriesDocuments(env, sections) {
   return new Map(popups.filter((popup) => there.has(popup.sanityId)).map((popup) => [popup.id, popup.sanityId]));
 }
 
-const SECTION_FIELDS = `{ _id, title, subtitle, orderRank, kind, "parent": parent._ref, "popupSeries": popupSeries._ref }`;
-
 const SECTION_REFS = { parent: reference, popupSeries: reference };
 
 /** A chapter with no kind in Sanity is drinks: the website shows it on /bar either way. */
@@ -194,16 +245,10 @@ const SECTION_SAME = {
  * section already in Sanity is patched only where it differs. Its slug is
  * written when it is created and then left alone: it is a web address.
  */
-async function ensureSanitySections(env, pending, sections, popupDocs = new Map()) {
+function ensureSanitySections(pending, writes, menu, sections, popupDocs = new Map()) {
   const flat = flattenMenuSections(sections);
   const byBaserowId = new Map();
-  let writes = 0;
-
-  const linked = flat.map((section) => section.sanityId).filter(Boolean);
-  const docs = linked.length
-    ? (await sanityQuery(env, PREVIEW, `*[_id in $ids]${SECTION_FIELDS}`, { ids: linked })) || []
-    : [];
-  const docById = new Map(docs.map((doc) => [doc._id, doc]));
+  let count = 0;
 
   for (const section of flat) {
     const slug =
@@ -223,45 +268,38 @@ async function ensureSanitySections(env, pending, sections, popupDocs = new Map(
     };
 
     // A link to a document that is gone is looked up again by slug.
-    let current = section.sanityId ? docById.get(section.sanityId) : null;
-    if (!current) {
-      const found = await sanityQuery(
-        env,
-        PREVIEW,
-        `*[_type == "menuSection" && slug.current == $slug && !(_id in path("drafts.**"))][0]${SECTION_FIELDS}`,
-        { slug },
-      );
-      current = found?._id ? found : null;
-    }
+    const current = menu.section(section.sanityId, slug);
+    const link = (sanityId) => () => persistSectionLink(pending, section, sanityId);
 
-    let sanityId = current?._id || null;
+    let sanityId;
     if (current) {
+      sanityId = current._id;
       const patch = patchToMatch(current, wanted, { refs: SECTION_REFS, sameAs: SECTION_SAME });
       if (patch) {
-        await sanityMutate(env, [{ patch: { id: sanityId, ...patch } }]);
-        writes += 1;
+        writes.add({ patch: { id: sanityId, ...patch } }, link(sanityId));
+        for (const [key, value] of Object.entries(wanted)) {
+          if (value == null || value === "") delete current[key];
+          else current[key] = value;
+        }
+        count += 1;
+      } else {
+        link(sanityId)();
       }
     } else {
-      const doc = { _type: "menuSection", slug: { _type: "slug", current: slug } };
+      sanityId = newDocumentId();
+      const doc = { _id: sanityId, _type: "menuSection", slug: { _type: "slug", current: slug } };
       for (const [key, value] of Object.entries(wanted)) {
         if (value != null) doc[key] = SECTION_REFS[key] ? SECTION_REFS[key](value) : value;
       }
-      sanityId = await createdDocId(await sanityMutate(env, [{ create: doc }]));
-      if (!sanityId) {
-        const error = new Error(
-          `Failed to create Sanity section "${section.title}".`,
-        );
-        error.status = 502;
-        throw error;
-      }
-      writes += 1;
+      writes.add({ create: doc }, link(sanityId));
+      menu.addSection({ ...wanted, _id: sanityId, slug });
+      count += 1;
     }
 
-    persistSectionLink(pending, section, sanityId);
     byBaserowId.set(String(section._id), sanityId);
   }
 
-  return { byBaserowId, writes };
+  return { byBaserowId, writes: count };
 }
 
 function sectionRef(sanitySectionId) {
@@ -269,9 +307,11 @@ function sectionRef(sanitySectionId) {
   return { _type: "reference", _ref: sanitySectionId };
 }
 
-async function createSanityItem(env, item, payload, sanitySectionId) {
+/** A new drink's document, its photo uploaded first if it has to be. */
+async function newItemDocument(env, item, payload, sanitySectionId) {
   const { set, unset } = sanityPatchFromProjection(payload);
   const doc = {
+    _id: newDocumentId(),
     _type: "menuItem",
     ...set,
     orderRank: orderRankFromOrder(item.orderRank, "item"),
@@ -291,15 +331,7 @@ async function createSanityItem(env, item, payload, sanitySectionId) {
       // Create without photo if upload fails.
     }
   }
-
-  const created = await sanityMutate(env, [{ create: doc }]);
-  const sanityId = await createdDocId(created);
-  if (!sanityId) {
-    const error = new Error(`Failed to create Sanity menu item "${item.name}".`);
-    error.status = 502;
-    throw error;
-  }
-  return sanityId;
+  return doc;
 }
 
 /**
@@ -354,11 +386,15 @@ async function publishItems(env, pending, { items, sections, target }) {
   }
 
   const publishing = [...withAncestors.values()];
-  const { byBaserowId: sectionIds, writes: sectionWrites } = await ensureSanitySections(
-    env,
+  const popupDocs = await popupSeriesDocuments(env, publishing);
+  const menu = await previewMenu(env);
+  const writes = previewWrites();
+  const { byBaserowId: sectionIds, writes: sectionWrites } = ensureSanitySections(
     pending,
+    writes,
+    menu,
     publishing,
-    await popupSeriesDocuments(env, publishing),
+    popupDocs,
   );
 
   const created = [];
@@ -379,7 +415,7 @@ async function publishItems(env, pending, { items, sections, target }) {
       continue;
     }
 
-    let sanityId = await resolveSanityItemId(env, item);
+    const sanityId = menu.itemId(item);
     const payload = websiteProjection(item);
     const previous = item.publishSnapshots?.[target];
     const hashMatches = previous?.hash === projectionHash(payload);
@@ -392,14 +428,10 @@ async function publishItems(env, pending, { items, sections, target }) {
     }
 
     if (isNew) {
-      sanityId = await createSanityItem(
-        env,
-        item,
-        payload,
-        sanitySectionId,
-      );
-      persistItemLinkAndSnapshot(pending, item, target, payload, sanityId);
-      created.push({ id: item._id, name: item.name, sanityId });
+      const doc = await newItemDocument(env, item, payload, sanitySectionId);
+      writes.add({ create: doc }, () => persistItemLinkAndSnapshot(pending, item, target, payload, doc._id));
+      menu.addItem({ _id: doc._id, name: doc.name });
+      created.push({ id: item._id, name: item.name, sanityId: doc._id });
       continue;
     }
 
@@ -422,15 +454,15 @@ async function publishItems(env, pending, { items, sections, target }) {
     }
 
     // `removed`: it was taken off the digital menu and is back (below).
-    await sanityMutate(env, [
+    writes.add(
       { patch: { id: sanityId, set, unset: [...unset, "removed"] } },
-    ]);
-
-    persistItemLinkAndSnapshot(pending, item, target, payload, sanityId);
+      () => persistItemLinkAndSnapshot(pending, item, target, payload, sanityId),
+    );
     synced.push({ id: item._id, name: item.name, sanityId });
   }
 
-  const removed = await dropOffMenuItems(env, pending, items, publishable, target);
+  const removed = await dropOffMenuItems(env, pending, writes, items, publishable, target);
+  await writes.send(env);
   return { created, synced, unchanged, missing, removed, sectionWrites };
 }
 
@@ -440,7 +472,7 @@ async function publishItems(env, pending, { items, sections, target }) {
  * takes off; one never published just goes. Its staged snapshot goes too, so
  * putting it back stages it again.
  */
-async function dropOffMenuItems(env, pending, items, publishable, target) {
+async function dropOffMenuItems(env, pending, writes, items, publishable, target) {
   const kept = new Set(publishable);
   const offMenu = items.filter(
     (item) => !kept.has(item) && item.sanityId && item.publishSnapshots?.[target],
@@ -448,16 +480,15 @@ async function dropOffMenuItems(env, pending, items, publishable, target) {
   if (!offMenu.length) return [];
   const ids = offMenu.map((item) => item.sanityId);
   const live = new Set((await sanityQuery(env, "production", "*[_id in $ids]._id", { ids })) || []);
-  await sanityMutate(
-    env,
-    ids.map((id) => (live.has(id) ? { patch: { id, set: { removed: true } } } : { delete: { id } })),
-  );
   for (const item of offMenu) {
+    const id = item.sanityId;
     const { [target]: _staged, ...snapshots } = item.publishSnapshots;
-    pending.item(item._id, {
-      publishSnapshots: snapshots,
-      ...(live.has(item.sanityId) ? {} : { sanityId: "" }),
-    });
+    writes.add(live.has(id) ? { patch: { id, set: { removed: true } } } : { delete: { id } }, () =>
+      pending.item(item._id, {
+        publishSnapshots: snapshots,
+        ...(live.has(id) ? {} : { sanityId: "" }),
+      }),
+    );
   }
   return offMenu.map((item) => ({ id: item._id, name: item.name, sanityId: item.sanityId }));
 }
