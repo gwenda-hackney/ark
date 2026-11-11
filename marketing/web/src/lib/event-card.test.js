@@ -7,7 +7,6 @@ import {
   escapeHtml,
   renderEventCard,
   GALLERY_FIRST,
-  tinyImageUrl,
   renderGallery,
 } from "./event-card.js";
 
@@ -130,7 +129,11 @@ describe("renderGallery", () => {
     const gallery = dom(
       renderGallery(
         [
-          { url: "https://cdn.example/wide.jpg", width: 1600, height: 900 },
+          {
+            url: "https://cdn.sanity.io/images/p/d/wide-1600x900.jpg",
+            width: 1600,
+            height: 900,
+          },
           { url: "https://cdn.example/tall.jpg", width: 800, height: 1000 },
           { url: "https://cdn.example/unknown.jpg", width: 0, height: 0 },
         ],
@@ -143,9 +146,23 @@ describe("renderGallery", () => {
     expect(items[1].querySelector("img").getAttribute("alt")).toBe(
       "Negroni Chess Society, photo 2",
     );
-    expect(items[0].querySelector("img").getAttribute("src")).toBe(
-      "https://cdn.example/wide.jpg?w=900&auto=format&q=86",
+    // A photo in a choice of sizes, for the column it's shown in...
+    const photo = items[0].querySelector("img");
+    expect(photo.getAttribute("src")).toBe(
+      "https://cdn.sanity.io/images/p/d/wide-1600x900.jpg?w=640&q=86&auto=format",
     );
+    expect(
+      photo
+        .getAttribute("srcset")
+        .split(", ")
+        .map((candidate) => candidate.split(" ")[1]),
+    ).toEqual(["160w", "320w", "480w", "640w", "960w", "1280w", "1600w"]);
+    expect(photo.getAttribute("sizes")).toMatch(/^auto, /);
+    // ...and one that isn't on the image CDN as it is.
+    const other = items[1].querySelector("img");
+    expect(other.getAttribute("src")).toBe("https://cdn.example/tall.jpg");
+    expect(other.hasAttribute("srcset")).toBe(false);
+    expect(other.hasAttribute("sizes")).toBe(false);
   });
 
   it("renders nothing without photos", () => {
@@ -153,21 +170,17 @@ describe("renderGallery", () => {
   });
 });
 
-describe("tinyImageUrl", () => {
-  it("asks Sanity for a tiny blurred copy, keeping the crop", () => {
-    const tiny = new URL(
-      tinyImageUrl(
-        "https://cdn.sanity.io/images/p/d/a.jpg?rect=0,0,800,500&w=1800&auto=format&q=86",
-      ),
-    );
-    expect(tiny.searchParams.get("rect")).toBe("0,0,800,500");
-    expect(tiny.searchParams.get("w")).toBe("48");
-    expect(tiny.searchParams.get("blur")).toBe("30");
-  });
+describe("a flyer whose address already names a size (#240)", () => {
+  // As the site's data has it: the flyer, 1600px wide, to show whole.
+  const flyer =
+    "https://cdn.sanity.io/images/p/d/abc-1132x1600.jpg?w=1600&q=86&auto=format#whole";
 
-  it("leaves other images alone", () => {
-    expect(tinyImageUrl("/images/flyer.jpg")).toBe("");
-    expect(tinyImageUrl("https://example.com/a.jpg")).toBe("");
+  it("is on the card at the card's width", () => {
+    const card = dom(
+      renderEventCard(diaryCardModel({ ...negroni, heroImageUrl: flyer })),
+    );
+    const src = new URL(card.querySelector("img").getAttribute("src"));
+    expect(src.searchParams.getAll("w")).toEqual(["960"]);
   });
 });
 
@@ -204,8 +217,9 @@ describe("renderGallery: Show all", () => {
       html.match(/<li class="series-gallery-item"[^>]* hidden/g),
     ).toHaveLength(3);
     expect(html).toContain(`Show all ${GALLERY_FIRST + 3} photos`);
+    // Opened large: as big as the photo is (800px), not stretched beyond it.
     expect(html).toContain(
-      'data-full="https://cdn.sanity.io/images/p/d/photo0-800x600.jpg?w=1800',
+      'data-full="https://cdn.sanity.io/images/p/d/photo0-800x600.jpg?w=800',
     );
   });
 

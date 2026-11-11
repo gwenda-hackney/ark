@@ -1,6 +1,7 @@
 /**
  * Event photos: while one loads, its card shows a tiny blurred copy (the
- * `--placeholder` on `.event-media`, made by tinyImageUrl in lib/event-card.js),
+ * `--placeholder` on `.event-media`, made by tinyImageUrl in
+ * functions/_lib/sanity-image-url.js),
  * then the photo fades in over it. Photos already loaded show straight away.
  */
 export function fadeInEventPhotos(root = document) {

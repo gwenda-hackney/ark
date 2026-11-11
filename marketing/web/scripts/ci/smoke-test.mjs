@@ -24,6 +24,7 @@ import { appendFileSync } from "node:fs";
 import {
   assertHealthPayload,
   assertHomePageHealthy,
+  assertPicturesSized,
   collectSameOriginAssetPaths,
   deepCheckLine,
   parseFormsArg,
@@ -210,6 +211,12 @@ async function runChecks() {
   const html = await homeRes.text();
   assertHomePageHealthy(html);
   console.log("OK homepage content checks passed");
+
+  // No flyer downloads bigger than it shows, on home or What's on (#240).
+  assertPicturesSized(html, "/");
+  const whatsOn = await checkPath("/whats-on", { cookie });
+  assertPicturesSized(await whatsOn.text(), "/whats-on");
+  console.log("OK flyers are offered at the sizes they show");
 
   await checkSubscribeApi(cookie);
   await checkRsvpApi(cookie);

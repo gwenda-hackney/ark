@@ -16,14 +16,20 @@ import { Image } from "astro:assets";
 import "../../styles/chart-nights.css";
 import { chartFlag } from "../../lib/chart-assets";
 import { formatEventSpan } from "../../data/events";
-import { sizedImageUrl, tinyImageUrl } from "../../lib/event-card.js";
-import { isWholeFit } from "../../../functions/_lib/sanity-image-url.js";
+import {
+  imageSrcset,
+  isWholeFit,
+  sizedImageUrl,
+  tinyImageUrl,
+} from "../../../functions/_lib/sanity-image-url.js";
 import { londonToday } from "../../lib/london-day.js";
 import { weekStart } from "../../lib/london-day.js";
 import {
+  LEAD_NIGHT_SIZES,
   frameRatio,
   nightLabel,
   nightRuns,
+  nightSizes,
   nightsToShow,
   runDay,
   runTimes,
@@ -75,12 +81,13 @@ const cards = nightRuns(dated, series)
       note: night.shortDescription || night.artist || "",
       offer: night.offer || "",
       photo: sizedImageUrl(photo, 640),
+      /** The same picture at each size: the browser takes the one that fits. */
+      photoSizes: imageSrcset(photo),
       /** Ops says show the whole image (#27): a flyer, never cropped. */
       whole: isWholeFit(photo),
       /** A flyer shown whole gets a frame its own shape: no strips, no crop. */
       ratio: frameRatio(photo, isWholeFit(photo)),
       placeholder: tinyImageUrl(photo),
-      photoLarge: sizedImageUrl(photo, 1280),
       photoPosition: night.seriesHeroObjectPosition || "",
       href: night.seriesId
         ? `/whats-on/${encodeURIComponent(night.seriesId)}`
@@ -146,8 +153,17 @@ const lists = weeks
                     {night.photo && (
                       <img
                         src={night.photo}
-                        srcset={`${night.photo} 640w, ${night.photoLarge} 1280w`}
-                        sizes="(min-width: 64rem) 26rem, (min-width: 40rem) 33vw, 100vw"
+                        srcset={night.photoSizes || undefined}
+                        sizes={
+                          night.photoSizes
+                            ? place === 0
+                              ? LEAD_NIGHT_SIZES
+                              : nightSizes(night.ratio)
+                            : undefined
+                        }
+                        data-row-sizes={
+                          night.photoSizes ? nightSizes(night.ratio) : undefined
+                        }
                         alt=""
                         loading={index === 0 ? "eager" : "lazy"}
                         style={

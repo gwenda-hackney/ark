@@ -25,14 +25,14 @@ import {
 } from "../../functions/_lib/form-paths.js";
 import { richParagraphHtml } from "../../functions/_lib/rich-text.js";
 import { SITE_DOMAIN } from "../../../../shared/site-location.js";
-import { isWholeFit } from "../../functions/_lib/sanity-image-url.js";
 import {
-  SafeHtml,
-  attrs,
-  html,
-  renderGallery,
+  IMAGE_LARGEST,
+  imageSrcset,
+  isWholeFit,
+  sizedImageUrl,
   tinyImageUrl,
-} from "./event-card.js";
+} from "../../functions/_lib/sanity-image-url.js";
+import { SafeHtml, attrs, html, renderGallery } from "./event-card.js";
 import { daysAway } from "./london-day.js";
 import { nightDay, nightRuns, runDay } from "./night-cards.js";
 import { popupWhen } from "./popup-kitchen.js";
@@ -43,6 +43,18 @@ export const MORE_DATES = 8;
 
 /** A photo's frame when it isn't a flyer shown whole: 4:5, as on the cards. */
 const PHOTO_SHAPE = 0.8;
+
+/**
+ * How wide the page shows its pictures, for the browser to pick a size by
+ * (an <img>'s `sizes`); these follow styles/chart-event.css. The flyer
+ * beside the words is 26rem, 20rem on a tablet, and the screen less its
+ * gutters (up to 26rem) on a phone; a flyer wider than tall goes above the
+ * words, up to 44rem; a day's own flyer is 11rem.
+ */
+const FLYER_SIZES =
+  "(min-width: 64.0625rem) 26rem, (min-width: 48.0625rem) 20rem, (min-width: 28.5rem) 26rem, calc(100vw - 2.5rem)";
+const WIDE_FLYER_SIZES = "(min-width: 46.5rem) 44rem, calc(100vw - 2.5rem)";
+const DAY_FLYER_SIZES = "11rem";
 
 function text(value) {
   return String(value ?? "").trim();
@@ -387,9 +399,11 @@ function dateSticker(date) {
 }
 
 function pictureHtml(picture, { sizes, eager = false, sticker = "" }) {
+  const srcset = imageSrcset(picture.src);
   return html`<a${attrs({
     class: `ch-night-photo ch-event-photo${picture.whole ? " ch-night-photo--whole" : ""}`,
-    href: picture.src,
+    // The flyer opened large, in its own tab
+    href: sizedImageUrl(picture.src, IMAGE_LARGEST),
     target: "_blank",
     rel: "noopener",
     style: [
@@ -401,8 +415,9 @@ function pictureHtml(picture, { sizes, eager = false, sticker = "" }) {
       .filter(Boolean)
       .join("; "),
   })}><img${attrs({
-    src: picture.src,
-    sizes,
+    src: sizedImageUrl(picture.src, 640),
+    srcset,
+    sizes: srcset ? sizes : "",
     alt: picture.alt,
     loading: eager ? "eager" : "lazy",
     style: picture.position ? `object-position: ${picture.position}` : "",
@@ -447,7 +462,7 @@ function leadHtml(model) {
     : dateSticker(lead.date);
   const frame = lead.picture
     ? pictureHtml(lead.picture, {
-        sizes: "(min-width: 48rem) 28rem, 100vw",
+        sizes: model.wide ? WIDE_FLYER_SIZES : FLYER_SIZES,
         eager: true,
         sticker,
       })
@@ -534,7 +549,7 @@ function daysHtml(days) {
             ${
               day.picture
                 ? html`<figure class="ch-event-day-flyer">
-                    ${pictureHtml(day.picture, { sizes: "14rem" })}
+                    ${pictureHtml(day.picture, { sizes: DAY_FLYER_SIZES })}
                   </figure>`
                 : ""
             }

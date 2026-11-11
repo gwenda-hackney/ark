@@ -70,6 +70,18 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
     expect(emailImageUrl(null, 100)).toBe("");
   });
 
+  it("asks for twice the width it shows, whatever the address asked for before, and never more than the picture has", () => {
+    // As the website's own data has a flyer: already 1600px wide.
+    const sized = new URL(emailImageUrl({ url: "https://cdn.sanity.io/images/p/d/a-1132x1600.jpg?w=1600&q=86&auto=format", whole: true }, 100));
+    expect(sized.searchParams.getAll("w")).toEqual(["200"]);
+    expect(sized.searchParams.getAll("q")).toEqual(["80"]);
+    // A small flyer isn't stretched: the CDN would only blur it, for more bytes.
+    const small = new URL(emailImageUrl({ url: "https://cdn.sanity.io/images/p/d/a-630x630.png", whole: true }, 400));
+    expect(small.searchParams.get("w")).toBe("630");
+    const photo = new URL(emailImageUrl({ url: "https://cdn.sanity.io/images/p/d/b-600x1200.jpg", whole: false }, 400));
+    expect(Object.fromEntries(photo.searchParams)).toMatchObject({ w: "600", h: "750", fit: "crop" });
+  });
+
   it("lays out with presentation tables and inline styles, one column up to 600px", () => {
     const tables = tags(email.html, "table");
     expect(tables.length).toBeGreaterThan(10);

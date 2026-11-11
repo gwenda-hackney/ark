@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  LEAD_NIGHT_SIZES,
   flyerShape,
   frameRatio,
   nightDay,
   nightLabel,
   nightRuns,
+  nightSizes,
   nightsToShow,
   nightWeeks,
   runDay,
   runTimes,
+  standSizes,
   weekLabel,
 } from "./night-cards.js";
 
@@ -317,5 +320,33 @@ describe("runTimes", () => {
       ]),
     ).toEqual(["Sun 1–6pm"]);
     expect(runTimes([{ date: "2026-11-21", span: "" }])).toEqual([]);
+  });
+});
+
+describe("how wide a card's picture is shown (an img's sizes)", () => {
+  it("is the big night's column: 26rem, 20rem on a tablet, the screen less its gutters on a phone", () => {
+    expect(LEAD_NIGHT_SIZES).toBe(
+      "(min-width: 64.0625rem) 26rem, (min-width: 40.0625rem) 20rem, calc(100vw - 2.5rem)",
+    );
+  });
+
+  it("is a row's picture at its tallest, by its shape; a thumbnail on a phone", () => {
+    // A 4:5 photo: 24rem tall is 19.2rem wide; 21rem on a tablet, 16.8rem.
+    expect(nightSizes(0.8)).toBe(
+      "(min-width: 64.0625rem) 19.2rem, (min-width: 40.0625rem) 16.8rem, 5rem",
+    );
+    // A narrower flyer is narrower: never less than it shows (rounded up).
+    expect(nightSizes(0.7075)).toBe(
+      "(min-width: 64.0625rem) 16.98rem, (min-width: 40.0625rem) 14.86rem, 5rem",
+    );
+  });
+
+  it("is a deal's picture at the card's height; taller for a card alone on a wide screen", () => {
+    expect(standSizes(0.8, false)).toBe(
+      "(min-width: 64.0625rem) 12rem, (min-width: 40.0625rem) 12rem, 7.5rem",
+    );
+    expect(standSizes(0.8, true)).toBe(
+      "(min-width: 64.0625rem) 15rem, (min-width: 40.0625rem) 12rem, 7.5rem",
+    );
   });
 });

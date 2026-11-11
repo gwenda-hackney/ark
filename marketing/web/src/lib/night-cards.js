@@ -109,6 +109,43 @@ export function frameRatio(url, whole) {
   return Math.round((width / height) * 10000) / 10000;
 }
 
+/** A width in rem for an <img>'s `sizes`, rounded up so it never undershoots. */
+function rem(value) {
+  // (0.8 × 24 is 19.200000000000003: not a reason to round up.)
+  return `${Math.ceil(Math.round(value * 10000) / 100) / 100}rem`;
+}
+
+/**
+ * How wide the big night's picture is shown, for the browser to pick a size
+ * by (an <img>'s `sizes`): 26rem beside its words, 20rem on a tablet, the
+ * screen less its gutters on a phone (styles/chart-nights.css).
+ */
+export const LEAD_NIGHT_SIZES =
+  "(min-width: 64.0625rem) 26rem, (min-width: 40.0625rem) 20rem, calc(100vw - 2.5rem)";
+
+/**
+ * And a night's in the rows after it: as wide as its shape makes it at the
+ * tallest a row gets (24rem, 21rem on a tablet); on a phone, the 5rem
+ * thumbnail beside its words.
+ *
+ * @param {number} shape width / height (frameRatio)
+ */
+export function nightSizes(shape) {
+  return `(min-width: 64.0625rem) ${rem(shape * 24)}, (min-width: 40.0625rem) ${rem(shape * 21)}, 5rem`;
+}
+
+/**
+ * A deal's or the pop-up kitchen's picture: as wide as its shape makes it at
+ * the card's height (15rem; 18.75rem for a card alone on a wide screen); on
+ * a phone, the 7.5rem column beside its words.
+ *
+ * @param {number} shape width / height (frameRatio)
+ * @param {boolean} alone the only card in its section
+ */
+export function standSizes(shape, alone) {
+  return `(min-width: 64.0625rem) ${rem(shape * (alone ? 18.75 : 15))}, (min-width: 40.0625rem) ${rem(shape * 15)}, 7.5rem`;
+}
+
 /**
  * What a week is called: "This week", "Next week", then "Week of 23 Nov".
  *

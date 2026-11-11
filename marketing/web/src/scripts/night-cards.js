@@ -1,10 +1,17 @@
 import { londonToday } from "../lib/london-day.js";
-import { nightLabel, nightsToShow, weekLabel } from "../lib/night-cards.js";
+import {
+  LEAD_NIGHT_SIZES,
+  nightLabel,
+  nightsToShow,
+  weekLabel,
+} from "../lib/night-cards.js";
 
 /**
  * Night cards, brought up to today (NightCards.astro): the site is built
  * ahead of time, so a night that has passed since is dropped, the next one
- * leads, and each is called what it is now (Tonight, Tomorrow). An event
+ * leads, and each is called what it is now (Tonight, Tomorrow). The one
+ * that leads now is shown big, so its picture is asked for at that size
+ * (the img's `sizes`; its size in a row is kept in data-row-sizes). An event
  * over several days (data-night-end) stays until its last. Where they
  * are under weeks, each week is named again too (This week, Next week), and
  * a week with no night left goes.
@@ -26,6 +33,9 @@ export function initNightCards(now = new Date()) {
       const place = shown.indexOf(index);
       night.hidden = place < 0;
       night.classList.toggle("ch-night--lead", place === 0);
+      const photo = night.querySelector("img[data-row-sizes]");
+      const sizes = place === 0 ? LEAD_NIGHT_SIZES : photo?.dataset.rowSizes;
+      if (photo && photo.sizes !== sizes) photo.sizes = sizes;
       const { night: start, nightEnd: end = start } = night.dataset;
       night.classList.toggle(
         "ch-night--tonight",

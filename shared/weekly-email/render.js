@@ -10,6 +10,7 @@
  * postal address), which a campaign needs to be sent at all.
  */
 
+import { sizedImageUrl } from "../../marketing/web/functions/_lib/sanity-image-url.js";
 import {
   COLOURS,
   FONTS,
@@ -56,8 +57,9 @@ export function emailImageUrl(photo, shownWidth) {
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") return "";
   if (url.hostname !== "cdn.sanity.io") return url.toString();
-  const width = Math.min(1200, Math.round(shownWidth * 2));
-  url.searchParams.set("w", String(width));
+  // One size, as an email has no choice of them; never wider than the picture.
+  url = new URL(sizedImageUrl(url.toString(), Math.min(1200, Math.round(shownWidth * 2)), { quality: 80 }));
+  const width = Number(url.searchParams.get("w"));
   if (!photo.whole) {
     url.searchParams.set("h", String(Math.round(width * 1.25)));
     url.searchParams.set("fit", "crop");
@@ -68,8 +70,6 @@ export function emailImageUrl(photo, shownWidth) {
   }
   url.searchParams.set("fm", "jpg");
   url.searchParams.set("bg", "ffffff");
-  url.searchParams.set("q", "80");
-  url.searchParams.set("auto", "format");
   return url.toString();
 }
 

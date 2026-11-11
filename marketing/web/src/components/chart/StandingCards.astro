@@ -15,10 +15,14 @@ import "../../styles/chart-nights.css";
 import { siteConfig } from "../../config/site";
 import { chartFlag, guestChefLogo } from "../../lib/chart-assets";
 import { formatEventSpan } from "../../data/events";
-import { sizedImageUrl, tinyImageUrl } from "../../lib/event-card.js";
-import { isWholeFit } from "../../../functions/_lib/sanity-image-url.js";
+import {
+  imageSrcset,
+  isWholeFit,
+  sizedImageUrl,
+  tinyImageUrl,
+} from "../../../functions/_lib/sanity-image-url.js";
 import { londonToday } from "../../lib/london-day.js";
-import { frameRatio } from "../../lib/night-cards.js";
+import { frameRatio, standSizes } from "../../lib/night-cards.js";
 import { popupKitchens } from "../../lib/popup-kitchen.js";
 import { promotionDeals } from "../../lib/promotions.js";
 import type { Event, EventSeries } from "../../types/events";
@@ -64,7 +68,8 @@ function picture(photo: string, photoPosition: string) {
   const whole = isWholeFit(photo);
   return {
     photo: sizedImageUrl(photo, 640),
-    photoLarge: sizedImageUrl(photo, 1280),
+    /** The same picture at each size: the browser takes the one that fits. */
+    photoSizes: imageSrcset(photo),
     photoPosition,
     /** Ops says show the whole image (#27): a flyer, never cropped. */
     whole,
@@ -181,8 +186,12 @@ const sections = [
               {card.photo && (
                 <img
                   src={card.photo}
-                  srcset={`${card.photo} 640w, ${card.photoLarge} 1280w`}
-                  sizes="(min-width: 40rem) 15rem, 7.5rem"
+                  srcset={card.photoSizes || undefined}
+                  sizes={
+                    card.photoSizes
+                      ? standSizes(card.ratio, section.cards.length === 1)
+                      : undefined
+                  }
                   alt=""
                   loading="lazy"
                   style={

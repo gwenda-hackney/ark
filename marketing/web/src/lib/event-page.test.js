@@ -5,6 +5,7 @@ import {
   renderEventPage,
   siteFormLink,
 } from "./event-page.js";
+import { oversizedPictures } from "../../scripts/ci/smoke-test-lib.mjs";
 
 const TODAY = "2099-01-06";
 const FLYER =
@@ -51,6 +52,32 @@ describe("an ordinary night", () => {
     const { html } = page(karaoke());
     expect(html).toContain("ch-night-photo--whole");
     expect(html).toContain("--shape: 0.7068");
+  });
+
+  it("offers the flyer in sizes, so a phone doesn't download a poster (#240)", () => {
+    // The flyer's address comes with w=1600 on it already (FLYER).
+    const { html } = page(karaoke());
+    const [img] = /<img\b[^>]*>/.exec(html);
+    const offered = /\ssrcset="([^"]*)"/
+      .exec(img)?.[1]
+      .replace(/&amp;/g, "&")
+      .split(/,\s+/)
+      .map((candidate) => {
+        const [url, width] = candidate.split(" ");
+        return {
+          asks: Number(new URL(url).searchParams.get("w")),
+          says: Number.parseInt(width, 10),
+        };
+      });
+    expect(offered?.length).toBeGreaterThan(2);
+    // Each address asks the image CDN for the width it says it is...
+    for (const { asks, says } of offered) expect(asks).toBe(says);
+    // ...from a thumbnail up to the file's own 1080px, and no further.
+    expect(offered[0].says).toBeLessThanOrEqual(320);
+    expect(offered.at(-1).says).toBe(1080);
+    expect(img).toMatch(/\ssizes="[^"]+"/);
+    // The rule the deploy check holds every page to.
+    expect(oversizedPictures(html)).toEqual([]);
   });
 
   it("has the logo where there is no flyer", () => {
