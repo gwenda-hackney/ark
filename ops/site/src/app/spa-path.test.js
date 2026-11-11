@@ -201,6 +201,10 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/sections"), "config");
     assert.equal(shellPageKey("/users"), "users");
     assert.equal(shellPageKey("/venue"), "venue");
+    assert.equal(shellPageKey("/venue/gallery"), "venue");
+    assert.equal(parseShellPath("/venue").view, "details");
+    assert.equal(parseShellPath("/venue/gallery").view, "gallery");
+    assert.equal(isSpaDocumentPath("/venue/gallery"), true);
     assert.equal(shellPageKey("/more"), "more");
     assert.equal(shellPageKey("/more/"), "more");
     assert.equal(shellPageKey("/events/12"), "events");

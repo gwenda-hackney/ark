@@ -56,3 +56,62 @@ export type SaveHoursResponse = VenueDetailsResponse & {
 };
 
 export type SavePartiesResponse = SaveHoursResponse;
+
+/** The menu board on home a photo may be pinned up on, or "" for neither. */
+export type PhotoMenu = "" | "drinks" | "food";
+
+/** A photo of the venue's gallery (gallery-model.js), as ops shows it: from the Sanity CDN. */
+export type VenuePhoto = {
+	key: string;
+	/** Its Sanity image asset id. */
+	asset: string;
+	/** What it shows: the website's alt text. */
+	description: string;
+	menu: PhotoMenu;
+	added: string;
+	addedBy: string;
+	url: string;
+	width: number;
+	height: number;
+};
+
+/** A photo from an event's gallery, as the Gallery page shows it: to see, not to change. */
+export type EventGalleryPhoto = {
+	key: string;
+	url: string;
+	width: number;
+	height: number;
+	added: string;
+};
+
+/**
+ * An event's photos the website's Photos page shows under the venue's own
+ * (venue/server/venue-gallery.js galleryFromEvents); `more` it leaves for the
+ * event's own page.
+ */
+export type EventPhotoGroup = {
+	id: string;
+	name: string;
+	photos: EventGalleryPhoto[];
+	more: number;
+};
+
+/** The gallery, in its order, and where the venue's details stand on the website. */
+export type GalleryState = {
+	photos: VenuePhoto[];
+	website: WebsiteState;
+};
+
+/** The gallery, and the events' photos the Photos page shows under it, newest event first. */
+export type GalleryResponse = GalleryState & {
+	fromEvents: EventPhotoGroup[];
+};
+
+/** After a change: the gallery as it is now, and how putting it on the website went. */
+export type GalleryChangeResponse = GalleryState & {
+	published: boolean;
+	warnings: string[];
+};
+
+/** After an upload: `added` lists the keys of the photos that went in (none when it was there already). */
+export type GalleryAddResponse = GalleryChangeResponse & { added: string[] };

@@ -366,6 +366,7 @@ export function safeRedirectPath(next) {
   if (clean.startsWith("/api/inventory/lightspeed")) return "/lightspeed";
   if (clean.startsWith("/api/inventory")) return "/inventory";
   if (clean.startsWith("/api/suppliers")) return "/suppliers";
+  if (clean.startsWith("/api/venue/gallery")) return "/venue/gallery";
   if (clean.startsWith("/api/venue")) return "/venue";
   if (clean.startsWith("/api/")) return "/";
   return clean;

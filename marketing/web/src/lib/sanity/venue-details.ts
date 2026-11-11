@@ -15,12 +15,29 @@ export type PartyFacts = {
   replyWithin: string;
 };
 
+/**
+ * A photo of the venue's gallery as Sanity has it (VENUE_DETAILS_QUERY):
+ * lib/photo-sources.ts makes the site's photos of these.
+ */
+export type VenueGalleryEntry = {
+  url?: string | null;
+  width?: number | null;
+  height?: number | null;
+  alt?: string | null;
+  menu?: string | null;
+  added?: string | null;
+  lqip?: string | null;
+  color?: string | null;
+};
+
 export type VenueDetails = {
   openingHours: OpeningDay[] | null;
   parties: PartyFacts | null;
+  /** The venue's own photos (ops: Gallery), in their order; empty when none. */
+  gallery: VenueGalleryEntry[];
 };
 
-const NONE: VenueDetails = { openingHours: null, parties: null };
+const NONE: VenueDetails = { openingHours: null, parties: null, gallery: [] };
 
 let built: Promise<VenueDetails> | null = null;
 
@@ -39,9 +56,10 @@ async function load(): Promise<VenueDetails> {
 }
 
 /**
- * The venue's details (ops: Settings → Venue details), one query for all
- * of them: the week, Monday first, and the party facts. Each is null when
- * there is none or it doesn't add up: then nothing about it shows. A build
+ * The venue's details (ops: Settings → Venue details, and Gallery), one
+ * query for all of them: the week, Monday first, the party facts, and the
+ * venue's photos. Each is null (the photos: empty) when there is none or it
+ * doesn't add up: then nothing about it shows. A build
  * asks once; `astro dev` asks on every page, so a change in ops shows on
  * the next reload.
  */

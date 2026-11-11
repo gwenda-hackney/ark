@@ -1,7 +1,13 @@
 /**
  * The photo gallery (#240): which photos show, in what order, and how many
- * on home. The list is src/data/photos.json, newest first; where the files
- * themselves come from is lib/photo-sources.ts and nowhere else.
+ * on home. The venue's photos come in the order of its Gallery in ops (#291),
+ * first first; where they come from is lib/photo-sources.ts and nowhere else.
+ *
+ * listPhotos and addPhoto read and write src/data/photos.json, the list the
+ * site was built from before the Gallery. Nothing builds from it now: it stays,
+ * with its files, until the migration that moved it into the Gallery
+ * (migrations/2026-11-11-venue-gallery.mjs) has run in production, and goes
+ * with them.
  */
 
 /**
@@ -135,27 +141,101 @@ export function foodBoardPhotos(
   return [...own, ...menuPhotos(rest, "food", { limit: limit - own.length })];
 }
 
+/** Home's photo strip mixes in at most this many from events, each from a different one. */
+export const HOME_EVENT_PHOTOS = 2;
+
+/**
+ * The newest photo of each of the newest events /photos shows
+ * (photosPageEvents), one an event, newest first, leaving out any home
+ * shows already (`taken`, photoKeys); each says which event it's from.
+ *
+ * @param {Array<{ id: string, title: string, href?: string, photos: Array<object> }>} groups
+ * @param {Set<string>} taken
+ */
+function eventPicks(groups, taken, limit = HOME_EVENT_PHOTOS) {
+  const picks = [];
+  for (const group of groups) {
+    if (picks.length >= limit) break;
+    const newest = group.photos
+      .filter((photo) => !isAmong(photo, taken))
+      .reduce(
+        (best, photo) =>
+          !best || String(photo.added || "") > String(best.added || "")
+            ? photo
+            : best,
+        null,
+      );
+    if (!newest) continue;
+    const { id, title, href = "" } = group;
+    picks.push({ ...newest, event: { id, title, href } });
+  }
+  return picks.sort((a, b) =>
+    String(b.added || "").localeCompare(String(a.added || "")),
+  );
+}
+
+/**
+ * `extras` spread through `row`: each in the middle of its own equal share
+ * of the whole, so two in home's eight are third and seventh, one in each
+ * row of four on a desk. `row` keeps its order around them.
+ */
+function spreadThrough(row, extras) {
+  if (!extras.length) return row;
+  const length = row.length + extras.length;
+  const places = extras.map((_, i) =>
+    Math.floor(((i + 0.5) * length) / extras.length),
+  );
+  const out = [];
+  let own = 0;
+  let extra = 0;
+  for (let at = 0; at < length; at += 1) {
+    out.push(at === places[extra] ? extras[extra++] : row[own++]);
+  }
+  return out;
+}
+
 /**
  * Who gets which photo on home, decided here once: the menu boards pick
  * first (the newest marked for each, so a photo just added for one goes
  * straight up on it; the Food board takes the pop-up kitchen's own first,
- * foodBoardPhotos), then the photo row takes the newest of the rest. No
- * picture is on home twice; every venue photo is still on /photos (`more`:
- * how many the row leaves for there).
+ * foodBoardPhotos), then the photo row takes the newest of the rest.
+ *
+ * The row mixes in a few from events (HOME_EVENT_PHOTOS): the newest photo
+ * of each of the newest events /photos shows under the venue's own
+ * (photosPageEvents), one an event, never one a board has up; spread through
+ * the row (spreadThrough), the venue's around them in the Gallery's order.
+ * With none from events the row is the venue's alone.
+ *
+ * No picture is on home twice; `more` is how many /photos has that the row
+ * doesn't show.
  *
  * @template {{ menu?: string, image?: { src?: string } }} T
  * @param {T[]} photos newest first (listPhotos)
- * @param {{ kitchen?: Array<{ url: string, width: number, height: number }> }} [options]
- *   `kitchen`: the pop-up kitchen's gallery photos, newest first
- * @returns {{ drinks: T[], food: Array<object>, row: T[], more: number }}
+ * @param {{
+ *   kitchen?: Array<{ url: string, width: number, height: number }>,
+ *   events?: Array<{ id: string, title: string, href?: string, photos: Array<object> }>,
+ * }} [options]
+ *   `kitchen`: the pop-up kitchen's gallery photos, newest first;
+ *   `events`: each event's photos, newest first (photo-sources.ts eventPhotos)
+ * @returns {{ drinks: T[], food: Array<object>, row: Array<object>, more: number }}
  */
-export function homePhotoPlan(photos, { kitchen = [] } = {}) {
+export function homePhotoPlan(photos, { kitchen = [], events = [] } = {}) {
   const drinks = menuPhotos(photos, "drinks");
   const food = foodBoardPhotos(photos, kitchen);
-  const { photos: row, more } = homePhotos(photos || [], {
-    shownElsewhere: [...drinks, ...food].flatMap(photoKeys),
+  const onBoards = [...drinks, ...food].flatMap(photoKeys);
+  const groups = photosPageEvents(photos, events);
+  const fromEvents = eventPicks(groups, new Set(onBoards));
+  const venue = homePhotos(photos || [], {
+    limit: HOME_PHOTOS - fromEvents.length,
+    shownElsewhere: onBoards,
   });
-  return { drinks, food, row, more };
+  const onPage = groups.reduce((sum, group) => sum + group.photos.length, 0);
+  return {
+    drinks,
+    food,
+    row: spreadThrough(venue.photos, fromEvents),
+    more: venue.more + onPage - fromEvents.length,
+  };
 }
 
 /**
@@ -224,6 +304,21 @@ export function eventPhotoGroups(
     });
   }
   return groups;
+}
+
+/**
+ * The events /photos shows under the venue's own (eventPhotoGroups), with a
+ * picture already on the venue's wall (its hash or its address, photoKeys)
+ * left out of them. Home's strip takes its few from events from these
+ * (homePhotoPlan), and ops' Gallery page shows the same.
+ *
+ * @param {Array<{ url?: string, hash?: string }>} venue the venue's photos
+ * @param {Parameters<typeof eventPhotoGroups>[0]} events
+ */
+export function photosPageEvents(venue, events) {
+  return eventPhotoGroups(events, {
+    shownElsewhere: (venue || []).flatMap(photoKeys),
+  });
 }
 
 /** A file name from whatever a phone or WhatsApp called the photo. */

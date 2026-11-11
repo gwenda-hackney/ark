@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   EVENT_PHOTO_EVENTS,
   EVENT_PHOTOS_PER_EVENT,
+  HOME_EVENT_PHOTOS,
   HOME_PHOTOS,
   MENU_BOARD_PHOTOS,
   PHOTO_MENUS,
@@ -295,6 +296,211 @@ describe("homePhotoPlan with a pop-up kitchen", () => {
       kitchen: [{ url: "", width: 0, height: 0 }, kitchenPhoto("smash")],
     });
     expect(names(home.food)).toEqual(["smash", "burger"]);
+  });
+});
+
+describe("homePhotoPlan with photos from events", () => {
+  const CDN = "https://cdn.test";
+  /** A venue photo as photo-sources.ts makes it: its address and its hash. */
+  const venuePhoto = (name, menu = "") => ({
+    url: `${CDN}/venue/${name}.jpg`,
+    width: 1600,
+    height: 1200,
+    alt: `The ${name}`,
+    added: "2026-09-01T10:00:00Z",
+    hash: `hash-${name}`,
+    menu,
+    ratio: 1.333,
+  });
+  /** Ten venue photos, four of them for the boards: six for the strip. */
+  const venue = [
+    venuePhoto("room"),
+    venuePhoto("spritz", "drinks"),
+    venuePhoto("terrace"),
+    venuePhoto("burger", "food"),
+    venuePhoto("decks"),
+    venuePhoto("margarita", "drinks"),
+    venuePhoto("canal"),
+    venuePhoto("fries", "food"),
+    venuePhoto("gate"),
+    venuePhoto("stools"),
+  ];
+  /** A photo from an event's gallery in ops (photo-sources.ts eventPhotos). */
+  const shot = (name, added, { size = 1600, hash = `hash-${name}` } = {}) => ({
+    url: `${CDN}/events/${name}.jpg`,
+    width: size,
+    height: Math.round(size * 0.75),
+    alt: "",
+    date: "",
+    added,
+    hash,
+  });
+  const event = (id, photos, href = `/whats-on/${id}/`) => ({
+    id,
+    title: `The ${id}`,
+    href,
+    photos,
+  });
+  const name = (photo) => photo.url.replace(/^.*\/|\.jpg$/g, "");
+  const names = (photos) => photos.map(name);
+
+  const karaoke = event("karaoke", [
+    shot("k-crowd", "2026-11-08T22:00:00Z"),
+    shot("k-mic", "2026-11-08T21:00:00Z"),
+  ]);
+  const friday = event("friday", [
+    shot("f-decks", "2026-11-07T23:00:00Z"),
+    shot("f-floor", "2026-11-10T01:00:00Z"),
+  ]);
+  const quiz = event("quiz", [shot("q-table", "2026-10-02T20:00:00Z")]);
+
+  it("mixes in the newest photo of the two newest events, spread through the strip", () => {
+    const home = homePhotoPlan(venue, { events: [quiz, karaoke, friday] });
+    expect(HOME_EVENT_PHOTOS).toBe(2);
+    // Friday's newest photo is its second; the venue's keep the Gallery's order
+    expect(names(home.row)).toEqual([
+      "room",
+      "terrace",
+      "f-floor",
+      "decks",
+      "canal",
+      "gate",
+      "k-crowd",
+      "stools",
+    ]);
+    // The boards are as they were
+    expect(names(home.drinks)).toEqual(["spritz", "margarita"]);
+    expect(names(home.food)).toEqual(["burger", "fries"]);
+  });
+
+  it("says which event each of its photos is from", () => {
+    const home = homePhotoPlan(venue, { events: [karaoke, friday] });
+    const fromEvents = home.row.filter((photo) => photo.event);
+    expect(fromEvents.map((photo) => photo.event)).toEqual([
+      { id: "friday", title: "The friday", href: "/whats-on/friday/" },
+      { id: "karaoke", title: "The karaoke", href: "/whats-on/karaoke/" },
+    ]);
+    expect(home.row.filter((photo) => !photo.event)).toHaveLength(6);
+  });
+
+  it("takes one photo an event, however many it has", () => {
+    const big = event(
+      "big-night",
+      Array.from({ length: 6 }, (_, i) =>
+        shot(`b${i}`, `2026-11-09T1${i}:00:00Z`),
+      ),
+    );
+    const one = homePhotoPlan(venue, { events: [big] });
+    expect(names(one.row.filter((photo) => photo.event))).toEqual(["b5"]);
+    const two = homePhotoPlan(venue, { events: [big, quiz] });
+    expect(names(two.row.filter((photo) => photo.event))).toEqual([
+      "b5",
+      "q-table",
+    ]);
+  });
+
+  it("never shows a venue photo again, by its picture or its address", () => {
+    const copies = event("copies", [
+      // The venue's terrace, uploaded again to the event
+      shot("terrace-again", "2026-11-11T20:00:00Z", { hash: "hash-terrace" }),
+      // The venue's own asset, in the event's gallery too
+      { ...venuePhoto("gate"), hash: "", added: "2026-11-11T19:00:00Z" },
+      shot("c-own", "2026-11-01T20:00:00Z"),
+    ]);
+    const home = homePhotoPlan(venue, { events: [copies] });
+    expect(names(home.row.filter((photo) => photo.event))).toEqual(["c-own"]);
+    const shown = home.row.flatMap((photo) => [photo.url, photo.hash]);
+    expect(new Set(shown).size).toBe(shown.length);
+  });
+
+  it("never takes a photo a menu board shows: the pop-up's on the Food board", () => {
+    const popup = event("chez-pickle", [
+      shot("smash", "2026-11-11T20:00:00Z"),
+      shot("pickles", "2026-11-11T19:00:00Z"),
+      shot("queue", "2026-11-11T18:00:00Z"),
+    ]);
+    const home = homePhotoPlan(venue, {
+      kitchen: popup.photos,
+      events: [popup, karaoke],
+    });
+    expect(names(home.food)).toEqual(["smash", "pickles"]);
+    expect(names(home.row.filter((photo) => photo.event))).toEqual([
+      "queue",
+      "k-crowd",
+    ]);
+  });
+
+  it("only from the events /photos shows: one too small to show sharp is left out", () => {
+    const thumbs = event("thumbs", [
+      shot("tiny", "2026-11-11T20:00:00Z", { size: 240 }),
+    ]);
+    const home = homePhotoPlan(venue, { events: [thumbs, karaoke, quiz] });
+    expect(names(home.row.filter((photo) => photo.event))).toEqual([
+      "k-crowd",
+      "q-table",
+    ]);
+  });
+
+  it("goes on to the next newest events when the newest ones' photos are on a board", () => {
+    const events = Array.from({ length: 5 }, (_, i) =>
+      event(`e${i}`, [shot(`p${i}`, `2026-10-${10 + i}T20:00:00Z`)]),
+    );
+    const home = homePhotoPlan(venue, {
+      kitchen: [events[4].photos[0], events[3].photos[0]],
+      events,
+    });
+    expect(names(home.row.filter((photo) => photo.event))).toEqual([
+      "p2",
+      "p1",
+    ]);
+  });
+
+  it("leaves the rest of the strip to the venue's, first first", () => {
+    const many = Array.from({ length: 12 }, (_, i) => venuePhoto(`v${i}`));
+    const home = homePhotoPlan(many, { events: [karaoke, friday] });
+    expect(names(home.row)).toEqual([
+      "v0",
+      "v1",
+      "f-floor",
+      "v2",
+      "v3",
+      "v4",
+      "k-crowd",
+      "v5",
+    ]);
+    expect(home.row).toHaveLength(HOME_PHOTOS);
+  });
+
+  it("spreads them through a short strip too", () => {
+    const one = homePhotoPlan([venuePhoto("room")], {
+      events: [karaoke, friday],
+    });
+    expect(names(one.row)).toEqual(["f-floor", "room", "k-crowd"]);
+    const none = homePhotoPlan([], { events: [karaoke, friday] });
+    expect(names(none.row)).toEqual(["f-floor", "k-crowd"]);
+    const single = homePhotoPlan(venue.slice(0, 3), { events: [quiz] });
+    expect(names(single.row)).toEqual(["room", "q-table", "terrace"]);
+  });
+
+  it("is exactly as before with no photos from events", () => {
+    const before = homePhotoPlan(venue);
+    expect(homePhotoPlan(venue, { events: [] })).toEqual(before);
+    expect(homePhotoPlan(venue, { events: undefined })).toEqual(before);
+    // Events with nothing /photos would show
+    const thumbs = event("thumbs", [
+      shot("tiny", "2026-11-11T20:00:00Z", { size: 240 }),
+    ]);
+    expect(
+      homePhotoPlan(venue, { events: [event("empty", []), thumbs] }),
+    ).toEqual(before);
+  });
+
+  it("counts what /photos has that the strip doesn't", () => {
+    const home = homePhotoPlan(venue, { events: [karaoke, friday, quiz] });
+    // Ten venue photos (six in the strip) and five from events (two in it)
+    expect(home.more).toBe(10 - 6 + 5 - 2);
+    const few = homePhotoPlan([venuePhoto("room")], { events: [quiz] });
+    expect(few.more).toBe(0);
   });
 });
 

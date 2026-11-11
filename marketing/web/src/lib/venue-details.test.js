@@ -51,10 +51,26 @@ describe("venue details, in one query", () => {
     ).toMatchObject({ openingHours: null, parties: { seated: 40 } });
   });
 
+  it("asks for the gallery's photos with their assets' address and size", () => {
+    expect(VENUE_DETAILS_QUERY).toMatch(/"gallery": gallery\[\]/);
+    expect(VENUE_DETAILS_QUERY).toMatch(/asset->metadata\.dimensions\.width/);
+  });
+
+  it("passes the gallery on in its order, without what isn't a photo", () => {
+    const one = { url: "https://cdn.sanity.io/a.webp", width: 1, height: 1 };
+    const two = { url: "https://cdn.sanity.io/b.webp", width: 2, height: 1 };
+    expect(
+      readVenueDetails({ openingHours: WEEK, gallery: [two, null, one] })
+        .gallery,
+    ).toEqual([two, one]);
+    expect(readVenueDetails({ openingHours: WEEK }).gallery).toEqual([]);
+  });
+
   it("no document: nothing", () => {
     expect(readVenueDetails(null)).toEqual({
       openingHours: null,
       parties: null,
+      gallery: [],
     });
   });
 });

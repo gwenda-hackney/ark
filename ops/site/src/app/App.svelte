@@ -13,6 +13,7 @@
 	import ConfigPage from "../config/ConfigPage.svelte";
 	import UsersPage from "../users/UsersPage.svelte";
 	import VenuePage from "../venue/VenuePage.svelte";
+	import GalleryPage from "../venue/GalleryPage.svelte";
 	import WebPage from "../website/WebPage.svelte";
 	import DevToolsPage from "../website/DevToolsPage.svelte";
 	import SettingsPage from "../website/SettingsPage.svelte";
@@ -84,7 +85,11 @@
 					{:else if key === "users"}
 						<UsersPage />
 					{:else if key === "venue"}
-						<VenuePage />
+						{#if parseShellPath(current).view === "gallery"}
+							<GalleryPage />
+						{:else}
+							<VenuePage />
+						{/if}
 					{:else if key === "web"}
 						{#if parseShellPath(current).view === "dev"}
 							<DevToolsPage />

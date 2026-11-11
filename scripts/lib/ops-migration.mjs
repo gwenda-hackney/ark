@@ -1,5 +1,5 @@
 /**
- * The menu and the events, for a deploy migration (migrations/*.mjs): their
+ * The menu, the events and the venue's details, for a deploy migration (migrations/*.mjs): their
  * repositories on this environment's D1, or for a dry run on a rehearsal
  * copy (d1-rehearsal.mjs), so the migration runs the real use cases either
  * way. Every write is logged as what changed. A migration that changes an
@@ -22,6 +22,10 @@ import {
   MENU_D1_TABLES,
   d1MenuRepository,
 } from "../../ops/site/src/menu/server/adapters/d1-menu.js";
+import {
+  VENUE_D1_TABLES,
+  d1VenueRepository,
+} from "../../ops/site/src/venue/server/adapters/d1-venue.js";
 import { DEV_SANITY_PROJECT_ID, REAL_SANITY_PROJECT_ID } from "../../shared/sanity-projects.js";
 import { databaseForMigration } from "./d1-rehearsal.mjs";
 
@@ -126,9 +130,10 @@ export async function putEventOnWebsiteNow(env, id) {
 }
 
 /**
- * @returns {Promise<{ env: object }>} the `env` to hand the menu's and the
- *   events' use cases (menu-store.js, event-store.js): its repositories say
- *   where the data lives. Use cases that reach the website get this
+ * @returns {Promise<{ env: object }>} the `env` to hand the menu's, the
+ *   events' and the venue's use cases (menu-store.js, event-store.js,
+ *   venue-details.js, venue-gallery.js): its repositories say where the data
+ *   lives. Use cases that reach the website get this
  *   environment's Sanity project, whatever the shell says. A dry run has no
  *   Google service account, so nothing it runs can change the calendar or
  *   Drive; Sanity has no copy to rehearse on, so a migration must not call a
@@ -138,7 +143,7 @@ export async function opsDataForMigration({ env, d1, dryRun, log, processEnv = {
   const db = await databaseForMigration(d1("ops"), {
     env,
     role: "ops",
-    tables: [...EVENT_D1_TABLES, ...MENU_D1_TABLES],
+    tables: [...EVENT_D1_TABLES, ...MENU_D1_TABLES, ...VENUE_D1_TABLES],
     dryRun,
     log,
   });
@@ -151,6 +156,7 @@ export async function opsDataForMigration({ env, d1, dryRun, log, processEnv = {
       ...(dryRun ? { GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: "" } : {}),
       menuRepository: loggingMenuRepository(d1MenuRepository(db), say),
       eventRepository: loggingEventRepository(d1EventRepository(db), say),
+      venueRepository: d1VenueRepository(db),
     },
   };
 }
