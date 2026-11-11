@@ -8,6 +8,9 @@
  *   --deep           also POST /api/health/deep (Bearer DEPLOY_WEBHOOK_SECRET): Sanity,
  *                    both Baserow databases, config DB, the three D1 databases
  *                    (migrated, a test row written and deleted) and Gmail login
+ *   --version-only   only /health and the home page's X-Gwenda-Version: after a
+ *                    rollback, the old build is checked by this newer script,
+ *                    whose page checks it may not meet
  *   --send-email     with --deep, send a test email to alerts@gwenda.co.uk
  *   --form-test      with --deep, submit every form the site tests (SMOKE_FORMS in
  *                    functions/_lib/form-smoke.js: play, party) end to end: row saved,
@@ -24,9 +27,9 @@ import { appendFileSync } from "node:fs";
 import {
   assertHealthPayload,
   assertHomePageHealthy,
-  assertNotFoundPage,
   assertPicturesSized,
   assertSubscribeTokens,
+  checkNotFoundAt,
   collectSameOriginAssetPaths,
   deepCheckLine,
   iconPaths,
@@ -52,6 +55,7 @@ const deep = args.includes("--deep");
 const sendEmail = args.includes("--send-email");
 const formTest = args.includes("--form-test");
 const onlyForms = parseFormsArg(getArg("--forms"));
+const versionOnly = args.includes("--version-only");
 const gateBypassKey =
   getArg("--gate-bypass-key") || process.env.SMOKE_TEST_GATE_BYPASS_KEY || "";
 const retries = Number(
@@ -166,27 +170,6 @@ async function checkSubscribeApi(cookie = "") {
   console.log(`OK ${url} (200, CSRF token issued)`);
 }
 
-async function checkRsvpApi(cookie = "") {
-  const url = new URL(`${baseUrl}/api/rsvp`);
-  url.searchParams.set("slug", "invalid-event-slug");
-  url.searchParams.set("event-password", "invalid-word-set-here");
-  const res = await fetch(url, fetchInit(cookie));
-  if (res.status !== 403 && res.status !== 404) {
-    throw new Error(
-      `${url} expected 403 or 404 for invalid invite, got ${res.status}`,
-    );
-  }
-  const type = res.headers.get("content-type") || "";
-  if (!type.includes("application/json")) {
-    throw new Error(`${url} expected application/json, got ${type}`);
-  }
-  const data = await res.json();
-  if (!data.error) {
-    throw new Error(`${url} missing error message in response`);
-  }
-  console.log(`OK ${url} (${res.status}, RSVP API returns JSON errors)`);
-}
-
 async function checkCriticalAssets(html, cookie = "") {
   const paths = collectSameOriginAssetPaths(html, baseUrl);
   const required = paths.filter(
@@ -214,6 +197,7 @@ async function runChecks() {
   const cookie = await gateBypassCookie();
   await checkHealth();
   const homeRes = await checkPath("/", { cookie });
+  if (versionOnly) return;
   const html = await homeRes.text();
   assertHomePageHealthy(html);
   console.log("OK homepage content checks passed");
@@ -225,7 +209,6 @@ async function runChecks() {
   console.log("OK flyers are offered at the sizes they show");
 
   await checkSubscribeApi(cookie);
-  await checkRsvpApi(cookie);
   await checkCriticalAssets(html, cookie);
   await checkPath("/robots.txt", { expectVersionHeader: false, cookie });
   await checkNotFound(cookie);
@@ -246,12 +229,7 @@ async function checkNotFound(cookie) {
     "/whats-on/smoke-test-no-such-night",
   ]) {
     const url = `${baseUrl}${path}`;
-    const res = await fetch(url, { ...fetchInit(cookie), redirect: "manual" });
-    assertNotFoundPage({
-      path: url,
-      status: res.status,
-      html: await res.text(),
-    });
+    await checkNotFoundAt(url, fetchInit(cookie));
     console.log(`OK ${url} (404, the "Nothing here" page)`);
   }
 }

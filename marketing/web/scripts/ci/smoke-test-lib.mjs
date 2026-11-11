@@ -50,6 +50,20 @@ export function assertNotFoundPage({ path, status, html }) {
   }
 }
 
+/**
+ * Ask for a wrong address and check the answer is the "Nothing here" page
+ * with a 404. Redirects are followed: Cloudflare sends www.gwenda.co.uk to
+ * gwenda.co.uk, and the page must be there; one sent home ends on a 200, so
+ * it still fails.
+ *
+ * @param {string} url
+ * @param {RequestInit} [init]
+ */
+export async function checkNotFoundAt(url, init = {}) {
+  const res = await fetch(url, { ...init, redirect: "follow" });
+  assertNotFoundPage({ path: url, status: res.status, html: await res.text() });
+}
+
 function attribute(tag, name) {
   const match = new RegExp(`\\s${name}=(?:"([^"]*)"|'([^']*)')`, "i").exec(tag);
   return (match?.[1] ?? match?.[2] ?? "")
