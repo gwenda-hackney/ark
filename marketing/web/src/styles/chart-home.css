@@ -449,6 +449,11 @@
   margin-top: 3.5rem;
 }
 
+/* Nothing in it on any more, since the build (scripts/stand-cards.js) */
+.ch-stand-row[hidden] {
+  display: none;
+}
+
 .ch-home .ch-stand-row > .ch-stand-section {
   margin: 0;
 }
@@ -610,7 +615,8 @@
   align-content: start;
   gap: 0.5rem;
   padding-top: 1.25rem;
-  border-top: 0.25rem solid var(--ch-mustard);
+  /* The line over each is a trail, in mustard (chart-rules.css) */
+  --ch-trail-ink: var(--ch-mustard);
 }
 
 .ch-home-more-item h2 {

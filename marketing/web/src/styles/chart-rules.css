@@ -36,7 +36,8 @@
   .ch-contact-part + .ch-contact-part,
   .ch-find-walk,
   .ch-form .contact-actions,
-  .ch-footer-small
+  .ch-footer-small,
+  .ch-home-more-item
 ) {
   position: relative;
   --ch-trail-at: -3px;
@@ -58,7 +59,8 @@
   .ch-contact-part + .ch-contact-part,
   .ch-find-walk,
   .ch-form .contact-actions,
-  .ch-footer-small
+  .ch-footer-small,
+  .ch-home-more-item
 )::before,
 :is(
   .ch-menu-items li,
@@ -79,15 +81,15 @@
 }
 
 /* No two neighbours alike: three starting points, every other one turned */
-.ch-page :is(li, tr, section):nth-child(3n + 2) {
+.ch-page :is(li, tr, section, .ch-home-more-item):nth-child(3n + 2) {
   --ch-trail-x: -131px;
 }
 
-.ch-page :is(li, tr, section):nth-child(3n) {
+.ch-page :is(li, tr, section, .ch-home-more-item):nth-child(3n) {
   --ch-trail-x: -253px;
 }
 
-.ch-page :is(li, tr, section):nth-child(even) {
+.ch-page :is(li, tr, section, .ch-home-more-item):nth-child(even) {
   --ch-trail-flip: -1;
 }
 

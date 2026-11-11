@@ -524,6 +524,11 @@
   grid-template-columns: minmax(0, 46rem);
 }
 
+/* A card whose last night has passed since the build (scripts/stand-cards.js) */
+.ch-stand[hidden] {
+  display: none;
+}
+
 /* The pictures are one height, each as wide as its own shape (--shape) */
 .ch-stand {
   --stand-h: 15rem;

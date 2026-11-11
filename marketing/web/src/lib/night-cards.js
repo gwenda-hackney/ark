@@ -49,14 +49,22 @@ export function nightLabel(dateIso, todayIso, endIso = dateIso) {
 }
 
 /**
- * Home's "This week": the days left in the week at the bar (Monday to
- * Sunday, London time), today and Sunday too. All seven on a Monday; on a
- * Sunday, only that Sunday. For nightsToShow's `days`.
+ * Home's nights: which days (for nightsToShow's `days`, today the first) and
+ * what they're called. Weeks at the bar run Monday to Sunday, London time.
+ * Monday to Friday, the rest of this week, to its Sunday: "This week". At
+ * the weekend, next week too, to its Sunday: "This weekend and next week" on
+ * a Saturday, "Today and next week" on a Sunday. Built into the page and
+ * worked out again in the browser on the visitor's day.
  *
  * @param {string} todayIso
+ * @returns {{ days: number, label: string }}
  */
-export function thisWeekDays(todayIso) {
-  return 7 - daysAway(todayIso, weekStart(todayIso));
+export function homeWeek(todayIso) {
+  /** Today to this Sunday: 7 on a Monday, 1 on a Sunday. */
+  const left = 7 - daysAway(todayIso, weekStart(todayIso));
+  if (left === 2) return { days: 9, label: "This weekend and next week" };
+  if (left === 1) return { days: 8, label: "Today and next week" };
+  return { days: left, label: "This week" };
 }
 
 /**
@@ -71,7 +79,7 @@ export function thisWeekDays(todayIso) {
  * @param {Array<string | undefined>} [ends] each one's last day, when it
  *   runs past its date
  * @param {number} [days] only nights starting in this many days from today
- *   (today is the first; thisWeekDays); every one to come when left out
+ *   (today is the first; homeWeek); every one to come when left out
  */
 export function nightsToShow(
   dates,

@@ -2,8 +2,8 @@ import { londonToday } from "../lib/london-day.js";
 import {
   LEAD_NIGHT_SIZES,
   nightLabel,
+  homeWeek,
   nightsToShow,
-  thisWeekDays,
   weekLabel,
 } from "../lib/night-cards.js";
 
@@ -14,9 +14,10 @@ import {
  * that leads now is shown big, so its picture is asked for at that size
  * (the img's `sizes`; its size in a row is kept in data-row-sizes). An event
  * over several days (data-night-end) stays until its last. Where only this
- * week's show (data-this-week, home's: today to Sunday, on the visitor's
- * day, not the build's), next week's spare cards stay hidden until its
- * Monday, and the empty line shows if none is on. Where they
+ * week's show (data-this-week, home's; homeWeek, on the visitor's day, not
+ * the build's), next week's spare cards stay hidden until its weekend, the
+ * subheading over them (data-this-week-label) says which days it is, and
+ * the empty line shows if none is on. Where they
  * are under weeks, each week is named again too (This week, Next week), and
  * a week with no night left goes.
  *
@@ -24,6 +25,10 @@ import {
  */
 export function initNightCards(now = new Date()) {
   const today = londonToday(now);
+  const week = homeWeek(today);
+  for (const label of document.querySelectorAll("[data-this-week-label]")) {
+    if (label.textContent !== week.label) label.textContent = week.label;
+  }
   for (const list of document.querySelectorAll("[data-night-cards]")) {
     const nights = [...list.querySelectorAll("[data-night]")];
     const shown = nightsToShow(
@@ -31,7 +36,7 @@ export function initNightCards(now = new Date()) {
       today,
       Number(list.dataset.shown) || Infinity,
       nights.map((night) => night.dataset.nightEnd),
-      "thisWeek" in list.dataset ? thisWeekDays(today) : Infinity,
+      "thisWeek" in list.dataset ? week.days : Infinity,
     );
 
     nights.forEach((night, index) => {

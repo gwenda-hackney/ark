@@ -29,6 +29,7 @@ import { homeStandRow } from "../../lib/home-stands.js";
 import { frameRatio, standSizes } from "../../lib/night-cards.js";
 import { popupKitchens } from "../../lib/popup-kitchen.js";
 import { promotionDeals } from "../../lib/promotions.js";
+import { standWhen } from "../../lib/stand-when.js";
 import type { Event, EventSeries } from "../../types/events";
 import type { MenuSection } from "../../types/menu";
 
@@ -71,6 +72,17 @@ function whenLine(
     .join(", ");
 }
 
+/**
+ * The card's line over its coming nights, and its last night, for the page
+ * to bring it up to the visitor's day (lib/stand-when.js,
+ * scripts/stand-cards.js).
+ */
+function turnover(kind: "deal" | "popup", id: string) {
+  const row = series.find((item) => item.seriesId === id);
+  const { timeline, last } = standWhen(kind, row, occurrences, today, whenLine);
+  return { timeline: JSON.stringify(timeline), last };
+}
+
 function picture(photo: string, photoPosition: string) {
   const whole = isWholeFit(photo);
   return {
@@ -108,6 +120,7 @@ const kitchens = popupKitchens(series, occurrences, chapters, today).map(
       id: kitchen.id,
       title: kitchen.title,
       when: whenLine(kitchen.when, kitchen),
+      turnover: turnover("popup", kitchen.id),
       note: kitchen.note || fallback?.line || "",
       offer: "",
       href: kitchen.href,
@@ -138,6 +151,7 @@ const deals =
         id: deal.id,
         title: deal.title,
         when: whenLine(deal.days, deal),
+        turnover: turnover("deal", deal.id),
         note: deal.note,
         offer: deal.offer,
         href: deal.href,
@@ -198,6 +212,8 @@ const alone = (section: { cards: unknown[] }) =>
             <li
               class:list={["ch-stand", `ch-stand--${card.kind}`]}
               style={`--shape: ${card.ratio}`}
+              data-stand-when={card.turnover.timeline}
+              data-stand-last={card.turnover.last}
             >
               <span
                 class:list={[
@@ -243,7 +259,13 @@ const alone = (section: { cards: unknown[] }) =>
                     {card.title}
                   </a>
                 </Name>
-                {card.when && <p class="ch-night-time">{card.when}</p>}
+                <p
+                  class="ch-night-time"
+                  data-stand-when-line
+                  hidden={!card.when}
+                >
+                  {card.when}
+                </p>
                 {card.note && <p class="ch-night-note">{card.note}</p>}
                 {card.offer && <p class="ch-night-offer">{card.offer}</p>}
                 {card.links.length > 0 && (
@@ -276,3 +298,9 @@ const alone = (section: { cards: unknown[] }) =>
     ))
   }
 </Row>
+
+<script>
+  import { initStandCards } from "../../scripts/stand-cards.js";
+  initStandCards();
+  document.addEventListener("astro:page-load", () => initStandCards());
+</script>
