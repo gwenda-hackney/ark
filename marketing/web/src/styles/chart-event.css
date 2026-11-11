@@ -1,0 +1,448 @@
+/*
+ * An event's own page (#240), /whats-on/<series>: what a night card, a deal
+ * or the pop-up kitchen leads to (lib/event-page.js fills it in). The flyer
+ * whole on one side, in the cards' frame with the date or the tag stuck on
+ * its corner; what it is, when and the words on the other; then the days or
+ * the dates to come, and its photos. The stickers, the handwritten time and
+ * the frame are the night cards' own (chart-nights.css); this is only where
+ * they sit on the page.
+ */
+.ch-event {
+  max-width: 64rem;
+}
+
+.ch-event-back {
+  margin: 0 0 1.5rem;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ch-page .ch-event-back a {
+  color: var(--ch-ink-2);
+  transition: color 0.2s ease;
+}
+
+.ch-page .ch-event-back a:hover,
+.ch-page .ch-event-back a:focus-visible {
+  color: var(--ch-mustard);
+}
+
+.ch-event-head {
+  display: block;
+  margin-bottom: 3rem;
+}
+
+/* When it comes round, over the title */
+.ch-event-kicker {
+  margin: 0 0 0.5rem;
+  font-size: 0.9375rem;
+  color: var(--ch-mustard);
+}
+
+.ch-event-kicker:empty {
+  display: none;
+}
+
+/* The flyer beside the words */
+.ch-event-top {
+  display: grid;
+  grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  gap: 3rem;
+  align-items: start;
+}
+
+/* A flyer wider than it is tall goes above them */
+.ch-event-top--wide {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+}
+
+.ch-event-top--wide .ch-event-flyer {
+  max-width: 44rem;
+}
+
+.ch-event-flyer {
+  margin: 0;
+}
+
+.ch-event-photo img {
+  transition: filter 0.25s ease;
+}
+
+a.ch-event-photo:hover img,
+a.ch-event-photo:focus-visible img {
+  filter: brightness(1.08);
+}
+
+a.ch-event-photo:focus-visible {
+  outline: 2px solid var(--ch-mustard);
+  outline-offset: 3px;
+}
+
+/* The corner sticker at the page's size: the big card's */
+.ch-event-flyer .ch-night-date {
+  min-width: 4.75rem;
+  padding: 0.5rem 0.75rem 0.625rem;
+  font-size: 1.125rem;
+}
+
+.ch-event-flyer .ch-night-date b {
+  font-size: 2.75rem;
+}
+
+.ch-event-flyer .ch-stand-tag {
+  font-size: 1.25rem;
+}
+
+.ch-event-info {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ch-event-info > *,
+.ch-event-day-body > * {
+  margin: 0;
+}
+
+.ch-event .ch-night-label {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+}
+
+.ch-event-info .ch-night-time {
+  font-size: 2.5rem;
+  white-space: normal;
+  text-wrap: balance;
+}
+
+.ch-event-info .ch-night-offer {
+  margin-top: 0.125rem;
+  font-size: 1.125rem;
+}
+
+.ch-event-guest {
+  font-size: 1.25rem;
+  color: var(--ch-cream);
+}
+
+.ch-page .ch-event-guest a,
+.ch-page .ch-event-words a,
+.ch-page .ch-event-link,
+.ch-page .ch-event-date--instead a {
+  color: var(--ch-mustard);
+  border-bottom: 1.5px solid currentcolor;
+  transition: color 0.2s ease;
+}
+
+.ch-page .ch-event-guest a:hover,
+.ch-page .ch-event-guest a:focus-visible,
+.ch-page .ch-event-words a:hover,
+.ch-page .ch-event-words a:focus-visible,
+.ch-page .ch-event-link:hover,
+.ch-page .ch-event-link:focus-visible,
+.ch-page .ch-event-date--instead a:hover,
+.ch-page .ch-event-date--instead a:focus-visible {
+  color: var(--ch-cream);
+}
+
+/* What's on through the night: Open decks 4pm–10pm */
+.ch-event-slots {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.125rem;
+  font-size: 1.125rem;
+}
+
+.ch-event-slots li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
+.ch-event-slot-name {
+  color: var(--ch-cream);
+  font-weight: 500;
+}
+
+.ch-event-slot-time {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  color: var(--ch-mustard);
+}
+
+/* The words: plain text at a width that reads */
+.ch-event-words {
+  max-width: 38rem;
+  margin-top: 0.5rem;
+  font-size: 1.1875rem;
+  line-height: 1.55;
+  color: var(--ch-ink);
+  overflow-wrap: anywhere;
+}
+
+.ch-event-words > * {
+  margin: 0;
+}
+
+.ch-event-words > * + * {
+  margin-top: 0.875rem;
+}
+
+.ch-event-words strong {
+  font-weight: 700;
+  color: var(--ch-cream);
+}
+
+.ch-event-words ul {
+  padding-left: 1.25rem;
+}
+
+.ch-event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  margin-top: 1rem;
+}
+
+.ch-event-link {
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding-bottom: 0.0625rem;
+}
+
+/* Under the top: the days, the dates to come, the photos */
+.ch-event-section {
+  margin-top: 4.5rem;
+}
+
+.ch-event-section > .ch-poster {
+  width: fit-content;
+  margin-bottom: 2.25rem;
+}
+
+.ch-event-days,
+.ch-event-dates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A day of an event that runs over several: its date, then what's on */
+.ch-event-days {
+  display: grid;
+  gap: 2.5rem;
+}
+
+.ch-event-day {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* The date here stands in the row, not on a photo's corner */
+.ch-event-day .ch-night-date {
+  position: relative;
+  top: 0;
+  left: 0;
+  min-width: 4.25rem;
+  font-size: 1rem;
+}
+
+.ch-event-day .ch-night-date b {
+  font-size: 2.375rem;
+}
+
+.ch-event-day:nth-child(even) .ch-night-date {
+  --tilt: 3deg;
+  --cut: var(--cut-b);
+}
+
+.ch-event-day-body {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ch-event-day .ch-night-name {
+  font-size: 1.625rem;
+}
+
+.ch-event-day .ch-night-time {
+  font-size: 2.125rem;
+  white-space: normal;
+}
+
+.ch-event-day .ch-event-words {
+  margin-top: 0;
+}
+
+.ch-event-day-flyer {
+  width: 11rem;
+  margin: 0;
+}
+
+/* The dates to come: a column or two of days, in the hand */
+.ch-event-dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.375rem 2.5rem;
+  max-width: 44rem;
+}
+
+.ch-event-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+  padding: 0.375rem 0;
+  font-size: 1.0625rem;
+  color: var(--ch-ink-2);
+}
+
+.ch-event-date time {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  color: var(--ch-cream);
+  white-space: nowrap;
+}
+
+.ch-event-date-time {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  color: var(--ch-mustard);
+  white-space: nowrap;
+}
+
+.ch-event-date--instead {
+  grid-column: 1 / -1;
+}
+
+/* No dates yet */
+.ch-event-pending {
+  margin-top: 2.5rem;
+  font-size: 1.25rem;
+  color: var(--ch-ink-2);
+}
+
+.ch-event-pending h2 {
+  margin: 0 0 0.5rem;
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: 1.625rem;
+  line-height: 1.1;
+  color: var(--ch-cream);
+}
+
+.ch-event-pending p {
+  margin: 0;
+}
+
+.ch-page .ch-event-pending a {
+  color: var(--ch-mustard);
+  border-bottom: 1.5px solid currentcolor;
+}
+
+/* Show all the photos: a plain button in the theme, not the old pill */
+.ch-page .series-gallery-more {
+  margin-top: 1.75rem;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid rgb(201 162 74 / 0.8);
+  border-radius: 0.375rem 0.625rem 0.3125rem 0.5625rem;
+  color: var(--ch-gold);
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ch-page .series-gallery-more:hover,
+.ch-page .series-gallery-more:focus-visible {
+  border-color: var(--ch-gold);
+  color: var(--ch-ink);
+}
+
+.ch-event-foot {
+  margin: 4.5rem 0 0;
+}
+
+@media (max-width: 64rem) {
+  .ch-event-top {
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  .ch-event-top--wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* On a phone: the flyer, then the words under it */
+@media (max-width: 48rem) {
+  .ch-event-head {
+    margin-bottom: 2.5rem;
+  }
+
+  /* No flyer: the logo in a shorter frame, so the words come sooner */
+  .ch-event-photo--mark {
+    aspect-ratio: 4 / 3;
+  }
+
+  .ch-event-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
+  }
+
+  .ch-event-flyer {
+    max-width: 26rem;
+  }
+
+  .ch-event-info .ch-night-time {
+    font-size: 2.125rem;
+  }
+
+  .ch-event-section {
+    margin-top: 3.5rem;
+  }
+
+  .ch-event-day {
+    grid-template-columns: 4.25rem minmax(0, 1fr);
+    gap: 1.125rem;
+  }
+
+  .ch-event-day .ch-night-date {
+    min-width: 3.75rem;
+    font-size: 0.875rem;
+  }
+
+  .ch-event-day .ch-night-date b {
+    font-size: 2rem;
+  }
+
+  .ch-event-day-flyer {
+    grid-column: 2;
+  }
+
+  .ch-event-foot {
+    margin-top: 3.5rem;
+  }
+}

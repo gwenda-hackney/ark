@@ -1,0 +1,235 @@
+---
+/**
+ * The deals and the pop-up kitchen (#240), each a section of its own: a
+ * heading, then cards in the family of the night cards: the picture in a
+ * frame with a tag stuck on its corner where a night has its date ("Deal",
+ * "Pop-up kitchen"), the name, when it runs, a line. The whole card leads
+ * to its own page on What's on, deal and pop-up alike; a pop-up's small
+ * links go on to its menu and to the cooks themselves. A
+ * promotion or a pop-up kitchen is a series ops marks as one
+ * (lib/promotions.js, lib/popup-kitchen.js); What's on leaves their nights
+ * out. A section with nothing in it isn't there at all.
+ */
+import { Image } from "astro:assets";
+import "../../styles/chart-nights.css";
+import { siteConfig } from "../../config/site";
+import { chartFlag, guestChefLogo } from "../../lib/chart-assets";
+import { formatEventSpan } from "../../data/events";
+import { sizedImageUrl, tinyImageUrl } from "../../lib/event-card.js";
+import { isWholeFit } from "../../../functions/_lib/sanity-image-url.js";
+import { londonToday } from "../../lib/london-day.js";
+import { frameRatio } from "../../lib/night-cards.js";
+import { popupKitchens } from "../../lib/popup-kitchen.js";
+import { promotionDeals } from "../../lib/promotions.js";
+import type { Event, EventSeries } from "../../types/events";
+import type { MenuSection } from "../../types/menu";
+
+interface Props {
+  series: EventSeries[];
+  occurrences: Event[];
+  /** The kitchen menu's chapters: a pop-up's "See the menu" goes to its own. */
+  chapters?: MenuSection[];
+  /** Which sections: both, or the pop-up kitchen alone (the food page). */
+  show?: "all" | "popup";
+  /** Each section under its heading ("Deals", "Pop-up kitchen"). */
+  headed?: boolean;
+  /** On home: sections among home's own, at their width. */
+  home?: boolean;
+  /** Above what follows rather than under what came before. */
+  top?: boolean;
+}
+
+const {
+  series,
+  occurrences,
+  chapters = [],
+  show = "all",
+  headed = true,
+  home = false,
+  top = false,
+} = Astro.props;
+const today = londonToday();
+
+/** One clock for both: "Wed to Sat, 5pm–7pm". */
+function whenLine(
+  days: string,
+  row: { startTime: string; endTime: string; time: string },
+) {
+  return [days, formatEventSpan(row.startTime, row.endTime, row.time)]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function picture(photo: string, photoPosition: string) {
+  const whole = isWholeFit(photo);
+  return {
+    photo: sizedImageUrl(photo, 640),
+    photoLarge: sizedImageUrl(photo, 1280),
+    photoPosition,
+    /** Ops says show the whole image (#27): a flyer, never cropped. */
+    whole,
+    /** A flyer shown whole gets a frame its own shape: no strips, no crop. */
+    ratio: frameRatio(photo, whole),
+    placeholder: tinyImageUrl(photo),
+  };
+}
+
+/**
+ * Until ops holds a pop-up's line and link, the guest chef named in the
+ * site's settings fills them in (config/site.ts), for that chef only. Their
+ * mark is our own sharp copy, ahead of the series' picture.
+ */
+function guestFallback(title: string) {
+  const { guestChef } = siteConfig;
+  const same =
+    title.trim().toLowerCase() === guestChef.name.trim().toLowerCase();
+  return same ? { ...guestChef, logo: guestChefLogo } : null;
+}
+
+const kitchens = popupKitchens(series, occurrences, chapters, today).map(
+  (kitchen) => {
+    const fallback = guestFallback(kitchen.title);
+    const page = kitchen.pageUrl || fallback?.instagram || "";
+    return {
+      kind: "popup",
+      tag: "Pop-up kitchen",
+      id: kitchen.id,
+      title: kitchen.title,
+      when: whenLine(kitchen.when, kitchen),
+      note: kitchen.note || fallback?.line || "",
+      offer: "",
+      href: kitchen.href,
+      ...picture(fallback ? "" : kitchen.photo, kitchen.photoPosition),
+      logo: fallback?.logo ?? null,
+      links: [
+        { href: kitchen.menuHref, text: "See the menu →", external: false },
+        ...(page
+          ? [
+              {
+                href: page,
+                text: /instagram\.com/i.test(page) ? "Instagram" : "Their page",
+                external: true,
+              },
+            ]
+          : []),
+      ],
+    };
+  },
+);
+
+const deals =
+  show === "popup"
+    ? []
+    : promotionDeals(series, occurrences, today).map((deal) => ({
+        kind: "deal",
+        tag: "Deal",
+        id: deal.id,
+        title: deal.title,
+        when: whenLine(deal.days, deal),
+        note: deal.note,
+        offer: deal.offer,
+        href: deal.href,
+        ...picture(deal.photo, deal.photoPosition),
+        logo: null,
+        links: [],
+      }));
+
+const sections = [
+  { id: "deals", title: "Deals", cards: deals },
+  { id: "pop-up-kitchen", title: "Pop-up kitchen", cards: kitchens },
+].filter((section) => section.cards.length > 0);
+---
+
+{
+  sections.map((section) => (
+    <section
+      class:list={[
+        "ch-stand-section",
+        home && "ch-home-section",
+        top && "ch-stand-section--top",
+      ]}
+      id={section.id}
+    >
+      {headed && (
+        <header class="ch-home-head">
+          <h2 class="ch-poster">{section.title}</h2>
+        </header>
+      )}
+      <ul
+        class:list={[
+          "ch-stands",
+          section.cards.length === 1 && "ch-stands--one",
+        ]}
+      >
+        {section.cards.map((card) => (
+          <li
+            class:list={["ch-stand", `ch-stand--${card.kind}`]}
+            style={`--shape: ${card.ratio}`}
+          >
+            <span
+              class:list={[
+                "ch-night-photo",
+                card.whole && "ch-night-photo--whole",
+                card.logo && "ch-stand-photo--logo",
+              ]}
+              style={
+                card.whole && card.placeholder
+                  ? `--placeholder: url("${card.placeholder}")`
+                  : undefined
+              }
+            >
+              {card.photo && (
+                <img
+                  src={card.photo}
+                  srcset={`${card.photo} 640w, ${card.photoLarge} 1280w`}
+                  sizes="(min-width: 40rem) 15rem, 7.5rem"
+                  alt=""
+                  loading="lazy"
+                  style={
+                    card.photoPosition
+                      ? `object-position: ${card.photoPosition}`
+                      : undefined
+                  }
+                />
+              )}
+              {!card.photo && card.logo && (
+                <Image {...card.logo} width={340} alt="" />
+              )}
+              {!card.photo && !card.logo && (
+                <Image {...chartFlag} alt="" class="ch-night-mark" />
+              )}
+              <span class="ch-stand-tag">{card.tag}</span>
+            </span>
+            <div class="ch-stand-body">
+              <h3 class="ch-stand-name">
+                <a href={card.href} class="ch-stand-link">
+                  {card.title}
+                </a>
+              </h3>
+              {card.when && <p class="ch-night-time">{card.when}</p>}
+              {card.note && <p class="ch-night-note">{card.note}</p>}
+              {card.offer && <p class="ch-night-offer">{card.offer}</p>}
+              {card.links.length > 0 && (
+                <p class="ch-stand-links">
+                  {card.links.map((link) =>
+                    link.external ? (
+                      <a
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {link.text}
+                      </a>
+                    ) : (
+                      <a href={link.href}>{link.text}</a>
+                    ),
+                  )}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))
+}

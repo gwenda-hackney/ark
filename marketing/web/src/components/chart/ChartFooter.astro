@@ -19,9 +19,13 @@ const year = new Date().getFullYear();
       <a href={social.instagram} target="_blank" rel="noopener noreferrer"
         >Instagram</a
       >
+      <a href="/about">About</a>
+      <a href="/contact">Contact</a>
       <a href="/join-list">{siteConfig.copy.signupHeading}</a>
       <a href="/privacy">Privacy</a>
     </nav>
-    <span class="ch-caps">© {year} {siteConfig.name}</span>
+    <span class="ch-caps"
+      >© {year} {siteConfig.name} {siteConfig.copy.social}</span
+    >
   </div>
 </footer>

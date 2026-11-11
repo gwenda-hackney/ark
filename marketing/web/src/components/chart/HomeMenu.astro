@@ -1,0 +1,112 @@
+---
+/**
+ * Home's menu (#240): drinks and food side by side. Each side lists a few
+ * things from its first chapter with their prices, then the rest of that
+ * menu by name with what it starts from (lib/home-menu.js). A side with
+ * nothing on it yet keeps its line.
+ */
+import { Image } from "astro:assets";
+import { menuChapters } from "../../data/menu";
+import { homeFoodPhoto } from "../../lib/chart-assets";
+import { menuTaste } from "../../lib/home-menu.js";
+import { fetchMenu } from "../../lib/sanity/menu";
+
+const menu = await fetchMenu().catch(() => ({ sections: [] }));
+
+const sides = [
+  {
+    key: "drinks",
+    title: "Drinks",
+    href: "/bar",
+    link: "All the drinks",
+    line: "Our own cocktails, the classics, cold beer, and a few with no booze in.",
+    taste: menuTaste(menuChapters(menu, "bar")),
+    photo: null,
+  },
+  {
+    key: "food",
+    title: "Food",
+    href: "/kitchen",
+    link: "All the food",
+    line: "Burgers, fries and dips. Proper food to go with a drink.",
+    taste: menuTaste(menuChapters(menu, "kitchen")),
+    photo: homeFoodPhoto,
+  },
+];
+---
+
+<section class="ch-home-section ch-home-menu" id="menu">
+  <header class="ch-home-head">
+    <h2 class="ch-poster">On the menu</h2>
+    <p class="ch-home-head-note">What we’re pouring and what’s cooking.</p>
+  </header>
+
+  <div class="ch-menu-sides">
+    {
+      sides.map((side) => (
+        <article class:list={["ch-menu-side", `ch-menu-side--${side.key}`]}>
+          <header class="ch-menu-side-head">
+            <h3>
+              <a href={side.href}>{side.title}</a>
+            </h3>
+            <p>{side.line}</p>
+          </header>
+
+          {side.taste ? (
+            <>
+              <h4 class="ch-menu-chapter">{side.taste.lead.title}</h4>
+              <ul class="ch-menu-items">
+                {side.taste.lead.items.map((item) => (
+                  <li>
+                    <span class="ch-menu-item-line">
+                      <span class="ch-menu-item-name">{item.name}</span>
+                      {item.price && (
+                        <span class="ch-menu-item-price">{item.price}</span>
+                      )}
+                    </span>
+                    {item.description && (
+                      <span class="ch-menu-item-desc">{item.description}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {side.taste.lead.total > side.taste.lead.items.length && (
+                <a
+                  href={`${side.href}#${side.taste.lead.id}`}
+                  class="ch-menu-rest"
+                >
+                  and {side.taste.lead.total - side.taste.lead.items.length}{" "}
+                  more →
+                </a>
+              )}
+              {side.taste.more.length > 0 && (
+                <ul class="ch-menu-more">
+                  {side.taste.more.map((part) => (
+                    <li>
+                      <a href={`${side.href}#${part.id}`}>
+                        <span>{part.title}</span>
+                        {part.from && <span>from {part.from}</span>}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <p class="ch-menu-soon">The list’s on its way.</p>
+          )}
+
+          {side.photo && (
+            <span class="ch-menu-photo">
+              <Image {...side.photo} alt="" loading="lazy" />
+            </span>
+          )}
+
+          <a href={side.href} class="ch-btn">
+            {side.link}
+          </a>
+        </article>
+      ))
+    }
+  </div>
+</section>

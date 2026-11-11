@@ -5,9 +5,9 @@ export const siteConfig = {
   openingRoman: "MMXXVI",
   menuAntiquated: "Tabula",
   /** Public venue type — titles, SEO, listings. See docs/brand-brief.md § Public naming */
-  publicLabel: "Ristobar",
+  publicLabel: "Social",
   description:
-    "A canalside ristobar in Hackney Wick. Craft cocktails, Italian small plates, art, and vinyl on the decks.",
+    "A social on the canal in Hackney Wick. Something on most nights, drinks, food, and records on the decks.",
   features: {
     showMenu: false,
     /** Off during promo — cocktail images are placeholders (AI-generated) */
@@ -16,7 +16,7 @@ export const siteConfig = {
     revealDrinkNames: false,
   },
   /** SEO & link previews — WhatsApp, iMessage, Slack, X, Google snippets */
-  seoTitle: "Gwenda | Hackney Wick, London",
+  seoTitle: "Gwenda Social | Hackney Wick, London",
   /**
    * Per-page titles and meta descriptions for organic search.
    * Unique copy helps Google build sitelinks (Events, Menu, etc.) under the main result.
@@ -24,14 +24,14 @@ export const siteConfig = {
    */
   seo: {
     home: {
-      title: "Gwenda | Hackney Wick, London",
+      title: "Gwenda Social | Hackney Wick, London",
       description:
-        "A canalside ristobar in Hackney Wick. Craft cocktails, Italian small plates, art, and vinyl on the decks.",
+        "A social on the canal in Hackney Wick. Something on most nights, drinks, food, and records on the decks.",
     },
     whatsOn: {
       title: "What's on · Gwenda",
       description:
-        "Nights at Gwenda. Residencies, live music, and canalside gatherings in Hackney Wick.",
+        "What’s on at Gwenda in Hackney Wick: DJs, bands, chess, and the odd party by the canal.",
     },
     schedule: {
       title: "Schedule · Gwenda",
@@ -41,7 +41,7 @@ export const siteConfig = {
     menu: {
       title: "Menu · Gwenda",
       description:
-        "Craft cocktails, Italian small plates, and natural wine. The list at Gwenda, Hackney Wick.",
+        "Drinks and food at Gwenda, Hackney Wick: our own cocktails, the classics, cold beer, and what’s cooking.",
     },
     privacy: {
       title: "Privacy · Gwenda",
@@ -55,7 +55,7 @@ export const siteConfig = {
     artists: {
       title: "Featured artist · Gwenda",
       description:
-        "We collaborate with local artists and give them the wall at Gwenda, a canalside ristobar in Hackney Wick.",
+        "We collaborate with local artists and give them the wall at Gwenda, a social on the canal in Hackney Wick.",
     },
     acknowledgements: {
       title: "Acknowledgements · Gwenda",
@@ -70,18 +70,18 @@ export const siteConfig = {
   },
   /** Topics for schema.org knowsAbout (helps Google associate the venue). */
   seoTopics: [
-    "Hackney Wick ristobar",
-    "craft cocktails London",
-    "Italian small plates",
+    "Hackney Wick social",
+    "what's on in Hackney Wick",
+    "cocktails and beer in Hackney Wick",
     "canalside bar Hackney Wick",
     "vinyl and art",
   ],
   social: {
     instagram: "https://www.instagram.com/gwendahackney",
     tiktok: "",
-    shareTitle: "Gwenda | Hackney Wick, London",
+    shareTitle: "Gwenda Social | Hackney Wick, London",
     shareDescription:
-      "A canalside ristobar in Hackney Wick. Craft cocktails, Italian small plates, art and vinyl.",
+      "A social on the canal in Hackney Wick. Something on most nights, drinks, food, and records on the decks.",
     imageAlt: "Gwenda on the Hackney Wick canal.",
   },
   location: {
@@ -101,6 +101,12 @@ export const siteConfig = {
   contact: {
     email: "hello@gwenda.co.uk",
   },
+  /** Who's cooking: the guest chef in the kitchen, named on home's food side. */
+  guestChef: {
+    name: "Chez Pickle",
+    line: "Chez Pickle are in the kitchen: smashed burgers, fries, and a lot of dips.",
+    instagram: "https://www.instagram.com/chezpickle",
+  },
   /** Stable paths in public/ — synced from src/assets (see generate:brand-assets). */
   brand: {
     faviconPath: "/favicon.ico",
@@ -114,19 +120,23 @@ export const siteConfig = {
   },
   copy: {
     descriptionPromo:
-      "A canalside ristobar in Hackney Wick. Craft cocktails, Italian small plates, art and vinyl.",
+      "A social on the canal in Hackney Wick. Something on most nights, drinks, food, and records on the decks.",
     heroCta: "Enter our world",
+    /** Under the logo on home (#240): what it is, said plainly */
+    /** What Gwenda is, in one word: stamped under the logo, and in the menu panel and the foot */
+    social: "Social",
+    heroLine: "Drinks, food, and something on most nights.",
     bookingCta: "Book a table",
     storyHeading: "Behind the Doors",
     storyLead:
-      "Canalside in Hackney Wick. Craft cocktails, Italian small plates, art, and vinyl on the decks.",
+      "On the canal in Hackney Wick. Drinks, food, and records on the decks.",
     storyBodyPromo: [
-      "Italian small plates, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
+      "Our own cocktails, the classics, cold beer, and food from the kitchen.",
     ],
     storyClosingPromo:
       "Who is Gwenda? We can't say. Come experience for yourself.",
     storyBody: [
-      "Italian small plates, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
+      "Our own cocktails, the classics, cold beer, and food from the kitchen.",
     ],
     storyClosing: "Who is Gwenda? We can't say. Come experience for yourself.",
     teamHeading: "Who we are",
@@ -210,13 +220,16 @@ export const siteConfig = {
       playHeading: "Play at Gwenda",
       playLead:
         "Got records? Got a band? Got a mate who won’t shut up about their mixes? We want this place to sound like Hackney Wick, so come and play. Tell us what you’d bring.",
-      /** More on the call, under the lead on home (#240) */
-      playMore: [
-        "This is meant to be the Wick’s room, not ours. DJs, bands, singers, poets, comedians, whoever. If you make something and need a room to do it in, we want to hear from you.",
-        "Painters, photographers, illustrators: the wall’s yours. Local artists take it over, and the work stays up in the room.",
-        "First gig or fiftieth, doesn’t matter. Send us a link, a few words, whatever you’ve got.",
-      ],
       playCta: "Apply to play",
+      /** The top of the play form's own page, beside the decks. */
+      playIntro: {
+        lead: "This place is only as good as who’s on the decks, and we want that to be you lot.",
+        body: "Selectors, bands, crews, the ones who’ve played everywhere and the ones who’ve never played out. Vinyl nights, live sets, listening sessions, something weird we haven’t thought of.",
+        /** Handwritten, pointing down at the form. */
+        cue: "Fill this in, we’ll get back to you",
+      },
+      /** Written on the border of the decks photo, wherever it is pinned up. */
+      playPhotoNote: "Your turn.",
     },
   },
 } as const;

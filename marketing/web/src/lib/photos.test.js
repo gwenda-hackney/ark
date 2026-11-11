@@ -1,0 +1,145 @@
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import {
+  HOME_PHOTOS,
+  addPhoto,
+  homePhotos,
+  listPhotos,
+  photoSlug,
+} from "./photos.js";
+
+const image = (width, height) => ({ src: `/x-${width}.webp`, width, height });
+
+describe("listPhotos", () => {
+  const files = {
+    "gallery/a.webp": image(1200, 1600),
+    "gallery/b.jpg": image(240, 240),
+    "story/c.png": image(1448, 1086),
+  };
+
+  it("keeps the list's order and works out each photo's shape", () => {
+    const photos = listPhotos(
+      [
+        { file: "story/c.png", alt: "The room" },
+        { file: "gallery/a.webp", alt: "A burger", link: "https://x.test/p" },
+      ],
+      files,
+    );
+    expect(photos.map((photo) => photo.file)).toEqual([
+      "story/c.png",
+      "gallery/a.webp",
+    ]);
+    expect(photos[0]).toMatchObject({ alt: "The room", ratio: 1.333 });
+    expect(photos[1]).toMatchObject({ ratio: 0.75, link: "https://x.test/p" });
+    expect(photos[1].image).toBe(files["gallery/a.webp"]);
+  });
+
+  it("leaves out a missing file instead of breaking the page", () => {
+    const photos = listPhotos(
+      [
+        { file: "gallery/gone.webp", alt: "Gone" },
+        { file: "gallery/b.jpg", alt: "Here" },
+        {},
+      ],
+      files,
+    );
+    expect(photos.map((photo) => photo.file)).toEqual(["gallery/b.jpg"]);
+  });
+
+  it("shows a file listed twice once", () => {
+    const photos = listPhotos(
+      [
+        { file: "gallery/b.jpg", alt: "First" },
+        { file: "gallery/b.jpg", alt: "Again" },
+      ],
+      files,
+    );
+    expect(photos).toHaveLength(1);
+    expect(photos[0].alt).toBe("First");
+  });
+
+  it("is empty for no list", () => {
+    expect(listPhotos(undefined, files)).toEqual([]);
+  });
+});
+
+describe("homePhotos", () => {
+  const twelve = Array.from({ length: 12 }, (_, i) => i);
+
+  it("shows the first few and counts the rest", () => {
+    const home = homePhotos(twelve);
+    expect(home.photos).toEqual(twelve.slice(0, HOME_PHOTOS));
+    expect(home.more).toBe(12 - HOME_PHOTOS);
+  });
+
+  it("has nothing more when they all fit", () => {
+    expect(homePhotos([1, 2, 3])).toEqual({ photos: [1, 2, 3], more: 0 });
+  });
+});
+
+describe("photoSlug", () => {
+  it("makes a plain file name from a phone's", () => {
+    expect(photoSlug("WhatsApp Image 2026-11-10 at 8.48.50 PM (1).jpeg")).toBe(
+      "whatsapp-image-2026-11-10-at-8-48-50-pm-1",
+    );
+    expect(photoSlug("IMG_0042.HEIC")).toBe("img-0042");
+  });
+});
+
+describe("addPhoto", () => {
+  const list = [
+    { file: "gallery/a.webp", alt: "A" },
+    { file: "gallery/b.webp", alt: "B" },
+  ];
+
+  it("puts the new photo first", () => {
+    const next = addPhoto(list, { file: "gallery/c.webp", alt: "C" });
+    expect(next.map((item) => item.file)).toEqual([
+      "gallery/c.webp",
+      "gallery/a.webp",
+      "gallery/b.webp",
+    ]);
+    expect(list).toHaveLength(2);
+  });
+
+  it("moves a photo added again to the front with its new words", () => {
+    const next = addPhoto(list, { file: "gallery/b.webp", alt: "B, better" });
+    expect(next).toEqual([
+      { file: "gallery/b.webp", alt: "B, better" },
+      { file: "gallery/a.webp", alt: "A" },
+    ]);
+  });
+
+  it("keeps a link to where the photo was posted", () => {
+    const [first] = addPhoto(list, {
+      file: "gallery/c.webp",
+      alt: "C",
+      link: "https://www.instagram.com/p/abc/",
+    });
+    expect(first.link).toBe("https://www.instagram.com/p/abc/");
+  });
+
+  it("refuses a photo with no words for what it shows", () => {
+    expect(() => addPhoto(list, { file: "gallery/c.webp", alt: " " })).toThrow(
+      /what it shows/,
+    );
+  });
+});
+
+describe("src/data/photos.json", () => {
+  const list = JSON.parse(
+    readFileSync(new URL("../data/photos.json", import.meta.url), "utf8"),
+  );
+  const pathOf = (file) =>
+    fileURLToPath(new URL(`../assets/images/${file}`, import.meta.url));
+
+  it("lists only files that are there, each once, each described", () => {
+    expect(list.length).toBeGreaterThan(0);
+    for (const entry of list) {
+      expect(existsSync(pathOf(entry.file)), entry.file).toBe(true);
+      expect(entry.alt?.trim().length, entry.file).toBeGreaterThan(10);
+    }
+    expect(new Set(list.map((entry) => entry.file)).size).toBe(list.length);
+  });
+});

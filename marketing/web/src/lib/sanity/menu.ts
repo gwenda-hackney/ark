@@ -35,6 +35,8 @@ type SanityMenuSection = {
   title: string;
   subtitle?: string | null;
   kind?: string | null;
+  /** The pop-up kitchen's series: its slug, or "series-<slug>" when unpublished. */
+  popupSeriesId?: string | null;
   parentId?: string | null;
   items: Array<{
     id: string | null;
@@ -81,12 +83,22 @@ function mapMenuItem(doc: SanityMenuSection["items"][number]): MenuItem | null {
   };
 }
 
-function mapFlatSection(
+/** The series a chapter belongs to, by its slug: ops names the doc "series-<slug>". */
+export function popupSeriesSlug(value: string | null | undefined): string {
+  return String(value || "")
+    .trim()
+    .replace(/^drafts\./, "")
+    .replace(/^series-/, "");
+}
+
+export function mapFlatSection(
   doc: SanityMenuSection,
 ): (MenuSection & { parentId?: string }) | null {
   if (!doc.id || !doc.title) {
     return null;
   }
+
+  const popupSeriesId = popupSeriesSlug(doc.popupSeriesId);
 
   const items = doc.items
     .map(mapMenuItem)
@@ -97,6 +109,7 @@ function mapFlatSection(
     title: doc.title,
     subtitle: doc.subtitle?.trim() || undefined,
     kind: doc.kind === "kitchen" ? "kitchen" : "bar",
+    ...(popupSeriesId ? { popupSeriesId } : {}),
     items,
     parentId: doc.parentId?.trim() || undefined,
   };

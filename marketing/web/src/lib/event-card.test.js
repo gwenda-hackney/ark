@@ -5,12 +5,10 @@ import { describe, expect, it } from "vitest";
 import {
   diaryCardModel,
   escapeHtml,
-  nightCardModel,
   renderEventCard,
   GALLERY_FIRST,
   tinyImageUrl,
   renderGallery,
-  seriesCardModel,
 } from "./event-card.js";
 
 const negroni = {
@@ -123,51 +121,6 @@ describe("renderEventCard", () => {
     expect(card.tagName).toBe("A");
     expect(card.querySelector(".event-guest-name").textContent).toBe(
       "Hackney Chess Club",
-    );
-  });
-
-  it("uses the same card on the series page", () => {
-    const main = dom(
-      renderEventCard(
-        seriesCardModel({
-          title: "Negroni Chess Society",
-          nextDate: "2099-10-06",
-          offer: "£8 Negroni",
-          description: "Negronis, stirred slowly.",
-          nightSchedule: negroni.nightSchedule,
-          nights: [
-            {
-              date: "2099-10-06",
-              artist: "Hackney Chess Club",
-              pageUrl: "https://www.instagram.com/hackneychess/",
-            },
-          ],
-          upcomingDates: [{ date: "2099-10-06" }, { date: "2099-10-13" }],
-        }),
-      ),
-    );
-    expect(main.tagName).toBe("SECTION");
-    expect(main.querySelector(".event-guest a").textContent).toBe(
-      "Hackney Chess Club",
-    );
-    // The next night leads the card; the list starts after it.
-    const ahead = main.querySelectorAll(".event-dates li time");
-    expect([...ahead].map((time) => time.getAttribute("datetime"))).toEqual([
-      "2099-10-13",
-    ]);
-
-    const night = dom(
-      renderEventCard(
-        nightCardModel(
-          { title: "Gwenda + Live", date: "2099-10-10", artist: "Rafa" },
-          { seriesSchedule: negroni.nightSchedule },
-        ),
-      ),
-    );
-    expect(night.tagName).toBe("LI");
-    expect(night.querySelector(".event-guest-name").textContent).toBe("Rafa");
-    expect(night.querySelector(".night-schedule-item").textContent).toBe(
-      "Chess",
     );
   });
 });

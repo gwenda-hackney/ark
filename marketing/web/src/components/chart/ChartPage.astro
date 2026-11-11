@@ -1,21 +1,24 @@
 ---
 /**
- * A section page in The Chart (#240): the chart behind the corner button,
- * a header (numeral, title, a line), the page, the footer.
+ * A section page (#240): the menu behind the corner button, a header (the
+ * title, a line), the page, the footer.
  */
 import "../../styles/chart.css";
 import ChartNav from "./ChartNav.astro";
 import ChartFooter from "./ChartFooter.astro";
+import { chartSections } from "../../lib/chart-nav";
 
 interface Props {
   title: string;
-  /** The ring beside the title: the section's numeral on the chart. */
-  numeral?: string;
   lead?: string;
   class?: string;
 }
 
-const { title, numeral, lead, class: className } = Astro.props;
+const { title, lead, class: className } = Astro.props;
+/** The ring beside the title: this page's number in the menu, when it has one. */
+const numeral = chartSections(Astro.url.pathname).find(
+  (item) => item.current,
+)?.numeral;
 ---
 
 <div class="ch-page" data-chart="closed">

@@ -1,7 +1,16 @@
 ---
+/**
+ * Contact (#240): the one page for reaching us. How to find us (the map
+ * and the walk from the station), playing here, and getting on the list.
+ */
+import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
+import ChartMap from "../components/chart/ChartMap.astro";
+import EmailSignup from "../components/EmailSignup.astro";
 import { siteConfig } from "../config/site";
+import { directions } from "../data/directions";
+import { homeDecksPhoto } from "../lib/chart-assets";
 import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
 
 const { contactPage } = siteConfig.copy;
@@ -13,56 +22,72 @@ const { social } = siteConfig;
   description={siteConfig.seo.contact.description}
   showBooking={false}
 >
-  <ChartPage class="ch-find-page" title="Contact" numeral="VI">
-    <section class="ch-find">
-      <div class="ch-head"><h2>Find us</h2></div>
-      <p class="ch-address">
-        <a
-          href={siteConfig.location.mapsUrl}
-          target="_blank"
-          rel="noopener noreferrer">{siteConfig.location.address}</a
-        >
-      </p>
-      <p class="ch-ital">
-        On the canal behind Hackney Wick station. <a
-          href="/find-us"
-          class="ch-link">The map</a
-        >, if you like a walk by the water.
-      </p>
+  <ChartPage
+    class="ch-find-page ch-contact-page"
+    title="Contact"
+    lead="Where we are, how to play here, and how to hear what’s on."
+  >
+    <nav class="ch-jump" aria-label="On this page">
+      <a href="#find-us">Find us</a>
+      <a href="#play">Play here</a>
+      <a href="#list">Get on the list</a>
+    </nav>
+
+    <section class="ch-contact-part" id="find-us">
+      <h2 class="ch-sheet-head">Find us</h2>
+      <p class="ch-find-intro">{directions.intro}</p>
+      <ChartMap />
+      <div class="ch-find-ways">
+        <section>
+          <h3 class="ch-find-head">{directions.fromStation.heading}</h3>
+          <ol class="ch-find-steps">
+            {directions.fromStation.steps.map((step) => <li>{step}</li>)}
+          </ol>
+          <p class="ch-find-note">{directions.fromStation.note}</p>
+        </section>
+        <section>
+          <h3 class="ch-find-head">{directions.fromTowpath.heading}</h3>
+          <p>{directions.fromTowpath.text}</p>
+        </section>
+      </div>
     </section>
 
-    <section class="ch-find">
-      <div class="ch-head"><h2>{contactPage.heading}</h2></div>
-      <p class="ch-ital">{contactPage.lead}</p>
-      <ul class="ch-paths">
-        <li>
-          <a href="/join-list" class="ch-path">
-            <span class="ch-caps">{contactPage.listEyebrow}</span>
-            <span class="ch-path-title">{contactPage.listHeading}</span>
-            <span class="ch-ital">{contactPage.listLead}</span>
-          </a>
-        </li>
-        <li>
-          <a href={formPublicPath(PLAY_FORM_SLUG)} class="ch-path">
-            <span class="ch-caps">{contactPage.playEyebrow}</span>
-            <span class="ch-path-title">{contactPage.playHeading}</span>
-            <span class="ch-ital">{contactPage.playLead}</span>
-          </a>
-        </li>
-        <li>
-          <a
-            href={social.instagram}
-            class="ch-path"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span class="ch-caps">Instagram</span>
-            <span class="ch-path-title">@gwendahackney</span>
-            <span class="ch-ital">Photos from the room and what's on next.</span
-            >
-          </a>
-        </li>
-      </ul>
+    <section class="ch-contact-part ch-contact-play" id="play">
+      <div>
+        <h2 class="ch-sheet-head">{contactPage.playHeading}</h2>
+        <p>{contactPage.playLead}</p>
+        <a href={formPublicPath(PLAY_FORM_SLUG)} class="ch-btn ch-btn--solid"
+          >{contactPage.playCta}</a
+        >
+      </div>
+      <a
+        href={formPublicPath(PLAY_FORM_SLUG)}
+        class="ch-contact-photo ch-print"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <Image {...homeDecksPhoto} alt="" loading="lazy" />
+        <span class="ch-print-note">{contactPage.playPhotoNote}</span>
+      </a>
+    </section>
+
+    <section class="ch-contact-part" id="list">
+      <h2 class="ch-sheet-head">{contactPage.listHeading}</h2>
+      <p>{contactPage.listLead}</p>
+      <div class="ch-form">
+        <EmailSignup mode="promo" embedded />
+      </div>
+      <p class="ch-contact-also">
+        Or follow <a
+          href={social.instagram}
+          class="ch-link"
+          target="_blank"
+          rel="noopener noreferrer">@gwendahackney</a
+        > on Instagram, or write to <a
+          href={`mailto:${siteConfig.contact.email}`}
+          class="ch-link">{siteConfig.contact.email}</a
+        >.
+      </p>
     </section>
   </ChartPage>
 </BaseLayout>

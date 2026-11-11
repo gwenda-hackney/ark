@@ -1,8 +1,8 @@
 ---
 /**
- * The chart: the site's navigation (#240). A button in the corner opens a
- * panel down the left: the flag, a compass rose, the sections as numbered
- * rings, the bell to book.
+ * The site's navigation (#240). A button in the corner opens a panel down
+ * the left: the logo, a compass rose, the sections as numbered rings, and
+ * Book a table fixed in the opposite corner of every page.
  */
 import { Image } from "astro:assets";
 import { siteConfig } from "../../config/site";
@@ -51,6 +51,21 @@ const sections = chartSections(pathname);
       xChannelSelector="R"
       yChannelSelector="G"></feDisplacementMap>
   </filter>
+  <!-- The buttons' edge: only just uneven, like a card cut by hand -->
+  <filter id="ch-cut" x="-5%" y="-20%" width="110%" height="140%">
+    <feTurbulence
+      type="fractalNoise"
+      baseFrequency="0.045"
+      numOctaves="1"
+      seed="5"
+      result="n"></feTurbulence>
+    <feDisplacementMap
+      in="SourceGraphic"
+      in2="n"
+      scale="1.5"
+      xChannelSelector="R"
+      yChannelSelector="G"></feDisplacementMap>
+  </filter>
 </svg>
 
 <button
@@ -82,11 +97,27 @@ const sections = chartSections(pathname);
   </svg>
 </button>
 
+{
+  /* Book a table, floating in the bottom right corner of every page, always in reach */
+  bookingEnabled && (
+    <a
+      href={bookingUrl}
+      class="ch-btn ch-btn--solid ch-book-fixed"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <ChartBell />
+      {siteConfig.copy.bookingCta}
+    </a>
+  )
+}
+
 <div class="ch-chart-scrim" id="ch-chart-scrim" aria-hidden="true"></div>
 
-<nav class="ch-chart" id="ch-chart" aria-label="The chart" tabindex="-1">
+<nav class="ch-chart" id="ch-chart" aria-label="Site" tabindex="-1">
   <a href="/" class="ch-flag-up" aria-label="Gwenda home">
     <Image {...chartFlag} alt="" />
+    <span class="ch-flag-social">{siteConfig.copy.social}</span>
     <span class="ch-caps">{siteConfig.location.addressShort}</span>
   </a>
 
@@ -121,20 +152,6 @@ const sections = chartSections(pathname);
       ))
     }
   </ul>
-
-  {
-    bookingEnabled && (
-      <a
-        href={bookingUrl}
-        class="ch-btn ch-btn--solid"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <ChartBell />
-        {siteConfig.copy.bookingCta}
-      </a>
-    )
-  }
 </nav>
 
 <script>

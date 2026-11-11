@@ -12,7 +12,7 @@ import { initOverlayScrollbars } from "./scrollbar.js";
 import { initContactForm, initContactFormSubmitted } from "./contact-form.js";
 import { currentPageAnchorId, pageAnchorSections } from "./page-anchors.js";
 import { initSchedulePage } from "./schedule.js";
-import { initHomeNext, initSeriesPage, initWhatsOnPage } from "./whats-on.js";
+import { initHomeNext, initWhatsOnPage } from "./whats-on.js";
 import { initArtistLive } from "./artist-live.js";
 import { initGallery } from "./gallery.js";
 import { fadeInEventPhotos } from "./image-fade.js";
@@ -538,7 +538,6 @@ function initPage() {
   initHomeNext();
   initArtistLive();
   initWhatsOnPage();
-  initSeriesPage();
   initSchedulePage();
 
   let teardownSectionHash = () => {};

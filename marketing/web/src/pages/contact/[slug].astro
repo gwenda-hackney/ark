@@ -6,7 +6,8 @@ import ContactForm from "../../components/ContactForm.astro";
 import { siteConfig } from "../../config/site";
 import { PLAY_FORM_SLUG, isReservedFormSlug } from "../../lib/form-paths";
 import { fetchFormBySlug, fetchFormSlugs } from "../../lib/sanity/forms";
-import { chartTurntableLarge } from "../../lib/chart-assets";
+import { playDecksPhoto } from "../../lib/chart-assets";
+import "../../styles/chart-forms.css";
 
 export async function getStaticPaths() {
   try {
@@ -36,7 +37,9 @@ const pageDescription =
   form.intro?.trim() ||
   siteConfig.seo.home.description;
 
-const showTurntable = form.slug === PLAY_FORM_SLUG;
+/** The play form opens on the decks and our own words, in place of the form's intro line. */
+const isPlay = form.slug === PLAY_FORM_SLUG;
+const { playIntro, playPhotoNote } = siteConfig.copy.contactPage;
 const eyebrow = form.eyebrow?.trim() || "";
 const heading = form.heading?.trim() || "";
 const showEyebrow =
@@ -45,10 +48,9 @@ const showEyebrow =
 
 <BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
   <ChartPage
-    class:list={["ch-form-page", showTurntable && "ch-form-page--play"]}
+    class="ch-form-page ch-sheet-form-page"
     title={heading}
-    numeral={showTurntable ? "IV" : undefined}
-    lead={form.intro?.trim() || undefined}
+    lead={isPlay ? undefined : form.intro?.trim() || undefined}
   >
     {
       showEyebrow && (
@@ -57,32 +59,28 @@ const showEyebrow =
         </span>
       )
     }
-    <div class="ch-form-split">
-      <div id="contact-panel" class="ch-form">
-        <ContactForm form={form} />
-      </div>
-      {
-        showTurntable && (
-          <aside class="ch-form-aside">
-            <span class="ch-frame" aria-hidden="true">
-              <Image {...chartTurntableLarge} alt="" loading="eager" />
-            </span>
-            <div class="ch-call">
-              <h2 class="ch-find-head">Come and play</h2>
-              <p>
-                This place is only as good as who’s on the decks, and we want
-                that to be you lot: selectors, bands, crews, the ones who’ve
-                played everywhere and the ones who’ve never played out.
-              </p>
-              <p>
-                Vinyl nights, live sets, listening sessions, something weird we
-                haven’t thought of. Pitch us and we’ll get back to you. We’d
-                love to have you.
-              </p>
-            </div>
-          </aside>
-        )
-      }
+    {
+      isPlay && (
+        <div class="ch-form-intro">
+          <div class="ch-form-intro-text">
+            <p class="ch-form-intro-lead">{playIntro.lead}</p>
+            <p>{playIntro.body}</p>
+            <p class="ch-form-intro-cue">
+              {playIntro.cue}
+              <svg viewBox="0 0 28 40" aria-hidden="true">
+                <path d="M15 2c-5 9-6 20-2 33M4 25c3 4 6 8 9 11 2-4 6-9 11-12" />
+              </svg>
+            </p>
+          </div>
+          <figure class="ch-print">
+            <Image {...playDecksPhoto} alt="" loading="eager" />
+            <figcaption class="ch-print-note">{playPhotoNote}</figcaption>
+          </figure>
+        </div>
+      )
+    }
+    <div id="contact-panel" class="ch-form">
+      <ContactForm form={form} />
     </div>
   </ChartPage>
 </BaseLayout>

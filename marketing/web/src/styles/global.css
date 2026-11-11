@@ -7398,8 +7398,8 @@ a.event-card:focus-visible .event-title,
 
 @media (max-width: 640px) {
   /* Swipe instead; arrows would cover the photo. */
-  .gallery-lightbox-prev,
-  .gallery-lightbox-next {
+  .gallery-lightbox .gallery-lightbox-prev,
+  .gallery-lightbox .gallery-lightbox-next {
     display: none;
   }
 }

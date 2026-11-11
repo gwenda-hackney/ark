@@ -1,0 +1,38 @@
+/*
+ * The photo gallery (#240), on home and /photos. The wall itself (photos at
+ * their own shapes in columns, a tapped photo opening large) is the event
+ * gallery's (#30): .series-gallery in global.css and scripts/gallery.js.
+ * This is only how it sits on the leather.
+ */
+.ch-photos .series-gallery {
+  margin-top: 0;
+}
+
+/* A thin cream edge, like a print: no rounded corners, no frames */
+.ch-page .series-gallery-item a {
+  background: rgb(232 223 204 / 0.06);
+  box-shadow: 0 0 0 1px rgb(232 223 204 / 0.14);
+  text-decoration: none;
+}
+
+.ch-page .series-gallery-item a:focus-visible {
+  outline: 2px solid var(--ch-mustard);
+  outline-offset: 3px;
+}
+
+.ch-photos-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 2.25rem;
+}
+
+/* On its own page the wall takes the page's width */
+.ch-photos-page {
+  max-width: 72rem;
+}
+
+.ch-photos-foot {
+  margin: 2.5rem 0 0;
+  font-size: 1.0625rem;
+  color: var(--ch-ink-2);
+}

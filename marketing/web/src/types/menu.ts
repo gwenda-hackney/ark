@@ -47,6 +47,8 @@ export type MenuSection = {
   subtitle?: string;
   /** Which menu a chapter belongs to; subsections follow their parent. */
   kind?: MenuKind;
+  /** The pop-up kitchen (a series in ops) whose chapter this is, if any. */
+  popupSeriesId?: string;
   items: MenuItem[];
   /** Nested groups under a chapter (e.g. Spritz under By the Book). */
   subsections?: MenuSection[];

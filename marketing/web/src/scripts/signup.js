@@ -57,7 +57,7 @@ export function initSignupAnchors() {
   if (!email) return;
 
   const focusEmail = () => {
-    const section = document.getElementById("list");
+    const section = email.closest(".signup");
     if (section?.classList.contains("is-confirmed")) return;
 
     const form = email.closest(".signup-form");
@@ -86,7 +86,9 @@ export function initSignupAnchors() {
 }
 
 export function initSignup(form) {
-  const section = document.getElementById("list");
+  // The signup the form sits in, not whatever on the page is called #list:
+  // embedded in a page section (/contact#list, /join-list) they differ.
+  const section = form.closest(".signup");
   const confirmEl = document.getElementById("signup-confirm");
   const errorEl = document.getElementById("signup-error");
   const submitBtn = form.querySelector('button[type="submit"]');

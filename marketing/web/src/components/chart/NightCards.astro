@@ -1,0 +1,226 @@
+---
+/**
+ * Nights as cards (#240), on home and What's on: the next night big, then
+ * the ones after it in rows, each with its date stuck on the corner. A photo
+ * is 4:5 (the Instagram shape); a flyer ops marks "show whole image" keeps
+ * its own shape, uncropped; a night with no photo gets the logo. The
+ * pictures in a row are one height, and each card is as wide as its picture
+ * (frameRatio). `shown` caps how many show (home shows a few; What's on the
+ * lot); `weeks` puts them under a heading for each week (What's on). One
+ * event over several days in a row is one card, with the days on its sticker
+ * (nightRuns: a series that doesn't repeat, so `series` says which). A few
+ * more are rendered than show, so the browser can drop the ones that have
+ * passed since the build (scripts/night-cards.js).
+ */
+import { Image } from "astro:assets";
+import "../../styles/chart-nights.css";
+import { chartFlag } from "../../lib/chart-assets";
+import { formatEventSpan } from "../../data/events";
+import { sizedImageUrl, tinyImageUrl } from "../../lib/event-card.js";
+import { isWholeFit } from "../../../functions/_lib/sanity-image-url.js";
+import { londonToday } from "../../lib/london-day.js";
+import { weekStart } from "../../lib/london-day.js";
+import {
+  frameRatio,
+  nightDay,
+  nightLabel,
+  nightRuns,
+  nightsToShow,
+  runDay,
+  runTimes,
+  weekLabel,
+} from "../../lib/night-cards.js";
+import type { Event, EventSeries } from "../../types/events";
+
+interface Props {
+  nights: Event[];
+  /** The catalog's series: which nights are one event over several days. */
+  series?: EventSeries[];
+  /** How many show at once; all of them when left out. */
+  shown?: number;
+  /** Under a heading for each week: This week, Next week, Week of 23 Nov. */
+  weeks?: boolean;
+}
+
+const { nights, series = [], shown, weeks = false } = Astro.props;
+const today = londonToday();
+
+/** Rendered beyond the ones that show, for the nights that pass before the next build. */
+const SPARE = 4;
+
+const dated = nights.filter((night) => night.title && night.date);
+const cards = nightRuns(dated, series)
+  .slice(0, shown ? shown + SPARE : undefined)
+  .map((run) => {
+    const days = run.indexes.map((index) => dated[index]);
+    const [night] = days;
+    const photo = night.seriesHeroImageUrl || night.heroImage?.url;
+    return {
+      date: run.start,
+      /** The last day of an event over several; the same day otherwise. */
+      end: run.end,
+      ...runDay(run.start, run.end),
+      title:
+        days.length > 1
+          ? night.seriesTitle || night.title
+          : night.seriesTitle && night.title !== night.seriesTitle
+            ? night.title
+            : night.seriesTitle || night.title,
+      /** The hours, day by day where they differ: "Sat 12–8pm", "Sun 1–6pm". */
+      times: runTimes(
+        days.map((day) => ({
+          date: day.date,
+          span: formatEventSpan(day.startTime, day.endTime, day.time),
+        })),
+      ),
+      note: night.shortDescription || night.artist || "",
+      offer: night.offer || "",
+      photo: sizedImageUrl(photo, 640),
+      /** Ops says show the whole image (#27): a flyer, never cropped. */
+      whole: isWholeFit(photo),
+      /** A flyer shown whole gets a frame its own shape: no strips, no crop. */
+      ratio: frameRatio(photo, isWholeFit(photo)),
+      placeholder: tinyImageUrl(photo),
+      photoLarge: sizedImageUrl(photo, 1280),
+      photoPosition: night.seriesHeroObjectPosition || "",
+      href: night.seriesId
+        ? `/whats-on/${encodeURIComponent(night.seriesId)}`
+        : "/whats-on",
+    };
+  });
+
+const showing = nightsToShow(
+  cards.map((card) => card.date),
+  today,
+  shown,
+  cards.map((card) => card.end),
+);
+
+/**
+ * The lists on the page: one, or one for each week (every night rendered is
+ * in its week's, passed or not; the browser hides a week with none left).
+ */
+const numbered = cards.map((night, index) => ({ night, index }));
+const lists = weeks
+  ? [...new Set(cards.map((card) => weekStart(card.date)))].map((start) => ({
+      start,
+      label: weekLabel(start, today),
+      cards: numbered.filter(({ night }) => weekStart(night.date) === start),
+    }))
+  : [{ start: "", label: "", cards: numbered }];
+---
+
+<div class="ch-nights" data-night-cards data-shown={shown}>
+  {
+    lists.map((list) => {
+      const items = (
+        <ol class="ch-night-list">
+          {list.cards.map(({ night, index }) => {
+            const place = showing.indexOf(index);
+            return (
+              <li
+                class:list={[
+                  "ch-night",
+                  place === 0 && "ch-night--lead",
+                  night.date <= today &&
+                    today <= night.end &&
+                    "ch-night--tonight",
+                  night.end !== night.date && "ch-night--run",
+                ]}
+                data-night={night.date}
+                data-night-end={night.end}
+                hidden={place < 0}
+                style={`--shape: ${night.ratio}`}
+              >
+                <a href={night.href} class="ch-night-card">
+                  <span
+                    class:list={[
+                      "ch-night-photo",
+                      night.whole && "ch-night-photo--whole",
+                    ]}
+                    style={
+                      night.whole && night.placeholder
+                        ? `--placeholder: url("${night.placeholder}")`
+                        : undefined
+                    }
+                  >
+                    {night.photo && (
+                      <img
+                        src={night.photo}
+                        srcset={`${night.photo} 640w, ${night.photoLarge} 1280w`}
+                        sizes="(min-width: 64rem) 26rem, (min-width: 40rem) 33vw, 100vw"
+                        alt=""
+                        loading={index === 0 ? "eager" : "lazy"}
+                        style={
+                          night.photoPosition
+                            ? `object-position: ${night.photoPosition}`
+                            : undefined
+                        }
+                      />
+                    )}
+                    {!night.photo && (
+                      <Image {...chartFlag} alt="" class="ch-night-mark" />
+                    )}
+                    <span class="ch-night-date">
+                      <span>{night.weekday}</span>
+                      <b>{night.day}</b>
+                      <span>{night.month}</span>
+                    </span>
+                  </span>
+                  <span class="ch-night-body">
+                    <span class="ch-night-label" data-night-label>
+                      {nightLabel(night.date, today, night.end)}
+                    </span>
+                    <span class="ch-night-name">{night.title}</span>
+                    {night.times.length > 0 && (
+                      <span class="ch-night-time">
+                        {night.times.map((time, at) => (
+                          <>
+                            {at > 0 && " "}
+                            <span>
+                              {time}
+                              {at < night.times.length - 1 && " ·"}
+                            </span>
+                          </>
+                        ))}
+                      </span>
+                    )}
+                    {night.note && (
+                      <span class="ch-night-note">{night.note}</span>
+                    )}
+                    {night.offer && (
+                      <span class="ch-night-offer">{night.offer}</span>
+                    )}
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ol>
+      );
+      return weeks ? (
+        <section
+          class="ch-night-week"
+          data-night-week={list.start}
+          hidden={!list.cards.some(({ index }) => showing.includes(index))}
+        >
+          <h2 class="ch-poster ch-night-week-title" data-night-week-label>
+            {list.label}
+          </h2>
+          {items}
+        </section>
+      ) : (
+        items
+      );
+    })
+  }
+  <p class="ch-night-empty" data-night-cards-empty hidden={showing.length > 0}>
+    Nothing in the diary just now. Get on the list and we’ll tell you first.
+  </p>
+</div>
+
+<script>
+  import { initNightCards } from "../../scripts/night-cards.js";
+  initNightCards();
+  document.addEventListener("astro:page-load", () => initNightCards());
+</script>

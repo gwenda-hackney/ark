@@ -1,5 +1,3 @@
-import { replacePageUrl } from "./history-state.js";
-
 /** @typedef {{ csrfToken: string, secret: string }} FormAuth */
 
 /** @type {FormAuth | null} */
@@ -606,111 +604,6 @@ function initFieldValidation(form) {
   );
 }
 
-function initSectionNav() {
-  const nav = document.getElementById("contact-nav");
-  const form = document.getElementById("contact-form");
-  if (!(nav instanceof HTMLElement) || !(form instanceof HTMLFormElement))
-    return;
-
-  const links = [...nav.querySelectorAll(".contact-nav-link")];
-  const sections = [...form.querySelectorAll(".contact-section")];
-  const sectionSelect = nav.querySelector("#contact-section-select");
-  if (
-    (!links.length && !(sectionSelect instanceof HTMLSelectElement)) ||
-    !sections.length
-  ) {
-    return;
-  }
-
-  const sentinel = nav.previousElementSibling;
-  if (
-    sentinel instanceof HTMLElement &&
-    sentinel.classList.contains("contact-nav-sentinel")
-  ) {
-    const stuckObserver = new IntersectionObserver(
-      ([entry]) => {
-        nav.classList.toggle(
-          "is-stuck",
-          Boolean(entry && !entry.isIntersecting),
-        );
-      },
-      { threshold: [1] },
-    );
-    stuckObserver.observe(sentinel);
-  }
-
-  let syncingFromScroll = false;
-
-  const goToSection = (id) => {
-    const section = id ? document.getElementById(id) : null;
-    if (!(section instanceof HTMLElement)) return;
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
-    replacePageUrl(`#${id}`);
-  };
-
-  const setActive = (id) => {
-    for (const link of links) {
-      const active = link.getAttribute("data-section") === id;
-      link.classList.toggle("is-active", active);
-      if (active) link.setAttribute("aria-current", "true");
-      else link.removeAttribute("aria-current");
-    }
-
-    if (
-      sectionSelect instanceof HTMLSelectElement &&
-      sectionSelect.value !== id
-    ) {
-      syncingFromScroll = true;
-      sectionSelect.value = id;
-      sectionSelect.dispatchEvent(new Event("change", { bubbles: true }));
-      syncingFromScroll = false;
-    }
-  };
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-      const top = visible[0]?.target;
-      if (top instanceof HTMLElement && top.dataset.section) {
-        setActive(top.dataset.section);
-      }
-    },
-    {
-      rootMargin: "-20% 0px -55% 0px",
-      threshold: [0.1, 0.35, 0.6],
-    },
-  );
-
-  for (const section of sections) observer.observe(section);
-  if (sections[0] instanceof HTMLElement && sections[0].dataset.section) {
-    setActive(sections[0].dataset.section);
-  }
-
-  nav.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const link = target.closest("a.contact-nav-link");
-    if (!(link instanceof HTMLAnchorElement)) return;
-    const id = link.getAttribute("data-section");
-    if (!id) return;
-    event.preventDefault();
-    setActive(id);
-    goToSection(id);
-  });
-
-  if (sectionSelect instanceof HTMLSelectElement) {
-    sectionSelect.addEventListener("change", () => {
-      if (syncingFromScroll) return;
-      const id = sectionSelect.value;
-      if (!id) return;
-      setActive(id);
-      goToSection(id);
-    });
-  }
-}
-
 /** @type {HTMLElement | null} */
 let brandedOpenRoot = null;
 let brandedSelectDocBound = false;
@@ -1046,7 +939,6 @@ export function initContactForm() {
   }
   form.dataset.gwBound = "1";
 
-  initSectionNav();
   initOtherFields(form);
   initBrandedSelects(panel instanceof Element ? panel : form);
   initFieldValidation(form);

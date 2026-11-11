@@ -1,13 +1,15 @@
 import { navPathname } from "./site-nav.js";
 
-/** The chart's sections, in order, as numbered rings (#240). */
+/**
+ * The site's sections as numbered rings, in order (#240): what's on, the
+ * two menus, and Contact, which holds finding us, playing here and the
+ * list. About is in the foot of every page.
+ */
 export const CHART_SECTIONS = [
-  { numeral: "I", label: "Bar", href: "/bar" },
-  { numeral: "II", label: "Kitchen", href: "/kitchen" },
-  { numeral: "III", label: "What's on", href: "/whats-on" },
-  { numeral: "IV", label: "Play here", href: "/contact/play" },
-  { numeral: "V", label: "About", href: "/about" },
-  { numeral: "VI", label: "Contact", href: "/contact" },
+  { numeral: "I", label: "What's on", href: "/whats-on" },
+  { numeral: "II", label: "Drinks", href: "/bar" },
+  { numeral: "III", label: "Food", href: "/kitchen" },
+  { numeral: "IV", label: "Contact", href: "/contact" },
 ];
 
 /**

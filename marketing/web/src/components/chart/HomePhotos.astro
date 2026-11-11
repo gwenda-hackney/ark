@@ -1,0 +1,29 @@
+---
+/**
+ * Home's photos (#240): the newest few on a wall, the rest on /photos.
+ */
+import { homePhotos } from "../../lib/photos.js";
+import { galleryPhotos } from "../../lib/photo-sources";
+import PhotoWall from "./PhotoWall.astro";
+
+const { photos, more } = homePhotos(galleryPhotos());
+---
+
+{
+  photos.length > 0 && (
+    <section class="ch-home-section ch-photos" id="photos">
+      <header class="ch-home-head">
+        <h2 class="ch-poster">Photos</h2>
+        <p class="ch-home-head-note">The food, the room, the decks.</p>
+      </header>
+      <PhotoWall photos={photos} />
+      {more > 0 && (
+        <p class="ch-photos-more">
+          <a href="/photos" class="ch-btn">
+            More photos
+          </a>
+        </p>
+      )}
+    </section>
+  )
+}

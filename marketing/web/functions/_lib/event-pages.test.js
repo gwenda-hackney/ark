@@ -16,10 +16,13 @@ const SHELLS = {
 <meta name="description" content="__EVENT_DESCRIPTION__">
 <link rel="canonical" href="${ORIGIN}${SERIES_SHELL}/">
 <script type="application/ld+json">{"name":"__EVENT_TITLE__ · Gwenda"}</script></head>
-<body><main class="whats-on-series-page __EVENT_LAYOUT__"><a href="/whats-on">Back</a>
-<p class="section-eyebrow">__EVENT_EYEBROW__</p><h1>__EVENT_TITLE__</h1>
-<div class="page-header-lead"><series-lead></series-lead></div>
-<series-body><section class="whats-on-series-pending">Check back soon</section></series-body></main></body></html>`,
+<body><main class="ch-event ch-event--__EVENT_KIND__"><a href="/whats-on">Back</a>
+<p class="ch-event-kicker">__EVENT_EYEBROW__</p><h1>__EVENT_TITLE__</h1>
+<series-part name="book"><a class="ch-btn" href="https://book.example/">Book a table</a></series-part>
+<series-part name="mark"><img class="ch-night-mark" src="/logo.webp" alt=""></series-part>
+<series-part name="logo:chez pickle"><img src="/chez-pickle.webp" alt="Chez Pickle"></series-part>
+<series-part name="menu:chez-pickle">/kitchen#chez-pickle</series-part>
+<series-body><section class="ch-event-pending">Check back soon</section></series-body></main></body></html>`,
   [`${NIGHT_SHELL}/`]: `<html><head><title>__EVENT_TITLE__ · Gwenda</title>
 <meta property="og:url" content="${ORIGIN}${NIGHT_SHELL}">
 <meta property="og:image" content="${ORIGIN}/og/events/__EVENT_SLUG__.jpg">
@@ -94,7 +97,12 @@ describe("series page", () => {
     expect(html).toContain(`href="${ORIGIN}/whats-on/negroni-chess/"`);
     expect(html).toContain('{"name":"Negroni & Chess · Gwenda"}');
     expect(html).toContain("Every Tuesday");
-    expect(html).toContain('id="series-nights" data-series-id="negroni-chess"');
+    expect(html).toContain('class="ch-event ch-event--event"');
+    // The next night: its date on the sticker, the words, the way to book.
+    expect(html).toContain("<span>Tue</span><b>6</b><span>Jan</span>");
+    expect(html).toContain("Chess, negronis &amp; &lt;friends&gt;.");
+    expect(html).toContain('href="https://book.example/"');
+    expect(html).not.toContain("series-part");
     expect(html).not.toContain("__EVENT_");
     expect(html).not.toContain("series-body>");
     expect(html).not.toContain("Check back soon");
@@ -116,6 +124,56 @@ describe("series page", () => {
     const html = await (await render("/whats-on/negroni-chess")).text();
     expect(html).toContain("series-gallery-item");
     expect(html).toContain('alt="Negroni &amp; Chess, photo 1"');
+  });
+
+  it("shows a promotion as a deal: its days and hours, not a night", async () => {
+    sanity.series = [
+      series("cocktail-hour", {
+        title: "Cocktail Hour",
+        category: "promotion",
+        recurrence: "Every Wednesday and Thursday and Friday and Saturday",
+      }),
+    ];
+    sanity.events = [
+      night("cocktail-hour", "2099-01-07", {
+        title: "Cocktail Hour",
+        startTime: "17:00",
+        endTime: "18:30",
+        offer: "20% off",
+      }),
+    ];
+    const html = await (await render("/whats-on/cocktail-hour")).text();
+    expect(html).toContain("ch-event--promotion");
+    expect(html).toContain('<span class="ch-stand-tag">Deal</span>');
+    expect(html).toContain("Wed to Sat, 5–6:30pm");
+    expect(html).toContain("20% off");
+    expect(html).not.toContain("ch-night-date");
+    expect(html).not.toMatch(/Next up|More dates/);
+  });
+
+  it("shows a pop-up kitchen with its own mark and the way to its menu", async () => {
+    sanity.series = [
+      series("chez-pickle", {
+        title: "Chez Pickle",
+        category: "popup",
+        schedule: "once",
+        recurrence: "",
+      }),
+    ];
+    sanity.events = [
+      night("chez-pickle", "2099-01-08", {
+        title: "Chez Pickle",
+        recurrence: "",
+        startTime: "17:00",
+        endTime: "22:00",
+      }),
+    ];
+    const html = await (await render("/whats-on/chez-pickle")).text();
+    expect(html).toContain("ch-event--popup");
+    expect(html).toContain('<span class="ch-stand-tag">Pop-up kitchen</span>');
+    expect(html).toContain('src="/chez-pickle.webp"');
+    expect(html).toContain('<a class="ch-btn" href="/kitchen#chez-pickle">');
+    expect(html).toContain("Thu 8 Jan, 5–10pm");
   });
 
   it("sends a former web address to the new one straight away", async () => {

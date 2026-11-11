@@ -1,11 +1,13 @@
 ---
 /**
- * The menu in The Chart (#240): chapters in the order ops sets them, the
- * items on dotted leaders, descriptions in italic.
+ * The menu (#240): chapters in the order ops sets them. They go two
+ * abreast, so the first two start level at the top; a chapter of nothing
+ * but beer runs the full width as its own band (lib/menu-layout.js).
  */
 import type { MenuSection } from "../../types/menu";
-import { formatMenuPrice, menuPrices } from "../../types/menu";
 import { getAvailableItems } from "../../data/menu";
+import { menuRows } from "../../lib/menu-layout.js";
+import ChartMenuChapter from "./ChartMenuChapter.astro";
 
 interface Props {
   sections: MenuSection[];
@@ -21,6 +23,7 @@ function hasContent(section: MenuSection): boolean {
 }
 
 const chapters = sections.filter(hasContent);
+const rows = menuRows(chapters);
 ---
 
 {chapters.length === 0 && <p class="ch-ital">{empty}</p>}
@@ -36,44 +39,24 @@ const chapters = sections.filter(hasContent);
 
 <div class="ch-sheet">
   {
-    chapters.map((chapter) => (
-      <section class="ch-chapter" id={chapter.id}>
-        <h2 class="ch-sheet-head">{chapter.title}</h2>
-        {[chapter, ...(chapter.subsections ?? [])]
-          .filter(hasContent)
-          .map((group) => (
-            <div class="ch-group">
-              {group !== chapter && <h3>{group.title}</h3>}
-              <ul class="ch-list">
-                {getAvailableItems(group).map((item) => {
-                  const price = formatMenuPrice(item);
-                  const rows = price ? [] : menuPrices(item);
-                  return (
-                    <li>
-                      <span class="ch-item-line">
-                        <span class="ch-item-name">{item.name}</span>
-                        {price && <span class="ch-price">{price}</span>}
-                      </span>
-                      {item.description && (
-                        <span class="ch-item-desc">{item.description}</span>
-                      )}
-                      {rows.length > 0 && (
-                        <span class="ch-item-sizes">
-                          {rows.map((row) => (
-                            <span>
-                              {row.name || row.size}{" "}
-                              <span class="ch-price">{row.price}</span>
-                            </span>
-                          ))}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+    rows.map((row) =>
+      row.layout === "columns" ? (
+        <div class="ch-sheet-row ch-sheet-row--columns">
+          {row.columns.map((column) => (
+            <div class="ch-sheet-col">
+              {column.map(({ chapter, order }) => (
+                <ChartMenuChapter chapter={chapter} order={order} />
+              ))}
             </div>
           ))}
-      </section>
-    ))
+        </div>
+      ) : (
+        <div class:list={["ch-sheet-row", `ch-sheet-row--${row.layout}`]}>
+          {row.chapters.map(({ chapter, order }) => (
+            <ChartMenuChapter chapter={chapter} order={order} />
+          ))}
+        </div>
+      ),
+    )
   }
 </div>

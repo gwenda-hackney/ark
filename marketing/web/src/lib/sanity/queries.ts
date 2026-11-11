@@ -10,6 +10,7 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   pageUrl,
   seriesId,
   seriesTitle,
+  category,
   recurrence,
   isSpecialEdition,
   time,
@@ -43,10 +44,12 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   }
 }`;
 
-export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
+/** A series taken off in ops is marked `removed` until the website lets it go. */
+export const SERIES_QUERY = `*[_type == "eventSeries" && removed != true] | order(title asc) {
   "id": slug.current,
   formerSlugs,
   title,
+  category,
   schedule,
   datesPending,
   "gallery": gallery[]{
@@ -104,6 +107,7 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
   title,
   subtitle,
   kind,
+  "popupSeriesId": coalesce(popupSeries->slug.current, popupSeries._ref),
   "parentId": parent->slug.current,
   "items": *[_type == "menuItem" && references(^._id) && removed != true] | order(orderRank asc) {
     "id": _id,

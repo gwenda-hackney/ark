@@ -37,46 +37,6 @@ function inputType(field: FormField) {
 }
 ---
 
-{
-  sections.length > 1 ? (
-    <div class="contact-nav-sentinel" aria-hidden="true" />
-  ) : null
-}
-{
-  sections.length > 1 ? (
-    <nav class="contact-nav" id="contact-nav" aria-label="Form sections">
-      <div class="contact-nav-jump gw-field">
-        <label class="visually-hidden" for="contact-section-select">
-          Jump to section
-        </label>
-        <select id="contact-section-select" autocomplete="off">
-          {sections.map((section, index) => (
-            <option value={section.id} selected={index === 0}>
-              {`${String(index + 1).padStart(2, "0")} · ${section.title}`}
-            </option>
-          ))}
-        </select>
-      </div>
-      <ol class="contact-nav-list">
-        {sections.map((section, index) => (
-          <li>
-            <a
-              class="contact-nav-link"
-              href={`#${section.id}`}
-              data-section={section.id}
-            >
-              <span class="contact-nav-index">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <span class="contact-nav-label">{section.title}</span>
-            </a>
-          </li>
-        ))}
-      </ol>
-    </nav>
-  ) : null
-}
-
 <form
   class="contact-form"
   id="contact-form"
@@ -90,8 +50,11 @@ function inputType(field: FormField) {
   novalidate
 >
   <p class="contact-required-note">
-    A few fields are marked <span class="contact-required-text">Required</span>.
-    The rest are optional if you’d rather skip them.
+    We need the ones marked
+    <span class="contact-required">
+      <span class="contact-required-mark" aria-hidden="true">*</span>
+      <span class="contact-required-text">Required</span></span
+    >. Skip the rest if you like.
   </p>
   {
     sections.map((section) => (
@@ -101,8 +64,7 @@ function inputType(field: FormField) {
         data-section={section.id}
       >
         <header class="contact-section-header">
-          <h2>{section.title}</h2>
-          <div class="contact-section-rule" aria-hidden="true" />
+          <h2 class="ch-sheet-head">{section.title}</h2>
         </header>
         <div class="contact-stack">
           {section.fields.map((field) => {
@@ -320,7 +282,7 @@ function inputType(field: FormField) {
   <div class="contact-actions">
     <button
       type="submit"
-      class="btn btn-primary contact-submit"
+      class="ch-btn ch-btn--solid contact-submit"
       id="contact-submit"
     >
       {form.submitLabel}

@@ -3,15 +3,13 @@
  * `ch-` and scoped under `.ch-page`, so it sits beside global.css without
  * touching the pages that still use the old look.
  */
-@import "@fontsource/fredericka-the-great/latin-400.css";
-@import "@fontsource/im-fell-english/latin-400.css";
-@import "@fontsource/im-fell-english/latin-400-italic.css";
-@import "@fontsource/im-fell-english-sc/latin-400.css";
-@import "@fontsource/rock-salt/latin-400.css";
+@import "@fontsource/protest-strike/latin-400.css";
 @import "@fontsource/caveat/latin-600.css";
 @import "@fontsource/zilla-slab/latin-400.css";
 @import "@fontsource/zilla-slab/latin-400-italic.css";
 @import "@fontsource/zilla-slab/latin-500.css";
+@import "@fontsource/zilla-slab/latin-700.css";
+@import "@fontsource/rubik-distressed/latin-400.css";
 
 .ch-page {
   /* Black lacquer, bone ink, old gold, olive; the Negroni red, sparingly */
@@ -30,23 +28,43 @@
   /* Brass: a duller gold for labels, so bright gold stays for what you act on */
   --ch-brass: #8f7646;
   --ch-rule: rgb(232 223 204 / 0.3);
-  --ch-chalk: "Fredericka the Great", "IM Fell English", Georgia, serif;
-  --ch-press: "IM Fell English", Georgia, serif;
-  --ch-caps: "IM Fell English SC", "IM Fell English", Georgia, serif;
+  /* Boards: solid fills for panels on the leather, each a step lighter than
+     the last. Never see-through: the cracks must not run behind the text */
+  --ch-board: #1a1510;
+  --ch-board-2: #27211a;
+  --ch-board-3: #342c22;
+  /* The logo's own colours: its cream, the record's mustard, the red drip */
+  --ch-cream: #f2e8d2;
+  --ch-mustard: #dba63c;
+  --ch-pop: #d2342a;
+  /* Headlines: a heavy, slightly uneven poster face, like a gig flyer */
+  --ch-display: "Protest Strike", Impact, "Arial Black", sans-serif;
+  --ch-press: "Zilla Slab", Georgia, serif;
+  /*
+   * Four families in all: the headline face, the slab (text, and in bold
+   * capitals the labels and the ring numerals), one hand, and SOCIAL's own.
+   */
+  --ch-numeral: "Zilla Slab", Georgia, serif;
+  /* Labels: the slab at its boldest, in capitals */
+  --ch-caps: "Zilla Slab", Georgia, serif;
   --ch-book: "Zilla Slab", Georgia, serif;
-  --ch-hand: "Rock Salt", "Bradley Hand", cursive;
-  /* A plainer hand for short things written up, like a night's times */
+  /* The one hand: the map's lettering, and short things written up */
+  --ch-hand: "Caveat", "Bradley Hand", cursive;
   --ch-pen: "Caveat", "Bradley Hand", cursive;
+  /* The word SOCIAL under the logo: heavy and worn, like the logo's lettering */
+  --ch-sign: "Rubik Distressed", "Arial Black", system-ui, sans-serif;
 
+  /* The headline faces come in one weight: never faked bolder */
+  font-synthesis: none;
   min-height: 100vh;
   min-height: 100dvh;
   /*
-   * Behind every page: dark paper, faintly crazed like old varnish. One
-   * seamless tile of hairline cracks, drawn by
-   * scripts/write-crazed-texture.mjs.
+   * Behind every page: old dark leather, cracked into plates, with its
+   * grain. One seamless tile, drawn by scripts/write-leather-texture.mjs
+   * (at 1.5x, so it stays crisp on a phone).
    */
-  background: var(--ch-bg) url("../assets/images/texture/crazed.webp") repeat;
-  background-size: 900px 900px;
+  background: var(--ch-bg) url("../assets/images/texture/leather.webp") repeat;
+  background-size: 720px 720px;
   color: var(--ch-ink-2);
   font-family: var(--ch-book);
   font-size: 1.1875rem;
@@ -63,6 +81,8 @@
 
 .ch-caps {
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: 0.8125rem;
   letter-spacing: 0.08em;
   color: var(--ch-ink-3);
@@ -230,6 +250,11 @@
   pointer-events: auto;
 }
 
+/* Nothing in the panel squashes to fit: it scrolls instead */
+.ch-chart > * {
+  flex: none;
+}
+
 .ch-flag-up {
   display: grid;
   justify-items: center;
@@ -238,11 +263,22 @@
 }
 
 .ch-flag-up img {
-  width: 5.5rem;
+  width: 9rem;
   height: auto;
-  transform: rotate(-3deg);
   filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.6));
   margin-bottom: 0.25rem;
+}
+
+.ch-flag-social {
+  margin: 0.125rem 0 0.5rem;
+  padding-left: 0.37em;
+  font-family: var(--ch-sign);
+  font-weight: 400;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: 0.37em;
+  text-transform: uppercase;
+  color: var(--ch-mustard);
 }
 
 .ch-flag-up .ch-caps {
@@ -267,7 +303,7 @@
   display: grid;
   justify-items: center;
   gap: 0.25rem;
-  padding: 0.5rem 0;
+  padding: 0.375rem 0;
   color: var(--ch-ink-3);
 }
 
@@ -278,8 +314,9 @@
   height: 2.5rem;
   border-radius: 50%;
   border: 1.5px solid currentColor;
-  font-family: var(--ch-press);
-  font-size: 1.125rem;
+  font-family: var(--ch-numeral);
+  font-weight: 700;
+  font-size: 1.0625rem;
   line-height: 1;
   color: var(--ch-ink);
   opacity: 0.85;
@@ -307,6 +344,8 @@
   align-items: center;
   gap: 0.5rem;
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: 0.9375rem;
   letter-spacing: 0.06em;
   color: var(--ch-ink);
@@ -323,66 +362,39 @@
   align-self: stretch;
 }
 
-/* Hero: the room, darkened, the flag and the slogan */
+/*
+ * Hero: the logo and a plain line, straight on the page's leather (the photo
+ * of the room is out for now; chartHeroBackground is kept for when it's back).
+ * It fills the screen it opens on, no more and no less: the small viewport
+ * height, so a phone's
+ * address bar doesn't push the buttons off the foot. --ch-hero-foot is the
+ * room kept clear under the buttons, for what floats at the foot of the page.
+ */
 .ch-hero {
+  --ch-hero-h: 100vh;
+  --ch-hero-foot: 3.5rem;
+  /* The logo gives way first on a short screen: what's left once the line
+     and links under it have their room (it is 1.134 times as wide as tall) */
+  --ch-hero-logo: max(
+    9rem,
+    min(
+      27rem,
+      82vw,
+      (var(--ch-hero-h) - 20.75rem - var(--ch-hero-foot)) * 1.134
+    )
+  );
   position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: var(--ch-hero-h);
   display: grid;
   place-items: center;
   overflow: hidden;
-}
-
-/* The room fades out at the foot, into the page's texture, with no edge */
-.ch-hero-media,
-.ch-hero-scrim {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    #000 calc(100% - 7rem),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    #000 calc(100% - 7rem),
-    transparent 100%
-  );
-}
-
-.ch-hero-media {
-  position: absolute;
-  inset: 0;
-}
-
-.ch-hero-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: grayscale(0.45) contrast(1.15) brightness(0.75);
-}
-
-.ch-hero-scrim {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(
-      60% 55% at 50% 45%,
-      rgb(11 10 8 / 0.25) 0%,
-      rgb(11 10 8 / 0.7) 100%
-    ),
-    linear-gradient(
-      180deg,
-      rgb(11 10 8 / 0.5) 0%,
-      rgb(11 10 8 / 0.2) 40%,
-      rgb(11 10 8 / 0.97) 100%
-    );
 }
 
 .ch-hero-content {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 0.625rem;
-  padding: 5rem 1.25rem 4rem;
+  padding: 4.5rem 1.25rem var(--ch-hero-foot);
   text-align: center;
   animation: ch-rise 1.1s ease-out both;
 }
@@ -404,38 +416,54 @@
   }
 }
 
+@supports (height: 100svh) {
+  .ch-hero {
+    --ch-hero-h: 100svh;
+  }
+}
+
+/* On a phone the buttons span the page: keep them above Book a table */
+@media (max-width: 40rem) {
+  .ch-hero {
+    --ch-hero-foot: 4.75rem;
+  }
+}
+
 .ch-hero-logo {
-  width: min(19rem, 70vw);
+  width: var(--ch-hero-logo);
   height: auto;
-  margin-bottom: 0.75rem;
   filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.8));
 }
 
-.ch-slogan {
-  margin: 0;
-  font-family: var(--ch-chalk);
+/*
+ * SOCIAL, under the name: as wide as the logo's lettering, in the record's
+ * mustard, so the two read as one sign. It stands clear of the lettering by
+ * about half its own height.
+ */
+.ch-hero-social {
+  margin: 0.28em 0 1.75rem;
+  /* The tracking adds a gap after the last letter: pull it back to centre */
+  padding-left: 0.37em;
+  font-family: var(--ch-sign);
   font-weight: 400;
-  font-size: clamp(2.375rem, 7vw, 3.75rem);
+  /* It shrinks with the logo, to stay as wide as the lettering */
+  font-size: min(clamp(2.125rem, 9vw, 3.75rem), var(--ch-hero-logo) * 0.14);
   line-height: 1;
-  color: var(--ch-gold);
-  text-shadow:
-    0 2px 0 rgb(0 0 0 / 0.7),
-    0 0 30px rgb(0 0 0 / 0.6);
+  letter-spacing: 0.37em;
+  text-transform: uppercase;
+  color: var(--ch-mustard);
+  text-shadow: 0 2px 6px rgb(0 0 0 / 0.8);
+}
+
+.ch-hero-line {
+  margin: 0;
+  font-family: var(--ch-book);
+  font-weight: 500;
+  font-size: clamp(1.25rem, 3.4vw, 1.625rem);
+  line-height: 1.25;
+  color: var(--ch-cream);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
   text-wrap: balance;
-}
-
-.ch-hero-content .ch-caps {
-  margin-top: 0.25rem;
-  font-size: 0.9375rem;
-  color: var(--ch-ink);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
-}
-
-/* Tonight (and tomorrow): entries from the log, the bell under them */
-.ch-tonight {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 1.5rem 1.25rem 5rem;
 }
 
 .ch-head {
@@ -461,32 +489,6 @@
   font-size: 0.875rem;
   color: var(--ch-ink-3);
   text-align: right;
-}
-
-.ch-tonight-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1.5rem;
-  align-items: center;
-}
-
-.ch-tonight-row + .ch-tonight-row {
-  border-top: 1px dashed var(--ch-rule);
-}
-
-/* Under the nights: the whole of what's on, and the bell for any night */
-.ch-tonight-more {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem 2rem;
-  padding-top: 1.25rem;
-  border-top: 1px dashed var(--ch-rule);
-}
-
-.ch-tonight-more .ch-btn {
-  margin-left: auto;
 }
 
 .ch-entry {
@@ -565,6 +567,8 @@
 
 .ch-entry .ch-offer {
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: 1rem;
   letter-spacing: 0.06em;
   color: var(--ch-olive);
@@ -575,15 +579,6 @@
 }
 
 @media (max-width: 40rem) {
-  .ch-tonight-row {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
-  }
-
-  .ch-tonight-row .ch-bell {
-    justify-self: end;
-  }
-
   .ch-entry-name {
     font-size: 1.3125rem;
   }
@@ -619,16 +614,16 @@
   color: var(--ch-gold);
   border: 2px double var(--ch-gold);
   opacity: 1;
-  margin-top: 0.5rem;
+  margin-top: 0.125rem;
 }
 
 .ch-title {
   margin: 0;
-  font-family: var(--ch-press);
+  font-family: var(--ch-display);
   font-weight: 400;
-  font-size: clamp(2.5rem, 6vw, 3.5rem);
-  line-height: 1;
-  color: var(--ch-gold);
+  font-size: clamp(2.125rem, 5.2vw, 3.125rem);
+  line-height: 1.05;
+  color: var(--ch-cream);
   text-wrap: balance;
 }
 
@@ -665,11 +660,8 @@
 
 .ch-head,
 .ch-rule,
-.ch-tonight-row + .ch-tonight-row,
-.ch-tonight-more,
 .ch-log li + li .ch-entry,
 .ch-paths li + li .ch-path,
-.ch-home-path,
 .ch-find-ways {
   position: relative;
   border-color: transparent;
@@ -677,11 +669,8 @@
 
 .ch-head::after,
 .ch-rule::before,
-.ch-tonight-row + .ch-tonight-row::before,
-.ch-tonight-more::before,
 .ch-log li + li .ch-entry::before,
 .ch-paths li + li .ch-path::before,
-.ch-home-path::before,
 .ch-find-ways::before {
   content: "";
   position: absolute;
@@ -701,23 +690,11 @@
   background: var(--ch-rule);
 }
 
-/* Home's sections are plain enough apart: the rule between them only just there */
-.ch-home-path + .ch-home-path::before {
-  background: rgb(232 223 204 / 0.1);
-}
-
-.ch-home-path:first-child::before {
-  content: none;
-}
-
 /* Every rule drawn as the uneven dashes: lighter than a solid line */
 .ch-head::after,
 .ch-rule::before,
-.ch-tonight-row + .ch-tonight-row::before,
-.ch-tonight-more::before,
 .ch-log li + li .ch-entry::before,
 .ch-paths li + li .ch-path::before,
-.ch-home-path::before,
 .ch-find-ways::before {
   -webkit-mask-image: var(--ch-line-dash);
   mask-image: var(--ch-line-dash);
@@ -744,6 +721,8 @@
   flex-wrap: wrap;
   gap: 0.25rem 1.5rem;
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: 0.8125rem;
   letter-spacing: 0.08em;
 }
@@ -837,8 +816,8 @@
 }
 
 /*
- * The menu, written straight onto the page like the map: light ink on the
- * crazed paper, names and prices in pen, two columns, nothing between the lines.
+ * The menu, set straight onto the page: chapter heads in the poster face,
+ * names and prices plain, two columns, nothing between the lines.
  */
 .ch-jump {
   display: flex;
@@ -846,6 +825,8 @@
   gap: 0.375rem 1.5rem;
   margin: -1rem 0 2rem;
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: 0.9375rem;
   letter-spacing: 0.06em;
   color: var(--ch-ink-3);
@@ -858,15 +839,96 @@
 .ch-sheet {
   padding: 1rem 0 0;
   color: var(--ch-ink);
-  columns: 2;
-  column-gap: 5rem;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Two columns only on a wide screen; below that, one, at a reading width */
-@media (max-width: 72rem) {
-  .ch-sheet {
-    columns: 1;
-    max-width: 44rem;
+/* Chapters two abreast: each column its own stack, so the tops sit level */
+.ch-sheet-row--columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: clamp(2rem, 5vw, 5rem);
+  align-items: start;
+}
+
+/* A menu of one chapter: its groups flow down both columns */
+.ch-sheet-row--flow .ch-groups {
+  columns: 2;
+  column-gap: clamp(2rem, 5vw, 5rem);
+}
+
+/*
+ * The beer: a band across the page between the cocktails and the rest, on
+ * its own board, draught and bottles side by side.
+ */
+.ch-sheet-row--band {
+  margin: 0 0 3rem;
+  padding: 1.75rem clamp(1.25rem, 3vw, 2.25rem) 0.5rem;
+  border: 2px solid var(--ch-mustard);
+  border-radius: 0.625rem;
+  /* Solid, never see-through: the leather's cracks stay out from behind the
+     list. The first board is the old mustard wash's own colour on the black */
+  background: var(--ch-board);
+}
+
+.ch-sheet-row--band .ch-chapter {
+  margin-bottom: 0;
+}
+
+.ch-sheet-row--band .ch-sheet-head {
+  color: var(--ch-mustard);
+}
+
+.ch-sheet-row--band .ch-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: 0 clamp(2rem, 5vw, 5rem);
+}
+
+/*
+ * A chapter with nothing of its own still writes an empty group ahead of
+ * its named ones; in the band that would hold a column open under the head.
+ */
+.ch-sheet-row--band .ch-group:not(:has(li)) {
+  display: none;
+}
+
+.ch-sheet-row--band .ch-group + .ch-group {
+  margin-top: 0;
+}
+
+.ch-sheet-row--band .ch-group {
+  margin-bottom: 1rem;
+}
+
+/* A line under a chapter or group head: who's cooking, what comes off */
+.ch-chapter-note,
+.ch-group-note {
+  margin: -0.25rem 0 0.75rem;
+  max-width: 44ch;
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  color: var(--ch-ink-2);
+}
+
+.ch-group-note {
+  margin: 0 0 0.25rem;
+  font-style: italic;
+}
+
+/* On a phone: one column, the chapters back in their own order */
+@media (max-width: 48rem) {
+  .ch-sheet-row--columns {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ch-sheet-col {
+    display: contents;
+  }
+
+  .ch-sheet-row--flow .ch-groups {
+    columns: auto;
   }
 }
 
@@ -876,37 +938,19 @@
   margin-bottom: 3rem;
 }
 
-/* Written up a chapter at a time, so none of them sits quite level */
-.ch-chapter:nth-child(4n + 1) {
-  transform: rotate(-0.4deg);
-}
-
-.ch-chapter:nth-child(4n + 2) {
-  transform: rotate(0.35deg) translateX(0.2rem);
-}
-
-.ch-chapter:nth-child(4n + 3) {
-  transform: rotate(-0.2deg) translateX(-0.15rem);
-}
-
-.ch-chapter:nth-child(4n) {
-  transform: rotate(0.5deg);
-}
-
 .ch-sheet-head {
   display: inline-block;
   margin: 0 0 0.75rem;
-  font-family: var(--ch-hand);
+  font-family: var(--ch-display);
   font-weight: 400;
-  font-size: 1.875rem;
-  line-height: 1.3;
-  color: var(--ch-tallow);
-  transform: rotate(-1.5deg);
+  font-size: 1.75rem;
+  line-height: 1.1;
+  color: var(--ch-cream);
   position: relative;
   isolation: isolate;
 }
 
-/* A stroke of the Negroni red under each chapter, as the gold under a title */
+/* A stroke of the logo's red under each chapter, as the mustard under a title */
 .ch-sheet-head::after {
   content: "";
   position: absolute;
@@ -914,7 +958,7 @@
   left: -0.2rem;
   right: 10%;
   bottom: -0.15rem;
-  height: 0.4rem;
+  height: 0.3rem;
   background: var(--ch-red);
   opacity: 0.85;
   border-radius: 40% 10% 60% 10% / 80% 20% 80% 20%;
@@ -933,16 +977,13 @@
 .ch-group h3 {
   display: inline-block;
   margin: 0 0 0.25rem;
-  font-family: var(--ch-hand);
-  font-weight: 400;
-  font-size: 1.25rem;
-  line-height: 1.4;
-  color: var(--ch-brass);
-  transform: rotate(-1deg);
-}
-
-.ch-group:nth-child(even) h3 {
-  transform: rotate(0.8deg) translateX(0.15rem);
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ch-mustard);
 }
 
 .ch-list {
@@ -963,13 +1004,10 @@
   gap: 1rem;
 }
 
-/*
- * Names and prices in the press face of the page titles; the hand is kept
- * for the chapter and group heads. What's in them stays in the book face.
- */
+/* Names and prices in the slab, a weight up; what's in them a size down */
 .ch-item-name {
   font-family: var(--ch-press);
-  font-weight: 400;
+  font-weight: 500;
   font-size: 1.375rem;
   line-height: 1.15;
   color: var(--ch-ink);
@@ -977,11 +1015,11 @@
 
 .ch-price {
   font-family: var(--ch-press);
-  font-weight: 400;
+  font-weight: 500;
   font-size: 1.375rem;
   line-height: 1.15;
   white-space: nowrap;
-  color: var(--ch-ink);
+  color: var(--ch-mustard);
 }
 
 .ch-item-desc {
@@ -1092,11 +1130,10 @@
 }
 
 /*
- * Buttons, drawn by hand like the rings and the menu: the plain one is a
- * gold frame in pen, a little crooked; the solid one a swatch of gold laid
- * on with the brush. Hover only deepens the ink. Only the drawing takes the
- * pen filter, so the words stay sharp. The old `.btn` on these pages is
- * drawn the same way.
+ * Buttons: the plain one a gold outline, the solid one a block of gold,
+ * both with an edge only just uneven, like card cut by hand (the #ch-cut
+ * filter in ChartNav). Hover only deepens the colour. The old `.btn` on
+ * these pages is drawn the same way.
  */
 .ch-btn,
 .ch-page .btn.btn-primary,
@@ -1115,10 +1152,10 @@
   background: transparent;
   color: var(--ch-gold);
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: 1rem;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  text-transform: none;
+  letter-spacing: 0.08em;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -1139,28 +1176,26 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  filter: url(#ch-pen);
+  filter: url(#ch-cut);
   transition:
     border-color 0.25s ease,
     background 0.25s ease;
 }
 
-/* The frame: one pass of the pen, corners not quite square */
+/* The frame: a line with corners not quite alike */
 .ch-btn::before,
 .ch-page .btn.btn-ghost::before {
-  border: 1.5px solid rgb(201 162 74 / 0.7);
-  border-radius: 5px 12px 4px 10px / 10px 4px 12px 5px;
-  transform: rotate(-0.6deg);
+  border: 2px solid rgb(201 162 74 / 0.8);
+  border-radius: 0.375rem 0.625rem 0.3125rem 0.5625rem;
 }
 
-/* The swatch: gold brushed on, a little past the words each side */
+/* The solid one: a block of gold */
 .ch-btn--solid::before,
 .ch-page .btn.btn-primary::before {
-  inset: 0 -0.25rem;
   border: 0;
   background: var(--ch-gold);
-  border-radius: 3px 14px 4px 12px / 12px 4px 14px 3px;
-  transform: rotate(-0.8deg) skewX(-4deg);
+  border-radius: 0.375rem 0.625rem 0.3125rem 0.5625rem;
+  transform: rotate(-0.4deg);
 }
 
 .ch-btn:hover,
@@ -1204,217 +1239,75 @@
   outline-offset: 0.4rem;
 }
 
+/* Book a table: floats in the bottom right corner of every page, clear of the
+   headings and the menu button; the foot leaves room so it never covers the last line.
+   .ch-page in front so home's bigger buttons don't resize it: one size on every page */
+.ch-page .ch-btn.ch-book-fixed {
+  position: fixed;
+  right: max(1.25rem, env(safe-area-inset-right));
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  min-height: 2.75rem;
+  padding: 0 1.125rem;
+  font-size: 0.9375rem;
+}
+
+/* A dark halo behind the gold, so it lifts off whatever scrolls under it */
+.ch-btn.ch-book-fixed::after {
+  content: "";
+  position: absolute;
+  inset: -0.375rem;
+  z-index: -2;
+  background: var(--ch-bg);
+  opacity: 0.85;
+  filter: blur(0.375rem);
+  pointer-events: none;
+}
+
+.ch-page:has(.ch-book-fixed) .ch-footer {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 40rem) {
+  .ch-page .ch-btn.ch-book-fixed {
+    right: max(0.875rem, env(safe-area-inset-right));
+    bottom: calc(0.875rem + env(safe-area-inset-bottom, 0px));
+    padding: 0 1rem;
+    font-size: 0.875rem;
+  }
+
+  .ch-page:has(.ch-book-fixed) .ch-footer {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* The two buttons: set well apart from the sign and its line above them */
 .ch-hero-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.75rem;
-  margin-top: 1.25rem;
-}
-
-/*
- * Home: play here, stay close. One row each on one grid, so they line up:
- * the eyebrow and title on the left, what it is and the link on the right.
- * The way here shows the map and the play row its photo, under the title.
- */
-.ch-home-paths {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 0 1.25rem 4rem;
-  display: grid;
-}
-
-.ch-home-path {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  grid-template-areas:
-    "eyebrow side"
-    "title side"
-    "photo side";
-  /* Extra height from a long right side goes under the picture, not the title */
-  grid-template-rows: auto auto 1fr;
-  gap: 0.375rem 2.5rem;
-  align-items: start;
-  padding: 2.25rem 0;
-}
-
-.ch-home-path-body {
-  display: contents;
-}
-
-.ch-home-path-body > .ch-caps {
-  grid-area: eyebrow;
+  margin-top: 2.25rem;
 }
 
 /* Eyebrows over the section titles: a size up, in gold, so they read */
-.ch-home-path-body > .ch-caps,
 .ch-path > .ch-caps {
   font-size: 1.0625rem;
   color: var(--ch-brass);
 }
 
-.ch-home-path-body > .ch-path-title {
-  grid-area: title;
-  font-size: 2.5rem;
-}
-
-/* The right side: what it is, then the link, kept together */
-.ch-home-side {
-  grid-area: side;
-  display: grid;
-  gap: 0.75rem;
-  align-content: start;
-}
-
-.ch-home-side > .ch-ital {
-  font-size: 1.1875rem;
-  line-height: 1.55;
-  color: var(--ch-ink-2);
-  max-width: 44ch;
-}
-
-/* The way-here row carries the directions themselves, not just a pointer */
-.ch-home-ways {
-  display: grid;
-  gap: 1.25rem;
-  max-width: 44ch;
-  color: var(--ch-ink-2);
-  line-height: 1.55;
-}
-
-.ch-home-ways > .ch-ital {
-  font-size: 1.1875rem;
-}
-
-.ch-home-way {
-  display: grid;
-  gap: 0.375rem;
-}
-
-.ch-home-way-head {
-  font-family: var(--ch-press);
-  font-size: 1.25rem;
-  color: var(--ch-tallow);
-}
-
-.ch-home-way-steps {
-  display: grid;
-  gap: 0.375rem;
-}
-
-.ch-home-way-steps > span {
-  display: grid;
-  grid-template-columns: 1.25rem 1fr;
-  gap: 0.5rem;
-}
-
-.ch-home-way-n {
-  font-family: var(--ch-pen);
-  font-weight: 600;
-  font-size: 1.25rem;
-  line-height: 1.2;
-  color: var(--ch-olive);
-}
-
-.ch-home-menu-names {
-  color: var(--ch-ink-2);
-  line-height: 1.5;
-}
-
-.ch-home-way-address {
-  font-family: var(--ch-caps);
-  font-size: 0.9375rem;
-  letter-spacing: 0.06em;
-  color: var(--ch-ink-3);
-}
-
-.ch-home-side > .ch-link-line {
-  margin-top: 0.25rem;
-}
-
-.ch-home-path-photo {
-  grid-area: photo;
-  width: 100%;
-  max-width: 26rem;
-  aspect-ratio: 5 / 4;
-  margin-top: 1.25rem;
-}
-
-/* The way here: the map from Finding us, small, drawn straight on */
-.ch-home-path-map {
-  aspect-ratio: auto;
-}
-
-.ch-home-path-map .ch-map {
-  display: block;
-  margin: 0;
-}
-
 .ch-link-line {
   margin-top: 0.25rem;
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: 0.9375rem;
   letter-spacing: 0.08em;
   color: var(--ch-gold);
 }
 
-.ch-home-path a.ch-path-title:hover,
-.ch-home-path a.ch-path-title:focus-visible,
-.ch-home-path:has(.ch-home-path-photo:hover) .ch-path-title {
-  color: var(--ch-gold);
-}
-
-@media (max-width: 40rem) {
-  .ch-home-path {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "eyebrow" "title" "side" "photo";
-    grid-template-rows: none;
-    padding: 1.75rem 0;
-  }
-
-  .ch-home-path-photo {
-    margin-top: 0.75rem;
-  }
-
-  .ch-home-path-body > .ch-path-title {
-    font-size: 2rem;
-  }
-
-  .ch-home-side > .ch-ital {
-    font-size: 1.125rem;
-  }
-}
-
-/* The forms (play, the list): the old form markup inside the new frame */
-.ch-form-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 20rem;
-  gap: 3rem;
-  align-items: start;
-}
-
-.ch-form-aside {
-  position: sticky;
-  top: 5rem;
-}
-
-.ch-form-aside img {
-  width: 100%;
-  height: auto;
-  display: block;
-  filter: grayscale(0.3) contrast(1.15) brightness(0.9);
-}
-
-@media (max-width: 56rem) {
-  .ch-form-split {
-    grid-template-columns: 1fr;
-  }
-
-  .ch-form-aside {
-    display: none;
-  }
-}
-
+/* The list signup: the old markup inside the new frame. The play and
+   collaborate forms have their own sheet, chart-forms.css. */
 .ch-page .signup--embedded::before,
 .ch-page .signup::before {
   display: none;
@@ -1432,8 +1325,6 @@
 }
 
 .ch-page .section-header,
-.ch-page .contact-section-header h2,
-.ch-page .contact-field-heading,
 .ch-page .signup-confirm-title {
   font-family: var(--ch-press);
   font-weight: 400;
@@ -1441,20 +1332,14 @@
 }
 
 .ch-page .section-eyebrow,
-.ch-page .contact-field-label,
-.ch-page .contact-label-name,
-.ch-page .contact-nav-label,
-.ch-page .contact-help,
-.ch-page .contact-required-note,
-.ch-page .signup-consent,
 .ch-page .signup-confirm-eyebrow {
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
-.ch-page .contact-form,
 .ch-page .signup-form,
-.ch-page .contact-field,
 .ch-page .signup-field {
   font-family: var(--ch-book);
 }
@@ -1490,74 +1375,150 @@
   border-color: var(--ch-gold);
 }
 
-/* Form choices: a plain rule; picked, the inner hairline and the gold */
-.ch-page .contact-tag {
-  border: 1px solid var(--ch-rule);
-  border-radius: 0;
-  background: transparent;
-  font-family: var(--ch-book);
-  font-size: 1rem;
-  color: var(--ch-ink-2);
-}
-
-.ch-page .contact-tag:hover {
-  border-color: rgb(201 162 74 / 0.6);
-  color: var(--ch-ink);
-}
-
-.ch-page .contact-tag:has(input:checked) {
-  border-color: var(--ch-gold);
-  background: transparent;
-  color: var(--ch-gold);
-  box-shadow:
-    inset 0 0 0 3px var(--ch-bg),
-    inset 0 0 0 4px rgb(201 162 74 / 0.55);
-}
-
 /* The page head already says it; the embedded signup keeps its form only */
 .ch-page .signup .section-header {
   display: none;
 }
 
 /*
- * Down to tonight: a word and a hand-drawn arrow at the hero's foot. Still,
- * bar two nudges a moment after the page opens, to catch the eye.
+ * The signup: field, button and the yes-box as one block on the page's left
+ * edge, no wider than the lead above it. The thanks takes the form's place
+ * rather than sharing a cell with it, so it holds no room open while hidden.
  */
-.ch-hero-more {
-  position: absolute;
-  left: 50%;
-  bottom: 1.25rem;
-  transform: translateX(-50%);
-  display: grid;
-  justify-items: center;
-  gap: 0.375rem;
-  color: var(--ch-gold);
-  text-decoration: none;
+.ch-page .signup-stage {
+  display: block;
+  max-width: 40rem;
+  margin-bottom: 1rem;
 }
 
-.ch-hero-more .ch-caps {
-  font-size: 0.875rem;
-  letter-spacing: 0.12em;
+.ch-page .signup-confirm {
+  display: none;
+  padding: 0;
+  text-align: left;
+}
+
+.ch-page .signup.is-confirmed .signup-panel {
+  display: none;
+}
+
+.ch-page .signup.is-confirmed .signup-confirm {
+  display: block;
+  animation: ch-signup-in 0.5s ease both;
+}
+
+.ch-page .signup-confirm-logo {
+  margin-inline: 0;
+}
+
+.ch-page .signup-confirm-lead {
+  color: var(--ch-ink-2);
+}
+
+@keyframes ch-signup-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-page .signup.is-confirmed .signup-confirm {
+    animation: none;
+  }
+}
+
+.ch-page .signup-form {
+  gap: 0;
+}
+
+.ch-page .signup-field {
+  gap: 0.75rem;
+  padding: 0;
+  border: 0;
+}
+
+.ch-page .signup-field input[type="email"] {
+  min-height: 3rem;
+}
+
+.ch-page .signup-field input[type="email"]::placeholder {
+  color: var(--ch-ink-3);
+}
+
+.ch-page .signup-field input[type="email"]:focus {
+  border-color: var(--ch-gold);
+}
+
+/* The row is a 44px target; the box is as tall as one line of the text, so
+   it sits level with a single line and with the first of two. */
+.ch-page .signup-consent {
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  padding: 0.625rem 0;
+  font-family: var(--ch-book);
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
   color: var(--ch-ink);
-  text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
-  transition: color 0.25s ease;
 }
 
-.ch-hero-more svg {
-  width: 1.25rem;
-  height: 2.25rem;
-  filter: url(#ch-ink);
-  animation: ch-nudge 0.9s ease-in-out 2s 2;
+.ch-page .signup-consent input,
+.ch-page .contact-tag input {
+  appearance: none;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  border: 2px solid rgb(242 232 210 / 0.75);
+  border-radius: 0.1875rem;
+  background: transparent center / 1rem 1rem no-repeat;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
-.ch-hero-more:hover .ch-caps,
-.ch-hero-more:focus-visible .ch-caps {
-  color: var(--ch-gold);
+.ch-page .signup-consent:hover input,
+.ch-page .contact-tag:hover input {
+  border-color: var(--ch-mustard);
 }
 
-.ch-hero-more:focus-visible {
-  outline: 1px solid var(--ch-gold);
-  outline-offset: 6px;
+.ch-page .signup-consent input:checked,
+.ch-page .contact-tag input:checked {
+  border-color: var(--ch-mustard);
+  background-color: var(--ch-mustard);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 8.6l3.6 3.6 7.4-8.4' fill='none' stroke='%230b0a08' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.ch-page .signup-consent input:focus-visible,
+.ch-page .contact-tag input:focus-visible {
+  outline: 2px solid var(--ch-cream);
+  outline-offset: 3px;
+}
+
+.ch-page .signup-error,
+.ch-page .contact-field-error,
+.ch-page .contact-error {
+  min-height: 0;
+  text-align: left;
+  font-family: var(--ch-book);
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  color: var(--ch-red-ink);
+}
+
+.ch-page .signup-error:not(:empty),
+.ch-page .contact-field-error,
+.ch-page .contact-error {
+  margin-top: 0.25rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--ch-red-ink);
+}
+
+@media (max-width: 640px) {
+  .ch-page .signup-field {
+    gap: 0.75rem;
+  }
 }
 
 @keyframes ch-nudge {
@@ -1568,16 +1529,6 @@
   45% {
     transform: translateY(0.5rem);
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ch-hero-more svg {
-    animation: none;
-  }
-}
-
-.ch-tonight {
-  scroll-margin-top: 1rem;
 }
 
 /*
@@ -1688,7 +1639,8 @@
 .ch-map-labels text {
   fill: var(--paper-ink);
   font-family: var(--ch-hand);
-  font-size: 18px;
+  font-weight: 600;
+  font-size: 27px;
 }
 
 .ch-map-labels .ch-map-sound {
@@ -1699,33 +1651,33 @@
 }
 
 .ch-map-labels .ch-map-small {
-  font-size: 13px;
+  font-size: 20px;
   fill: var(--paper-ink-2);
 }
 
 .ch-map-labels .ch-map-mark {
-  font-size: 13px;
+  font-size: 20px;
   fill: var(--paper-ink-2);
 }
 
 .ch-map-labels .ch-map-road {
-  font-size: 13px;
+  font-size: 20px;
   fill: var(--paper-ink-3);
 }
 
 .ch-map-labels .ch-map-water-label {
-  font-size: 14px;
+  font-size: 21px;
   fill: var(--paper-ink-2);
 }
 
 .ch-map-labels .ch-map-name {
-  font-size: 46px;
+  font-size: 68px;
   fill: var(--ch-olive);
 }
 
 .ch-map-labels .ch-map-note {
   font-family: var(--ch-hand);
-  font-size: 15px;
+  font-size: 23px;
   fill: var(--paper-walk);
   /* A rim of the dark ground, so the words lift off any line under them */
   stroke: var(--ch-bg);
@@ -1736,6 +1688,8 @@
 
 .ch-map-labels .ch-map-n {
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: 16px;
   fill: var(--paper-ink-2);
 }
@@ -1759,6 +1713,8 @@
   gap: 1rem;
   margin-top: 1rem;
   font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: 1rem;
   letter-spacing: 0.06em;
   color: var(--paper-ink-2);
@@ -1790,11 +1746,11 @@
 
 .ch-find-head {
   margin: 0 0 0.875rem;
-  font-family: var(--ch-press);
+  font-family: var(--ch-display);
   font-weight: 400;
-  font-size: 1.875rem;
+  font-size: 1.625rem;
   line-height: 1.15;
-  color: var(--ch-tallow);
+  color: var(--ch-cream);
 }
 
 .ch-find-steps {
@@ -1823,17 +1779,6 @@
   }
 }
 
-/* The play page: the call for artists under the turntable */
-.ch-call {
-  margin-top: 1.75rem;
-}
-
-.ch-call p {
-  margin: 0 0 0.875rem;
-  line-height: 1.6;
-  color: var(--ch-ink-2);
-}
-
 .ch-find-page .ch-main {
   max-width: 64rem;
 }
@@ -1842,7 +1787,7 @@
 .ch-title {
   position: relative;
   display: inline-block;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.375rem;
 }
 
 .ch-title::after {
@@ -1851,9 +1796,9 @@
   left: -0.25rem;
   right: 15%;
   bottom: 0;
-  height: 0.5rem;
-  background: var(--ch-ink-3);
-  opacity: 0.75;
+  height: 0.375rem;
+  background: var(--ch-mustard);
+  opacity: 0.9;
   border-radius: 40% 10% 60% 10% / 80% 20% 80% 20%;
   transform: rotate(-1deg) skewX(-18deg);
   filter: url(#ch-ink);
@@ -1866,8 +1811,170 @@
 .ch-hand-note {
   display: inline-block;
   font-family: var(--ch-hand);
-  font-size: 0.875rem;
-  line-height: 1.4;
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.2;
   color: var(--ch-olive);
   transform: rotate(-3deg);
+}
+
+/* Contact: finding us, playing here and the list, one under the other */
+.ch-contact-part {
+  scroll-margin-top: 5rem;
+  padding: 2.5rem 0;
+}
+
+.ch-contact-part + .ch-contact-part {
+  border-top: 1px dashed var(--ch-rule);
+}
+
+.ch-contact-part > p,
+.ch-contact-play p {
+  max-width: 40rem;
+  margin: 0 0 1.25rem;
+  font-size: 1.1875rem;
+  color: var(--ch-ink-2);
+}
+
+.ch-contact-play {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: center;
+}
+
+/*
+ * A photo as a thing on the page: a print with a cream paper border,
+ * deeper at the foot where a note can be written, taped up at a small
+ * tilt (--tilt). The paper is the ::before, its edge cut a little uneven
+ * (#ch-cut), so the photo itself stays sharp; the tape is the ::after.
+ * The decks on the play form, on Contact and on home. Not for the photo
+ * wall or flyers.
+ */
+.ch-print {
+  --tilt: 1.5deg;
+  position: relative;
+  isolation: isolate;
+  display: block;
+  margin: 0;
+  padding: 0.625rem 0.625rem 3rem;
+  transform: rotate(var(--tilt));
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.5))
+    drop-shadow(0.25rem 0.875rem 1.125rem rgb(0 0 0 / 0.5));
+}
+
+.ch-print::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(
+      172deg,
+      rgb(255 255 255 / 0.2),
+      rgb(255 255 255 / 0) 40%,
+      rgb(60 40 10 / 0.14)
+    ),
+    var(--ch-cream);
+  filter: url(#ch-cut);
+}
+
+/* A strip of masking tape over the top edge */
+.ch-print::after {
+  content: "";
+  position: absolute;
+  top: -0.875rem;
+  left: 50%;
+  width: 6.5rem;
+  height: 1.75rem;
+  background: linear-gradient(
+    180deg,
+    rgb(229 212 184 / 0.72),
+    rgb(214 194 160 / 0.6)
+  );
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transform: translateX(-50%) rotate(-2.5deg);
+  filter: url(#ch-cut);
+}
+
+.ch-print img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  /* The print's own edge, where the photo meets the paper */
+  box-shadow: 0 0 0 1px rgb(11 10 8 / 0.25);
+}
+
+/* A word in pen along the foot of the print */
+.ch-print-note {
+  position: absolute;
+  left: 1.125rem;
+  bottom: 0.5rem;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.625rem;
+  line-height: 2rem;
+  color: #2b2418;
+  transform: rotate(-1.5deg);
+}
+
+.ch-contact-part .ch-btn {
+  margin-top: 0.5rem;
+}
+
+.ch-contact-also {
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 48rem) {
+  .ch-contact-play {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/*
+ * A section's head, on home and above the deals and the pop-up kitchen
+ * wherever they are (StandingCards.astro).
+ */
+.ch-home-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 2.5rem;
+  margin-bottom: 2.75rem;
+}
+
+.ch-poster {
+  position: relative;
+  isolation: isolate;
+  margin: 0;
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: clamp(2.125rem, 5vw, 3.25rem);
+  line-height: 1;
+  color: var(--ch-cream);
+}
+
+/* The logo's red, brushed under the title */
+.ch-poster::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -0.3rem;
+  right: 12%;
+  bottom: -0.3rem;
+  height: 0.4rem;
+  background: var(--ch-pop);
+  border-radius: 40% 10% 60% 10% / 80% 20% 80% 20%;
+  transform: rotate(-1deg) skewX(-18deg);
+  filter: url(#ch-ink);
+}
+
+/* Under a page's own title a section's is smaller */
+.ch-main .ch-poster {
+  font-size: clamp(1.75rem, 3.6vw, 2.375rem);
 }

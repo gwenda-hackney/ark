@@ -1,0 +1,626 @@
+/*
+ * Night cards (#240, NightCards.astro), on home and What's on: the next
+ * night across the top, the ones after it in rows, about four abreast.
+ * Photos are 4:5; a flyer shown whole keeps its own shape (--shape, its
+ * width for its height: frameRatio). The pictures in a row are all one
+ * height and each card is as wide as its picture, so nothing is cropped,
+ * no flyer has a strip beside it, and the words under them start level.
+ */
+.ch-nights {
+  /* A row's pictures are at least this tall, and no taller than the max */
+  --night-h: 19rem;
+  --night-h-max: 24rem;
+}
+
+.ch-night-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.25rem 1.5rem;
+  align-items: flex-start;
+}
+
+/*
+ * Width in proportion to the picture's shape, growing in the same
+ * proportion to fill the row: every picture in the row ends up one height.
+ */
+.ch-night {
+  flex: var(--shape, 0.8) 1 calc(var(--shape, 0.8) * var(--night-h));
+  max-width: calc(var(--shape, 0.8) * var(--night-h-max));
+  min-width: 0;
+}
+
+/* What's on, a week at a time */
+.ch-night-week + .ch-night-week {
+  margin-top: 4.5rem;
+}
+
+.ch-night-week-title {
+  width: fit-content;
+  margin-bottom: 2.25rem;
+}
+
+.ch-night[hidden] {
+  display: none;
+}
+
+.ch-night-card {
+  display: grid;
+  gap: 0.875rem;
+  align-content: start;
+  height: 100%;
+}
+
+.ch-night-photo {
+  position: relative;
+  display: block;
+  aspect-ratio: var(--shape, 0.8);
+  border-radius: 0.375rem;
+  background: #17140f;
+}
+
+.ch-night-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  transition: filter 0.25s ease;
+}
+
+/*
+ * Show whole image (#27): a flyer that isn't 4:5 sits uncropped in the
+ * frame, over a tiny blurred copy of itself, darkened, as on the old cards.
+ */
+.ch-night-photo--whole {
+  isolation: isolate;
+}
+
+.ch-night-photo--whole::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--placeholder) center / cover no-repeat;
+  filter: blur(18px) brightness(0.5) saturate(1.1);
+  /* The blur's soft edge stays inside the frame */
+  clip-path: inset(0 round 0.375rem);
+}
+
+.ch-night-photo--whole img {
+  position: relative;
+  object-fit: contain;
+  object-position: 50% 50% !important;
+}
+
+/* No photo: the logo, faint, in the middle of the dark */
+.ch-night-photo img.ch-night-mark {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: 62%;
+  margin: auto;
+  object-fit: contain;
+  opacity: 0.35;
+}
+
+.ch-night-card:hover .ch-night-photo img,
+.ch-night-card:focus-visible .ch-night-photo img {
+  filter: brightness(1.12);
+}
+
+/*
+ * The stickers: the date on a night's photo, the tag on a deal or a pop-up,
+ * Tonight over the big one, the offer. One family: a scrap of coloured paper
+ * cut by hand and stuck on at a tilt. The paper is the ::before (its colour
+ * --paper, masked to an uneven outline, --cut, with a little grain), so the
+ * words on it (--print) stay sharp; the shadow is soft, as under paper. Each
+ * kind sets only its colours, size and place; the tilt and the cut change
+ * from card to card so a row isn't all one angle.
+ */
+.ch-night-date,
+.ch-stand-tag,
+.ch-night-label,
+.ch-night-offer {
+  --paper: var(--ch-mustard);
+  --print: var(--ch-bg);
+  --tilt: -3deg;
+  /* Three outlines, each a path in a 100 by 100 box stretched to the sticker */
+  --cut-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M0.9 1.0L13.9 0.6L35.6 0.6L48.3 0.6L65.8 0.8L81.0 0.6L98.0 0.5L98.1 18.3L98.6 30.4L98.0 52.1L98.2 64.8L98.3 83.5L99.0 99.3L83.7 99.7L63.6 99.4L45.9 98.6L34.5 99.4L20.8 98.7L0.5 99.0L0.2 79.7L1.1 68.1L1.2 47.9L0.4 31.8L1.0 17.7Z'/%3E%3C/svg%3E");
+  --cut-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M0.9 2.7L15.3 2.3L37.3 2.6L53.5 2.4L67.3 1.9L79.7 2.6L98.9 2.2L98.7 14.5L99.3 34.6L98.7 52.7L98.5 65.3L99.3 80.9L99.0 97.9L79.3 97.3L67.7 97.8L52.3 98.3L34.5 97.6L19.0 97.1L2.5 97.6L2.6 85.5L2.4 66.2L2.2 47.6L1.0 33.6L1.7 17.6Z'/%3E%3C/svg%3E");
+  --cut-c: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M1.0 1.7L16.3 1.4L30.0 2.1L49.2 1.7L67.0 1.4L84.3 0.9L97.1 1.4L97.2 17.0L98.2 29.9L98.2 53.5L97.8 66.8L98.8 80.0L98.9 99.1L82.6 98.7L62.9 98.8L49.2 99.4L32.9 99.5L15.1 99.3L1.9 98.9L1.7 85.1L2.0 65.3L1.9 47.1L0.9 34.4L0.9 15.9Z'/%3E%3C/svg%3E");
+  --cut: var(--cut-a);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.45 -0.19'/%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23n)'/%3E%3C/svg%3E");
+  position: relative;
+  isolation: isolate;
+  color: var(--print);
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: rotate(var(--tilt));
+  filter: drop-shadow(0 1px 0.5px rgb(0 0 0 / 0.5))
+    drop-shadow(0.0625rem 0.25rem 0.3125rem rgb(0 0 0 / 0.4));
+}
+
+.ch-night-date::before,
+.ch-stand-tag::before,
+.ch-night-label::before,
+.ch-night-offer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    var(--grain),
+    linear-gradient(
+      168deg,
+      rgb(255 255 255 / 0.14),
+      rgb(255 255 255 / 0) 45%,
+      rgb(0 0 0 / 0.12)
+    ),
+    var(--paper);
+  -webkit-mask: var(--cut) center / 100% 100% no-repeat;
+  mask: var(--cut) center / 100% 100% no-repeat;
+}
+
+/* Red paper, cream print: today, Tonight, a deal */
+.ch-night--tonight .ch-night-date,
+.ch-night-label,
+.ch-stand--deal .ch-stand-tag {
+  --paper: var(--ch-pop);
+  --print: var(--ch-cream);
+}
+
+/* The offer, on a cream ticket */
+.ch-night-offer {
+  --paper: var(--ch-cream);
+  --tilt: -1.5deg;
+}
+
+/* No two neighbours at one angle, or cut alike */
+.ch-night:nth-child(4n + 2) .ch-night-date {
+  --tilt: 3deg;
+  --cut: var(--cut-b);
+}
+
+.ch-night:nth-child(4n + 3) .ch-night-date {
+  --tilt: -5deg;
+  --cut: var(--cut-c);
+}
+
+.ch-night:nth-child(4n + 4) .ch-night-date {
+  --tilt: 1.5deg;
+}
+
+.ch-night:nth-child(odd) .ch-night-offer {
+  --tilt: 1deg;
+  --cut: var(--cut-c);
+}
+
+.ch-night-label,
+.ch-stand:nth-child(even) .ch-stand-tag {
+  --cut: var(--cut-b);
+}
+
+/* The date, stuck on the corner of the photo like a price sticker */
+.ch-night-date {
+  position: absolute;
+  top: -0.625rem;
+  left: -0.5rem;
+  display: grid;
+  justify-items: center;
+  min-width: 3.5rem;
+  padding: 0.375rem 0.5rem 0.4375rem;
+  font-size: 0.8125rem;
+}
+
+.ch-night-date b {
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.ch-night-body {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+}
+
+/* Tonight, Tomorrow, Next up: only over the big one */
+.ch-night-label {
+  display: none;
+  margin-bottom: 0.5rem;
+  padding: 0.3125rem 0.75rem 0.375rem;
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.ch-night-name {
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: 1.375rem;
+  line-height: 1.1;
+  color: var(--ch-cream);
+  text-wrap: balance;
+  transition: color 0.2s ease;
+}
+
+.ch-night-card:hover .ch-night-name,
+.ch-night-card:focus-visible .ch-night-name {
+  color: var(--ch-mustard);
+}
+
+.ch-night-time {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.625rem;
+  line-height: 1;
+  color: var(--ch-mustard);
+  white-space: nowrap;
+}
+
+/* An event over several days: each day's hours stay whole, a line each if need be */
+.ch-night--run .ch-night-time {
+  white-space: normal;
+  line-height: 1.1;
+}
+
+.ch-night--run .ch-night-time span {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.ch-night-note {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  color: var(--ch-ink-2);
+}
+
+.ch-night-offer {
+  margin-top: 0.375rem;
+  padding: 0.25rem 0.625rem 0.3125rem;
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
+}
+
+.ch-night--lead {
+  flex: 0 0 100%;
+  max-width: none;
+}
+
+.ch-night--lead .ch-night-card {
+  grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  gap: 3rem;
+  align-items: center;
+}
+
+.ch-night--lead .ch-night-label {
+  display: inline-block;
+}
+
+.ch-night--lead .ch-night-date {
+  min-width: 4.75rem;
+  padding: 0.5rem 0.75rem 0.625rem;
+  font-size: 1.125rem;
+}
+
+.ch-night--lead .ch-night-date b {
+  font-size: 2.75rem;
+}
+
+.ch-night--lead .ch-night-name {
+  font-size: clamp(1.875rem, 3.4vw, 2.75rem);
+  line-height: 1.05;
+}
+
+.ch-night--lead .ch-night-time {
+  margin-top: 0.25rem;
+  font-size: 2.25rem;
+}
+
+.ch-night--lead .ch-night-note {
+  font-size: 1.25rem;
+}
+
+.ch-night--lead .ch-night-offer {
+  margin-top: 0.625rem;
+  font-size: 1.125rem;
+}
+
+.ch-night-empty {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--ch-ink-2);
+}
+
+@media (max-width: 64rem) {
+  .ch-nights {
+    --night-h: 16rem;
+    --night-h-max: 21rem;
+  }
+
+  .ch-night--lead .ch-night-card {
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* On a phone: the big one stacked, the rest as rows with a small photo */
+@media (max-width: 40rem) {
+  .ch-nights {
+    /* The small pictures down the side: one height, as wide as each is */
+    --night-h: 8.125rem;
+  }
+
+  .ch-night-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .ch-night {
+    max-width: none;
+  }
+
+  .ch-night-week + .ch-night-week {
+    margin-top: 3.25rem;
+  }
+
+  .ch-night-week-title {
+    margin-bottom: 1.75rem;
+  }
+
+  .ch-night--lead .ch-night-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-card {
+    grid-template-columns: calc(var(--shape, 0.8) * var(--night-h)) minmax(
+        0,
+        1fr
+      );
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-date {
+    min-width: 2.75rem;
+    padding: 0.25rem 0.375rem 0.3125rem;
+    font-size: 0.75rem;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-date b {
+    font-size: 1.375rem;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-name {
+    font-size: 1.25rem;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-time {
+    font-size: 1.375rem;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-note {
+    font-size: 1rem;
+  }
+}
+
+/*
+ * The deals and the pop-up kitchen (StandingCards.astro), a section each:
+ * cards like the nights', the picture beside the words, a tag on the corner
+ * where a night has its date. Two abreast; one alone takes the row.
+ */
+.ch-stand-section:not(.ch-home-section) {
+  margin-top: 4.5rem;
+}
+
+/* On the food page the card comes first */
+.ch-stand-section.ch-stand-section--top {
+  margin: 0.5rem 0 3.5rem;
+}
+
+.ch-stands {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2.5rem 3rem;
+  align-items: start;
+}
+
+.ch-stands--one {
+  grid-template-columns: minmax(0, 46rem);
+}
+
+/* The pictures are one height, each as wide as its own shape (--shape) */
+.ch-stand {
+  --stand-h: 15rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(var(--shape, 0.8) * var(--stand-h)) minmax(0, 1fr);
+  gap: 1.75rem;
+  align-items: center;
+}
+
+.ch-stands--one .ch-stand {
+  --stand-h: 18.75rem;
+  gap: 2.5rem;
+}
+
+/* A guest's own mark stands in for a photo: whole, on its white */
+.ch-night-photo.ch-stand-photo--logo {
+  background: #fff;
+}
+
+.ch-night-photo.ch-stand-photo--logo img {
+  object-fit: contain;
+}
+
+.ch-stand:hover .ch-night-photo img,
+.ch-stand:focus-within .ch-night-photo img {
+  filter: brightness(1.12);
+}
+
+/* What it is, stuck on the corner like a night's date */
+.ch-stand-tag {
+  position: absolute;
+  top: -0.75rem;
+  left: -0.625rem;
+  max-width: calc(100% + 0.5rem);
+  padding: 0.4375rem 0.75rem 0.5rem;
+  font-size: 1rem;
+  line-height: 1.05;
+  --tilt: -4deg;
+}
+
+.ch-stand--deal .ch-stand-tag {
+  font-size: 1.25rem;
+}
+
+.ch-stand:nth-child(even) .ch-stand-tag {
+  --tilt: -2deg;
+}
+
+.ch-stand-body {
+  display: grid;
+  justify-items: start;
+  gap: 0.375rem;
+}
+
+.ch-stand-body p {
+  margin: 0;
+}
+
+.ch-stand-name {
+  margin: 0;
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: clamp(1.625rem, 2.6vw, 2.125rem);
+  line-height: 1;
+  color: var(--ch-cream);
+  text-wrap: balance;
+}
+
+.ch-stands--one .ch-stand-name {
+  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+}
+
+.ch-stand-link {
+  transition: color 0.2s ease;
+}
+
+/* The whole card is the way in; the links under it stay their own */
+.ch-stand-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.ch-stand:hover .ch-stand-link,
+.ch-stand-link:focus-visible {
+  color: var(--ch-mustard);
+}
+
+.ch-stand .ch-night-time {
+  font-size: 2rem;
+  white-space: normal;
+}
+
+.ch-stand .ch-night-note {
+  font-size: 1.125rem;
+}
+
+.ch-stand .ch-night-offer {
+  font-size: 1.0625rem;
+}
+
+.ch-stand-links {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.5rem;
+  margin-top: 0.5rem !important;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ch-page .ch-stand-links a {
+  color: var(--ch-mustard);
+  border-bottom: 1.5px solid currentcolor;
+  padding-bottom: 0.0625rem;
+}
+
+.ch-page .ch-stand-links a:hover,
+.ch-page .ch-stand-links a:focus-visible {
+  color: var(--ch-cream);
+}
+
+@media (max-width: 64rem) {
+  .ch-stands {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ch-stand,
+  .ch-stands--one .ch-stand {
+    --stand-h: 15rem;
+    gap: 1.75rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .ch-stand-section:not(.ch-home-section) {
+    margin-top: 3.5rem;
+  }
+
+  .ch-stand-section.ch-stand-section--top {
+    margin: 0.5rem 0 2.5rem;
+  }
+
+  .ch-stands {
+    gap: 2.25rem;
+  }
+
+  .ch-stand,
+  .ch-stands--one .ch-stand {
+    --stand-h: 9.375rem;
+    gap: 1.125rem;
+  }
+
+  .ch-stand-tag,
+  .ch-stand--deal .ch-stand-tag {
+    top: -0.875rem;
+    padding: 0.25rem 0.4375rem 0.3125rem;
+    font-size: 0.6875rem;
+  }
+
+  .ch-stand--deal .ch-stand-tag {
+    font-size: 1rem;
+  }
+
+  .ch-stand-name,
+  .ch-stands--one .ch-stand-name {
+    font-size: 1.75rem;
+  }
+
+  .ch-stand .ch-night-time {
+    font-size: 1.5rem;
+  }
+
+  .ch-stand .ch-night-note {
+    font-size: 1rem;
+  }
+}
