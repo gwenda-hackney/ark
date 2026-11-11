@@ -18,7 +18,13 @@ import {
   formatEventRecurrence,
   formatEventSpan,
 } from "../data/events";
+import {
+  formPublicPath,
+  isReservedFormSlug,
+  slugFromFormPath,
+} from "../../functions/_lib/form-paths.js";
 import { richParagraphHtml } from "../../functions/_lib/rich-text.js";
+import { SITE_DOMAIN } from "../../../../shared/site-location.js";
 import { isWholeFit } from "../../functions/_lib/sanity-image-url.js";
 import {
   SafeHtml,
@@ -95,6 +101,41 @@ function guestModel(name, url) {
   const guest = text(name);
   if (!guest) return null;
   return { name: guest, href: eventPageLink(url)?.href || "" };
+}
+
+const SITE_HOST = new URL(SITE_DOMAIN).hostname;
+
+/**
+ * An event whose link (ops' Link field) is one of this site's own forms,
+ * `gwenda.co.uk/contact/<form>`: its page gets that form's button ("Book
+ * your party") in place of Book a table. The button's words are the form's
+ * heading, which the built shell hands over as the part `form:<slug>`; a link
+ * to a form the site doesn't have is no form link.
+ * @returns {{ href: string, label: string } | null}
+ */
+export function siteFormLink(value, parts = new Map()) {
+  const raw = text(value);
+  if (!raw) return null;
+  let path = "";
+  if (raw.startsWith("/") && !raw.startsWith("//")) path = raw;
+  else {
+    try {
+      const url = new URL(raw);
+      const host = url.hostname.replace(/^www\./i, "");
+      if (/^https?:$/.test(url.protocol) && host === SITE_HOST) {
+        path = url.pathname;
+      }
+    } catch {
+      return null;
+    }
+  }
+  const slug = slugFromFormPath(path);
+  if (!slug || isReservedFormSlug(slug)) return null;
+  const label = text(parts.get(`form:${slug}`))
+    .replace(/&#39;|&#x27;|&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&");
+  return label ? { href: formPublicPath(slug), label } : null;
 }
 
 function span(row) {
@@ -190,7 +231,10 @@ export function eventPageModel(
     kind === "event" && !severalDays
       ? guestModel(next?.artist, next?.pageUrl)
       : null;
-  const external = eventPageLink(next?.pageUrl);
+  // The night's link, else the series' own (a series with no dates has no night).
+  const link = text(next?.pageUrl) || text(detail.pageUrl);
+  const form = severalDays ? null : siteFormLink(link, parts);
+  const external = form ? null : eventPageLink(link);
   const fallbackPage = kind === "popup" ? parts.get(`page:${guestKey}`) : "";
   const page = severalDays
     ? null
@@ -231,6 +275,9 @@ export function eventPageModel(
         ),
     description: eventDescriptionParagraphs(words),
     links: [
+      form
+        ? { href: form.href, label: form.label, button: true, solid: true }
+        : null,
       kind === "popup"
         ? {
             href: parts.get(`menu:${text(detail.seriesId)}`) || "/kitchen",
@@ -242,7 +289,8 @@ export function eventPageModel(
         ? { href: page.href, label: page.label, external: true }
         : null,
     ].filter(Boolean),
-    book: parts.get("book") || "",
+    // An event that sends people to a form (a party enquiry) isn't one to book a table for.
+    book: form ? "" : parts.get("book") || "",
   };
 
   const dayBlocks = severalDays
@@ -415,7 +463,10 @@ function leadHtml(model) {
       ? html`<p class="ch-event-actions">
           ${raw(lead.book)}${lead.links.map((link) =>
             link.button
-              ? html`<a class="ch-btn" href="${link.href}">${link.label}</a>`
+              ? html`<a${attrs({
+                  class: link.solid ? "ch-btn ch-btn--solid" : "ch-btn",
+                  href: link.href,
+                })}>${link.label}</a>`
               : html`<a${attrs({
                   class: "ch-event-link",
                   href: link.href,

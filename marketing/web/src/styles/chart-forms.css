@@ -365,3 +365,55 @@
   outline: 2px solid var(--ch-cream);
   outline-offset: 0.3rem;
 }
+
+/* A date field: the browser's own picker, drawn for a dark page */
+.ch-page .ch-form .gw-field input[type="date"] {
+  color-scheme: dark;
+  min-height: 2.875rem;
+}
+
+/*
+ * Sent (/contact/<slug>/submitted): which form, "Got it" in the page's
+ * title face, a line on what happens next, and the ways on from here.
+ */
+.ch-sent-page .ch-page-head {
+  margin-bottom: 1.25rem;
+}
+
+.ch-sent-message {
+  max-width: 36rem;
+  margin: 0 0 2rem;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--ch-ink-2);
+}
+
+.ch-sent-actions,
+.ch-sent-verify {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.ch-sent-verify {
+  flex-direction: column;
+  margin-bottom: 2rem;
+}
+
+.ch-sent-resend {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  max-width: 24rem;
+  justify-items: start;
+}
+
+.ch-sent-resend .gw-field {
+  width: 100%;
+}
+
+/* [hidden] loses to the display rules above without this */
+.ch-sent [hidden] {
+  display: none;
+}

@@ -1,3 +1,9 @@
+import {
+  DATE_FIELD_MAX_DAYS,
+  formatErrorForFieldValue,
+  londonToday,
+} from "../../../../shared/forms/field-rules.js";
+
 /** @typedef {{ csrfToken: string, secret: string }} FormAuth */
 
 /** @type {FormAuth | null} */
@@ -108,6 +114,18 @@ function syncOtherFields(form) {
   });
 }
 
+/** A date field takes today (at the bar) up to two years on. */
+function initDateFields(form) {
+  const today = londonToday();
+  const last = new Date(`${today}T00:00:00Z`);
+  last.setUTCDate(last.getUTCDate() + DATE_FIELD_MAX_DAYS);
+  form.querySelectorAll('input[type="date"]').forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    input.min = today;
+    input.max = last.toISOString().slice(0, 10);
+  });
+}
+
 function initOtherFields(form) {
   syncOtherFields(form);
   form.addEventListener("change", (event) => {
@@ -182,112 +200,6 @@ async function navigateToSubmitted(slug) {
   } catch {
     location.assign(path);
   }
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
-const URL_RE = /^https?:\/\/\S+$/i;
-
-/** Keep in sync with functions/_lib/form-field-rules.js */
-function isValidEmail(value) {
-  const email = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (!email || email.length > 254) return false;
-  if (email.includes("..")) return false;
-  if (!EMAIL_RE.test(email)) return false;
-
-  const at = email.lastIndexOf("@");
-  if (at < 1) return false;
-  const local = email.slice(0, at);
-  const domain = email.slice(at + 1);
-
-  if (!local || local.length > 64) return false;
-  if (local.startsWith(".") || local.endsWith(".")) return false;
-  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(local)) return false;
-
-  if (!domain || domain.length > 253) return false;
-  if (
-    domain.startsWith("-") ||
-    domain.endsWith("-") ||
-    domain.startsWith(".")
-  ) {
-    return false;
-  }
-  const labels = domain.split(".");
-  if (labels.length < 2) return false;
-  if (labels.some((label) => !label || label.length > 63)) return false;
-  if (
-    labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label))
-  ) {
-    return false;
-  }
-  const tld = labels[labels.length - 1];
-  if (!/^[a-z]{2,24}$/i.test(tld)) return false;
-
-  return true;
-}
-
-function isValidUrl(value) {
-  return URL_RE.test(String(value ?? "").trim());
-}
-
-function isValidPhone(value) {
-  const trimmed = String(value ?? "").trim();
-  if (!trimmed) return false;
-  if (!/^[+()\d\s./-]+$/.test(trimmed)) return false;
-  const digits = trimmed.replace(/\D/g, "");
-  return digits.length >= 8 && digits.length <= 15;
-}
-
-function isValidInstagramOrLink(value) {
-  const trimmed = String(value ?? "").trim();
-  if (!trimmed) return false;
-
-  if (/^https?:\/\//i.test(trimmed)) {
-    try {
-      const url = new URL(trimmed);
-      return Boolean(url.hostname.includes("."));
-    } catch {
-      return false;
-    }
-  }
-
-  if (/^(www\.)?instagram\.com\/[A-Za-z0-9._]+\/?$/i.test(trimmed)) {
-    return true;
-  }
-
-  const handle = trimmed.replace(/^@/, "");
-  return /^[A-Za-z0-9._]{1,30}$/.test(handle);
-}
-
-function formatErrorForFieldValue({ key, type, label, value }) {
-  const fieldKey = String(key ?? "").trim();
-  const fieldType = String(type ?? "").trim();
-  const fieldLabel = String(label ?? "This field").trim() || "This field";
-  const fieldValue = String(value ?? "").trim();
-  if (!fieldValue) return "";
-
-  if (fieldType === "email" || fieldKey === "email") {
-    if (!isValidEmail(fieldValue)) {
-      return "Enter a full email address (name@example.com).";
-    }
-  }
-  if (fieldType === "tel" || fieldKey === "phone") {
-    if (!isValidPhone(fieldValue)) {
-      return "Enter a valid phone number (with country code if you can).";
-    }
-  }
-  if (fieldKey === "instagram") {
-    if (!isValidInstagramOrLink(fieldValue)) {
-      return "Enter an @handle or a link.";
-    }
-  }
-  if (fieldType === "url") {
-    if (!isValidUrl(fieldValue)) {
-      return `Enter a full link for ${fieldLabel} (https://…).`;
-    }
-  }
-  return "";
 }
 
 function fieldWrapFor(el) {
@@ -369,7 +281,11 @@ function messageForControl(el, opts = {}) {
 
   return formatErrorForFieldValue({
     key: el.name,
-    type: el instanceof HTMLInputElement ? el.type : el.tagName.toLowerCase(),
+    // The form's own field type where the input's differs (a number is typed
+    // into a text input, so the wheel can't change it).
+    type:
+      el.dataset.fieldType ||
+      (el instanceof HTMLInputElement ? el.type : el.tagName.toLowerCase()),
     label,
     value,
   });
@@ -940,6 +856,7 @@ export function initContactForm() {
   form.dataset.gwBound = "1";
 
   initOtherFields(form);
+  initDateFields(form);
   initBrandedSelects(panel instanceof Element ? panel : form);
   initFieldValidation(form);
   restoreSavedAnswers();

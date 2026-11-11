@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { MORE_DATES, eventPageModel, renderEventPage } from "./event-page.js";
+import {
+  MORE_DATES,
+  eventPageModel,
+  renderEventPage,
+  siteFormLink,
+} from "./event-page.js";
 
 const TODAY = "2099-01-06";
 const FLYER =
@@ -274,5 +279,65 @@ describe("a series with no dates yet", () => {
     expect(
       renderEventPage(model, { pending: "<p>Check back soon</p>" }),
     ).toContain("<p>Check back soon</p>");
+  });
+});
+
+describe("an event that sends people to a form", () => {
+  const parts = new Map([
+    ["book", '<a class="ch-btn" href="https://book.example/">Book a table</a>'],
+    ["form:party", "Book your party"],
+    ["form:tom", "Tom &amp; Jerry&#39;s"],
+  ]);
+
+  it("knows this site's forms, however the link was typed in ops", () => {
+    const party = { href: "/contact/party", label: "Book your party" };
+    expect(siteFormLink("https://gwenda.co.uk/contact/party", parts)).toEqual(
+      party,
+    );
+    expect(
+      siteFormLink("https://www.gwenda.co.uk/contact/party/", parts),
+    ).toEqual(party);
+    expect(siteFormLink("/contact/party", parts)).toEqual(party);
+    expect(siteFormLink("/contact/tom", parts)?.label).toBe("Tom & Jerry's");
+  });
+
+  it("is not fooled by other sites, other pages, or a form we don't have", () => {
+    for (const link of [
+      "",
+      "https://example.com/contact/party",
+      "https://gwenda.co.uk.evil.example/contact/party",
+      "//evil.example/contact/party",
+      "https://gwenda.co.uk/whats-on",
+      "https://gwenda.co.uk/contact/verify",
+      "https://gwenda.co.uk/contact/nope",
+      "javascript:alert(1)",
+    ]) {
+      expect(siteFormLink(link, parts), link).toBeNull();
+    }
+  });
+
+  it("puts the form's button on a night whose link is the form", () => {
+    const { html } = page(
+      karaoke({
+        nights: [night("2099-01-08", { pageUrl: "/contact/party" })],
+      }),
+      { parts },
+    );
+    expect(html).toContain(
+      '<a class="ch-btn ch-btn--solid" href="/contact/party">Book your party</a>',
+    );
+    expect(html).not.toContain("Book a table");
+  });
+
+  it("leaves any other link as it was: their page, beside Book a table", () => {
+    const { html } = page(
+      karaoke({
+        nights: [night("2099-01-08", { pageUrl: "https://partiful.com/e/x" })],
+      }),
+      { parts },
+    );
+    expect(html).toContain("Book a table");
+    expect(html).toContain('href="https://partiful.com/e/x"');
+    expect(html).not.toContain("Book your party");
   });
 });

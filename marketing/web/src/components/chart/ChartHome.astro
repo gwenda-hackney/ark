@@ -1,14 +1,15 @@
 ---
 /**
  * Home (#240): the logo on the leather, then the two things people come
- * for, what's on and the menu. Finding us, playing here and the list get a
- * short row at the foot; who we are lives on /about.
+ * for, what's on and the menu. Playing here, then finding us, having a party
+ * and the list in a short row at the foot; who we are lives on /about.
  */
 import { Image } from "astro:assets";
 import "../../styles/chart.css";
 import "../../styles/chart-home.css";
 import { siteConfig } from "../../config/site";
 import { chartHeroLogo, homeDecksPhoto } from "../../lib/chart-assets";
+import { PARTY_FORM_SLUG, formPublicPath } from "../../lib/form-paths";
 import ChartNav from "./ChartNav.astro";
 import ChartFooter from "./ChartFooter.astro";
 import HomeMenu from "./HomeMenu.astro";
@@ -24,6 +25,12 @@ const more = [
     text: `${location.addressShort}. Five minutes’ walk from Hackney Wick station, right on the canal.`,
     href: "/contact#find-us",
     link: "How to get here",
+  },
+  {
+    title: contactPage.partyHeading,
+    text: contactPage.partyLead,
+    href: formPublicPath(PARTY_FORM_SLUG),
+    link: contactPage.partyCta,
   },
   {
     title: contactPage.listHeading,

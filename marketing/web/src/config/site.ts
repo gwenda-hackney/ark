@@ -50,7 +50,8 @@ export const siteConfig = {
     },
     contact: {
       title: "Contact · Gwenda",
-      description: "Join the list or apply to play at Gwenda in Hackney Wick.",
+      description:
+        "Find us, book a party, apply to play or join the list at Gwenda in Hackney Wick.",
     },
     artists: {
       title: "Featured artist · Gwenda",
@@ -230,6 +231,19 @@ export const siteConfig = {
       },
       /** Written on the border of the decks photo, wherever it is pinned up. */
       playPhotoNote: "Your turn.",
+      /** Having a party here: Contact's part, home's foot and the form's top. */
+      partyHeading: "Having a party?",
+      partyLead:
+        "Birthday, leaving do, work thing: tell us what you’re planning and we’ll come back to you.",
+      partyCta: "Book your party",
+      /** The top of the party form's own page, beside the photo. */
+      partyIntro: {
+        lead: "Birthday, leaving do, work thing: tell us what you’re planning and we’ll come back to you.",
+        body: "A few tables or the whole place, a quiet one or a loud one. Give us a date and a rough number and we’ll take it from there.",
+        cue: "Fill this in, we’ll get back to you",
+      },
+      /** Written on the border of the drinks photo, wherever it is pinned up. */
+      partyPhotoNote: "Make a night of it.",
     },
   },
 } as const;

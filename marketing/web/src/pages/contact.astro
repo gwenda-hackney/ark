@@ -1,7 +1,8 @@
 ---
 /**
  * Contact (#240): the one page for reaching us. How to find us (the map
- * and the walk from the station), playing here, and getting on the list.
+ * and the walk from the station), having a party here, playing here, and
+ * getting on the list.
  */
 import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
@@ -10,8 +11,12 @@ import ChartMap from "../components/chart/ChartMap.astro";
 import EmailSignup from "../components/EmailSignup.astro";
 import { siteConfig } from "../config/site";
 import { directions } from "../data/directions";
-import { homeDecksPhoto } from "../lib/chart-assets";
-import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
+import { contactDrinksPhoto, homeDecksPhoto } from "../lib/chart-assets";
+import {
+  formPublicPath,
+  PARTY_FORM_SLUG,
+  PLAY_FORM_SLUG,
+} from "../lib/form-paths";
 
 const { contactPage } = siteConfig.copy;
 const { social } = siteConfig;
@@ -25,10 +30,11 @@ const { social } = siteConfig;
   <ChartPage
     class="ch-find-page ch-contact-page"
     title="Contact"
-    lead="Where we are, how to play here, and how to hear what’s on."
+    lead="Where we are, having a party, playing here, and how to hear what’s on."
   >
     <nav class="ch-jump" aria-label="On this page">
       <a href="#find-us">Find us</a>
+      <a href="#party">Have a party</a>
       <a href="#play">Play here</a>
       <a href="#list">Get on the list</a>
     </nav>
@@ -50,6 +56,25 @@ const { social } = siteConfig;
           <p>{directions.fromTowpath.text}</p>
         </section>
       </div>
+    </section>
+
+    <section class="ch-contact-part ch-contact-play" id="party">
+      <div>
+        <h2 class="ch-sheet-head">{contactPage.partyHeading}</h2>
+        <p>{contactPage.partyLead}</p>
+        <a href={formPublicPath(PARTY_FORM_SLUG)} class="ch-btn ch-btn--solid"
+          >{contactPage.partyCta}</a
+        >
+      </div>
+      <a
+        href={formPublicPath(PARTY_FORM_SLUG)}
+        class="ch-contact-photo ch-print"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <Image {...contactDrinksPhoto} alt="" loading="lazy" />
+        <span class="ch-print-note">{contactPage.partyPhotoNote}</span>
+      </a>
     </section>
 
     <section class="ch-contact-part ch-contact-play" id="play">

@@ -3,6 +3,7 @@ import roomImg from "../assets/images/hero/hero.png";
 import burgerImg from "../assets/images/food/chez-pickle-burger.jpg";
 import chezPickleImg from "../assets/images/food/chez-pickle.png";
 import turntableImg from "../assets/images/play/turn-table.jpg";
+import drinksImg from "../assets/images/gallery/margarita-on-the-bar.webp";
 
 /** The logo, large, over the hero: max rendered width is 27rem (432px). */
 export const chartHeroLogo = {
@@ -45,6 +46,25 @@ export const playDecksPhoto = {
   widths: [480, 720, 960, 1320],
   sizes: "(min-width: 56rem) 30rem, calc(100vw - 2.5rem)",
   format: "webp" as const,
+};
+
+/**
+ * Drinks on the bar, at the top of the party form: the same slot as the
+ * decks on the play form. The source is 1130px wide and 4:5.
+ */
+export const partyDrinksPhoto = {
+  src: drinksImg,
+  widths: [480, 720, 960, 1130],
+  sizes: "(min-width: 56rem) 30rem, calc(100vw - 2.5rem)",
+  format: "webp" as const,
+};
+
+/** The same photo, small, in Contact's party part: up to 20rem. */
+export const contactDrinksPhoto = {
+  src: drinksImg,
+  width: 400,
+  format: "webp" as const,
+  densities: [1, 2] as const,
 };
 
 /** The guest chef's own mark, on home's food side: 7rem (112px). */

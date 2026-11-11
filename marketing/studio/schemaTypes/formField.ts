@@ -5,6 +5,10 @@ const FIELD_TYPES = [
   { title: "Email", value: "email" },
   { title: "Phone", value: "tel" },
   { title: "URL / link", value: "url" },
+  // A day, today or later (within two years): a date picker on the site.
+  { title: "Date (today or later)", value: "date" },
+  // A whole number from 1 to 1000, e.g. how many people.
+  { title: "Number (1 to 1000)", value: "number" },
   { title: "Long text", value: "textarea" },
   { title: "Single choice", value: "select" },
   { title: "Multiple choice", value: "multiSelect" },

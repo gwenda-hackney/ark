@@ -156,6 +156,11 @@ export const FORM_SLUGS_QUERY = `*[_type == "form" && enabled == true && defined
   "slug": slug.current
 }`;
 
+export const FORM_BUTTONS_QUERY = `*[_type == "form" && enabled == true && defined(slug.current)]{
+  "slug": slug.current,
+  heading
+}`;
+
 export const FORM_BY_SLUG_QUERY = `*[_type == "form" && enabled == true && slug.current == $slug][0] {
   title,
   "slug": slug.current,

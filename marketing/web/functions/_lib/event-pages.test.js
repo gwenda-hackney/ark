@@ -22,6 +22,7 @@ const SHELLS = {
 <series-part name="mark"><img class="ch-night-mark" src="/logo.webp" alt=""></series-part>
 <series-part name="logo:chez pickle"><img src="/chez-pickle.webp" alt="Chez Pickle"></series-part>
 <series-part name="menu:chez-pickle">/kitchen#chez-pickle</series-part>
+<series-part name="form:party">Book your party</series-part>
 <series-body><section class="ch-event-pending">Check back soon</section></series-body></main></body></html>`,
   [`${NIGHT_SHELL}/`]: `<html><head><title>__EVENT_TITLE__ · Gwenda</title>
 <meta property="og:url" content="${ORIGIN}${NIGHT_SHELL}">
@@ -174,6 +175,42 @@ describe("series page", () => {
     expect(html).toContain('src="/chez-pickle.webp"');
     expect(html).toContain('<a class="ch-btn" href="/kitchen#chez-pickle">');
     expect(html).toContain("Thu 8 Jan, 5–10pm");
+  });
+
+  it("sends people to a form when the event's link in ops is one of ours", async () => {
+    // Hiring the place: no dates, and its Link is the party enquiry form.
+    sanity.series = [
+      series("hire-gwenda", {
+        title: "Hire Gwenda",
+        schedule: "manual",
+        recurrence: "",
+        datesPending: true,
+        pageUrl: "https://gwenda.co.uk/contact/party",
+      }),
+    ];
+    sanity.events = [];
+    const html = await (await render("/whats-on/hire-gwenda")).text();
+    expect(html).toContain(
+      '<a class="ch-btn ch-btn--solid" href="/contact/party">Book your party</a>',
+    );
+    // In place of Book a table, and not as a link off the site
+    expect(html).not.toContain("Book a table");
+    expect(html).not.toContain('href="https://gwenda.co.uk/contact/party"');
+  });
+
+  it("keeps Book a table, and no form button, for an event with no such link", async () => {
+    sanity.series = [
+      series("hire-gwenda", {
+        title: "Hire Gwenda",
+        schedule: "manual",
+        recurrence: "",
+        datesPending: true,
+      }),
+    ];
+    sanity.events = [];
+    const html = await (await render("/whats-on/hire-gwenda")).text();
+    expect(html).toContain("Book a table");
+    expect(html).not.toContain("Book your party");
   });
 
   it("sends a former web address to the new one straight away", async () => {

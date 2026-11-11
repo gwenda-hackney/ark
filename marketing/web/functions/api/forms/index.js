@@ -160,6 +160,7 @@ export async function onRequestPost(context) {
       answers: validated.answers,
       changes: updated ? changes : undefined,
       updated,
+      rowId,
     });
     if (sent.ok && !sent.dryRun) {
       await markFormSubmissionEmailSent(context.env, rowId, "notify");
