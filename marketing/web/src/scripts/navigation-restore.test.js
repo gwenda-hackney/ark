@@ -95,3 +95,64 @@ describe("whenScrollSettled", () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("a back/forward visit through the router", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal("performance", {
+      getEntriesByType: vi.fn(() => [{ type: "navigate" }]),
+    });
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: true })),
+    );
+    window.scrollTo = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    document.documentElement.className = "";
+  });
+
+  /** Back to a page: the router's events, the root's classes wiped at the swap. */
+  function goBack() {
+    const before = new Event("astro:before-preparation");
+    Object.assign(before, {
+      navigationType: "traverse",
+      to: new URL("https://gwenda.test/#drinks"),
+    });
+    document.dispatchEvent(before);
+    const incoming = document.implementation.createHTMLDocument("");
+    const swap = new Event("astro:before-swap");
+    Object.assign(swap, { newDocument: incoming });
+    document.dispatchEvent(swap);
+    document.documentElement.className = incoming.documentElement.className;
+    document.dispatchEvent(new Event("astro:after-swap"));
+  }
+
+  it("scrolls at once while the offset lands, then lets jump links glide again", () => {
+    initNavigationRestore();
+    const root = document.documentElement;
+    goBack();
+    expect(root.classList.contains("is-restoring-scroll")).toBe(true);
+
+    vi.advanceTimersByTime(100);
+    expect(root.classList.contains("is-restoring-scroll")).toBe(false);
+    // Still painted in its final state for the rest of the visit
+    expect(isRestoredNavigation()).toBe(true);
+  });
+
+  it("keeps a second Back's landing instant when the first's ends", () => {
+    initNavigationRestore();
+    const root = document.documentElement;
+    goBack();
+    vi.advanceTimersByTime(16);
+    goBack();
+    // The first landing's second frame: the second is still landing
+    vi.advanceTimersByTime(16);
+    expect(root.classList.contains("is-restoring-scroll")).toBe(true);
+    vi.advanceTimersByTime(100);
+    expect(root.classList.contains("is-restoring-scroll")).toBe(false);
+  });
+});

@@ -82,13 +82,15 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
 
     <script is:inline>
       // Runs before first paint: on back/forward, render in final state so the
-      // browser's native scroll restoration lands without a jump.
+      // browser's native scroll restoration lands without a jump. The
+      // scrolling mark goes once it has landed (navigation-restore.js).
       try {
         const nav = performance.getEntriesByType("navigation")[0];
         if (nav && nav.type === "back_forward") {
           document.documentElement.classList.add(
             "navigation-restore",
             "fonts-ready",
+            "is-restoring-scroll",
           );
         }
       } catch {

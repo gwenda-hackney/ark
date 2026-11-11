@@ -27,10 +27,11 @@ html {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Smooth anchors on fresh loads. Stay instant for the whole back/forward
-     session so restore cannot fight CSS smooth scrolling (that flicker).
-     In-page CTAs still animate via scrollIntoView in section-hash.js. */
-  html:not(.navigation-restore):not(:active-view-transition) {
+  /* Jump links glide. Instant while a page change is under way, and while a
+     back/forward visit's restored offset lands (is-restoring-scroll,
+     navigation-restore.js), so the restore cannot glide there or fight a
+     smooth scroll (that flicker). */
+  html:not(.is-restoring-scroll):not(:active-view-transition) {
     scroll-behavior: smooth;
   }
 }
@@ -7844,10 +7845,12 @@ body.site-nav-open .menu-toc {
   transform: translateY(0);
 }
 
-/* Back navigation — render in final state, no entrance animations (set in head). */
-html.navigation-restore {
+/* Back/forward: the restored offset lands at once; the mark goes once it has. */
+html.is-restoring-scroll {
   scroll-behavior: auto !important;
 }
+
+/* Back navigation — render in final state, no entrance animations (set in head). */
 
 html.navigation-restore .reveal {
   opacity: 1;
