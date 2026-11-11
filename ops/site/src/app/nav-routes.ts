@@ -6,7 +6,8 @@ import type { NavRoute } from "./shell/types";
  * Artists holds the artist whose work is hanging at Gwenda and play applications
  * (the website's play form). Website shows what is waiting to appear on the
  * public site. Weekly email is the what's on email to the mailing list.
- * Developer tools (admins) compare preview, code and databases.
+ * Gallery is the venue's own photos on the website (event photos stay on each
+ * event's Images tab). Developer tools (admins) compare preview, code and databases.
  */
 export const NAV_ROUTES: NavRoute[] = [
 	{ id: "home", path: "/", name: "Dashboard", icon: "home" },
@@ -72,6 +73,7 @@ export const NAV_ROUTES: NavRoute[] = [
 		heading: true,
 		children: [
 			{ id: "venue", path: "/venue", name: "Venue details", icon: "clock", hint: "Opening hours and parties, on the website" },
+			{ id: "gallery", path: "/venue/gallery", name: "Gallery", icon: "camera", hint: "The venue's own photos, on the website" },
 			{ id: "users", path: "/users", name: "Users", icon: "users", hint: "Who may sign in" },
 			{ id: "config", path: "/config", name: "Configuration", icon: "settings", hint: "Menu sections, pour targets, event tasks" },
 			{

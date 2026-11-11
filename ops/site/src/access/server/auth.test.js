@@ -124,6 +124,8 @@ describe("ops auth", () => {
     assert.equal(safeRedirectPath("/api/inventory/lightspeed"), "/lightspeed");
     assert.equal(safeRedirectPath("/api/inventory"), "/inventory");
     assert.equal(safeRedirectPath("/api/suppliers"), "/suppliers");
+    assert.equal(safeRedirectPath("/api/venue"), "/venue");
+    assert.equal(safeRedirectPath("/api/venue/gallery/abc"), "/venue/gallery");
     assert.equal(gateRedirectPath("/stock/"), "/gate/?next=%2Fstock");
   });
 

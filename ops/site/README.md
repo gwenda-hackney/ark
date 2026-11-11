@@ -53,6 +53,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/web` | The website and its preview: what is waiting, health, publish |
 | `/forms` | People who submitted a site form |
 | `/venue` | Venue details: the opening hours and the party facts (how many fit, what's included, how soon we reply), which go on the website when saved |
+| `/venue/gallery` | Gallery: the venue's own photos for home's photo strip and the top of the Photos page; upload, describe, put in order, remove; each change goes on the website with the venue details. Event photos stay on each event's Images tab |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow config database) |
 
