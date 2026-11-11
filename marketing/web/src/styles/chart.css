@@ -109,12 +109,16 @@
   height: 3.5rem;
   padding: 0;
   border: 0;
-  /* A patch of the dark ground, so the page scrolls under the button, not through it */
+  /* A solid disc of board with a thin ring, so it reads as a button over
+     whatever scrolls under it (a flyer, a photo, text), never as a smudge;
+     a soft dark edge lifts it off the page */
   border-radius: 50%;
   background: radial-gradient(
     closest-side,
-    var(--ch-bg) 62%,
-    rgb(11 10 8 / 0.85) 78%,
+    var(--ch-board) calc(82% - 1.5px),
+    rgb(232 223 204 / 0.26) calc(82% - 0.75px),
+    rgb(232 223 204 / 0.26) 82%,
+    rgb(11 10 8 / 0.55) calc(82% + 0.75px),
     transparent
   );
   color: var(--ch-gold);
