@@ -1,35 +1,97 @@
 ---
-/** The foot of every page in The Chart (#240): where we are, when we're open, the few links. */
+/**
+ * The foot of every page in The Chart (#240): where we are (the address, a
+ * map, the phone), when we're open (ops' week), and the list's one-box
+ * sign-up (the same form and script as /join-list); along the bottom, one
+ * quiet line of the places the navigation doesn't carry and the small print.
+ * Never a pop-up.
+ */
+import "../../styles/chart-footer.css";
 import { siteConfig } from "../../config/site";
-import { fetchOpeningHours } from "../../lib/sanity/opening-hours";
+import {
+  FOOT_LINKS,
+  mapsSearchUrl,
+  phoneHref,
+  phoneText,
+} from "../../lib/chart-footer.js";
+import { fetchVenueDetails } from "../../lib/sanity/venue-details";
+import EmailSignup from "../EmailSignup.astro";
 import OpeningHours from "./OpeningHours.astro";
 
-const { social, location } = siteConfig;
+const { social, location, contact, copy } = siteConfig;
 const year = new Date().getFullYear();
-const week = await fetchOpeningHours();
+const { openingHours: week } = await fetchVenueDetails();
+const mapUrl = mapsSearchUrl({
+  name: siteConfig.name,
+  address: location.address,
+});
 ---
 
 <footer class="ch-footer">
-  <div class="ch-rule ch-rule--dash"></div>
-  <div class="ch-footer-row">
-    <a
-      href={location.mapsUrl}
-      class="ch-caps"
-      target="_blank"
-      rel="noopener noreferrer">{location.address}</a
-    >
-    <nav class="ch-footer-links" aria-label="Footer">
-      <a href={social.instagram} target="_blank" rel="noopener noreferrer"
-        >Instagram</a
+  <div class="ch-footer-inner">
+    <div class="ch-footer-cols">
+      <section
+        class="ch-footer-col ch-footer-find"
+        aria-labelledby="ch-footer-find"
       >
-      <a href="/about">About</a>
-      <a href="/contact">Contact</a>
-      <a href="/join-list">{siteConfig.copy.signupHeading}</a>
-      <a href="/privacy">Privacy</a>
-    </nav>
-    <span class="ch-caps"
-      >© {year} {siteConfig.name} {siteConfig.copy.social}</span
-    >
+        <h2 class="ch-footer-head" id="ch-footer-find">Find us</h2>
+        <address class="ch-footer-address">
+          <span>{location.streetAddress}</span>
+          <span
+            >{location.area}, {location.addressLocality}
+            {location.postalCode}</span
+          >
+        </address>
+        <p class="ch-footer-reach">
+          <a href={mapUrl} target="_blank" rel="noopener noreferrer"
+            >Map<span class="visually-hidden">
+              on Google Maps (opens in a new tab)</span
+            ></a
+          >
+          <span class="ch-footer-dot" aria-hidden="true">·</span>
+          <a href={phoneHref(contact.telephone)}
+            >{phoneText(contact.telephone)}</a
+          >
+        </p>
+      </section>
+
+      {
+        week && (
+          <section
+            class="ch-footer-col ch-footer-hours"
+            aria-labelledby="ch-footer-hours"
+          >
+            <h2 class="ch-footer-head" id="ch-footer-hours">
+              Hours
+            </h2>
+            <OpeningHours week={week} heading="" today />
+          </section>
+        )
+      }
+
+      <section
+        class="ch-footer-col ch-footer-list"
+        aria-labelledby="ch-footer-list"
+      >
+        <h2 class="ch-footer-head" id="ch-footer-list">
+          {copy.signupHeading}
+        </h2>
+        <p class="ch-footer-note">{copy.signupFootLine}</p>
+        <EmailSignup mode="promo" compact />
+      </section>
+    </div>
+
+    <div class="ch-footer-small">
+      <nav class="ch-footer-more" aria-label="More">
+        {FOOT_LINKS.map((link) => <a href={link.href}>{link.label}</a>)}
+        <a href={social.instagram} target="_blank" rel="noopener noreferrer"
+          >Instagram</a
+        >
+        <a href="/privacy">Privacy</a>
+      </nav>
+      <span class="ch-footer-copy"
+        >© {year} {siteConfig.name} {copy.social}</span
+      >
+    </div>
   </div>
-  <OpeningHours week={week} variant="line" />
 </footer>

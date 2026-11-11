@@ -1,6 +1,5 @@
 import bottleImg from "../assets/images/logos/bottle.png";
 import roomImg from "../assets/images/hero/hero.png";
-import burgerImg from "../assets/images/food/chez-pickle-burger.jpg";
 import chezPickleImg from "../assets/images/food/chez-pickle.png";
 import turntableImg from "../assets/images/play/turn-table.jpg";
 import drinksImg from "../assets/images/gallery/margarita-on-the-bar.webp";
@@ -21,6 +20,14 @@ export const chartFlag = {
   densities: [1, 2] as const,
 };
 
+/** The logo at the left of the bar on a desk screen: 3.25rem (52px). */
+export const chartBarLogo = {
+  src: bottleImg,
+  width: 52,
+  format: "webp" as const,
+  densities: [1, 2] as const,
+};
+
 /** The room behind the hero, full bleed. */
 export const chartHeroBackground = {
   src: roomImg,
@@ -29,7 +36,7 @@ export const chartHeroBackground = {
   quality: 72,
 };
 
-/** The decks, wide, in home's play row: up to 36rem (576px). */
+/** The decks, wide, beside Contact's play part: up to 36rem (576px). */
 export const homeDecksPhoto = {
   src: turntableImg,
   width: 576,
@@ -73,11 +80,4 @@ export const guestChefLogo = {
   width: 112,
   format: "webp" as const,
   densities: [1, 2] as const,
-};
-
-/** Home's food side: a burger from the guest chef. The photo is only 240px wide. */
-export const homeFoodPhoto = {
-  src: burgerImg,
-  width: 240,
-  format: "webp" as const,
 };

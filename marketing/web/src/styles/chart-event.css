@@ -214,6 +214,17 @@ a.ch-event-photo:focus-visible {
   margin-top: 1rem;
 }
 
+/* A night's own Book a table ("Book a table for Sat 21 Nov") is longer than
+   most buttons: on a narrow phone it takes two lines, not the page's width. */
+.ch-event-actions .ch-btn {
+  max-width: 100%;
+  padding-block: 0.75rem;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  text-wrap: balance;
+}
+
 .ch-event-link {
   font-family: var(--ch-caps);
   font-weight: 700;

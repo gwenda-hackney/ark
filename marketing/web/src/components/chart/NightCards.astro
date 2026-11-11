@@ -6,7 +6,8 @@
  * its own shape, uncropped; a night with no photo gets the logo. The
  * pictures in a row are one height, and each card is as wide as its picture
  * (frameRatio). `shown` caps how many show (home shows a few; What's on the
- * lot); `weeks` puts them under a heading for each week (What's on). One
+ * lot), and `thisWeek` keeps to today through Sunday (home's); `weeks`
+ * puts them under a heading for each week (What's on). One
  * event over several days in a row is one card, with the days on its sticker
  * (nightRuns: a series that doesn't repeat, so `series` says which). A few
  * more are rendered than show, so the browser can drop the ones that have
@@ -31,6 +32,7 @@ import {
   nightRuns,
   nightSizes,
   nightsToShow,
+  thisWeekDays,
   runDay,
   runTimes,
   weekLabel,
@@ -45,9 +47,24 @@ interface Props {
   shown?: number;
   /** Under a heading for each week: This week, Next week, Week of 23 Nov. */
   weeks?: boolean;
+  /**
+   * Only this week's: nights starting today to Sunday (home's This week). The
+   * browser works it out again on the visitor's day (data-this-week), so the
+   * spare cards from next week come in on its Monday, not before.
+   */
+  thisWeek?: boolean;
+  /** The line when there's nothing to show. */
+  empty?: string;
 }
 
-const { nights, series = [], shown, weeks = false } = Astro.props;
+const {
+  nights,
+  series = [],
+  shown,
+  weeks = false,
+  thisWeek = false,
+  empty = "Nothing in the diary just now. Get on the list and we’ll tell you first.",
+} = Astro.props;
 const today = londonToday();
 
 /** Rendered beyond the ones that show, for the nights that pass before the next build. */
@@ -100,6 +117,7 @@ const showing = nightsToShow(
   today,
   shown,
   cards.map((card) => card.end),
+  thisWeek ? thisWeekDays(today) : undefined,
 );
 
 /**
@@ -116,7 +134,12 @@ const lists = weeks
   : [{ start: "", label: "", cards: numbered }];
 ---
 
-<div class="ch-nights" data-night-cards data-shown={shown}>
+<div
+  class="ch-nights"
+  data-night-cards
+  data-shown={shown}
+  data-this-week={thisWeek || undefined}
+>
   {
     lists.map((list) => {
       const items = (
@@ -230,7 +253,7 @@ const lists = weeks
     })
   }
   <p class="ch-night-empty" data-night-cards-empty hidden={showing.length > 0}>
-    Nothing in the diary just now. Get on the list and we’ll tell you first.
+    {empty}
   </p>
 </div>
 

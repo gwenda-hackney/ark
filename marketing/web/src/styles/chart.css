@@ -10,6 +10,8 @@
 @import "@fontsource/zilla-slab/latin-500.css";
 @import "@fontsource/zilla-slab/latin-700.css";
 @import "@fontsource/rubik-distressed/latin-400.css";
+/* Every divider line, drawn by hand */
+@import "./chart-rules.css";
 
 .ch-page {
   /* Black lacquer, bone ink, old gold, olive; the Negroni red, sparingly */
@@ -62,17 +64,23 @@
   font-synthesis: none;
   min-height: 100vh;
   min-height: 100dvh;
-  /*
-   * Behind every page: old dark leather, cracked into plates, with its
-   * grain. One seamless tile, drawn by scripts/write-leather-texture.mjs
-   * (at 1.5x, so it stays crisp on a phone).
-   */
-  background: var(--ch-bg) url("../assets/images/texture/leather.webp") repeat;
-  background-size: 720px 720px;
   color: var(--ch-ink-2);
   font-family: var(--ch-book);
   font-size: 1.1875rem;
   line-height: 1.55;
+}
+
+/*
+ * Behind every page: old dark leather, cracked into plates, with its grain.
+ * One seamless tile, drawn by scripts/write-leather-texture.mjs (at 1.5x, so
+ * it stays crisp on a phone). It is the window's own ground (the body's,
+ * which the browser paints across the whole canvas), not the page's, so it
+ * stays put while a page comes and goes over it (Moving between pages).
+ * #0b0a08 is --ch-bg.
+ */
+body:has(.ch-page) {
+  background: #0b0a08 url("../assets/images/texture/leather.webp") repeat;
+  background-size: 720px 720px;
 }
 
 .ch-page a:where(:not(.ch-btn)) {
@@ -246,11 +254,25 @@
   border-right: 1px dashed var(--ch-rule);
   overflow-y: auto;
   transform: translateX(-100%);
-  transition: transform 0.3s ease;
+  /* Closed, it is out of reach of Tab and a screen reader too: hidden once
+     it has slid away, shown the moment it opens */
+  visibility: hidden;
+  transition:
+    transform 0.3s ease,
+    visibility 0s linear 0.3s;
 }
 
 .ch-page[data-chart="open"] .ch-chart {
   transform: none;
+  visibility: visible;
+  transition:
+    transform 0.3s ease,
+    visibility 0s;
+}
+
+/* Opening moves focus to the panel itself: no ring round all of it */
+.ch-chart:focus {
+  outline: none;
 }
 
 .ch-page[data-chart="open"] .ch-chart-scrim {
@@ -261,6 +283,28 @@
 /* Nothing in the panel squashes to fit: it scrolls instead */
 .ch-chart > * {
   flex: none;
+}
+
+/* A short phone (390 by 700): a little less air, so the five fit without
+   scrolling */
+@media (max-height: 50rem) {
+  .ch-chart .ch-flag-up {
+    margin-top: 0.25rem;
+  }
+
+  .ch-chart .ch-flag-up img {
+    width: 8rem;
+  }
+
+  .ch-chart .ch-rose {
+    width: 3rem;
+    height: 3rem;
+    margin: 0.5rem 0 0.25rem;
+  }
+
+  .ch-chart .ch-chart-list a {
+    padding: 0.25rem 0;
+  }
 }
 
 .ch-flag-up {
@@ -370,25 +414,515 @@
   align-self: stretch;
 }
 
+/* Skip to content: the first stop for Tab on every page, out of sight
+   until it is reached */
+.ch-skip {
+  position: fixed;
+  top: 0.75rem;
+  left: 50%;
+  z-index: 60;
+  padding: 0.75rem 1.25rem;
+  background: var(--ch-board);
+  border: 1px solid var(--ch-gold);
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.9375rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 1rem));
+}
+
+.ch-page a.ch-skip {
+  color: var(--ch-cream);
+}
+
+.ch-skip:focus {
+  transform: translateX(-50%);
+  outline: 2px solid var(--ch-mustard);
+  outline-offset: 2px;
+}
+
+/* The page's main lands from the skip link without a ring round all of it */
+.ch-page main:focus {
+  outline: none;
+}
+
+/*
+ * What is fixed over the page: the bar across the top on a desk screen
+ * (every page but home), the dock along the foot on anything narrower (every
+ * page). Each height is 0 where it isn't shown, so the page clears both in
+ * one place. The bar's line takes 661px (the logo, five links and the
+ * gutters); it starts at 62.5rem (1000px), with room to spare while the fonts
+ * load, so a tablet held upright has the button and the dock.
+ *
+ * A jump link (a tile on home, a chapter's name, Contact's parts) lands its
+ * target clear of all that, in this one place: the root, which is what
+ * scrolls, keeps clear what is fixed at the top (--ch-fixed-top: the bar, or
+ * the corner button where there is no bar, which ends 4.25rem down; home's
+ * come and go, so they keep out of the way of a jump instead) and at the foot
+ * (the dock), and the target itself keeps a little air above it.
+ */
+:root:has(.ch-page) {
+  --ch-bar-size: 4rem;
+  --ch-bar-h: 0px;
+  --ch-dock-h: 0px;
+  --ch-fixed-top: 0px;
+  scroll-padding-top: var(--ch-fixed-top);
+  scroll-padding-bottom: var(--ch-dock-h);
+}
+
+:root:has(.ch-chart-btn:not(.ch-chart-btn--reveal)) {
+  --ch-fixed-top: 4.25rem;
+}
+
+/* Stronger than the old look's own landings (global.css) on these pages */
+.ch-page [id] {
+  scroll-margin-top: 1rem;
+}
+
+@media (min-width: 62.5rem) {
+  :root:has(.ch-bar:not(.ch-bar--reveal)) {
+    --ch-bar-h: var(--ch-bar-size);
+    --ch-fixed-top: var(--ch-bar-h);
+  }
+}
+
+@media not all and (min-width: 62.5rem) {
+  :root:has(.ch-dock) {
+    --ch-dock-h: calc(3.75rem + 1px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.ch-page {
+  padding-top: var(--ch-bar-h);
+  padding-bottom: var(--ch-dock-h);
+}
+
+/*
+ * The bar: a solid board with a gold rule under it, the same on every page
+ * however far down it is scrolled. The logo goes home; the five places, each
+ * with its number from the panel's rings, small and in gold, at the right
+ * end. Book a table isn't in it: it has one place on every page, the bottom
+ * right corner.
+ */
+.ch-bar {
+  display: none;
+}
+
+@media (min-width: 62.5rem) {
+  .ch-bar {
+    display: block;
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 40;
+    height: var(--ch-bar-size);
+    background: var(--ch-board);
+    border-bottom: 1px solid var(--ch-gold);
+  }
+
+  /* One navigation at a time: where the bar is, the menu button and its
+     panel are gone, not just out of sight */
+  .ch-page:has(.ch-bar) :is(.ch-chart-btn, .ch-chart-scrim, .ch-chart) {
+    display: none;
+  }
+}
+
+/* As wide as the page's own column, so the logo and the links line up with
+   what is under them */
+.ch-bar-in {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 2rem;
+  height: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--ch-gutter);
+}
+
+.ch-bar-home {
+  display: block;
+}
+
+.ch-bar-home img {
+  display: block;
+  width: 3.25rem;
+  height: auto;
+}
+
+.ch-bar-links {
+  justify-self: end;
+  display: flex;
+  gap: 1.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Each a full-size target; the number and the name on one baseline */
+.ch-bar-links a {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: baseline;
+  align-content: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.9375rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.ch-page .ch-bar-links a {
+  color: var(--ch-ink);
+}
+
+.ch-page .ch-bar-links a:hover,
+.ch-page .ch-bar-links a:focus-visible {
+  color: var(--ch-mustard);
+}
+
+.ch-bar-num {
+  font-family: var(--ch-numeral);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--ch-gold);
+}
+
+.ch-bar-label {
+  position: relative;
+}
+
+/* The place you are in: the titles' brush line, drawn small under its name */
+.ch-bar-links a[aria-current] .ch-bar-label::after {
+  content: "";
+  position: absolute;
+  left: -0.125rem;
+  right: 10%;
+  bottom: -0.4375rem;
+  height: 0.1875rem;
+  background: var(--ch-mustard);
+  border-radius: 40% 10% 60% 10% / 80% 20% 80% 20%;
+  transform: rotate(-1deg) skewX(-18deg);
+  filter: url(#ch-ink);
+}
+
+/*
+ * Arriving from another page, the mark is written in, left to right like a
+ * quick pen stroke, at once; from home, as soon as the bar has slid down.
+ * The clip comes after the ink filter, so the rough edge is drawn too. A page
+ * loaded straight has it there already; so does reduced motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-chart-arrived] .ch-bar-links a[aria-current] .ch-bar-label::after {
+    animation: ch-stroke-draw 0.16s ease-out both;
+  }
+
+  html[data-chart-arrived="home"]
+    .ch-bar-links
+    a[aria-current]
+    .ch-bar-label::after {
+    animation-delay: 0.36s;
+  }
+}
+
+@keyframes ch-stroke-draw {
+  from {
+    clip-path: inset(-0.25rem calc(100% + 0.25rem) -0.25rem -0.25rem);
+  }
+  to {
+    clip-path: inset(-0.25rem -0.25rem -0.25rem -0.25rem);
+  }
+}
+
+.ch-bar a:focus-visible {
+  outline: 1px solid var(--ch-ink);
+  outline-offset: 0.25rem;
+}
+
+/*
+ * The dock, along the foot of every page below the bar's width: What's on,
+ * and Book a table with its bell, side by side on a solid board with a thin
+ * gold rule on top. With bookings off What's on stays the same size, in the
+ * middle.
+ */
+.ch-dock {
+  display: none;
+}
+
+@media not all and (min-width: 62.5rem) {
+  .ch-dock {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 40;
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    height: var(--ch-dock-h);
+    padding: 0.5rem max(var(--ch-gutter), env(safe-area-inset-right))
+      calc(0.5rem + env(safe-area-inset-bottom, 0px))
+      max(var(--ch-gutter), env(safe-area-inset-left));
+    background: var(--ch-board);
+    border-top: 1px solid var(--ch-gold);
+  }
+}
+
+/* Half each, as far as Book a table's words allow; on its own, What's on
+   keeps its half */
+.ch-page .ch-dock .ch-btn.ch-btn--compact {
+  flex: 1 1 0;
+  max-width: 16rem;
+  padding: 0 0.75rem;
+}
+
+.ch-page .ch-dock .ch-btn.ch-btn--compact:only-child {
+  flex: 0 1 calc(50% - 0.375rem);
+}
+
+/* The narrowest phones: a size down, so the two still fit side by side */
+@media (max-width: 22.4375rem) {
+  .ch-page .ch-dock .ch-btn.ch-btn--compact {
+    padding: 0 0.5rem;
+    font-size: 0.875rem;
+    letter-spacing: 0.06em;
+  }
+}
+
+/*
+ * Home's bar and menu button (#240): out of sight while the hero is, and on
+ * the way down; back, sliding in from the top edge, when the visitor, past
+ * the hero, scrolls back up (scripts/chart-nav.js puts data-reveal on the
+ * page). Hidden, they are out of reach of Tab and a screen reader too. They
+ * cover the page rather than push it down. Reduced motion: no slide.
+ */
+.ch-bar--reveal,
+.ch-chart-btn--reveal {
+  visibility: hidden;
+  transform: translateY(-100%);
+  transition:
+    transform 0.16s ease-in,
+    visibility 0s linear 0.16s;
+}
+
+.ch-chart-btn--reveal {
+  transform: translateY(calc(-100% - 0.75rem));
+}
+
+.ch-page[data-reveal="shown"] :is(.ch-bar--reveal, .ch-chart-btn--reveal),
+.ch-page[data-chart="open"] .ch-chart-btn--reveal {
+  visibility: visible;
+  transform: none;
+  transition:
+    transform 0.2s ease-out,
+    visibility 0s;
+}
+
+/* The button keeps its own colour change as it opens and closes */
+.ch-chart-btn--reveal {
+  transition:
+    transform 0.16s ease-in,
+    visibility 0s linear 0.16s,
+    color 0.4s ease,
+    background 0.4s ease;
+}
+
+.ch-page[data-reveal="shown"] .ch-chart-btn--reveal,
+.ch-page[data-chart="open"] .ch-chart-btn--reveal {
+  transition:
+    transform 0.2s ease-out,
+    visibility 0s,
+    color 0.4s ease,
+    background 0.4s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-bar--reveal,
+  .ch-chart-btn--reveal,
+  .ch-page[data-reveal="shown"] :is(.ch-bar--reveal, .ch-chart-btn--reveal),
+  .ch-page[data-chart="open"] .ch-chart-btn--reveal {
+    transition: none;
+  }
+}
+
+/*
+ * Moving between pages (#240): the browser's view transitions, through
+ * Astro's router. The leather is the window's ground and stays put. The page
+ * going out fades quickly where it is; the page coming in rises a little into
+ * place as it fades in. They are named apart (the outgoing one is marked as
+ * it goes, scripts/chart-nav.js), so neither moves to where the other was.
+ * The bar, the dock, the corner button and Book a table are the same on
+ * every page they are on: there they stay perfectly still (home's, which come and go, aren't
+ * named: they leave and arrive with home). From home
+ * to a page with the bar, the bar slides down from above the top edge as the
+ * page settles, into the room the page keeps for it; back to home it slides
+ * up and away while home comes in. A page loaded straight has no transition.
+ * Reduced motion: an instant swap.
+ */
+.ch-page {
+  view-transition-name: chart-page-in;
+}
+
+html[data-chart-leaving] .ch-page {
+  view-transition-name: chart-page-out;
+}
+
+.ch-bar:not(.ch-bar--reveal) {
+  view-transition-name: chart-bar;
+}
+
+.ch-chart-btn:not(.ch-chart-btn--reveal) {
+  view-transition-name: chart-menu;
+}
+
+.ch-dock {
+  view-transition-name: chart-dock;
+}
+
+.ch-book-fixed {
+  view-transition-name: chart-book;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:has(.ch-page)::view-transition-group(*) {
+    animation-duration: 0.17s;
+  }
+
+  /* The ground: the same leather on both, the new over the old */
+  :root:has(.ch-page)::view-transition-old(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  :root:has(.ch-page)::view-transition-new(root) {
+    animation: ch-page-in 0.17s ease-out both;
+    mix-blend-mode: normal;
+  }
+
+  /* The page */
+  :root:has(.ch-page)::view-transition-old(chart-page-out) {
+    animation: ch-page-out 0.12s ease-out both;
+  }
+
+  :root:has(.ch-page)::view-transition-new(chart-page-in) {
+    animation: ch-page-rise 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  /* The bar, the dock and the button on both pages: the new one in place at
+     once, nothing to see */
+  :root:has(.ch-page)::view-transition-group(chart-bar),
+  :root:has(.ch-page)::view-transition-group(chart-dock),
+  :root:has(.ch-page)::view-transition-group(chart-menu),
+  :root:has(.ch-page)::view-transition-group(chart-book),
+  :root:has(.ch-page)::view-transition-new(chart-bar),
+  :root:has(.ch-page)::view-transition-new(chart-dock),
+  :root:has(.ch-page)::view-transition-new(chart-menu),
+  :root:has(.ch-page)::view-transition-new(chart-book) {
+    animation: none;
+  }
+
+  :root:has(.ch-page)::view-transition-old(chart-bar),
+  :root:has(.ch-page)::view-transition-old(chart-dock),
+  :root:has(.ch-page)::view-transition-old(chart-menu),
+  :root:has(.ch-page)::view-transition-old(chart-book) {
+    animation: none;
+    opacity: 0;
+  }
+
+  /* The bar on one page only: down as the page settles, or up and away as
+     home comes in */
+  :root:has(.ch-page)::view-transition-new(chart-bar):only-child {
+    animation: ch-bar-down 0.22s ease-out 0.14s both;
+  }
+
+  :root:has(.ch-page)::view-transition-old(chart-bar):only-child {
+    opacity: 1;
+    animation: ch-bar-up 0.18s ease-in both;
+  }
+
+  /* The corner button on one page only (home has none): with the page */
+  :root:has(.ch-page)::view-transition-new(chart-menu):only-child {
+    animation: ch-page-in 0.17s ease-out both;
+  }
+
+  :root:has(.ch-page)::view-transition-old(chart-menu):only-child {
+    opacity: 1;
+    animation: ch-page-out 0.12s ease-out both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:has(.ch-page)::view-transition-group(*),
+  :root:has(.ch-page)::view-transition-old(*),
+  :root:has(.ch-page)::view-transition-new(*) {
+    animation: none;
+  }
+}
+
+@keyframes ch-page-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ch-page-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ch-page-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes ch-bar-down {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes ch-bar-up {
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+/* Arriving through the router, home's hero doesn't rise: the page just
+   fades in, still */
+html[data-chart-arrived] .ch-hero-content {
+  animation: none;
+}
+
 /*
  * Hero: the logo and a plain line, straight on the page's leather (the photo
- * of the room is out for now; chartHeroBackground is kept for when it's back).
- * It fills the screen it opens on, no more and no less: the small viewport
- * height, so a phone's
- * address bar doesn't push the buttons off the foot. --ch-hero-foot is the
- * room kept clear under the buttons, for what floats at the foot of the page.
+ * of the room is out for now; chartHeroBackground is kept for when it's back),
+ * then the way in. It fills the screen it opens on, above the dock, no more
+ * and no less: the small viewport height, so a phone's address bar doesn't
+ * push the links off the foot. --ch-hero-foot is the room kept clear under
+ * the links, for Book a table floating at the foot of a desk screen.
  */
 .ch-hero {
-  --ch-hero-h: 100vh;
+  --ch-hero-h: calc(100vh - var(--ch-bar-h) - var(--ch-dock-h));
   --ch-hero-foot: 3.5rem;
-  /* The logo gives way first on a short screen: what's left once the line
-     and links under it have their room (it is 1.134 times as wide as tall) */
+  /* Everything but the logo, as it is at its tallest: the room above it,
+     SOCIAL, the line and the links */
+  --ch-hero-rest: 22.5rem;
+  /* The logo gives way first on a short screen: what's left once the rest
+     has its room (it is 1.134 times as wide as tall) */
   --ch-hero-logo: max(
-    9rem,
+    7.5rem,
     min(
       27rem,
       82vw,
-      (var(--ch-hero-h) - 20.75rem - var(--ch-hero-foot)) * 1.134
+      (var(--ch-hero-h) - var(--ch-hero-rest) - var(--ch-hero-foot)) * 1.134
     )
   );
   position: relative;
@@ -426,14 +960,21 @@
 
 @supports (height: 100svh) {
   .ch-hero {
-    --ch-hero-h: 100svh;
+    --ch-hero-h: calc(100svh - var(--ch-bar-h) - var(--ch-dock-h));
   }
 }
 
-/* On a phone the buttons span the page: keep them above Book a table */
+/* Below the bar's width nothing floats over the hero: the dock is under it */
+@media not all and (min-width: 62.5rem) {
+  .ch-hero {
+    --ch-hero-foot: 1.5rem;
+  }
+}
+
+/* On a phone the links take two rows */
 @media (max-width: 40rem) {
   .ch-hero {
-    --ch-hero-foot: 4.75rem;
+    --ch-hero-rest: 25.5rem;
   }
 }
 
@@ -472,6 +1013,98 @@
   color: var(--ch-cream);
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
   text-wrap: balance;
+}
+
+/*
+ * The way in, under the line: the five places, each its numbered ring over
+ * its name as in the menu panel, laid in a row. On a phone, three and two.
+ */
+.ch-hero-nav {
+  margin-top: 2.25rem;
+}
+
+/* One row, each as wide as the others, so the rings are evenly spaced; on
+   a narrower screen they close up rather than wrap. The row's width is set
+   here, not by the line above it */
+.ch-hero-nav ul {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  width: min(42rem, 100vw - 2 * var(--ch-gutter));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ch-hero-nav li {
+  flex: 0 1 8rem;
+}
+
+.ch-hero-nav a {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.25rem;
+}
+
+.ch-hero-nav .ch-ring {
+  width: 3.5rem;
+  height: 3.5rem;
+  font-size: 1.375rem;
+  color: var(--ch-ink);
+  opacity: 1;
+}
+
+.ch-hero-nav .ch-caps {
+  font-size: 1.0625rem;
+  white-space: nowrap;
+  color: var(--ch-cream);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
+  transition: color 0.2s ease;
+}
+
+.ch-hero-nav a:hover .ch-ring,
+.ch-hero-nav a:focus-visible .ch-ring {
+  color: var(--ch-gold);
+  border: 2px double var(--ch-gold);
+}
+
+.ch-hero-nav a:hover .ch-caps,
+.ch-hero-nav a:focus-visible .ch-caps {
+  color: var(--ch-mustard);
+}
+
+.ch-hero-nav a:focus-visible {
+  outline: 1px solid var(--ch-gold);
+  outline-offset: 3px;
+}
+
+@media (max-width: 40rem) {
+  .ch-hero-nav {
+    margin-top: 1.75rem;
+  }
+
+  .ch-hero-nav ul {
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+  }
+
+  /* Three to a row, the last two in the middle under them. On the
+     narrowest phones a name may run a little into the gap beside it */
+  .ch-hero-nav li {
+    flex: 0 0 calc((100% - 1.5rem) / 3);
+    min-width: 0;
+  }
+
+  .ch-hero-nav .ch-ring {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.125rem;
+  }
+
+  .ch-hero-nav .ch-caps {
+    font-size: 0.875rem;
+  }
 }
 
 .ch-head {
@@ -600,10 +1233,10 @@
   padding: 5rem var(--ch-gutter) 4rem;
 }
 
-/* Wide enough that the button sits in the margin: the title can come up */
-@media (min-width: 80rem) {
-  .ch-main {
-    padding-top: 4rem;
+/* Under the bar there is no button to clear: the title can come up */
+@media (min-width: 62.5rem) {
+  .ch-page:has(.ch-bar:not(.ch-bar--reveal)) .ch-main {
+    padding-top: 3rem;
   }
 }
 
@@ -645,118 +1278,6 @@
 .ch-link {
   color: var(--ch-gold);
   border-bottom: 1px solid currentColor;
-}
-
-.ch-rule {
-  height: 0;
-  border-top: 1px solid var(--ch-rule);
-}
-
-.ch-rule--dash {
-  border-top-style: dashed;
-}
-
-/*
- * Rough rules: every divider is drawn, not ruled. The border stays (clear) to
- * keep the spacing; the line itself is a brushed stroke, or uneven dashes,
- * masked in the divider's colour.
- */
-.ch-page {
-  --ch-line: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='6'%3E%3Cpath fill-rule='evenodd' d='M0.00 2.45L20.00 1.88L40.00 2.42L60.00 2.84L80.00 2.44L100.00 2.48L120.00 1.98L140.00 2.06L160.00 2.33L180.00 2.48L200.00 1.97L220.00 2.47L240.00 2.51L260.00 2.04L280.00 2.02L300.00 2.38L320.00 1.92L340.00 2.81L360.00 1.90L380.00 2.99L400.00 3.08L420.00 2.49L440.00 3.00L460.00 1.88L480.00 2.45L480.00 3.55L460.00 3.38L440.00 3.99L420.00 3.99L400.00 3.80L380.00 4.02L360.00 3.21L340.00 4.04L320.00 3.01L300.00 3.79L280.00 2.91L260.00 3.54L240.00 3.44L220.00 3.73L200.00 3.41L180.00 3.26L160.00 3.86L140.00 3.14L120.00 3.40L100.00 3.46L80.00 3.60L60.00 3.95L40.00 3.17L20.00 3.02L0.00 3.55ZM437.11 0h4.43v6h-4.43ZM459.92 0h4.70v6h-4.70ZM209.83 0h2.52v6h-2.52ZM290.83 0h1.60v6h-1.60Z'/%3E%3C/svg%3E");
-  --ch-line-dash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='6'%3E%3Cpath d='M0.00 2.69L17.47 2.54L17.47 3.96L0.00 4.10ZM22.48 2.90L36.81 2.95L36.81 4.23L22.48 4.18ZM44.86 2.17L61.25 2.60L61.25 4.10L44.86 3.67ZM68.80 2.59L84.72 2.32L84.72 3.15L68.80 3.43ZM90.03 1.94L106.13 1.79L106.13 2.97L90.03 3.12ZM113.39 2.07L125.59 1.95L125.59 2.87L113.39 2.99ZM134.03 2.77L147.09 2.37L147.09 3.85L134.03 4.25ZM158.05 2.38L173.57 2.25L173.57 3.65L158.05 3.78ZM182.44 2.28L194.97 2.31L194.97 3.29L182.44 3.26ZM205.74 3.04L219.01 2.68L219.01 3.60L205.74 3.95ZM229.77 2.22L244.37 2.55L244.37 3.60L229.77 3.27ZM254.65 2.58L266.96 2.31L266.96 3.18L254.65 3.45ZM276.75 2.20L293.36 2.45L293.36 3.49L276.75 3.23ZM303.53 1.99L315.31 1.51L315.31 2.33L303.53 2.81ZM323.66 2.75L333.91 2.56L333.91 3.81L323.66 3.99ZM344.85 2.68L357.27 2.35L357.27 3.61L344.85 3.94ZM365.24 2.10L374.92 2.10L374.92 3.33L365.24 3.34ZM382.68 2.55L392.99 2.56L392.99 3.44L382.68 3.43ZM401.77 2.52L417.75 2.58L417.75 3.53L401.77 3.47ZM427.39 1.99L438.50 2.06L438.50 3.13L427.39 3.06ZM444.68 3.05L457.31 2.94L457.31 3.86L444.68 3.96Z'/%3E%3C/svg%3E");
-}
-
-.ch-head,
-.ch-rule,
-.ch-log li + li .ch-entry,
-.ch-paths li + li .ch-path,
-.ch-find-ways {
-  position: relative;
-  border-color: transparent;
-}
-
-.ch-head::after,
-.ch-rule::before,
-.ch-log li + li .ch-entry::before,
-.ch-paths li + li .ch-path::before,
-.ch-find-ways::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -3.5px;
-  height: 6px;
-  background: var(--ch-rule);
-  -webkit-mask: var(--ch-line) 0 0 / 480px 6px repeat-x;
-  mask: var(--ch-line) 0 0 / 480px 6px repeat-x;
-  pointer-events: none;
-}
-
-.ch-head::after {
-  top: auto;
-  bottom: -3.5px;
-  background: var(--ch-rule);
-}
-
-/* Every rule drawn as the uneven dashes: lighter than a solid line */
-.ch-head::after,
-.ch-rule::before,
-.ch-log li + li .ch-entry::before,
-.ch-paths li + li .ch-path::before,
-.ch-find-ways::before {
-  -webkit-mask-image: var(--ch-line-dash);
-  mask-image: var(--ch-line-dash);
-}
-
-/* The foot */
-.ch-footer {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 0 var(--ch-gutter) 2.5rem;
-}
-
-.ch-footer-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem 2rem;
-  padding-top: 1.25rem;
-}
-
-.ch-footer-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1.5rem;
-  font-family: var(--ch-caps);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.8125rem;
-  letter-spacing: 0.08em;
-}
-
-.ch-footer-links a:hover,
-.ch-footer .ch-caps:hover {
-  color: var(--ch-gold);
-}
-
-/* On a phone every link in the foot is a full-size target, a row each way */
-@media (max-width: 40rem) {
-  .ch-footer-row {
-    row-gap: 0.25rem;
-    padding-top: 0.75rem;
-  }
-
-  .ch-footer-links {
-    row-gap: 0;
-  }
-
-  .ch-footer-links a,
-  .ch-footer-row > a.ch-caps {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-  }
 }
 
 /* The log */
@@ -1289,17 +1810,22 @@
   outline-offset: 0.4rem;
 }
 
-/* Book a table: floats in the bottom right corner of every page, clear of the
-   headings and the menu button; the foot leaves room so it never covers the last line.
-   .ch-page in front so home's bigger buttons don't resize it: one size on every page */
+/* The smaller button: Book a table floating, and the dock's two. .ch-page in
+   front so home's bigger buttons don't resize them: one size on every page */
+.ch-page .ch-btn.ch-btn--compact {
+  min-height: 2.75rem;
+  padding: 0 1.125rem;
+  font-size: 0.9375rem;
+}
+
+/* Book a table, in one place on every desk screen: floating in the bottom
+   right corner, the same size and spot on every page. Narrower, the dock has
+   it, in the same corner */
 .ch-page .ch-btn.ch-book-fixed {
   position: fixed;
   right: max(var(--ch-gutter), env(safe-area-inset-right));
   bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
   z-index: 40;
-  min-height: 2.75rem;
-  padding: 0 1.125rem;
-  font-size: 0.9375rem;
 }
 
 /* A dark halo behind the gold, so it lifts off whatever scrolls under it */
@@ -1314,50 +1840,22 @@
   pointer-events: none;
 }
 
-.ch-page:has(.ch-book-fixed) .ch-footer {
-  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
-}
-
-/* A field or a heading brought into view (Tab, a jump link, the keyboard's
-   Next) stops above the button, not under it */
-:root:has(.ch-book-fixed) {
-  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
-}
-
-/* On a phone: a little smaller, its right edge on the page's gutter */
-@media (max-width: 40rem) {
-  .ch-page .ch-btn.ch-book-fixed {
-    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-    padding: 0 1rem;
-    font-size: 0.875rem;
-  }
-
+@media (min-width: 62.5rem) {
+  /* The foot leaves room so it never covers the last line */
   .ch-page:has(.ch-book-fixed) .ch-footer {
-    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 
-  /* A short page (the list signup) fills the screen, so its foot's links
-     start below the button rather than under it */
-  .ch-page:has(.ch-book-fixed) .ch-main {
-    min-height: 100vh;
-    min-height: 100svh;
+  /* A field or a heading brought into view (Tab, a jump link, the
+     keyboard's Next) stops above the button, not under it */
+  :root:has(.ch-book-fixed) {
+    scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
-/* The two buttons: set well apart from the sign and its line above them */
-.ch-hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-top: 2.25rem;
-}
-
-/* A narrow phone: the two stay side by side (stacked, the second would sit
-   under Book a table on a short screen) */
-@media (max-width: 23.9375rem) {
-  .ch-home .ch-hero-actions .ch-btn {
-    padding: 0 1.25rem;
+@media not all and (min-width: 62.5rem) {
+  .ch-page .ch-btn.ch-book-fixed {
+    display: none;
   }
 }
 
@@ -1602,263 +2100,9 @@
   }
 }
 
-/*
- * The map: the chart from the brief, drawn straight onto the page in
- * light grease pencil. No sheet; the page behind it has a faint texture.
- */
-.ch-scroll {
-  --paper-ink: var(--ch-ink);
-  --paper-ink-2: var(--ch-ink-2);
-  --paper-ink-3: var(--ch-ink-3);
-  --paper-walk: var(--ch-gold);
-  margin: 1rem 0 0;
-  color: var(--paper-ink);
-}
-
+/* Contact's map and Find us: chart-map.css and chart-contact.css */
 .ch-find-page {
   position: relative;
-}
-
-.ch-map svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-width: 100%;
-}
-
-/* Finding us: the whole map on the first screen, under the title */
-.ch-find-page .ch-map svg {
-  max-height: calc(100vh - 14rem);
-  max-height: calc(100svh - 14rem);
-  min-height: 22rem;
-  width: auto;
-  margin: 0 auto;
-}
-
-.ch-map-band {
-  stroke: rgb(232 223 204 / 0.09);
-  stroke-width: 52;
-}
-
-.ch-map-band--union {
-  stroke-width: 44;
-}
-
-.ch-map-edge {
-  stroke: var(--paper-ink);
-  stroke-width: 4.5;
-  opacity: 0.85;
-}
-
-.ch-map-towpath {
-  stroke: var(--ch-olive);
-  stroke-width: 5;
-  stroke-dasharray: 22 12;
-  opacity: 0.8;
-}
-
-.ch-map-rail path {
-  stroke: var(--paper-ink);
-  stroke-width: 3.5;
-  opacity: 0.7;
-}
-
-.ch-map-roads path {
-  stroke: var(--paper-ink-3);
-  stroke-width: 4;
-  opacity: 0.75;
-}
-
-.ch-map-walk {
-  stroke: var(--paper-walk);
-  stroke-width: 6;
-  stroke-dasharray: 14 12;
-}
-
-.ch-map-marks circle {
-  fill: var(--paper-ink);
-  r: 6;
-}
-
-.ch-map-here {
-  stroke: var(--ch-red);
-  stroke-width: 10;
-}
-
-/* The X drawn in like the menu's close: one stroke, then the other */
-.ch-map-here path {
-  stroke-dasharray: 1 2;
-  stroke-dashoffset: 0;
-  transition: stroke-dashoffset 0.32s ease-in-out;
-}
-
-.ch-map-here.is-waiting:not(.is-drawn) path {
-  stroke-dashoffset: 1.5;
-}
-
-.ch-map-here.is-drawn path:nth-child(2) {
-  transition-delay: 0.3s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ch-map-here path {
-    transition: none;
-  }
-}
-
-/* Everything on the map is written by hand, bar the soundings */
-.ch-map-labels text {
-  fill: var(--paper-ink);
-  font-family: var(--ch-hand);
-  font-weight: 600;
-  font-size: 27px;
-}
-
-.ch-map-labels .ch-map-sound {
-  font-family: var(--ch-press);
-  font-size: 15px;
-  fill: var(--paper-ink-3);
-  text-anchor: middle;
-}
-
-.ch-map-labels .ch-map-small {
-  font-size: 20px;
-  fill: var(--paper-ink-2);
-}
-
-.ch-map-labels .ch-map-mark {
-  font-size: 20px;
-  fill: var(--paper-ink-2);
-}
-
-.ch-map-labels .ch-map-road {
-  font-size: 20px;
-  fill: var(--paper-ink-3);
-}
-
-.ch-map-labels .ch-map-water-label {
-  font-size: 21px;
-  fill: var(--paper-ink-2);
-}
-
-.ch-map-labels .ch-map-name {
-  font-size: 68px;
-  fill: var(--ch-olive);
-}
-
-.ch-map-labels .ch-map-note {
-  font-family: var(--ch-hand);
-  font-size: 23px;
-  fill: var(--paper-walk);
-  /* A rim of the dark ground, so the words lift off any line under them */
-  stroke: var(--ch-bg);
-  stroke-width: 5px;
-  stroke-linejoin: round;
-  paint-order: stroke;
-}
-
-.ch-map-labels .ch-map-n {
-  font-family: var(--ch-caps);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 16px;
-  fill: var(--paper-ink-2);
-}
-
-.ch-map-station {
-  fill: var(--ch-bg);
-  stroke: var(--paper-ink);
-  stroke-width: 4.5;
-}
-
-.ch-map-rose {
-  color: var(--ch-olive);
-  stroke: currentColor;
-  stroke-width: 3;
-}
-
-/* Under the map: the address, and directions in Google Maps as a button */
-.ch-map figcaption {
-  display: grid;
-  justify-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-  font-family: var(--ch-caps);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 1rem;
-  letter-spacing: 0.06em;
-  color: var(--paper-ink-2);
-  text-align: center;
-}
-
-/* Finding us: a word before the map, the ways here after it */
-.ch-find-intro {
-  max-width: 40rem;
-  margin: 2.5rem 0 0;
-  font-size: 1.1875rem;
-  line-height: 1.6;
-  color: var(--ch-ink-2);
-}
-
-.ch-find-ways {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 2rem 3rem;
-  margin-top: 3rem;
-  padding-top: 2rem;
-  border-top: 1px solid var(--ch-rule);
-}
-
-.ch-find-ways p {
-  margin: 0 0 0.75rem;
-  line-height: 1.6;
-}
-
-.ch-find-head {
-  margin: 0 0 0.875rem;
-  font-family: var(--ch-display);
-  font-weight: 400;
-  font-size: 1.625rem;
-  line-height: 1.15;
-  color: var(--ch-cream);
-}
-
-.ch-find-steps {
-  margin: 0 0 1rem;
-  padding-left: 1.5rem;
-  display: grid;
-  gap: 0.625rem;
-  line-height: 1.55;
-}
-
-.ch-find-steps li::marker {
-  font-family: var(--ch-pen);
-  font-weight: 600;
-  font-size: 1.25rem;
-  color: var(--ch-olive);
-}
-
-.ch-find-note {
-  font-style: italic;
-  color: var(--ch-ink-3);
-}
-
-@media (max-width: 40rem) {
-  .ch-find-ways {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* The directions button fits a narrow phone: it was wider than the page */
-  .ch-map figcaption {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ch-map figcaption .ch-btn {
-    max-width: 100%;
-    padding: 0 0.875rem;
-    font-size: 0.9375rem;
-  }
 }
 
 .ch-find-page .ch-main {
@@ -1900,14 +2144,10 @@
   transform: rotate(-3deg);
 }
 
-/* Contact: finding us, playing here and the list, one under the other */
+/* Contact: finding us, playing here and the list, one under the other,
+   a trail between them (chart-rules.css) */
 .ch-contact-part {
-  scroll-margin-top: 5rem;
   padding: 2.5rem 0;
-}
-
-.ch-contact-part + .ch-contact-part {
-  border-top: 1px dashed var(--ch-rule);
 }
 
 .ch-contact-part > p,

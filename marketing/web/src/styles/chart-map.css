@@ -1,0 +1,240 @@
+/*
+ * The map (#240, ChartMap.astro): the walk from Hackney Wick station drawn
+ * in chalk on a board. Sizes are in the drawing's own units (600 wide):
+ * on a phone it is about 350px across, so the smallest words (21) still
+ * come out at 12px.
+ */
+.ch-map {
+  margin: 0;
+  color: var(--ch-ink);
+}
+
+.ch-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+}
+
+.ch-map-board {
+  fill: var(--ch-board);
+}
+
+.ch-map-hatch {
+  stroke: var(--ch-board-3);
+  stroke-width: 2;
+}
+
+.ch-map-buildings {
+  fill: url(#ch-map-hatch);
+  stroke: var(--ch-board-3);
+  stroke-width: 1.5;
+}
+
+/* A street: its kerbs in pencil grey, the road the board between them */
+.ch-map-kerb {
+  stroke: var(--ch-ink-3);
+  stroke-width: 16;
+}
+
+.ch-map-road {
+  stroke: var(--ch-board);
+  stroke-width: 11.5;
+}
+
+.ch-map-kerb--yard {
+  stroke-width: 11;
+}
+
+.ch-map-road--yard {
+  stroke-width: 7;
+}
+
+/* The water: dark, inside a chalk bank */
+.ch-map-bank {
+  stroke: var(--ch-ink);
+  stroke-width: 7;
+}
+
+.ch-map-water {
+  fill: var(--ch-bg);
+}
+
+.ch-map-towpath path {
+  stroke: var(--ch-ink-3);
+  stroke-width: 2.5;
+  stroke-dasharray: 0.1 7;
+}
+
+.ch-map-rail path {
+  stroke: var(--ch-ink);
+  stroke-width: 3;
+}
+
+.ch-map-walk {
+  stroke: var(--ch-mustard);
+  stroke-width: 6.5;
+  stroke-dasharray: 14 9;
+}
+
+/* The other way, by the water: the same mustard, quieter, in dots */
+.ch-map-walk--water {
+  stroke-width: 5;
+  stroke-dasharray: 0.1 10;
+}
+
+.ch-map-station {
+  fill: var(--ch-board);
+  stroke: var(--ch-cream);
+  stroke-width: 4.5;
+}
+
+.ch-map-spot {
+  fill: var(--ch-ink);
+}
+
+/* The sign at the turning: a small red disc with a white middle */
+.ch-map-sign-rim {
+  fill: var(--ch-red);
+  stroke: var(--ch-board);
+  stroke-width: 2.5;
+}
+
+.ch-map-sign-face {
+  fill: var(--ch-cream);
+}
+
+/* Gwenda: the X, big and red */
+.ch-map-here {
+  stroke: var(--ch-red);
+  stroke-width: 11;
+}
+
+/* Drawn in like the menu's close: one stroke, then the other */
+.ch-map-here path {
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.32s ease-in-out;
+}
+
+.ch-map-here.is-waiting:not(.is-drawn) path {
+  stroke-dashoffset: 1.5;
+}
+
+.ch-map-here.is-drawn path:nth-child(2) {
+  transition-delay: 0.3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-map-here path {
+    transition: none;
+  }
+}
+
+/*
+ * The words: written by hand, bar the street's name and the soundings.
+ * Each has a rim of the board under it, so it lifts off any line.
+ */
+.ch-map-words text {
+  font-family: var(--ch-hand);
+  font-weight: 600;
+  font-size: 24px;
+  fill: var(--ch-ink-2);
+  stroke: var(--ch-board);
+  stroke-width: 5px;
+  paint-order: stroke;
+}
+
+.ch-map-words textPath {
+  text-anchor: middle;
+}
+
+.ch-map-words .ch-map-sounding {
+  font-family: var(--ch-numeral);
+  font-weight: 400;
+  font-size: 21px;
+  fill: var(--ch-ink-3);
+  stroke: none;
+  text-anchor: middle;
+}
+
+.ch-map-words .ch-map-water-name {
+  font-size: 25px;
+  stroke: none;
+}
+
+.ch-map-words .ch-map-place {
+  font-size: 38px;
+  fill: var(--ch-cream);
+}
+
+.ch-map-words .ch-map-area {
+  font-size: 32px;
+  fill: var(--ch-ink-3);
+  stroke-width: 6px;
+  text-anchor: middle;
+}
+
+.ch-map-words .ch-map-name {
+  font-size: 68px;
+  fill: var(--ch-cream);
+  stroke-width: 9px;
+  text-anchor: end;
+}
+
+.ch-map-words .ch-map-note {
+  font-size: 26px;
+  fill: var(--ch-mustard);
+  stroke-width: 7px;
+}
+
+.ch-map-words .ch-map-note--end {
+  text-anchor: end;
+}
+
+.ch-map-scale path {
+  stroke: var(--ch-ink-2);
+  stroke-width: 3;
+}
+
+.ch-map-rose {
+  color: var(--ch-gold);
+  stroke: currentColor;
+  stroke-width: 2.5;
+}
+
+.ch-map-rose .ch-map-rose-ground {
+  fill: var(--ch-board);
+  stroke: none;
+}
+
+.ch-map-rose .ch-map-rose-north {
+  fill: currentColor;
+}
+
+.ch-map-words .ch-map-n {
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 21px;
+  fill: currentColor;
+  stroke: none;
+  text-anchor: middle;
+}
+
+/* The credit the street map asks for, small under the drawing */
+.ch-map figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--ch-ink-3);
+  text-align: right;
+}
+
+.ch-map figcaption a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.ch-map figcaption a:hover {
+  color: var(--ch-gold);
+}

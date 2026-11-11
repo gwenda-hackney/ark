@@ -38,3 +38,41 @@ describe("initNightCards", () => {
     expect(sizes(nights[2])).toBe(ROW_SIZES);
   });
 });
+
+describe("initNightCards on home's This week (data-this-week)", () => {
+  /**
+   * Built on Wed 11 Nov: this week's nights, then next week's Tue 17 and the
+   * EPIC Jam weekend (Sat 21 to Sun 22), spare for the days after the build.
+   */
+  function homePage() {
+    const night = (date, end = date) =>
+      `<li class="ch-night" data-night="${date}" data-night-end="${end}"><span data-night-label></span></li>`;
+    document.body.innerHTML = `<div data-night-cards data-shown="5" data-this-week><ol>${night("2026-11-11")}${night("2026-11-13")}${night("2026-11-17")}${night("2026-11-21", "2026-11-22")}</ol><p data-night-cards-empty hidden>Nothing on this week.</p></div>`;
+    return [...document.querySelectorAll("[data-night]")];
+  }
+  const empty = () => document.querySelector("[data-night-cards-empty]").hidden;
+  const shownOn = (iso) => {
+    const nights = homePage();
+    initNightCards(new Date(`${iso}T12:00:00Z`));
+    return nights.filter((n) => !n.hidden).map((n) => n.dataset.night);
+  };
+
+  it("on the Wednesday, shows Wednesday to Sunday: not next Tuesday or the weekend after", () => {
+    expect(shownOn("2026-11-11")).toEqual(["2026-11-11", "2026-11-13"]);
+  });
+
+  it("on the Sunday, with nothing on, says so; nothing from next week shows", () => {
+    expect(shownOn("2026-11-15")).toEqual([]);
+    expect(empty()).toBe(false);
+  });
+
+  it("on the Monday after, with no new build, shows the new week from the spares", () => {
+    expect(shownOn("2026-11-16")).toEqual(["2026-11-17", "2026-11-21"]);
+    expect(empty()).toBe(true);
+  });
+
+  it("keeps the weekend run on its Sunday, and drops it the Monday after", () => {
+    expect(shownOn("2026-11-22")).toEqual(["2026-11-21"]);
+    expect(shownOn("2026-11-23")).toEqual([]);
+  });
+});

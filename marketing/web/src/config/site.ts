@@ -206,6 +206,9 @@ export const siteConfig = {
       "What’s on, new nights, and the odd party. No spam, unsubscribe any time.",
     signupConsent:
       "Yes, email me about nights at Gwenda. I can unsubscribe whenever.",
+    /** The sign-up in the foot of every page: why, in a line, and the yes-box said short. */
+    signupFootLine: "What’s on, once a week.",
+    signupConsentShort: "Yes, email me. I can unsubscribe any time.",
     signupButton: "Sign me up",
     signupSuccessTitle: "You're in",
     signupSuccessLead: "We'll let you know what's coming up. No spam, promise.",
@@ -223,6 +226,9 @@ export const siteConfig = {
       playHeading: "Play at Gwenda",
       playLead:
         "Got records? Got a band? Got a mate who won’t shut up about their mixes? We want this place to sound like Hackney Wick, so come and play. Tell us what you’d bring.",
+      /** The lead cut down, for home's short row at the foot. */
+      playShort:
+        "Got records? Got a band? Come and play. Tell us what you’d bring.",
       playCta: "Apply to play",
       /** The top of the play form's own page, beside the decks. */
       playIntro: {
@@ -237,6 +243,8 @@ export const siteConfig = {
       partyHeading: "Having a party?",
       partyLead:
         "Birthday, leaving do, work thing: tell us what you’re planning and we’ll come back to you.",
+      /** The lead cut down, for Contact's card at the top. */
+      partyShort: "Birthday, leaving do, work thing",
       partyCta: "Book your party",
       /** The top of the party form's own page, beside the photo. */
       partyIntro: {

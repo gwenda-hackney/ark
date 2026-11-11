@@ -3,8 +3,8 @@
  * Opening hours (#240), from ops (Settings → Venue details) through the
  * `venueDetails` document (lib/opening-hours.js). `table`: the week, with
  * today's line above it when `today` (worked out in the browser,
- * scripts/opening-hours.js); `line`: the week on one line, for the foot.
- * No week, nothing at all.
+ * scripts/opening-hours.js), under its own heading or, with `heading=""`,
+ * under one around it (the foot's). No week, nothing at all.
  */
 import "../../styles/chart-hours.css";
 import { weekRows } from "../../lib/opening-hours.js";
@@ -16,8 +16,8 @@ interface Props {
     opens: string;
     closes: string;
   }> | null;
-  variant?: "table" | "line";
-  /** The table's heading; none in the foot. */
+  variant?: "table";
+  /** The table's heading; "" for none (the foot has its own). */
   heading?: string;
   /** Today's line above the table: open now and till when, or the next opening. */
   today?: boolean;
@@ -33,27 +33,20 @@ const {
 } = Astro.props;
 const rows = weekRows(week);
 const headingId = "opening-hours-head";
+const Box = heading ? "section" : "div";
 ---
 
 {
-  rows.length > 0 && variant === "line" && (
-    <p class:list={["ch-hours-line", className]}>
-      <span class="ch-hours-line-label">Open</span>
-      {rows.map((row) => (
-        <span class:list={["ch-hours-line-day", row.closed && "is-closed"]}>
-          <span class="ch-hours-line-name">{`${row.days} `}</span>
-          {row.closed ? "closed" : row.hours}
-        </span>
-      ))}
-    </p>
-  )
-}
-{
   rows.length > 0 && variant === "table" && (
-    <section class:list={["ch-hours", className]} aria-labelledby={headingId}>
-      <h3 class="ch-find-head" id={headingId}>
-        {heading}
-      </h3>
+    <Box
+      class:list={["ch-hours", className]}
+      aria-labelledby={heading ? headingId : undefined}
+    >
+      {heading && (
+        <h3 class="ch-find-head" id={headingId}>
+          {heading}
+        </h3>
+      )}
       {today && (
         <p
           class="ch-hours-today"
@@ -73,7 +66,7 @@ const headingId = "opening-hours-head";
           ))}
         </tbody>
       </table>
-    </section>
+    </Box>
   )
 }
 
@@ -81,4 +74,7 @@ const headingId = "opening-hours-head";
   import { initOpeningHours } from "../../scripts/opening-hours.js";
 
   initOpeningHours();
+  // A page reached through the router runs its scripts only the first time:
+  // fill today's line on every page it lands on
+  document.addEventListener("astro:page-load", () => initOpeningHours());
 </script>

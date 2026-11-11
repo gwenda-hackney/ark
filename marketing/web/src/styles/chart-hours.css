@@ -1,31 +1,10 @@
 /*
  * Opening hours (#240, OpeningHours.astro): the week as a short table on
- * Contact, today's line written over it like the notes on the map, and the
- * week on one line in the foot.
+ * Contact and in the foot of every page (chart-footer.css sizes it there),
+ * today's line written over it like the notes on the map.
  */
 
-/* Contact, Find us: the word before the map on the left, the hours on the right */
-.ch-find-top {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: 1.5rem 3rem;
-  align-items: start;
-}
-
-.ch-find-top .ch-hours {
-  margin-top: 2.5rem;
-}
-
-@media (max-width: 52rem) {
-  .ch-find-top {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ch-find-top .ch-hours {
-    margin-top: 0;
-  }
-}
-
+/* Contact lays the hours out beside the map (chart-contact.css) */
 .ch-hours .ch-find-head {
   margin-bottom: 0.5rem;
 }
@@ -55,7 +34,7 @@
 .ch-hours-table th,
 .ch-hours-table td {
   padding: 0.4rem 0;
-  border-bottom: 1px dashed var(--ch-rule);
+  /* a trail under each row: chart-rules.css */
   text-align: left;
   vertical-align: baseline;
 }
@@ -78,36 +57,4 @@
 .ch-hours-table .is-closed td {
   color: var(--ch-ink-3);
   font-style: italic;
-}
-
-/* The foot: the week on one line, under the address */
-.ch-hours-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1.25rem;
-  margin: 0;
-  padding-top: 0.75rem;
-  font-family: var(--ch-caps);
-  font-weight: 700;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ch-ink-3);
-}
-
-.ch-hours-line-label {
-  color: var(--ch-gold);
-}
-
-.ch-hours-line-day {
-  white-space: nowrap;
-  color: var(--ch-ink-2);
-}
-
-.ch-hours-line-name {
-  color: var(--ch-ink-3);
-}
-
-.ch-hours-line-day.is-closed {
-  opacity: 0.7;
 }

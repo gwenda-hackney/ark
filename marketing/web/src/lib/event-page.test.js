@@ -6,8 +6,11 @@ import {
   siteFormLink,
 } from "./event-page.js";
 import { oversizedPictures } from "../../scripts/ci/smoke-test-lib.mjs";
+import { bookingUrl, bookingUrlFor } from "../config/booking";
 
 const TODAY = "2099-01-06";
+/** What the built shell hands over when bookings are on: the button's words. */
+const BOOKINGS_ON = ["book", "Book a table"];
 const FLYER =
   "https://cdn.sanity.io/images/p/d/abc-1080x1528.jpg?w=1600&auto=format&q=86#whole";
 
@@ -94,6 +97,58 @@ describe("an ordinary night", () => {
     const { html } = page(karaoke(), { today: "2099-01-08" });
     expect(html).toContain('<p class="ch-night-label">Tonight</p>');
     expect(html).toContain("ch-night--tonight");
+  });
+
+  it("books a table for that night: OpenTable opened on its date and start time", () => {
+    const { model, html } = page(karaoke(), { parts: new Map([BOOKINGS_ON]) });
+    expect(model.lead.book).toEqual({
+      href: bookingUrlFor({ date: "2099-01-08", time: "19:00" }),
+      label: "Book a table for Thu 8 Jan",
+    });
+    expect(model.lead.book.href).not.toBe(bookingUrl);
+    expect(html).toContain(">Book a table for Thu 8 Jan</a>");
+    expect(html).toContain("dateTime=2099-01-08T19:00");
+    expect(html).toMatch(
+      /<a class="ch-btn ch-btn--solid" href="[^"]+" target="_blank" rel="noopener noreferrer">Book a table for Thu 8 Jan<\/a>/,
+    );
+  });
+
+  it("says tonight or tomorrow on the button, as the page does", () => {
+    const parts = new Map([BOOKINGS_ON]);
+    expect(
+      page(karaoke(), { today: "2099-01-08", parts }).model.lead.book.label,
+    ).toBe("Book a table for tonight");
+    expect(
+      page(karaoke(), { today: "2099-01-07", parts }).model.lead.book.label,
+    ).toBe("Book a table for tomorrow");
+  });
+
+  it("books the special night it leads with, at that night's time", () => {
+    const special = night("2099-01-08", {
+      startTime: "20:15",
+      artist: "Ross",
+      isSpecialEdition: true,
+    });
+    const { model } = page(
+      karaoke({ featuredGuest: special, nights: [special] }),
+      { parts: new Map([BOOKINGS_ON]) },
+    );
+    expect(model.lead.book.href).toBe(
+      bookingUrlFor({ date: "2099-01-08", time: "20:15" }),
+    );
+  });
+
+  it("has no Book a table when bookings are off", () => {
+    const { model, html } = page(karaoke());
+    expect(model.lead.book).toBeNull();
+    expect(html).not.toContain("Book a table");
+  });
+
+  it("has no Book a table for a night that's been and gone", () => {
+    const { model } = page(karaoke({ nights: [night("2099-01-05")] }), {
+      parts: new Map([BOOKINGS_ON]),
+    });
+    expect(model.lead.book).toBeNull();
   });
 
   it("lists the dates after the next one, from every night it has", () => {
@@ -211,6 +266,28 @@ describe("an event over several days", () => {
     expect(list).not.toContain("Sat–Sun");
   });
 
+  it("books each day for itself, at its own time, and not the run as a whole", () => {
+    const { model, html } = page(jam, {
+      nights: jam.nights,
+      parts: new Map([BOOKINGS_ON]),
+    });
+    expect(model.lead.book).toBeNull();
+    expect(model.days.map((day) => day.book)).toEqual([
+      {
+        href: bookingUrlFor({ date: "2099-01-10", time: "12:00" }),
+        label: "Book a table for Sat 10 Jan",
+      },
+      {
+        href: bookingUrlFor({ date: "2099-01-11", time: "13:00" }),
+        label: "Book a table for Sun 11 Jan",
+      },
+    ]);
+    const list = html.slice(html.indexOf("Day by day"));
+    expect(list).toContain(">Book a table for Sat 10 Jan</a>");
+    expect(list).toContain(">Book a table for Sun 11 Jan</a>");
+    expect(flyerSticker(html)).not.toContain("Book a table");
+  });
+
   it("has only the next day on the sticker when the days aren't in a row", () => {
     const apart = {
       ...jam,
@@ -247,6 +324,15 @@ describe("a promotion", () => {
     expect(html).not.toContain("ch-night-date");
     expect(html).not.toMatch(/night\b(?!-)/i);
   });
+
+  it("has no Book a table of its own: it names no night (the menu bar's covers it)", () => {
+    const { model, html } = page(deal, {
+      category: "promotion",
+      parts: new Map([BOOKINGS_ON]),
+    });
+    expect(model.lead.book).toBeNull();
+    expect(html).not.toContain("Book a table");
+  });
 });
 
 describe("a pop-up kitchen", () => {
@@ -263,7 +349,7 @@ describe("a pop-up kitchen", () => {
     ["line:chez pickle", "Smashed burgers and fries."],
     ["page:chez pickle", "https://www.instagram.com/chezpickle"],
     ["menu:chez-pickle", "/kitchen#chez-pickle"],
-    ["book", '<a class="ch-btn" href="https://book.example/">Book a table</a>'],
+    BOOKINGS_ON,
   ]);
 
   it("shows when they're in, their mark, their menu and their page", () => {
@@ -281,8 +367,19 @@ describe("a pop-up kitchen", () => {
       '<a class="ch-btn" href="/kitchen#chez-pickle">See the menu</a>',
     );
     expect(html).toContain('href="https://www.instagram.com/chezpickle"');
-    expect(html).toContain('href="https://book.example/"');
     expect(html).not.toContain("With POP UP");
+  });
+
+  it("books a table for the next night they're in", () => {
+    const { model } = page(kitchen, {
+      category: "popup",
+      nights: kitchen.nights,
+      parts,
+    });
+    expect(model.lead.book).toEqual({
+      href: bookingUrlFor({ date: "2099-01-08", time: "19:00" }),
+      label: "Book a table for Thu 8 Jan",
+    });
   });
 
   it("leads to the food page when it has no chapter of its own", () => {
@@ -297,12 +394,13 @@ describe("a pop-up kitchen", () => {
 });
 
 describe("a series with no dates yet", () => {
-  it("keeps the shell's check-back line", () => {
+  it("keeps the shell's check-back line, and no night to book a table for", () => {
     const model = eventPageModel(
       { seriesId: "jazz", title: "Jazz", datesPending: true, nights: [] },
-      { today: TODAY },
+      { today: TODAY, parts: new Map([BOOKINGS_ON]) },
     );
     expect(model.kicker).toBe("Dates to be announced");
+    expect(model.lead.book).toBeNull();
     expect(
       renderEventPage(model, { pending: "<p>Check back soon</p>" }),
     ).toContain("<p>Check back soon</p>");
@@ -311,7 +409,7 @@ describe("a series with no dates yet", () => {
 
 describe("an event that sends people to a form", () => {
   const parts = new Map([
-    ["book", '<a class="ch-btn" href="https://book.example/">Book a table</a>'],
+    BOOKINGS_ON,
     ["form:party", "Book your party"],
     ["form:tom", "Tom &amp; Jerry&#39;s"],
   ]);

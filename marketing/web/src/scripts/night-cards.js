@@ -3,6 +3,7 @@ import {
   LEAD_NIGHT_SIZES,
   nightLabel,
   nightsToShow,
+  thisWeekDays,
   weekLabel,
 } from "../lib/night-cards.js";
 
@@ -12,7 +13,10 @@ import {
  * leads, and each is called what it is now (Tonight, Tomorrow). The one
  * that leads now is shown big, so its picture is asked for at that size
  * (the img's `sizes`; its size in a row is kept in data-row-sizes). An event
- * over several days (data-night-end) stays until its last. Where they
+ * over several days (data-night-end) stays until its last. Where only this
+ * week's show (data-this-week, home's: today to Sunday, on the visitor's
+ * day, not the build's), next week's spare cards stay hidden until its
+ * Monday, and the empty line shows if none is on. Where they
  * are under weeks, each week is named again too (This week, Next week), and
  * a week with no night left goes.
  *
@@ -27,6 +31,7 @@ export function initNightCards(now = new Date()) {
       today,
       Number(list.dataset.shown) || Infinity,
       nights.map((night) => night.dataset.nightEnd),
+      "thisWeek" in list.dataset ? thisWeekDays(today) : Infinity,
     );
 
     nights.forEach((night, index) => {

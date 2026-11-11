@@ -1,7 +1,7 @@
 /*
  * The room (#240, PartyFacts.astro): the party facts under the party form's
  * intro, small, the way the opening hours sit on Contact: a heading in gold
- * capitals, then a line for each fact over a dashed rule.
+ * capitals, then a line for each fact over a drawn rule.
  */
 .ch-party-facts {
   max-width: 24rem;
@@ -29,7 +29,7 @@
 
 .ch-party-facts-list li {
   padding: 0.3rem 0;
-  border-bottom: 1px dashed var(--ch-rule);
+  /* a trail under each: chart-rules.css */
   color: var(--ch-ink);
 }
 

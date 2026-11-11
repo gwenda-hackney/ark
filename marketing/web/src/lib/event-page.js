@@ -8,7 +8,7 @@
  * eventPageModel decides what the page shows; renderEventPage turns it into
  * HTML. The page is filled in on request (functions/_lib/event-pages.js), in
  * the Pages Function and the dev server alike, so nothing here needs the
- * build: what only the build knows (the Book a table button, the logo, a
+ * build: what only the build knows (whether bookings are on, the logo, a
  * guest chef's mark, where a pop-up's menu is) comes in as `parts`, cut from
  * the built shell (src/pages/whats-on/series-shell.astro).
  */
@@ -32,6 +32,7 @@ import {
   sizedImageUrl,
   tinyImageUrl,
 } from "../../functions/_lib/sanity-image-url.js";
+import { bookingUrlFor } from "../config/booking";
 import { SafeHtml, attrs, html, renderGallery } from "./event-card.js";
 import { daysAway } from "./london-day.js";
 import { nightDay, nightRuns, runDay } from "./night-cards.js";
@@ -64,6 +65,33 @@ function text(value) {
 function shortDate(dateIso) {
   const { weekday, day, month } = nightDay(dateIso);
   return `${weekday} ${day} ${month}`;
+}
+
+/** A label as the built shell hands it over, back to plain words. */
+function partText(value) {
+  return text(value)
+    .replace(/&#39;|&#x27;|&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&");
+}
+
+/**
+ * Book a table for one night (#240), when bookings are on (the shell's part
+ * `book` is the button's words) and the night is still to come: OpenTable
+ * opened on that night, at its start time. The menu bar's Book a table is
+ * the plain one.
+ * @returns {{ href: string, label: string } | null}
+ */
+function bookModel(night, today, words) {
+  const date = text(night?.date);
+  if (!words || !date || date < today) return null;
+  const away = daysAway(date, today);
+  const day =
+    away === 0 ? "tonight" : away === 1 ? "tomorrow" : shortDate(date);
+  return {
+    href: bookingUrlFor({ date, time: night.startTime }),
+    label: `${words} for ${day}`,
+  };
 }
 
 /** Tonight or Tomorrow; "Next up" only where the page says so. */
@@ -143,10 +171,7 @@ export function siteFormLink(value, parts = new Map()) {
   }
   const slug = slugFromFormPath(path);
   if (!slug || isReservedFormSlug(slug)) return null;
-  const label = text(parts.get(`form:${slug}`))
-    .replace(/&#39;|&#x27;|&apos;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, "&");
+  const label = partText(parts.get(`form:${slug}`));
   return label ? { href: formPublicPath(slug), label } : null;
 }
 
@@ -211,6 +236,8 @@ export function eventPageModel(
   const days = kind === "event" && !repeating ? detail.nights || [] : [];
   const severalDays = days.length > 1;
   const nextSpan = span(next || detail);
+  /** The Book a table button's words, when bookings are on. */
+  const bookWords = partText(parts.get("book"));
 
   const guestKey = title.toLowerCase();
   const logo = kind === "popup" ? parts.get(`logo:${guestKey}`) || "" : "";
@@ -301,8 +328,13 @@ export function eventPageModel(
         ? { href: page.href, label: page.label, external: true }
         : null,
     ].filter(Boolean),
-    // An event that sends people to a form (a party enquiry) isn't one to book a table for.
-    book: form ? "" : parts.get("book") || "",
+    // A table for the night the page leads with. Not for an event that sends
+    // people to a form (a party enquiry), nor a deal, which names no night;
+    // an event over several days books each day in its own block.
+    book:
+      form || kind === "promotion" || severalDays
+        ? null
+        : bookModel(next, today, bookWords),
   };
 
   const dayBlocks = severalDays
@@ -324,6 +356,7 @@ export function eventPageModel(
           description:
             own && own !== words ? eventDescriptionParagraphs(own) : [],
           link: link && !who?.href ? link : null,
+          book: bookModel(night, today, bookWords),
           picture:
             photo && photo !== picture?.src
               ? pictureModel(photo, { alt: `${text(night.title)} flyer` })
@@ -424,6 +457,16 @@ function pictureHtml(picture, { sizes, eager = false, sticker = "" }) {
   })} />${sticker}</a>`;
 }
 
+function bookHtml(book) {
+  if (!book) return "";
+  return html`<a${attrs({
+    class: "ch-btn ch-btn--solid",
+    href: book.href,
+    target: "_blank",
+    rel: "noopener noreferrer",
+  })}>${book.label}</a>`;
+}
+
 function guestHtml(guest) {
   if (!guest) return "";
   const name = guest.href
@@ -476,7 +519,7 @@ function leadHtml(model) {
   const actions =
     lead.book || lead.links.length
       ? html`<p class="ch-event-actions">
-          ${raw(lead.book)}${lead.links.map((link) =>
+          ${bookHtml(lead.book)}${lead.links.map((link) =>
             link.button
               ? html`<a${attrs({
                   class: link.solid ? "ch-btn ch-btn--solid" : "ch-btn",
@@ -536,13 +579,19 @@ function daysHtml(days) {
               }${guestHtml(day.guest)}${scheduleHtml(day.schedule)}${wordsHtml(
                 day.description,
               )}${
-                day.link
-                  ? html`<p class="ch-event-actions"><a${attrs({
-                      class: "ch-event-link",
-                      href: day.link.href,
-                      target: "_blank",
-                      rel: "noopener noreferrer",
-                    })}>${day.link.label}</a></p>`
+                day.book || day.link
+                  ? html`<p class="ch-event-actions">
+                      ${bookHtml(day.book)}${
+                        day.link
+                          ? html`<a${attrs({
+                              class: "ch-event-link",
+                              href: day.link.href,
+                              target: "_blank",
+                              rel: "noopener noreferrer",
+                            })}>${day.link.label}</a>`
+                          : ""
+                      }
+                    </p>`
                   : ""
               }
             </div>

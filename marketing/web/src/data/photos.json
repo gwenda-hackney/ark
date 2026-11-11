@@ -1,7 +1,30 @@
 [
   {
+    "file": "gallery/focaccia-and-fries.webp",
+    "alt": "A focaccia filled with mortadella, soft cheese and basil, with fries and two dips on paper over slate."
+  },
+  {
+    "file": "gallery/terrace-at-night.webp",
+    "alt": "The terrace at night: cream scalloped umbrellas lit red from below, empty tables and stools, string lights in the olive trees."
+  },
+  {
+    "file": "gallery/cocktail-on-the-terrace.webp",
+    "alt": "A pale cocktail in a coupe with a dried citrus wheel, on a dark table on the terrace; bar stools along the canal rail behind.",
+    "menu": "drinks"
+  },
+  {
+    "file": "gallery/terrace-at-dusk.webp",
+    "alt": "The terrace at dusk: olive trees lit from below, round tables, hanging baskets, a mural on the wall behind and narrowboats on the canal beyond."
+  },
+  {
+    "file": "gallery/margarita-on-the-terrace.webp",
+    "alt": "A salt-rimmed margarita with a wedge of lime on a slate table out on the terrace, in the sun.",
+    "menu": "drinks"
+  },
+  {
     "file": "gallery/spritz-by-the-canal.webp",
-    "alt": "A blue Spinello spritz with mint and a slice of orange on the terrace rail, narrowboats moored along the canal behind."
+    "alt": "A blue Spinello spritz with mint and a slice of orange on the terrace rail, narrowboats moored along the canal behind.",
+    "menu": "drinks"
   },
   {
     "file": "gallery/terrace-olive-trees.webp",
@@ -9,7 +32,8 @@
   },
   {
     "file": "gallery/scirocco-on-the-table.webp",
-    "alt": "A Scirocco, bourbon over one big ice cube with a twist of orange peel, on a pine table inside; the Gwenda letters on the wall behind."
+    "alt": "A Scirocco, bourbon over one big ice cube with a twist of orange peel, on a pine table inside; the Gwenda letters on the wall behind.",
+    "menu": "drinks"
   },
   {
     "file": "gallery/decks.webp",
@@ -22,7 +46,8 @@
   {
     "file": "gallery/margarita-on-the-bar.webp",
     "alt": "A salt-rimmed margarita and a red cocktail over ice on the bar, bottles glowing behind.",
-    "link": "https://www.instagram.com/reel/De93-MHO-_u/"
+    "link": "https://www.instagram.com/reel/De93-MHO-_u/",
+    "menu": "drinks"
   },
   {
     "file": "gallery/crocchette.webp",
@@ -34,7 +59,8 @@
   },
   {
     "file": "food/chez-pickle-burger.jpg",
-    "alt": "A Chez Pickle burger: sesame bun, melted cheese and shredded lettuce."
+    "alt": "A Chez Pickle burger: sesame bun, melted cheese and shredded lettuce.",
+    "menu": "food"
   },
   {
     "file": "story/gate.png",
@@ -46,7 +72,8 @@
   },
   {
     "file": "gallery/burger-fresh-off-the-grill.jpg",
-    "alt": "A double cheeseburger steaming on the board, fresh off the grill."
+    "alt": "A double cheeseburger steaming on the board, fresh off the grill.",
+    "menu": "food"
   },
   {
     "file": "story/terrace-stools.png",
@@ -54,6 +81,7 @@
   },
   {
     "file": "gallery/burger-on-the-griddle.jpg",
-    "alt": "A smashed patty with melted cheese lifted off the griddle on a spatula."
+    "alt": "A smashed patty with melted cheese lifted off the griddle on a spatula.",
+    "menu": "food"
   }
 ]

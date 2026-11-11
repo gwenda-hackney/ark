@@ -49,20 +49,43 @@ export function nightLabel(dateIso, todayIso, endIso = dateIso) {
 }
 
 /**
+ * Home's "This week": the days left in the week at the bar (Monday to
+ * Sunday, London time), today and Sunday too. All seven on a Monday; on a
+ * Sunday, only that Sunday. For nightsToShow's `days`.
+ *
+ * @param {string} todayIso
+ */
+export function thisWeekDays(todayIso) {
+  return 7 - daysAway(todayIso, weekStart(todayIso));
+}
+
+/**
  * Of the dates on the page, in order, which show: none that have passed,
- * and no more than fit. Returns their indexes; the first one leads. A night
- * that runs over several days has passed only after its last.
+ * none that start too far ahead, and no more than fit. Returns their
+ * indexes; the first one leads. A night that runs over several days has
+ * passed only after its last, and is in the days ahead if its first is.
  *
  * @param {string[]} dates
  * @param {string} todayIso
  * @param {number} [shown] how many fit; all of them when left out
  * @param {Array<string | undefined>} [ends] each one's last day, when it
  *   runs past its date
+ * @param {number} [days] only nights starting in this many days from today
+ *   (today is the first; thisWeekDays); every one to come when left out
  */
-export function nightsToShow(dates, todayIso, shown = Infinity, ends = []) {
+export function nightsToShow(
+  dates,
+  todayIso,
+  shown = Infinity,
+  ends = [],
+  days = Infinity,
+) {
   return dates
-    .map((date, index) => ({ date: ends[index] || date, index }))
-    .filter(({ date }) => daysAway(date, todayIso) >= 0)
+    .map((date, index) => ({ date, end: ends[index] || date, index }))
+    .filter(
+      ({ date, end }) =>
+        daysAway(end, todayIso) >= 0 && daysAway(date, todayIso) < days,
+    )
     .slice(0, shown)
     .map(({ index }) => index);
 }

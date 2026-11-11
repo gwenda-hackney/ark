@@ -11,45 +11,64 @@ interface Props {
   mode: SiteMode;
   /** Compact layout for embedding on /join-list (no home #list anchor). */
   embedded?: boolean;
+  /**
+   * The form alone, for the foot of every page (ChartFooter): no heading
+   * (the foot's column has one), the yes-box said short (same meaning), a
+   * short thanks, and ids of its own so it can
+   * share a page with the page's own sign-up. Same form, same script.
+   */
+  compact?: boolean;
 }
 
-const { mode, embedded = false } = Astro.props;
+const { mode, compact = false } = Astro.props;
+const embedded = compact || Astro.props.embedded === true;
 const copy = getCopy(mode);
 const { contactPage } = siteConfig.copy;
 const playHref = formPublicPath(PLAY_FORM_SLUG);
-const sectionClass = embedded
-  ? "signup section signup--embedded"
-  : "signup section";
+/** Ids are page-wide: the foot's get a prefix. */
+const id = (name: string) => (compact ? `footer-${name}` : name);
+const sectionClass = compact
+  ? "signup signup--embedded signup--compact"
+  : embedded
+    ? "signup section signup--embedded"
+    : "signup section";
+const reveal = !compact;
+const Wrapper = compact ? "div" : "section";
 ---
 
-<section class={sectionClass} id={embedded ? undefined : "list"}>
+<Wrapper class={sectionClass} id={embedded ? undefined : "list"}>
   <div
-    class:list={["container", embedded ? "signup-inner" : "contact-hub-inner"]}
+    class:list={[
+      !compact && "container",
+      embedded ? "signup-inner" : "contact-hub-inner",
+    ]}
   >
     {
       embedded ? (
         <div class="signup-stage">
-          <div class="signup-panel" id="signup-panel">
-            <header class="section-header reveal">
-              <p class="section-eyebrow">{copy.signupEyebrow}</p>
-              <h2>{copy.signupHeading}</h2>
-              <p>{copy.signupSubheading}</p>
-            </header>
+          <div class="signup-panel" id={id("signup-panel")}>
+            {!compact && (
+              <header class="section-header reveal">
+                <p class="section-eyebrow">{copy.signupEyebrow}</p>
+                <h2>{copy.signupHeading}</h2>
+                <p>{copy.signupSubheading}</p>
+              </header>
+            )}
 
             <form
-              class="signup-form reveal reveal-stagger"
-              id="signup-form"
-              style="--reveal-delay: 0.14s"
+              class:list={["signup-form", reveal && "reveal reveal-stagger"]}
+              id={id("signup-form")}
+              style={reveal ? "--reveal-delay: 0.14s" : undefined}
               novalidate
             >
               <div class="signup-field">
-                <label for="email" class="visually-hidden">
+                <label for={id("email")} class="visually-hidden">
                   Email address
                 </label>
                 <input
                   type="email"
                   name="email"
-                  id="email"
+                  id={id("email")}
                   placeholder="your@email.com"
                   required
                   autocomplete="email"
@@ -62,18 +81,27 @@ const sectionClass = embedded
               </div>
 
               <label class="signup-consent">
-                <input type="checkbox" name="consent" id="consent" required />
-                <span>{siteConfig.copy.signupConsent}</span>
+                <input
+                  type="checkbox"
+                  name="consent"
+                  id={id("consent")}
+                  required
+                />
+                <span>
+                  {compact
+                    ? siteConfig.copy.signupConsentShort
+                    : siteConfig.copy.signupConsent}
+                </span>
               </label>
 
               <input type="hidden" name="tag" value="prelaunch" />
 
               <div class="visually-hidden" aria-hidden="true">
-                <label for="website">Website</label>
+                <label for={id("website")}>Website</label>
                 <input
                   type="text"
                   name="website"
-                  id="website"
+                  id={id("website")}
                   tabindex="-1"
                   autocomplete="off"
                 />
@@ -81,30 +109,44 @@ const sectionClass = embedded
 
               <p
                 class="signup-error"
-                id="signup-error"
+                id={id("signup-error")}
                 role="alert"
                 aria-live="polite"
               />
             </form>
           </div>
 
-          <div class="signup-confirm" id="signup-confirm" aria-hidden="true">
-            <Image
-              {...headerLogo}
-              alt="Gwenda"
-              class="signup-confirm-logo"
-              loading="lazy"
-            />
-            <p class="signup-confirm-eyebrow">Cheers</p>
-            <h2 class="signup-confirm-title">
-              {siteConfig.copy.signupSuccessTitle}
-            </h2>
+          <div
+            class="signup-confirm"
+            id={id("signup-confirm")}
+            aria-hidden="true"
+          >
+            {!compact && (
+              <Image
+                {...headerLogo}
+                alt="Gwenda"
+                class="signup-confirm-logo"
+                loading="lazy"
+              />
+            )}
+            {!compact && <p class="signup-confirm-eyebrow">Cheers</p>}
+            {compact ? (
+              <p class="signup-confirm-title">
+                {siteConfig.copy.signupSuccessTitle}
+              </p>
+            ) : (
+              <h2 class="signup-confirm-title">
+                {siteConfig.copy.signupSuccessTitle}
+              </h2>
+            )}
             <p class="signup-confirm-lead">
               {siteConfig.copy.signupSuccessLead}
             </p>
-            <a href="/#hero" class="btn btn-primary signup-confirm-back">
-              {siteConfig.copy.signupSuccessBack}
-            </a>
+            {!compact && (
+              <a href="/#hero" class="btn btn-primary signup-confirm-back">
+                {siteConfig.copy.signupSuccessBack}
+              </a>
+            )}
           </div>
         </div>
       ) : (
@@ -145,4 +187,4 @@ const sectionClass = embedded
       )
     }
   </div>
-</section>
+</Wrapper>

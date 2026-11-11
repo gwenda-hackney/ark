@@ -18,13 +18,18 @@ export function collectSameOriginAssetPaths(html, origin) {
   return [...paths];
 }
 
-/** @param {string} html */
+/**
+ * Home is ours and has a way onto the list: the sign-up form in the foot of
+ * every page (EmailSignup, `form.signup-form`; #240), not a link elsewhere.
+ *
+ * @param {string} html
+ */
 export function assertHomePageHealthy(html) {
   if (!/<title>\s*Gwenda/i.test(html)) {
     throw new Error("Homepage missing expected <title>");
   }
-  if (!/href=["']\/join-list["']/i.test(html)) {
-    throw new Error("Homepage missing the list path");
+  if (!/<form\b[^>]*\bclass=["'][^"']*\bsignup-form\b/i.test(html)) {
+    throw new Error("Homepage missing the list sign-up form");
   }
 }
 

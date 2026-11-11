@@ -10,6 +10,7 @@ import ChartPage from "../components/chart/ChartPage.astro";
 import ChartMap from "../components/chart/ChartMap.astro";
 import EmailSignup from "../components/EmailSignup.astro";
 import OpeningHours from "../components/chart/OpeningHours.astro";
+import "../styles/chart-contact.css";
 import { siteConfig } from "../config/site";
 import { directions } from "../data/directions";
 import { contactDrinksPhoto, homeDecksPhoto } from "../lib/chart-assets";
@@ -21,8 +22,36 @@ import {
 } from "../lib/form-paths";
 
 const { contactPage } = siteConfig.copy;
-const { social } = siteConfig;
+const { social, location } = siteConfig;
 const week = await fetchOpeningHours();
+
+/** The four ways in, as cards at the top: each goes straight to its place */
+const cards = [
+  {
+    title: "Find us",
+    line: location.addressShort,
+    href: "#find-us",
+    arrow: "↓",
+  },
+  {
+    title: "Have a party",
+    line: contactPage.partyShort,
+    href: formPublicPath(PARTY_FORM_SLUG),
+    arrow: "→",
+  },
+  {
+    title: "Play here",
+    line: contactPage.playEyebrow,
+    href: formPublicPath(PLAY_FORM_SLUG),
+    arrow: "→",
+  },
+  {
+    title: "Get on the list",
+    line: contactPage.listEyebrow,
+    href: "/join-list",
+    arrow: "→",
+  },
+];
 ---
 
 <BaseLayout
@@ -35,29 +64,58 @@ const week = await fetchOpeningHours();
     title="Contact"
     lead="Where we are, having a party, playing here, and how to hear what’s on."
   >
-    <nav class="ch-jump" aria-label="On this page">
-      <a href="#find-us">Find us</a>
-      <a href="#party">Have a party</a>
-      <a href="#play">Play here</a>
-      <a href="#list">Get on the list</a>
+    <nav class="ch-contact-cards" aria-label="Contact">
+      {
+        cards.map((card) => (
+          <a href={card.href} class="ch-contact-card">
+            <span class="ch-contact-card-title">
+              {card.title}
+              <span class="ch-contact-card-arrow" aria-hidden="true">
+                {card.arrow}
+              </span>
+            </span>
+            <span class="ch-contact-card-line">{card.line}</span>
+          </a>
+        ))
+      }
     </nav>
 
-    <section class="ch-contact-part" id="find-us">
+    <section class="ch-contact-part ch-find" id="find-us">
       <h2 class="ch-sheet-head">Find us</h2>
-      <div class="ch-find-top">
-        <p class="ch-find-intro">{directions.intro}</p>
-        <OpeningHours week={week} today />
-      </div>
-      <ChartMap />
-      <div class="ch-find-ways">
-        <section>
+      <!--
+        One block: the map large on one side, the address, the way in a
+        word and the hours beside it. On a phone the address and the hours
+        come first, then the map, then the walk in words.
+      -->
+      <div class="ch-find-grid">
+        <div class="ch-find-where">
+          <p class="ch-find-address">
+            {location.streetAddress}<br />{location.addressLocality}
+            {location.postalCode}
+          </p>
+          <p class="ch-find-intro">{directions.intro}</p>
+          <a
+            href={directions.mapsUrl}
+            class="ch-btn ch-btn--solid"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Directions on Google Maps
+            <span aria-hidden="true">↗</span>
+            <span class="visually-hidden">(opens Google Maps)</span>
+          </a>
+        </div>
+        <OpeningHours week={week} today class="ch-find-hours" />
+        <ChartMap class="ch-find-map" />
+        <section class="ch-find-walk">
           <h3 class="ch-find-head">{directions.fromStation.heading}</h3>
           <ol class="ch-find-steps">
             {directions.fromStation.steps.map((step) => <li>{step}</li>)}
           </ol>
+          <p class="ch-find-by-water">{directions.fromStation.byWater}</p>
           <p class="ch-find-note">{directions.fromStation.note}</p>
         </section>
-        <section>
+        <section class="ch-find-towpath">
           <h3 class="ch-find-head">{directions.fromTowpath.heading}</h3>
           <p>{directions.fromTowpath.text}</p>
         </section>
@@ -102,7 +160,7 @@ const week = await fetchOpeningHours();
       </a>
     </section>
 
-    <section class="ch-contact-part" id="list">
+    <section class="ch-contact-part" id="list" data-focus-on-arrival="anchor">
       <h2 class="ch-sheet-head">{contactPage.listHeading}</h2>
       <p>{contactPage.listLead}</p>
       <div class="ch-form">

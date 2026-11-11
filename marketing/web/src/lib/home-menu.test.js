@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { fromPrice, menuTaste, poundPrice } from "./home-menu.js";
+import {
+  HOME_MENU_ITEMS,
+  fromPrice,
+  menuTaste,
+  poundPrice,
+} from "./home-menu.js";
 
 const drink = (name, price, extra = {}) => ({
   id: name,
@@ -63,6 +68,18 @@ describe("fromPrice", () => {
 });
 
 describe("menuTaste", () => {
+  it("lists the same number on both boards, the first few of each first chapter, in menu order", () => {
+    expect(HOME_MENU_ITEMS).toBe(3);
+    const many = {
+      id: "ours",
+      title: "Ours",
+      items: ["A", "B", "C", "D", "E"].map((name) => drink(name, "10")),
+    };
+    const taste = menuTaste([many]);
+    expect(taste.lead.items.map((item) => item.name)).toEqual(["A", "B", "C"]);
+    expect(taste.lead.total).toBe(5);
+  });
+
   it("lists the first chapter's drinks that are on, with prices", () => {
     const taste = menuTaste(bar, { count: 2 });
     expect(taste.lead).toEqual({
@@ -76,37 +93,53 @@ describe("menuTaste", () => {
     });
   });
 
-  it("names every other part with what it starts from, linked to its own place", () => {
-    expect(menuTaste(bar).more).toEqual([
-      { href: "/bar#spritz", title: "Spritz", from: "£9" },
-      { href: "/bar#draught", title: "On Draught", from: "£3.50" },
-    ]);
-  });
-
-  it("links a chapter with items of its own to the chapter", () => {
+  it("names every other chapter, in the menu's order, with the cheapest thing in it, linked to the chapter", () => {
     const noBooze = {
       id: "dry-ship",
       title: "No Booze",
       items: [drink("Dry Spritz", "7")],
     };
-    expect(menuTaste([...bar, noBooze]).more.at(-1)).toEqual({
-      href: "/bar#dry-ship",
-      title: "No Booze",
-      from: "£7",
+    expect(menuTaste([...bar, noBooze]).more).toEqual([
+      { href: "/bar#old-favourites", title: "Old Favourites", from: "£3.50" },
+      { href: "/bar#dry-ship", title: "No Booze", from: "£7" },
+    ]);
+  });
+
+  it("counts a chapter's own drinks and its groups' alike for what it starts from", () => {
+    const spirits = {
+      id: "spirits",
+      title: "Spirits",
+      items: [drink("House pour", "4")],
+      subsections: [
+        { id: "rum", title: "Rum", items: [drink("Plantation", "6")] },
+      ],
+    };
+    expect(menuTaste([...bar, spirits]).more.at(-1)).toEqual({
+      href: "/bar#spirits",
+      title: "Spirits",
+      from: "£4",
     });
   });
 
-  it("leaves out a part with nothing on, or with everything off", () => {
+  it("leaves out a chapter with nothing on, or with everything off", () => {
     const off = {
       id: "specials",
       title: "Specials",
       items: [drink("Last week's", "8", { available: false })],
     };
-    const titles = menuTaste([...bar, off]).more.map((part) => part.title);
-    expect(titles).toEqual(["Spritz", "On Draught"]);
+    const empty = {
+      id: "wine",
+      title: "Wine",
+      items: [],
+      subsections: [{ id: "red", title: "Red", items: [] }],
+    };
+    const titles = menuTaste([bar[0], off, bar[1], empty]).more.map(
+      (part) => part.title,
+    );
+    expect(titles).toEqual(["Old Favourites"]);
   });
 
-  it("sends the food menu's parts to the food page", () => {
+  it("names the first chapter's other groups when it is the only chapter with anything on", () => {
     const kitchen = [
       {
         id: "chez-pickle",
@@ -117,11 +150,14 @@ describe("menuTaste", () => {
         subsections: [
           { id: "burgers", title: "Burgers", items: [drink("The OG", "11")] },
           { id: "fries", title: "Fries", items: [drink("Fries", "4.5")] },
+          { id: "sides", title: "Sides", items: [] },
         ],
       },
+      { id: "closed", title: "Next pop-up", kind: "kitchen", items: [] },
     ];
     const taste = menuTaste(kitchen);
     expect(taste.lead.href).toBe("/kitchen#burgers");
+    expect(taste.lead.title).toBe("Burgers");
     expect(taste.more).toEqual([
       { href: "/kitchen#fries", title: "Fries", from: "£4.50" },
     ]);

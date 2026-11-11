@@ -24,12 +24,25 @@ describe("collectSameOriginAssetPaths", () => {
 });
 
 describe("assertHomePageHealthy", () => {
-  it("accepts a normal homepage", () => {
+  const footSignup =
+    '<footer><form class="signup-form" id="footer-signup-form" novalidate><input type="email" name="email"></form></footer>';
+
+  it("accepts a normal homepage: the sign-up is the one in the foot", () => {
+    expect(() =>
+      assertHomePageHealthy(`<title>Gwenda | Social</title>${footSignup}`),
+    ).not.toThrow();
+  });
+
+  it("refuses a homepage with no way onto the list", () => {
     expect(() =>
       assertHomePageHealthy(
-        '<title>Gwenda | Ristobar</title><a href="/join-list">Stay in touch</a>',
+        '<title>Gwenda | Social</title><a href="/join-list">Get on the list</a>',
       ),
-    ).not.toThrow();
+    ).toThrow(/sign-up/);
+  });
+
+  it("refuses a page that isn't ours", () => {
+    expect(() => assertHomePageHealthy(footSignup)).toThrow(/title/);
   });
 });
 

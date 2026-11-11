@@ -110,6 +110,41 @@ describe("masonry", () => {
   });
 });
 
+describe("a row of photos (home's, data-gallery-row)", () => {
+  function row() {
+    document.body.innerHTML = `<ul class="series-gallery-list" data-gallery-row>${[
+      1, 2,
+    ]
+      .map(
+        (i) =>
+          `<li class="series-gallery-item" style="--ratio: 1"><a href="/${i}.jpg" data-full="/${i}.jpg"><img alt="photo ${i}" /></a></li>`,
+      )
+      .join("")}</ul>`;
+    initGallery(document);
+    // Installed already by an earlier test: arranged on the next page load
+    document.dispatchEvent(new Event("astro:page-load"));
+    return document.querySelector("ul");
+  }
+
+  it("stays in its row: the page's CSS lays it out, not columns", () => {
+    const list = row();
+    expect(list.classList.contains("is-masonry")).toBe(false);
+    expect(list.style.height).toBe("");
+    expect(
+      [...list.children].map((item) => item.style.transform || ""),
+    ).toEqual(["", ""]);
+  });
+
+  it("still opens a tapped photo large", async () => {
+    row();
+    document.querySelectorAll(".series-gallery-item a")[1].click();
+    await tick();
+    expect(shown()).toEqual(["photo 2"]);
+    document.querySelector(".gallery-lightbox-close").click();
+    await tick();
+  });
+});
+
 describe("reveal on scroll", () => {
   it("keeps each photo hidden until it scrolls into view, then shows it", async () => {
     const observers = [];

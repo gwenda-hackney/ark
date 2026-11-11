@@ -391,11 +391,11 @@
    * The rest, a calm list: the date in a column of its own, a small picture
    * at the flyer's own shape, then the words. Nothing sits on the picture
    * and nothing is boxed; the columns are fixed, so every row's picture and
-   * words start on the same lines. A dashed rule between rows, as on the menu.
+   * words start on the same lines. A drawn line between rows, as on the
+   * menu (chart-rules.css).
    */
   .ch-night:not([hidden]) ~ .ch-night:not(.ch-night--lead) {
     padding-top: 1.25rem;
-    border-top: 1px dashed rgb(242 232 210 / 0.2);
   }
 
   .ch-night:not(.ch-night--lead) .ch-night-card {

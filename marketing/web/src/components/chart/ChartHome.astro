@@ -1,15 +1,23 @@
 ---
 /**
- * Home (#240): the logo on the leather, then the two things people come
- * for, what's on and the menu. Playing here, then finding us, having a party
- * and the list in a short row at the foot; who we are lives on /about.
+ * Home (#240): the logo on the leather and the way in (the five numbered
+ * places). Then the two things people come
+ * for: what's on (this week's nights, the deals and the pop-up kitchen) and
+ * the menu. Then a short row for finding us, a party and playing here, and a
+ * row of photos last; the list is in the foot, who we are on /about.
  */
 import { Image } from "astro:assets";
 import "../../styles/chart.css";
 import "../../styles/chart-home.css";
 import { siteConfig } from "../../config/site";
-import { chartHeroLogo, homeDecksPhoto } from "../../lib/chart-assets";
-import { PARTY_FORM_SLUG, formPublicPath } from "../../lib/form-paths";
+import { directions } from "../../data/directions";
+import { chartHeroLogo } from "../../lib/chart-assets";
+import {
+  PARTY_FORM_SLUG,
+  PLAY_FORM_SLUG,
+  formPublicPath,
+} from "../../lib/form-paths";
+import { chartSections } from "../../lib/chart-nav";
 import ChartNav from "./ChartNav.astro";
 import ChartFooter from "./ChartFooter.astro";
 import HomeMenu from "./HomeMenu.astro";
@@ -18,32 +26,45 @@ import HomePhotos from "./HomePhotos.astro";
 
 const { copy, location } = siteConfig;
 const { contactPage } = copy;
+/**
+ * The way in, on the hero: the same numbered places as the menu panel, each
+ * going down to its own section here (`home` in lib/chart-nav), which links
+ * on to its page.
+ */
+const sections = chartSections("/");
 
+/**
+ * The practical row, after the menu: finding us, a party, playing here. The
+ * list isn't here: the foot of every page has the sign-up.
+ */
 const more = [
   {
+    id: "find-us",
     title: "Find us",
-    text: `${location.addressShort}. Five minutes’ walk from Hackney Wick station, right on the canal.`,
+    text: `${location.addressShort}. ${directions.short}`,
     href: "/contact#find-us",
     link: "How to get here",
   },
   {
+    id: "party",
     title: contactPage.partyHeading,
     text: contactPage.partyLead,
     href: formPublicPath(PARTY_FORM_SLUG),
     link: contactPage.partyCta,
   },
   {
-    title: contactPage.listHeading,
-    text: contactPage.listLead,
-    href: "/join-list",
-    link: contactPage.listCta,
+    id: "play",
+    title: contactPage.playHeading,
+    text: contactPage.playShort,
+    href: formPublicPath(PLAY_FORM_SLUG),
+    link: contactPage.playCta,
   },
 ];
 ---
 
-<div class="ch-page ch-home" data-chart="closed">
-  <ChartNav />
-  <main>
+<div class="ch-page ch-home">
+  <ChartNav home />
+  <main id="main">
     <section class="ch-hero" id="hero">
       <div class="ch-hero-content">
         <h1 class="visually-hidden">{siteConfig.seoTitle}</h1>
@@ -56,35 +77,33 @@ const more = [
         />
         <p class="ch-hero-social">{copy.social}</p>
         <p class="ch-hero-line">{copy.heroLine}</p>
-        <div class="ch-hero-actions">
-          <a href="#whats-on" class="ch-btn ch-btn--solid">What’s on</a>
-          <a href="#menu" class="ch-btn">The menu</a>
-        </div>
+        <nav class="ch-hero-nav" aria-label="Site">
+          <ul>
+            {
+              sections.map((item) => (
+                <li>
+                  <a href={item.home ? `/#${item.home}` : item.href}>
+                    <span class="ch-ring">{item.numeral}</span>
+                    <span class="ch-caps">{item.label}</span>
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
       </div>
     </section>
 
     <HomeNights />
     <HomeMenu />
-    <HomePhotos />
 
-    <section class="ch-home-section ch-home-play" aria-labelledby="home-play">
-      <a href="/contact/play" class="ch-home-play-photo ch-print" tabindex="-1">
-        <Image {...homeDecksPhoto} alt="" loading="lazy" />
-        <span class="ch-print-note">{contactPage.playPhotoNote}</span>
-      </a>
-      <div class="ch-home-play-body">
-        <h2 class="ch-poster" id="home-play">{contactPage.playHeading}</h2>
-        <p>{contactPage.playLead}</p>
-        <a href="/contact/play" class="ch-btn ch-btn--solid"
-          >{contactPage.playCta}</a
-        >
-      </div>
-    </section>
-
-    <section class="ch-home-section ch-home-more" aria-label="More">
+    <section
+      class="ch-home-section ch-home-more"
+      aria-label="Find us, parties and playing here"
+    >
       {
         more.map((item) => (
-          <a href={item.href} class="ch-home-more-item">
+          <a href={item.href} class="ch-home-more-item" id={item.id}>
             <h2>{item.title}</h2>
             <p>{item.text}</p>
             <span class="ch-home-more-link">{item.link} →</span>
@@ -92,6 +111,8 @@ const more = [
         ))
       }
     </section>
+
+    <HomePhotos />
   </main>
   <ChartFooter />
 </div>

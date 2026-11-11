@@ -101,12 +101,11 @@ function landing(href, menu) {
 describe("home's menu links", () => {
   const menu = menuFrom(docs);
 
-  it("each land on the heading of the section they name, on the drinks page", () => {
+  it("each land on the heading of the section they name, on the drinks page: a chapter each", () => {
     const links = homeLinks(menuChapters(menu, "bar"));
     expect(links.map((link) => link.title)).toEqual([
       "Our Cocktails",
-      "Spritz",
-      "Negroni",
+      "The Classics",
       "No Booze",
     ]);
     for (const link of links) {
@@ -143,13 +142,14 @@ describe("home's menu links", () => {
   it("stay where they are when staff rename a section", () => {
     const renamed = menuFrom(
       docs.map((doc) =>
-        doc.id === "negroni" ? { ...doc, title: "Bitter and red" } : doc,
+        doc.id === "by-the-book" ? { ...doc, title: "Old school" } : doc,
       ),
     );
     const before = homeLinks(menuChapters(menu, "bar")).map((l) => l.href);
     const after = homeLinks(menuChapters(renamed, "bar"));
     expect(after.map((link) => link.href)).toEqual(before);
-    expect(landing(after[2].href, renamed).titles).toEqual(["Bitter and red"]);
+    expect(after[1].title).toBe("Old school");
+    expect(landing(after[1].href, renamed).titles).toEqual(["Old school"]);
   });
 
   it("give every heading on a page an id of its own", () => {

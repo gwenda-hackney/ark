@@ -4,9 +4,9 @@
  * functions/_lib/event-pages.js (#25): the __EVENT_…__ tokens and the
  * <series-…> tags are replaced there, with the page lib/event-page.js draws.
  *
- * A <series-part> holds what only the build knows (the Book a table button,
- * the logo, the guest chef's mark, where a pop-up's menu is, each contact
- * form's button). The fill cuts
+ * A <series-part> holds what only the build knows (Book a table's words when
+ * bookings are on, the logo, the guest chef's mark, where a pop-up's menu
+ * is, each contact form's button). The fill cuts
  * them all out and places the ones the event needs.
  */
 import { Image } from "astro:assets";
@@ -17,7 +17,6 @@ import "../../styles/chart-event.css";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ChartFooter from "../../components/chart/ChartFooter.astro";
 import ChartNav from "../../components/chart/ChartNav.astro";
-import { bookingUrl } from "../../config/booking";
 import { siteConfig } from "../../config/site";
 import { menuChapters } from "../../data/menu";
 import { chartFlag, guestChefLogo } from "../../lib/chart-assets";
@@ -48,28 +47,19 @@ const follow = followUpdatesLink();
   showBooking={false}
 >
   <div class="ch-page" data-chart="closed">
-    <ChartNav pathname="/whats-on" />
-    <main class="ch-main ch-event ch-event--__EVENT_KIND__">
+    <ChartNav />
+    <main class="ch-main ch-event ch-event--__EVENT_KIND__" id="main">
       <p class="ch-event-back"><a href="/whats-on">← What’s on</a></p>
       <header class="ch-page-head ch-event-head">
         <p class="ch-caps ch-event-kicker">__EVENT_EYEBROW__</p>
         <h1 class="ch-title">__EVENT_TITLE__</h1>
       </header>
 
-      <series-part name="book">
-        {
-          bookingEnabled && (
-            <a
-              href={bookingUrl}
-              class="ch-btn ch-btn--solid"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {siteConfig.copy.bookingCta}
-            </a>
-          )
-        }
-      </series-part>
+      {
+        bookingEnabled && (
+          <series-part name="book">{siteConfig.copy.bookingCta}</series-part>
+        )
+      }
       <series-part name="mark">
         <Image {...chartFlag} alt="" class="ch-night-mark" />
       </series-part>

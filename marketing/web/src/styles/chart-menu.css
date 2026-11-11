@@ -2,21 +2,9 @@
  * Arriving at a part of the menu from a link (#240): one of home's tiles, a
  * pop-up kitchen's "See the menu", a chapter's name at the top of the page.
  * Which id is on what is lib/menu-anchors.js; how the menu itself looks is
- * chart.css.
+ * chart.css, and so is where a jump link lands (under the bar or the corner
+ * button, with a little air: --ch-fixed-top).
  */
-
-/*
- * A chapter or a group lands with its head 5rem down the window: under the
- * corner button where there is one (it ends at 4.25rem), and with a little
- * air under the bar where there is that instead. The bar's own height is
- * already the root's scroll padding (--ch-bar-h in chart.css; nothing where
- * there is no bar), so only the rest is added here, and never less than
- * 1rem of it.
- */
-.ch-chapter[id],
-.ch-group[id] {
-  scroll-margin-top: max(1rem, calc(5rem - var(--ch-bar-h, 0px)));
-}
 
 /*
  * The group just landed on shows which it is for a moment: its head in

@@ -81,16 +81,44 @@ function pinScrollTop() {
   root.style.scrollBehavior = previous;
 }
 
+/** Waiting for the last pin of the visit in progress (whenScrollSettled). */
+/** @type {Array<() => void>} */
+let afterScrollPin = [];
+let scrollPinPending = false;
+
 /** Chrome can put the previous page's offset back when the crossfade ends. */
 function scheduleScrollPin() {
   const pin = ++scrollPin;
+  scrollPinPending = true;
   pinScrollTop();
   const finish = () => {
     if (pin !== scrollPin || location.hash.length > 1) return;
     pinScrollTop();
   };
   requestAnimationFrame(() => requestAnimationFrame(finish));
-  window.setTimeout(finish, 560);
+  window.setTimeout(() => {
+    finish();
+    if (pin !== scrollPin) return;
+    scrollPinPending = false;
+    const waiting = afterScrollPin;
+    afterScrollPin = [];
+    for (const fn of waiting) fn();
+  }, 560);
+}
+
+/**
+ * Run something that scrolls the page on arrival once the arrival's own
+ * scrolling is done: a restored offset has landed (whenNavigationReady), and
+ * a new page's pin to the top has run its last time, or it would put the page
+ * back at the top under it.
+ *
+ * @param {() => void} fn
+ */
+export function whenScrollSettled(fn) {
+  whenNavigationReady(() => {
+    if (scrollPinPending) afterScrollPin.push(fn);
+    else fn();
+  });
 }
 
 export function initNavigationRestore() {

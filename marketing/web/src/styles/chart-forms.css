@@ -119,10 +119,6 @@
   font-family: var(--ch-book);
 }
 
-.ch-page .ch-form .contact-section {
-  scroll-margin-top: 5rem;
-}
-
 .ch-page .ch-form .contact-section-header {
   margin-bottom: 1.25rem;
 }
@@ -426,7 +422,8 @@
 .ch-page .ch-form .contact-actions {
   gap: 1rem;
   padding-top: 2rem;
-  border-top: 1px dashed var(--ch-rule);
+  /* Not global.css's ruled line: a trail over it, chart-rules.css */
+  border-top: 0;
 }
 
 .ch-page .ch-form .contact-submit {

@@ -12,6 +12,7 @@ import {
   runDay,
   runTimes,
   standSizes,
+  thisWeekDays,
   weekLabel,
 } from "./night-cards.js";
 
@@ -50,6 +51,71 @@ describe("nightsToShow", () => {
 
   it("shows nothing when every night has passed", () => {
     expect(nightsToShow(dates, "2026-12-01")).toEqual([]);
+  });
+});
+
+describe("this week, on home: today to Sunday", () => {
+  const week = (dates, today, ends) =>
+    nightsToShow(dates, today, Infinity, ends, thisWeekDays(today));
+
+  it("counts the days left in the week, today and Sunday too", () => {
+    expect(thisWeekDays("2026-11-16")).toBe(7); // Mon
+    expect(thisWeekDays("2026-11-11")).toBe(5); // Wed
+    expect(thisWeekDays("2026-11-15")).toBe(1); // Sun
+  });
+
+  it("on a Wednesday, is Wednesday to Sunday: not next week's Monday or Tuesday", () => {
+    // Wed 11 Nov, as home had it: Tue 17 is next week
+    const dates = [
+      "2026-11-11",
+      "2026-11-13",
+      "2026-11-15",
+      "2026-11-16",
+      "2026-11-17",
+    ];
+    expect(week(dates, "2026-11-11")).toEqual([0, 1, 2]);
+  });
+
+  it("on a Sunday, is only that Sunday", () => {
+    const dates = ["2026-11-15", "2026-11-16", "2026-11-20"];
+    expect(week(dates, "2026-11-15")).toEqual([0]);
+  });
+
+  it("on a Monday, is the whole week, to its Sunday", () => {
+    const dates = ["2026-11-16", "2026-11-18", "2026-11-22", "2026-11-23"];
+    expect(week(dates, "2026-11-16")).toEqual([0, 1, 2]);
+  });
+
+  it("is empty for a week with nothing left on, though next week has", () => {
+    expect(week(["2026-11-16", "2026-11-18"], "2026-11-11")).toEqual([]);
+    expect(week([], "2026-11-11")).toEqual([]);
+  });
+
+  it("takes a run that starts this week and goes over Sunday night", () => {
+    // EPIC Jam over Sun 15 and Mon 16: it starts this week
+    const dates = ["2026-11-12", "2026-11-15"];
+    const ends = [undefined, "2026-11-16"];
+    expect(week(dates, "2026-11-11", ends)).toEqual([0, 1]);
+    // Over Sat 21 and Sun 22: next week's, not this one's
+    expect(
+      week(["2026-11-12", "2026-11-21"], "2026-11-11", [
+        undefined,
+        "2026-11-22",
+      ]),
+    ).toEqual([0]);
+  });
+
+  it("keeps a run that began last week and is still on today, a Monday", () => {
+    const dates = ["2026-11-15", "2026-11-18"];
+    const ends = ["2026-11-16", undefined];
+    expect(week(dates, "2026-11-16", ends)).toEqual([0, 1]);
+  });
+
+  it("still keeps to how many fit", () => {
+    const dates = ["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14"];
+    expect(
+      nightsToShow(dates, "2026-11-11", 2, [], thisWeekDays("2026-11-11")),
+    ).toEqual([0, 1]);
   });
 });
 

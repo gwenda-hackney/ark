@@ -18,7 +18,7 @@ const SHELLS = {
 <script type="application/ld+json">{"name":"__EVENT_TITLE__ · Gwenda"}</script></head>
 <body><main class="ch-event ch-event--__EVENT_KIND__"><a href="/whats-on">Back</a>
 <p class="ch-event-kicker">__EVENT_EYEBROW__</p><h1>__EVENT_TITLE__</h1>
-<series-part name="book"><a class="ch-btn" href="https://book.example/">Book a table</a></series-part>
+<series-part name="book">Book a table</series-part>
 <series-part name="mark"><img class="ch-night-mark" src="/logo.webp" alt=""></series-part>
 <series-part name="logo:chez pickle"><img src="/chez-pickle.webp" alt="Chez Pickle"></series-part>
 <series-part name="menu:chez-pickle">/kitchen#chez-pickle</series-part>
@@ -102,7 +102,9 @@ describe("series page", () => {
     // The next night: its date on the sticker, the words, the way to book.
     expect(html).toContain("<span>Tue</span><b>6</b><span>Jan</span>");
     expect(html).toContain("Chess, negronis &amp; &lt;friends&gt;.");
-    expect(html).toContain('href="https://book.example/"');
+    expect(html).toContain(">Book a table for Tue 6 Jan</a>");
+    // OpenTable opened on that night (7pm: the night has no time of its own)
+    expect(html).toContain("dateTime=2099-01-06T19:00");
     expect(html).not.toContain("series-part");
     expect(html).not.toContain("__EVENT_");
     expect(html).not.toContain("series-body>");
@@ -198,7 +200,7 @@ describe("series page", () => {
     expect(html).not.toContain('href="https://gwenda.co.uk/contact/party"');
   });
 
-  it("keeps Book a table, and no form button, for an event with no such link", async () => {
+  it("has no form button for an event with no such link, nor Book a table before it has a date", async () => {
     sanity.series = [
       series("hire-gwenda", {
         title: "Hire Gwenda",
@@ -209,7 +211,8 @@ describe("series page", () => {
     ];
     sanity.events = [];
     const html = await (await render("/whats-on/hire-gwenda")).text();
-    expect(html).toContain("Book a table");
+    // No night to book for: the menu bar's Book a table is the way in.
+    expect(html).not.toContain("Book a table");
     expect(html).not.toContain("Book your party");
   });
 
