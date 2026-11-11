@@ -1,0 +1,39 @@
+/*
+ * Rubik Distressed: the word SOCIAL under the logo, and in the menu panel
+ * (--ch-sign, always in capitals). Its full Latin file is 197 KB, the biggest
+ * thing home loads beside the logo, and its rough glyphs are what make it
+ * big. So it comes as two faces of one family with ranges that don't
+ * overlap: the six capitals of SOCIAL from their own 9 KB file, everything
+ * else from the full file, which a browser only fetches if a page sets
+ * something other than those six letters in it.
+ *
+ * The small file is the full one cut down with fonttools:
+ *   pyftsubset node_modules/@fontsource/rubik-distressed/files/rubik-distressed-latin-400-normal.woff2 \
+ *     --unicodes=U+0041,U+0043,U+0049,U+004C,U+004F,U+0053 --layout-features='*' \
+ *     --flavor=woff2 --output-file=src/assets/fonts/rubik-distressed-social.woff2
+ * Its range here must match it (src/lib/home-first-paint.test.js checks the
+ * range takes in every letter of siteConfig.copy.social).
+ */
+@font-face {
+  font-family: "Rubik Distressed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../assets/fonts/rubik-distressed-social.woff2") format("woff2");
+  unicode-range: U+0041, U+0043, U+0049, U+004C, U+004F, U+0053;
+}
+
+/* The rest of @fontsource's Latin range: all but A C I L O S */
+@font-face {
+  font-family: "Rubik Distressed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/rubik-distressed/files/rubik-distressed-latin-400-normal.woff2")
+    format("woff2");
+  unicode-range:
+    U+0000-0040, U+0042, U+0044-0048, U+004A-004B, U+004D-004E, U+0050-0052,
+    U+0054-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
