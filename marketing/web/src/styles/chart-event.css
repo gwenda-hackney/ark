@@ -77,11 +77,6 @@ a.ch-event-photo:focus-visible img {
   filter: brightness(1.08);
 }
 
-a.ch-event-photo:focus-visible {
-  outline: 2px solid var(--ch-mustard);
-  outline-offset: 3px;
-}
-
 /* The corner sticker at the page's size: the big card's */
 .ch-event-flyer .ch-night-date {
   min-width: 4.75rem;
@@ -456,8 +451,11 @@ a.ch-event-photo:focus-visible {
   .ch-event-foot {
     margin-top: 3.5rem;
   }
+}
 
-  /* Full-size targets for the links that are only words */
+/* Wherever the dock shows (a touch screen): full-size targets for the links
+   that are only words */
+@media not all and (min-width: 62.5rem) {
   .ch-event-back {
     margin: -0.875rem 0 0.625rem;
   }

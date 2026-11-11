@@ -213,14 +213,10 @@
   transition: border-color 0.2s ease;
 }
 
-.ch-page .ch-form .gw-field input:focus,
-.ch-page .ch-form .gw-field textarea:focus,
-.ch-page .ch-form .gw-field > select:focus,
-.ch-page .ch-form .gw-select-trigger:focus-visible,
+/* In focus a field shows the ring and a gold line, as the list's does
+   (chart.css); open, the picker's line stays gold */
 .ch-page .ch-form .gw-select.is-open .gw-select-trigger {
-  outline: none;
   border-color: var(--ch-gold);
-  box-shadow: 0 0 0 1px var(--ch-gold);
 }
 
 .ch-page .ch-form .contact-field.is-invalid > input,
@@ -428,11 +424,6 @@
 
 .ch-page .ch-form .contact-submit {
   margin-top: 0;
-}
-
-.ch-page .ch-form .contact-submit:focus-visible {
-  outline: 2px solid var(--ch-cream);
-  outline-offset: 0.3rem;
 }
 
 /* A date field: the browser's own picker, drawn for a dark page */
