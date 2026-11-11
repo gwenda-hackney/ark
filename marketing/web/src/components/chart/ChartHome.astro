@@ -6,7 +6,6 @@
  * the menu. Then a short row for finding us, a party and playing here, and a
  * row of photos last; the list is in the foot, who we are on /about.
  */
-import { Image } from "astro:assets";
 import "../../styles/chart.css";
 import "../../styles/chart-home.css";
 import { siteConfig } from "../../config/site";
@@ -74,12 +73,13 @@ const more = [
     <section class="ch-hero" id="hero">
       <div class="ch-hero-content">
         <h1 class="visually-hidden">{siteConfig.seoTitle}</h1>
-        <Image
+        <img
           {...chartHeroLogo}
           alt="Gwenda"
           class="ch-hero-logo"
           loading="eager"
           fetchpriority="high"
+          decoding="async"
         />
         <p class="ch-hero-social">{copy.social}</p>
         <p class="ch-hero-line">{copy.heroLine}</p>

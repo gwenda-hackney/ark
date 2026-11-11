@@ -9,7 +9,7 @@
 @import "@fontsource/zilla-slab/latin-400-italic.css";
 @import "@fontsource/zilla-slab/latin-500.css";
 @import "@fontsource/zilla-slab/latin-700.css";
-@import "@fontsource/rubik-distressed/latin-400.css";
+@import "./chart-sign-font.css";
 /* Every divider line, drawn by hand */
 @import "./chart-rules.css";
 

@@ -231,7 +231,9 @@ for (let y = 0; y < S; y++)
     }
   }
 
+// Quality 80 keeps the pebbled grain and is 62 KB; 90 was 135 KB, which on a
+// phone's slow connection held up home's logo. Below 80 the grain smears.
 const info = await sharp(rgb, { raw: { width: S, height: S, channels: 3 } })
-  .webp({ quality: 90, effort: 6, smartSubsample: true })
+  .webp({ quality: 80, effort: 6, smartSubsample: true })
   .toFile(out);
 console.log(`${out}: ${S}px, ${(info.size / 1024).toFixed(0)} KB`);

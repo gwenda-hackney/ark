@@ -1,32 +1,12 @@
 ---
-import cormorant400 from "@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2?url";
-import cormorant400Italic from "@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2?url";
-import cormorant600 from "@fontsource/cormorant-garamond/files/cormorant-garamond-latin-600-normal.woff2?url";
-import lora400 from "@fontsource/lora/files/lora-latin-400-normal.woff2?url";
+/**
+ * Fonts load from their @font-face rules (styles/fonts.css for the old look,
+ * styles/chart.css for the Chart), all `font-display: swap`: text shows at
+ * once in a fallback and takes its face when it arrives. None is preloaded:
+ * a preloaded font is fetched ahead of everything else, and on home that
+ * held up the logo (home-first-paint.test.js keeps it so).
+ */
 ---
-
-<link
-  rel="preload"
-  href={cormorant400}
-  as="font"
-  type="font/woff2"
-  crossorigin
-/>
-<link
-  rel="preload"
-  href={cormorant400Italic}
-  as="font"
-  type="font/woff2"
-  crossorigin
-/>
-<link
-  rel="preload"
-  href={cormorant600}
-  as="font"
-  type="font/woff2"
-  crossorigin
-/>
-<link rel="preload" href={lora400} as="font" type="font/woff2" crossorigin />
 
 <script>
   import { initFontsReady } from "../scripts/fonts-ready.js";

@@ -48,7 +48,10 @@ interface Props {
    * in one row (stacked on a phone), each under a heading a level down.
    */
   home?: boolean;
-  /** Above what follows rather than under what came before. */
+  /**
+   * Above what follows rather than under what came before (What's on): the
+   * first view, so the first photo loads with the page, not lazily.
+   */
   top?: boolean;
 }
 
@@ -198,7 +201,7 @@ const alone = (section: { cards: unknown[] }) =>
 
 <Row {...rowProps}>
   {
-    sections.map((section) => (
+    sections.map((section, sectionIndex) => (
       <section
         class:list={["ch-stand-section", top && "ch-stand-section--top"]}
         id={section.id}
@@ -209,7 +212,7 @@ const alone = (section: { cards: unknown[] }) =>
           </header>
         )}
         <ul class:list={["ch-stands", alone(section) && "ch-stands--one"]}>
-          {section.cards.map((card) => (
+          {section.cards.map((card, cardIndex) => (
             <li
               class:list={["ch-stand", `ch-stand--${card.kind}`]}
               style={`--shape: ${card.ratio}`}
@@ -238,7 +241,11 @@ const alone = (section: { cards: unknown[] }) =>
                         : undefined
                     }
                     alt=""
-                    loading="lazy"
+                    loading={
+                      top && sectionIndex === 0 && cardIndex === 0
+                        ? "eager"
+                        : "lazy"
+                    }
                     style={
                       card.photoPosition
                         ? `object-position: ${card.photoPosition}`
