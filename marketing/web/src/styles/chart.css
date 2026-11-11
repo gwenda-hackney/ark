@@ -1114,8 +1114,14 @@ html[data-chart-leaving] .ch-page {
   opacity: 1;
 }
 
+/* The places' names in the hand, like the notes down the page */
 .ch-hero-nav .ch-caps {
-  font-size: 1.0625rem;
+  font-family: var(--ch-hand);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.5rem;
+  line-height: 1.1;
   white-space: nowrap;
   color: var(--ch-cream);
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
@@ -1162,7 +1168,7 @@ html[data-chart-leaving] .ch-page {
   }
 
   .ch-hero-nav .ch-caps {
-    font-size: 0.875rem;
+    font-size: 1.3125rem;
   }
 }
 
