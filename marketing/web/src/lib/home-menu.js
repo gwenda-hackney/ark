@@ -1,8 +1,10 @@
 /**
  * A taste of one menu for home (#240): the first chapter with anything on
  * it, a few of its items with their prices, then every other part of the
- * menu by name with what it starts from.
+ * menu by name with what it starts from. Each leads to its own place on
+ * the menu's page (lib/menu-anchors.js).
  */
+import { menuAddresses } from "./menu-anchors.js";
 
 function available(section) {
   return (section.items || []).filter((item) => item.available !== false);
@@ -35,20 +37,25 @@ export function fromPrice(items) {
 }
 
 /**
- * @param {Array<{ id: string, title: string, items: object[], subsections?: object[] }>} chapters
- *   one menu's chapters, in the order ops sets them
+ * @param {Array<{ id: string, kind?: string, title: string, items: object[], subsections?: object[] }>} chapters
+ *   one menu's chapters as they were fetched, in the order ops sets them
  * @param {{ count?: number }} [options] how many of the first chapter's items to list
  * @returns {null | {
- *   lead: { id: string, title: string, total: number, items: Array<{ name: string, description: string, price: string }> },
- *   more: Array<{ id: string, title: string, from: string }>,
- * }} null when the menu has nothing on it yet
+ *   lead: { href: string, title: string, total: number, items: Array<{ name: string, description: string, price: string }> },
+ *   more: Array<{ href: string, title: string, from: string }>,
+ * }} null when the menu has nothing on it yet. Each `href` is that part's
+ *   own place on the menu's page.
  */
 export function menuTaste(chapters, { count = 6 } = {}) {
-  /** Every part with items: a chapter's own, then each of its subsections. */
+  const where = menuAddresses(chapters);
+  /**
+   * Every part with items: a chapter's own, then each of its subsections.
+   * A part with nothing on is left out, as it is on the menu's page.
+   */
   const parts = chapters.flatMap((chapter) =>
     [chapter, ...(chapter.subsections || [])]
       .map((part) => ({
-        id: chapter.id,
+        href: where(part).href,
         title: part.title,
         items: available(part),
       }))
@@ -59,7 +66,7 @@ export function menuTaste(chapters, { count = 6 } = {}) {
   const [first, ...rest] = parts;
   return {
     lead: {
-      id: first.id,
+      href: first.href,
       title: first.title,
       total: first.items.length,
       items: first.items.slice(0, count).map((item) => ({
@@ -69,7 +76,7 @@ export function menuTaste(chapters, { count = 6 } = {}) {
       })),
     },
     more: rest.map((part) => ({
-      id: part.id,
+      href: part.href,
       title: part.title,
       from: fromPrice(part.items),
     })),

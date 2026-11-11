@@ -66,7 +66,7 @@ describe("menuTaste", () => {
   it("lists the first chapter's drinks that are on, with prices", () => {
     const taste = menuTaste(bar, { count: 2 });
     expect(taste.lead).toEqual({
-      id: "our-own",
+      href: "/bar#our-own",
       title: "Our Own",
       total: 3,
       items: [
@@ -76,10 +76,54 @@ describe("menuTaste", () => {
     });
   });
 
-  it("names every other part with what it starts from, linked to its chapter", () => {
+  it("names every other part with what it starts from, linked to its own place", () => {
     expect(menuTaste(bar).more).toEqual([
-      { id: "old-favourites", title: "Spritz", from: "£9" },
-      { id: "old-favourites", title: "On Draught", from: "£3.50" },
+      { href: "/bar#spritz", title: "Spritz", from: "£9" },
+      { href: "/bar#draught", title: "On Draught", from: "£3.50" },
+    ]);
+  });
+
+  it("links a chapter with items of its own to the chapter", () => {
+    const noBooze = {
+      id: "dry-ship",
+      title: "No Booze",
+      items: [drink("Dry Spritz", "7")],
+    };
+    expect(menuTaste([...bar, noBooze]).more.at(-1)).toEqual({
+      href: "/bar#dry-ship",
+      title: "No Booze",
+      from: "£7",
+    });
+  });
+
+  it("leaves out a part with nothing on, or with everything off", () => {
+    const off = {
+      id: "specials",
+      title: "Specials",
+      items: [drink("Last week's", "8", { available: false })],
+    };
+    const titles = menuTaste([...bar, off]).more.map((part) => part.title);
+    expect(titles).toEqual(["Spritz", "On Draught"]);
+  });
+
+  it("sends the food menu's parts to the food page", () => {
+    const kitchen = [
+      {
+        id: "chez-pickle",
+        title: "Chez Pickle",
+        kind: "kitchen",
+        popupSeriesId: "chez-pickle",
+        items: [],
+        subsections: [
+          { id: "burgers", title: "Burgers", items: [drink("The OG", "11")] },
+          { id: "fries", title: "Fries", items: [drink("Fries", "4.5")] },
+        ],
+      },
+    ];
+    const taste = menuTaste(kitchen);
+    expect(taste.lead.href).toBe("/kitchen#burgers");
+    expect(taste.more).toEqual([
+      { href: "/kitchen#fries", title: "Fries", from: "£4.50" },
     ]);
   });
 

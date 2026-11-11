@@ -42,6 +42,11 @@ export type MenuItem = {
 export type MenuKind = "bar" | "kitchen";
 
 export type MenuSection = {
+  /**
+   * What the section goes by: its slug, which ops writes once and never
+   * changes (its document id if it has none). Its links are made of it
+   * (lib/menu-anchors.js); its title is free to change.
+   */
   id: string;
   title: string;
   subtitle?: string;

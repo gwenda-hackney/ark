@@ -2,36 +2,31 @@
 /**
  * The menu (#240): chapters in the order ops sets them. They go two
  * abreast, so the first two start level at the top; a chapter of nothing
- * but beer runs the full width as its own band (lib/menu-layout.js).
+ * but beer runs the full width as its own band (lib/menu-layout.js). Each
+ * chapter and group carries the id its links land on (lib/menu-anchors.js).
  */
+import "../../styles/chart-menu.css";
 import type { MenuSection } from "../../types/menu";
-import { getAvailableItems } from "../../data/menu";
-import { menuRows } from "../../lib/menu-layout.js";
+import { menuSheet } from "../../lib/menu-layout.js";
 import ChartMenuChapter from "./ChartMenuChapter.astro";
 
 interface Props {
+  /** One menu's chapters as they were fetched: all of them, in order. */
   sections: MenuSection[];
   /** Shown when the menu has no chapters yet. */
   empty: string;
 }
 
 const { sections, empty } = Astro.props;
-
-function hasContent(section: MenuSection): boolean {
-  if (getAvailableItems(section).length > 0) return true;
-  return (section.subsections ?? []).some(hasContent);
-}
-
-const chapters = sections.filter(hasContent);
-const rows = menuRows(chapters);
+const { chapters, rows } = menuSheet(sections);
 ---
 
 {chapters.length === 0 && <p class="ch-ital">{empty}</p>}
 {
   chapters.length > 1 && (
     <nav class="ch-jump" aria-label="Menu chapters">
-      {chapters.map((chapter) => (
-        <a href={`#${chapter.id}`}>{chapter.title}</a>
+      {chapters.map(({ chapter, id }) => (
+        <a href={`#${id}`}>{chapter.title}</a>
       ))}
     </nav>
   )
@@ -44,16 +39,16 @@ const rows = menuRows(chapters);
         <div class="ch-sheet-row ch-sheet-row--columns">
           {row.columns.map((column) => (
             <div class="ch-sheet-col">
-              {column.map(({ chapter, order }) => (
-                <ChartMenuChapter chapter={chapter} order={order} />
+              {column.map((entry) => (
+                <ChartMenuChapter {...entry} />
               ))}
             </div>
           ))}
         </div>
       ) : (
         <div class:list={["ch-sheet-row", `ch-sheet-row--${row.layout}`]}>
-          {row.chapters.map(({ chapter, order }) => (
-            <ChartMenuChapter chapter={chapter} order={order} />
+          {row.chapters.map((entry) => (
+            <ChartMenuChapter {...entry} />
           ))}
         </div>
       ),

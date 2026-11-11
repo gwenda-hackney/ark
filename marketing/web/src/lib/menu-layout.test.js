@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isBeerChapter, menuRows } from "./menu-layout.js";
+import { isBeerChapter, menuRows, menuSheet } from "./menu-layout.js";
 
 const chapter = (id, drinkType, subsections) => ({
   id,
@@ -82,5 +82,61 @@ describe("menuRows", () => {
 
   it("is empty for an empty menu", () => {
     expect(menuRows([])).toEqual([]);
+  });
+});
+
+describe("menuSheet", () => {
+  const empty = chapter("wine", null, [chapter("by-the-glass", null)]);
+  const sheet = menuSheet([ownCocktails, empty, classics, beer, noBooze]);
+
+  it("draws the chapters with anything on them, each with its id", () => {
+    expect(sheet.chapters.map(({ chapter: c, id }) => [c.id, id])).toEqual([
+      ["our-own", "our-own"],
+      ["old-favourites", "old-favourites"],
+      ["beer", "beer"],
+      ["dry-ship", "dry-ship"],
+    ]);
+  });
+
+  it("lays the same chapters out in rows, ids and groups with them", () => {
+    expect(sheet.rows.map((row) => row.layout)).toEqual([
+      "columns",
+      "band",
+      "columns",
+    ]);
+    const [band] = sheet.rows[1].chapters;
+    expect(band).toMatchObject({ chapter: beer, id: "beer", order: 2 });
+    expect(sheet.rows[0].columns[1][0]).toMatchObject({
+      chapter: classics,
+      id: "old-favourites",
+      order: 1,
+    });
+  });
+
+  it("gives a chapter its own items under no head, then each group with its id", () => {
+    const mixed = chapter("mixed", "cocktail", [
+      chapter("spritz", "cocktail"),
+      chapter("nothing-yet", null),
+      chapter("sours", "cocktail"),
+    ]);
+    const [{ groups }] = menuSheet([mixed]).chapters;
+    expect(groups).toEqual([
+      { section: mixed },
+      { section: mixed.subsections[0], id: "spritz" },
+      { section: mixed.subsections[2], id: "sours" },
+    ]);
+  });
+
+  it("keeps a place for a chapter's own items even when it has none", () => {
+    const [, , { groups }] = sheet.chapters;
+    expect(groups.map(({ section, id }) => [section.id, id])).toEqual([
+      ["beer", undefined],
+      ["draught", "draught"],
+      ["bottles", "bottles"],
+    ]);
+  });
+
+  it("is empty for an empty menu", () => {
+    expect(menuSheet([])).toEqual({ chapters: [], rows: [] });
   });
 });

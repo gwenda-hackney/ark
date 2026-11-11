@@ -982,9 +982,9 @@
   }
 }
 
+/* Where a link to it lands is chart-menu.css, with its groups' */
 .ch-chapter {
   break-inside: avoid-column;
-  scroll-margin-top: 5rem;
   margin-bottom: 3rem;
 }
 
