@@ -4,8 +4,10 @@
  * test here once failed in CI because it depended on the weekday.
  */
 
-/** Tuesday 10 November 2026, 10:05 in London: just after the default send time. */
+/** Tuesday 10 November 2026, 10:05 in London. */
 export const TUESDAY_MORNING = new Date("2026-11-10T10:05:00Z");
+/** Monday 9 November 2026, 11:02 in London: just after the default send time. */
+export const MONDAY_SEND = new Date("2026-11-09T11:02:00Z");
 /** The Monday that week starts on. */
 export const WEEK = "2026-11-09";
 
@@ -45,4 +47,11 @@ export function publishWeek(world) {
   publishNight(world, "2026-11-12", "quiz", "Quiz Night");
   publishNight(world, "2026-11-14", "jazz", "Canalside Jazz");
   publishNight(world, "2026-11-19", "quiz", "Quiz Night");
+}
+
+/** Headers of someone signed in to ops with Google. */
+export async function signedIn(world, email = "someone@example.com") {
+  const { AUTH_COOKIE_NAME, createSessionToken } = await import("../access/server/auth.js");
+  const token = await createSessionToken(world.env.OPS_SESSION_SECRET, email);
+  return { Cookie: `${AUTH_COOKIE_NAME}=${token}` };
 }

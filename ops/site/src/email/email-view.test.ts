@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { contentsLine, previewDocument, shortDay } from "./email-view.ts";
+import { contentsLine, previewDocument, shortDay, testBlockedReason } from "./email-view.ts";
 
 describe("weekly email page: the preview", () => {
 	it("opens the email's links in a new tab, not inside the frame", () => {
@@ -20,5 +20,17 @@ describe("weekly email page: the preview", () => {
 		assert.equal(contentsLine({ nights: 2, deals: 1, kitchens: 0 }), "2 nights, 1 deal");
 		assert.equal(contentsLine({ nights: 1, deals: 0, kitchens: 2 }), "1 night, 2 pop-up kitchens");
 		assert.equal(contentsLine({ nights: 0, deals: 0, kitchens: 0 }), "Nothing on");
+	});
+});
+
+describe("weekly email page: send me a test", () => {
+	const status = (mailchimp: boolean, email: string) => ({ access: { mailchimp }, me: { email } });
+
+	it("is always there, with the reason when it can't be pressed", () => {
+		assert.equal(testBlockedReason(status(true, "someone@example.com"), true), "");
+		assert.match(testBlockedReason(status(false, "someone@example.com"), true), /preview only/);
+		assert.match(testBlockedReason(status(true, ""), true), /Sign in with Google/);
+		assert.match(testBlockedReason(status(true, "someone@example.com"), false), /no email to send/);
+		assert.equal(testBlockedReason(null, true), "Loading…");
 	});
 });

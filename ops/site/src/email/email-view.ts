@@ -31,3 +31,12 @@ export function contentsLine(email: { nights: number; deals: number; kitchens: n
 			.join(", ") || "Nothing on"
 	);
 }
+
+/** Why "Send me a test" can't be pressed, or "" when it can. */
+export function testBlockedReason(status: { access: { mailchimp: boolean }; me: { email: string } } | null, hasEmail: boolean): string {
+	if (!status) return "Loading…";
+	if (!status.access.mailchimp) return "Mailchimp isn't connected here, so this page is preview only.";
+	if (!status.me.email) return "Sign in with Google to send yourself a test.";
+	if (!hasEmail) return "There's no email to send yet.";
+	return "";
+}

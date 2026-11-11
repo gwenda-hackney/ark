@@ -7,8 +7,14 @@
 	import { Icon } from "../app/shell";
 	import { Button, PageHeader } from "../ui";
 	import type { AuthMe } from "../app/api";
-	import { getWeeklyEmailPreview, type WeeklyEmailPreview } from "./email-api";
+	import {
+		getWeeklyEmailPreview,
+		getWeeklyEmailStatus,
+		type WeeklyEmailPreview,
+		type WeeklyEmailStatus,
+	} from "./email-api";
 	import EmailPreview from "./EmailPreview.svelte";
+	import TestSend from "./TestSend.svelte";
 
 	let { me }: { me: AuthMe } = $props();
 
@@ -29,13 +35,30 @@
 		}
 	}
 
-	onMount(() => void loadPreview());
+	let status = $state<WeeklyEmailStatus | null>(null);
+	let statusError = $state("");
+
+	async function loadStatus() {
+		try {
+			status = await getWeeklyEmailStatus();
+			statusError = "";
+		} catch (err) {
+			statusError = err instanceof Error ? err.message : "Could not load the status.";
+		}
+	}
+
+	function refresh() {
+		void loadPreview();
+		void loadStatus();
+	}
+
+	onMount(refresh);
 </script>
 
 <div class="page scrollbar-fade">
 	<PageHeader title="Weekly email" subtitle="What's on this week, sent to the mailing list.">
 		{#snippet actions()}
-			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={() => void loadPreview()}>
+			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={refresh}>
 				{#snippet icon()}
 					<Icon name="refresh" size={16} />
 				{/snippet}
@@ -46,6 +69,10 @@
 
 	<div class="layout" data-env={me.siteEnv}>
 		<EmailPreview {email} {problem} {loading} />
+		<div class="side">
+			{#if statusError}<p class="error" role="alert">{statusError}</p>{/if}
+			<TestSend {status} hasEmail={Boolean(email)} />
+		</div>
 	</div>
 </div>
 
@@ -59,7 +86,23 @@
 	}
 	.layout {
 		display: grid;
+		grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
 		gap: var(--space-4);
 		align-items: start;
+	}
+	.side {
+		display: grid;
+		gap: var(--space-4);
+		min-width: 0;
+	}
+	.error {
+		margin: 0;
+		color: var(--destructive);
+		font-size: var(--text-sm);
+	}
+	@media (max-width: 60rem) {
+		.layout {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 </style>
