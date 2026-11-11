@@ -6,17 +6,14 @@
  * (else the party half has the section to itself). Have a party says what
  * a party here can have and goes to the party form: the kinds of party are
  * the form's own choices, how many fit and the rest come from ops (Settings
- * → Venue details), only what's filled in. A print on each half
- * (lib/photos.js BOOKINGS_PHOTOS). The party half keeps the old `#party`
- * anchor, so links to it still land.
+ * → Venue details), only what's filled in. No photos: the words and the
+ * buttons are the point. The party half keeps the old `#party` anchor, so
+ * links to it still land.
  */
-import { Image } from "astro:assets";
 import { siteConfig } from "../../config/site";
 import { bookingUrl } from "../../config/booking";
 import { PARTY_FORM_SLUG, formPublicPath } from "../../lib/form-paths";
 import { partyFactLines, partyOccasions } from "../../lib/party-facts.js";
-import { galleryPhotos } from "../../lib/photo-sources";
-import { homePhotoPlan } from "../../lib/photos.js";
 import { fetchFormBySlug } from "../../lib/sanity/forms";
 import { fetchSiteSettings } from "../../lib/sanity/site-settings";
 import { fetchVenueDetails } from "../../lib/sanity/venue-details";
@@ -40,13 +37,6 @@ const partyLines = [
   ...facts.filter((line) => line.kind === "included"),
   ...facts.filter((line) => line.kind === "reply"),
 ];
-const { bookings: prints } = homePhotoPlan(galleryPhotos());
-/** A print's photo: half the section on a desk, the width of a phone. */
-const PRINT = {
-  widths: [400, 640, 880],
-  sizes: "(min-width: 48rem) 26rem, calc(100vw - 4.5rem)",
-  format: "webp" as const,
-};
 ---
 
 <section
@@ -68,19 +58,6 @@ const PRINT = {
           class="ch-booking ch-booking--table"
           aria-labelledby="home-book-table"
         >
-          {prints.table && (
-            <figure class="ch-print ch-booking-print">
-              <Image
-                src={prints.table.image}
-                alt={prints.table.alt}
-                {...PRINT}
-                loading="lazy"
-              />
-              <figcaption class="ch-print-note">
-                {words.tablePhotoNote}
-              </figcaption>
-            </figure>
-          )}
           <h3 id="home-book-table">{copy.bookTableHeading}</h3>
           <p class="ch-booking-line">{copy.bookTableLead}</p>
           <div class="ch-booking-go">
@@ -104,21 +81,6 @@ const PRINT = {
       id="party"
       aria-labelledby="home-party"
     >
-      {
-        prints.party && (
-          <figure class="ch-print ch-booking-print">
-            <Image
-              src={prints.party.image}
-              alt={prints.party.alt}
-              {...PRINT}
-              loading="lazy"
-            />
-            <figcaption class="ch-print-note">
-              {contactPage.partyPhotoNote}
-            </figcaption>
-          </figure>
-        )
-      }
       <h3 id="home-party">{words.partyHeading}</h3>
       <p class="ch-booking-line">{words.partyLine}</p>
       {

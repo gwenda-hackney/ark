@@ -596,9 +596,9 @@
 
 /*
  * Bookings (IV, HomeBookings): a table and a party side by side on the
- * leather, the party's half the wider (it has more to say). Each is a print
- * taped up, its heading, a line, and its button straight after what it
- * says. On a phone, one under the other.
+ * leather, the party's half the wider (it has more to say). Each is its
+ * heading, a line, and its button straight after what it says. On a phone,
+ * one under the other.
  */
 .ch-bookings {
   display: grid;
@@ -617,32 +617,6 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 1rem;
-}
-
-.ch-booking-print {
-  --tilt: -2deg;
-  align-self: center;
-  width: min(26rem, 100%);
-  box-sizing: border-box;
-  /* Room for the tape over the top, and the tilt */
-  margin: 0.75rem 0 1.25rem;
-  transition: transform 0.4s ease;
-}
-
-.ch-booking--party .ch-booking-print {
-  --tilt: 2.25deg;
-}
-
-/* Pointing at a half nudges its print straighter, as if picked up */
-.ch-booking:hover .ch-booking-print,
-.ch-booking:focus-within .ch-booking-print {
-  transform: rotate(calc(var(--tilt) * 0.3)) translateY(-0.25rem);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ch-booking-print {
-    transition: none;
-  }
 }
 
 .ch-booking h3 {
@@ -741,10 +715,6 @@
   .ch-bookings {
     grid-template-columns: minmax(0, 1fr);
     gap: 3.5rem;
-  }
-
-  .ch-booking-print {
-    width: min(22rem, 100%);
   }
 
   .ch-booking-go {

@@ -136,47 +136,26 @@ export function foodBoardPhotos(
 }
 
 /**
- * The prints on home's Bookings (HomeBookings.astro), one on each half, by
- * file: the terrace at dusk, its round tables, by Book a table; the terrace
- * lit up at night by Have a party.
- */
-export const BOOKINGS_PHOTOS = {
-  table: "gallery/terrace-at-dusk.webp",
-  party: "gallery/terrace-at-night.webp",
-};
-
-/**
- * Who gets which photo on home, decided here once: Bookings has its two
- * (BOOKINGS_PHOTOS, each null when its file isn't listed), the menu boards
- * pick from the rest (the newest marked for each, so a photo just added for
- * one goes straight up on it; the Food board takes the pop-up kitchen's own
- * first, foodBoardPhotos), then the photo row takes the newest of what's
- * left. No picture is on home twice; every venue photo is still on /photos
- * (`more`: how many the row leaves for there).
+ * Who gets which photo on home, decided here once: the menu boards pick
+ * first (the newest marked for each, so a photo just added for one goes
+ * straight up on it; the Food board takes the pop-up kitchen's own first,
+ * foodBoardPhotos), then the photo row takes the newest of the rest. No
+ * picture is on home twice; every venue photo is still on /photos (`more`:
+ * how many the row leaves for there).
  *
- * @template {{ file?: string, menu?: string, image?: { src?: string } }} T
+ * @template {{ menu?: string, image?: { src?: string } }} T
  * @param {T[]} photos newest first (listPhotos)
  * @param {{ kitchen?: Array<{ url: string, width: number, height: number }> }} [options]
  *   `kitchen`: the pop-up kitchen's gallery photos, newest first
- * @returns {{ bookings: { table: T | null, party: T | null }, drinks: T[], food: Array<object>, row: T[], more: number }}
+ * @returns {{ drinks: T[], food: Array<object>, row: T[], more: number }}
  */
 export function homePhotoPlan(photos, { kitchen = [] } = {}) {
-  const all = photos || [];
-  const pick = (file) => all.find((photo) => photo?.file === file) ?? null;
-  const bookings = {
-    table: pick(BOOKINGS_PHOTOS.table),
-    party: pick(BOOKINGS_PHOTOS.party),
-  };
-  const pinned = new Set(
-    Object.values(bookings).filter(Boolean).flatMap(photoKeys),
-  );
-  const rest = all.filter((photo) => !isAmong(photo, pinned));
-  const drinks = menuPhotos(rest, "drinks");
-  const food = foodBoardPhotos(rest, kitchen);
-  const { photos: row, more } = homePhotos(all, {
-    shownElsewhere: [...pinned, ...[...drinks, ...food].flatMap(photoKeys)],
+  const drinks = menuPhotos(photos, "drinks");
+  const food = foodBoardPhotos(photos, kitchen);
+  const { photos: row, more } = homePhotos(photos || [], {
+    shownElsewhere: [...drinks, ...food].flatMap(photoKeys),
   });
-  return { bookings, drinks, food, row, more };
+  return { drinks, food, row, more };
 }
 
 /**

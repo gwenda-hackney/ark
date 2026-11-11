@@ -213,8 +213,6 @@ export const siteConfig = {
       notePartyOnly: "Got something to celebrate? Have it here.",
       /** Under Book a table: where the button goes. */
       tableWhere: "On OpenTable, in a new tab.",
-      /** Written on the border of the terrace photo by Book a table. */
-      tablePhotoNote: "Pull up a chair.",
       partyHeading: "Have a party",
       partyLine: "Tell us what you’re planning and we’ll come back to you.",
       /**

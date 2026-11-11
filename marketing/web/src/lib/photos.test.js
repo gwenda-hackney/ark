@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  BOOKINGS_PHOTOS,
   EVENT_PHOTO_EVENTS,
   EVENT_PHOTOS_PER_EVENT,
   HOME_PHOTOS,
@@ -209,51 +208,6 @@ describe("homePhotoPlan", () => {
     expect(names(home.row)).toEqual(
       names(listPhotos(list, files)).slice(0, HOME_PHOTOS),
     );
-  });
-});
-
-describe("homePhotoPlan's Bookings", () => {
-  const entry = (file, menu) => ({
-    file,
-    alt: `A photo of ${file}`,
-    ...(menu ? { menu } : {}),
-  });
-  const list = [
-    entry("gallery/room.webp"),
-    entry(BOOKINGS_PHOTOS.party),
-    entry("gallery/spritz.webp", "drinks"),
-    entry(BOOKINGS_PHOTOS.table),
-    entry("gallery/canal.webp"),
-  ];
-  const files = Object.fromEntries(
-    list.map(({ file }) => [
-      file,
-      { src: `/${file}`, width: 1200, height: 1500 },
-    ]),
-  );
-  const plan = (entries) => homePhotoPlan(listPhotos(entries, files));
-
-  it("pins the terrace by Book a table and the terrace at night by Have a party", () => {
-    const { bookings } = plan(list);
-    expect(bookings.table?.file).toBe(BOOKINGS_PHOTOS.table);
-    expect(bookings.party?.file).toBe(BOOKINGS_PHOTOS.party);
-  });
-
-  it("keeps them off the photo row, so neither is on home twice", () => {
-    const { row } = plan(list);
-    expect(row.map((photo) => photo.file)).toEqual([
-      "gallery/room.webp",
-      "gallery/canal.webp",
-    ]);
-  });
-
-  it("leaves a half without a print when its file isn't listed", () => {
-    const { bookings, row } = plan(
-      list.filter((item) => item.file !== BOOKINGS_PHOTOS.table),
-    );
-    expect(bookings.table).toBeNull();
-    expect(bookings.party?.file).toBe(BOOKINGS_PHOTOS.party);
-    expect(row).toHaveLength(2);
   });
 });
 
@@ -568,14 +522,6 @@ describe("src/data/photos.json", () => {
       expect(entry.alt?.trim().length, entry.file).toBeGreaterThan(10);
     }
     expect(new Set(list.map((entry) => entry.file)).size).toBe(list.length);
-  });
-
-  it("has Bookings' two prints, neither of them on a menu board", () => {
-    for (const file of Object.values(BOOKINGS_PHOTOS)) {
-      const entry = list.find((item) => item.file === file);
-      expect(entry, file).toBeDefined();
-      expect(entry.menu, file).toBeUndefined();
-    }
   });
 
   it("gives each menu board photos of its own, each for a board there is", () => {
