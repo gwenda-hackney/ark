@@ -201,6 +201,34 @@ export const siteConfig = {
     bookTableEyebrow: "The table",
     bookTableHeading: "Book a table",
     bookTableLead: "Olive trees at Schwartz Wharf. A table, when you want one.",
+    /**
+     * Home's Bookings (#240, HomeBookings.astro, IV in the navigation): a
+     * table, or a party, side by side. A table is booked on OpenTable (when
+     * Site settings has bookings on); a party on its form.
+     */
+    bookings: {
+      heading: "Bookings",
+      note: "A table for tonight, or the place for your party.",
+      /** When tables aren't booked online: the party half alone. */
+      notePartyOnly: "Got something to celebrate? Have it here.",
+      /** Under Book a table: where the button goes. */
+      tableWhere: "On OpenTable, in a new tab.",
+      /** Written on the border of the terrace photo by Book a table. */
+      tablePhotoNote: "Pull up a chair.",
+      partyHeading: "Have a party",
+      partyLine: "Tell us what you’re planning and we’ll come back to you.",
+      /**
+       * What a party here can have, a line each: only what the party form
+       * already offers (its food, drinks and music questions). How many fit
+       * and anything else comes from ops (Settings → Venue details).
+       */
+      partyOffer: [
+        "A few tables or the whole place",
+        "Food from whoever’s in the kitchen: we’ll ask them for you",
+        "A bar tab or a drinks package",
+        "Bring a DJ or a playlist, or have ours",
+      ],
+    },
     signupHeading: "Get on the list",
     signupNavCta: "Get on the list",
     signupEyebrowPromo: "Stay in the loop",
@@ -239,9 +267,8 @@ export const siteConfig = {
       playHeading: "Play at Gwenda",
       playLead:
         "Got records? Got a band? Got a mate who won’t shut up about their mixes? We want this place to sound like Hackney Wick, so come and play. Tell us what you’d bring.",
-      /** The lead cut down, for home's short row at the foot. */
-      playShort:
-        "Got records? Got a band? Come and play. Tell us what you’d bring.",
+      /** The lead's first words, by the way to the play form under home's What's on. */
+      playNudge: "Got records? Got a band?",
       playCta: "Apply to play",
       /** The top of the play form's own page, beside the decks. */
       playIntro: {
@@ -252,7 +279,7 @@ export const siteConfig = {
       },
       /** Written on the border of the decks photo, wherever it is pinned up. */
       playPhotoNote: "Your turn.",
-      /** Having a party here: Contact's part, home's foot and the form's top. */
+      /** Having a party here: Contact's part (the button on home's Bookings too) and the form's top. */
       partyHeading: "Having a party?",
       partyLead:
         "Birthday, leaving do, work thing: tell us what you’re planning and we’ll come back to you.",

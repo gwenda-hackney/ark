@@ -15,9 +15,15 @@ describe("the navigation search engines read", () => {
     ).toEqual(
       links.map((link) => ({
         name: link.label,
-        // Each page's own address, as its canonical link gives it
-        url: `${DOMAIN}${link.href}/`,
+        // Each page's own address, as its canonical link gives it; a place
+        // on home as it is
+        url: link.href.includes("#")
+          ? `${DOMAIN}${link.href}`
+          : `${DOMAIN}${link.href}/`,
       })),
+    );
+    expect(list.itemListElement.map((item) => item.url)).toContain(
+      `${DOMAIN}/#bookings`,
     );
   });
 

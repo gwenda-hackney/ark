@@ -69,7 +69,7 @@ test("a page change leaves no listeners of the page before behind", async ({
 test.describe("after a Back that loads the page again", () => {
   test.use({ viewport: PHONE });
 
-  test("the next page is a new visit: the party form puts the cursor in its first box", async ({
+  test("the next page is a new visit: the play form puts the cursor in its first box", async ({
     page,
   }) => {
     await page.goto("/bar");
@@ -84,13 +84,12 @@ test.describe("after a Back that loads the page again", () => {
     ).toBe("back_forward");
     await arrived(page);
 
-    // On through the menu, by the router
-    await page.locator("#ch-chart-btn").click();
+    // On through the foot, by the router
     await page
-      .locator("#ch-chart")
-      .getByRole("link", { name: /Parties/ })
+      .locator(".ch-footer")
+      .getByRole("link", { name: "Play here" })
       .click();
-    await expect(page).toHaveURL(/\/contact\/party$/);
+    await expect(page).toHaveURL(/\/contact\/play$/);
     await arrived(page);
 
     // Its first box is up on screen with the cursor in it, as on any visit

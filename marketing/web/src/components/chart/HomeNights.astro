@@ -4,8 +4,10 @@
  * as the What's on page (NightCards) but only this week's, and next week's
  * too at the weekend (homeWeek, `thisWeek`), under a line saying which;
  * then the deals and the pop-up kitchen side by side
- * (StandingCards); then the way to the lot, where all three are.
+ * (StandingCards); then the way to the lot, where all three are, and a
+ * line under it for the ones who'd play here (the play form).
  */
+import { siteConfig } from "../../config/site";
 import { getUpcomingEvents } from "../../data/events";
 import { menuChapters } from "../../data/menu";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
@@ -15,9 +17,11 @@ import { closedDays } from "../../lib/opening-hours.js";
 import { londonToday } from "../../lib/london-day.js";
 import { homeWeek } from "../../lib/night-cards.js";
 import { fetchOpeningHours } from "../../lib/sanity/opening-hours";
+import { PLAY_FORM_SLUG, formPublicPath } from "../../lib/form-paths";
 import NightCards from "./NightCards.astro";
 import StandingCards from "./StandingCards.astro";
 
+const { contactPage } = siteConfig.copy;
 /** The big one, then a row of four. */
 const HOME_NIGHTS = 5;
 
@@ -68,4 +72,10 @@ const shut = closedDays(await fetchOpeningHours());
   <div class="ch-home-actions">
     <a href="/whats-on" class="ch-btn ch-btn--solid">Everything that’s on</a>
   </div>
+  <p class="ch-home-play">
+    {contactPage.playNudge}
+    <a href={formPublicPath(PLAY_FORM_SLUG)}
+      >{contactPage.playCta} <span aria-hidden="true">→</span></a
+    >
+  </p>
 </section>

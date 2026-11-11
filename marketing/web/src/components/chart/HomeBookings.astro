@@ -1,0 +1,147 @@
+---
+/**
+ * Home's Bookings (#240), IV in the navigation: the two ways to book, side
+ * by side. Book a table goes to OpenTable, the same link as the Book a
+ * table button on every page, and only while Site settings has bookings on
+ * (else the party half has the section to itself). Have a party says what
+ * a party here can have and goes to the party form: the kinds of party are
+ * the form's own choices, how many fit and the rest come from ops (Settings
+ * → Venue details), only what's filled in. A print on each half
+ * (lib/photos.js BOOKINGS_PHOTOS). The party half keeps the old `#party`
+ * anchor, so links to it still land.
+ */
+import { Image } from "astro:assets";
+import { siteConfig } from "../../config/site";
+import { bookingUrl } from "../../config/booking";
+import { PARTY_FORM_SLUG, formPublicPath } from "../../lib/form-paths";
+import { partyFactLines, partyOccasions } from "../../lib/party-facts.js";
+import { galleryPhotos } from "../../lib/photo-sources";
+import { homePhotoPlan } from "../../lib/photos.js";
+import { fetchFormBySlug } from "../../lib/sanity/forms";
+import { fetchSiteSettings } from "../../lib/sanity/site-settings";
+import { fetchVenueDetails } from "../../lib/sanity/venue-details";
+import ChartBell from "./ChartBell.astro";
+
+const { copy } = siteConfig;
+const { bookings: words, contactPage } = copy;
+const { bookingEnabled } = await fetchSiteSettings();
+const partyForm = await fetchFormBySlug(PARTY_FORM_SLUG).catch(() => null);
+const occasions = partyOccasions(partyForm);
+const { parties } = await fetchVenueDetails();
+const facts = partyFactLines(parties);
+/**
+ * The party's lines: how many fit leads (when ops has it), then what a
+ * party here can have, then what ops says is included, then how soon we
+ * reply.
+ */
+const partyLines = [
+  ...facts.filter((line) => line.kind === "capacity"),
+  ...words.partyOffer.map((text) => ({ kind: "offer", text })),
+  ...facts.filter((line) => line.kind === "included"),
+  ...facts.filter((line) => line.kind === "reply"),
+];
+const { bookings: prints } = homePhotoPlan(galleryPhotos());
+/** A print's photo: half the section on a desk, the width of a phone. */
+const PRINT = {
+  widths: [400, 640, 880],
+  sizes: "(min-width: 48rem) 26rem, calc(100vw - 4.5rem)",
+  format: "webp" as const,
+};
+---
+
+<section
+  class="ch-home-section ch-home-bookings"
+  id="bookings"
+  aria-labelledby="home-bookings"
+>
+  <header class="ch-home-head">
+    <h2 class="ch-poster" id="home-bookings">{words.heading}</h2>
+    <p class="ch-home-head-note">
+      {bookingEnabled ? words.note : words.notePartyOnly}
+    </p>
+  </header>
+
+  <div class:list={["ch-bookings", !bookingEnabled && "ch-bookings--party"]}>
+    {
+      bookingEnabled && (
+        <article
+          class="ch-booking ch-booking--table"
+          aria-labelledby="home-book-table"
+        >
+          {prints.table && (
+            <figure class="ch-print ch-booking-print">
+              <Image
+                src={prints.table.image}
+                alt={prints.table.alt}
+                {...PRINT}
+                loading="lazy"
+              />
+              <figcaption class="ch-print-note">
+                {words.tablePhotoNote}
+              </figcaption>
+            </figure>
+          )}
+          <h3 id="home-book-table">{copy.bookTableHeading}</h3>
+          <p class="ch-booking-line">{copy.bookTableLead}</p>
+          <div class="ch-booking-go">
+            <a
+              href={bookingUrl}
+              class="ch-btn ch-btn--solid"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ChartBell />
+              {copy.bookingCta}
+            </a>
+            <p class="ch-booking-where">{words.tableWhere}</p>
+          </div>
+        </article>
+      )
+    }
+
+    <article
+      class="ch-booking ch-booking--party"
+      id="party"
+      aria-labelledby="home-party"
+    >
+      {
+        prints.party && (
+          <figure class="ch-print ch-booking-print">
+            <Image
+              src={prints.party.image}
+              alt={prints.party.alt}
+              {...PRINT}
+              loading="lazy"
+            />
+            <figcaption class="ch-print-note">
+              {contactPage.partyPhotoNote}
+            </figcaption>
+          </figure>
+        )
+      }
+      <h3 id="home-party">{words.partyHeading}</h3>
+      <p class="ch-booking-line">{words.partyLine}</p>
+      {
+        occasions.length > 0 && (
+          <ul class="ch-booking-kinds" aria-label="Kinds of party">
+            {occasions.map((kind) => (
+              <li>{kind}</li>
+            ))}
+          </ul>
+        )
+      }
+      <ul class="ch-booking-offer">
+        {
+          partyLines.map((line) => (
+            <li class={`is-${line.kind}`}>{line.text}</li>
+          ))
+        }
+      </ul>
+      <div class="ch-booking-go">
+        <a href={formPublicPath(PARTY_FORM_SLUG)} class="ch-btn ch-btn--solid"
+          >{contactPage.partyCta}</a
+        >
+      </div>
+    </article>
+  </div>
+</section>

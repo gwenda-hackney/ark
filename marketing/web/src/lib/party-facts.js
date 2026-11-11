@@ -82,3 +82,22 @@ export function partyFactLines(parties) {
   }
   return lines;
 }
+
+/** The party form's question for what the party is for (its key never changes once live). */
+export const PARTY_OCCASION_KEY = "occasion";
+
+/**
+ * The kinds of party, as the party form offers them (its occasion
+ * question's choices, as the venue has them in Studio): "Birthday",
+ * "Leaving do", "Work do", "Something else". [] without the form or the
+ * question, and then home shows none.
+ *
+ * @param {{ fields?: Array<{ key?: string, options?: Array<{ label?: string }> | null }> } | null | undefined} form
+ * @returns {string[]}
+ */
+export function partyOccasions(form) {
+  const fields = Array.isArray(form?.fields) ? form.fields : [];
+  const question = fields.find((field) => field?.key === PARTY_OCCASION_KEY);
+  const options = Array.isArray(question?.options) ? question.options : [];
+  return options.map((option) => textOf(option?.label)).filter(Boolean);
+}
