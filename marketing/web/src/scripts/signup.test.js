@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initSignup } from "./signup.js";
 
 /** The form as it renders embedded in a page section (e.g. /contact#list). */
@@ -41,6 +41,10 @@ describe("initSignup", () => {
     );
     Element.prototype.scrollIntoView = vi.fn();
     window.requestAnimationFrame = (cb) => cb();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it.each([{ outerId: "list" }, { outerId: null }])(
@@ -128,6 +132,34 @@ describe("initSignup", () => {
       credentials: "same-origin",
     });
   });
+
+  it.each([
+    { reduced: false, behavior: "smooth" },
+    { reduced: true, behavior: "auto" },
+  ])(
+    "brings the thanks into view, $behavior with reduced motion $reduced",
+    async ({ reduced, behavior }) => {
+      vi.stubGlobal(
+        "matchMedia",
+        vi.fn((query) => ({
+          matches: reduced && query.includes("prefers-reduced-motion"),
+        })),
+      );
+      const form = mountEmbedded({ outerId: null });
+      form.querySelector("#email").value = "someone@example.com";
+      form.querySelector("#consent").checked = true;
+
+      submit(form);
+      await vi.waitFor(() =>
+        expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith(
+          expect.objectContaining({ behavior }),
+        ),
+      );
+      expect(document.activeElement).toBe(
+        document.getElementById("signup-confirm"),
+      );
+    },
+  );
 
   it("asks for consent before sending anything", () => {
     const form = mountEmbedded({ outerId: "list" });

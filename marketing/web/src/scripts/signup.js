@@ -80,7 +80,27 @@ export function initSignupAnchors() {
   if (location.hash === "#list") glowEmail();
 }
 
-export function initSignup(form) {
+/** The sign-ups of the page in view: the next page's take their listeners away. */
+let signupsAbort = null;
+
+/**
+ * Every sign-up on the page (its own, on home, /contact or /join-list, and
+ * the one in the foot). Run on each page load.
+ */
+export function initSignups() {
+  signupsAbort?.abort();
+  signupsAbort = new AbortController();
+  const { signal } = signupsAbort;
+  for (const form of document.querySelectorAll("form.signup-form")) {
+    initSignup(form, { signal });
+  }
+}
+
+/**
+ * @param {HTMLFormElement} form
+ * @param {{ signal?: AbortSignal }} [options] ends every listener it adds
+ */
+export function initSignup(form, { signal } = {}) {
   // The signup the form sits in, not whatever on the page is called #list:
   // embedded in a page section (/contact#list, /join-list) they differ, and
   // a page can carry two (its own and the one in the foot), so everything is
@@ -98,10 +118,10 @@ export function initSignup(form) {
     () => {
       ensureSubscribeAuth().catch(() => {});
     },
-    { once: true },
+    { once: true, signal },
   );
 
-  form.addEventListener("submit", async (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     clearError(errorEl);
 
@@ -152,36 +172,35 @@ export function initSignup(form) {
       );
       setLoading(form, submitBtn, false, defaultBtnText);
     }
-  });
+  };
+  form.addEventListener("submit", onSubmit, { signal });
+
+  const reset = () =>
+    resetSignup({
+      section,
+      confirmEl,
+      form,
+      errorEl,
+      submitBtn,
+      defaultBtnText,
+    });
 
   section
     ?.querySelector(".signup-confirm-back")
-    ?.addEventListener("click", () => {
-      resetSignup({
-        section,
-        confirmEl,
-        form,
-        errorEl,
-        submitBtn,
-        defaultBtnText,
-      });
-    });
+    ?.addEventListener("click", reset, { signal });
 
-  window.addEventListener("hashchange", () => {
-    if (
-      section?.classList.contains("is-confirmed") &&
-      location.hash !== "#list"
-    ) {
-      resetSignup({
-        section,
-        confirmEl,
-        form,
-        errorEl,
-        submitBtn,
-        defaultBtnText,
-      });
-    }
-  });
+  window.addEventListener(
+    "hashchange",
+    () => {
+      if (
+        section?.classList.contains("is-confirmed") &&
+        location.hash !== "#list"
+      ) {
+        reset();
+      }
+    },
+    { signal },
+  );
 }
 
 /** @returns {Promise<"ok" | "retry">} */
@@ -218,14 +237,26 @@ async function postSubscribe(form, email) {
   return "ok";
 }
 
+/**
+ * The thanks takes the form's place, and the keyboard with it: the button
+ * that had it is gone, and a screen reader reads out what now has it.
+ */
 function showConfirmation(section, confirmEl) {
   if (!section || !confirmEl) return;
 
   confirmEl.setAttribute("aria-hidden", "false");
   section.classList.add("is-confirmed");
+  confirmEl.setAttribute("tabindex", "-1");
+  confirmEl.focus({ preventScroll: true });
 
+  const reduced = window.matchMedia?.(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
   window.requestAnimationFrame(() => {
-    section.scrollIntoView({ behavior: "smooth", block: "center" });
+    section.scrollIntoView({
+      behavior: reduced ? "auto" : "smooth",
+      block: "center",
+    });
   });
 }
 

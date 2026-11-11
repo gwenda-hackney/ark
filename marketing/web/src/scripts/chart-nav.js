@@ -176,12 +176,41 @@ export function markRouterArrivals() {
 }
 
 /**
+ * Make everything in `root` inert but `keep` and what holds them, and return
+ * what it made inert, to wake again. What was inert already is left alone.
+ *
+ * @param {Element} root
+ * @param {Element[]} keep
+ * @returns {Element[]}
+ */
+function inertAllBut(root, keep) {
+  const made = [];
+  for (const child of root.children) {
+    if (keep.includes(child)) continue;
+    if (keep.some((el) => child.contains(el))) {
+      made.push(...inertAllBut(child, keep));
+    } else if (!child.hasAttribute("inert")) {
+      child.setAttribute("inert", "");
+      made.push(child);
+    }
+  }
+  return made;
+}
+
+/** Where the bar takes the menu's place, and the button and panel go (chart.css). */
+const DESK = "(min-width: 62.5rem)";
+
+/** The menu of the page in view: the next page's takes its listeners away. */
+let chartAbort = null;
+
+/**
  * The chart opens from its button; the same button (a cross while open), the
  * scrim, Escape, or any link in it closes it. State lives on the page root (`data-chart`), so CSS
- * moves the panel and the scrim together. Closed, the panel is hidden from
- * the keyboard (chart.css); opening moves focus into it, and closing it from
- * the scrim or Escape hands focus back to the button. On home the button
- * comes and goes (initHome).
+ * moves the panel and the scrim together. Open, the rest of the page is inert
+ * behind the scrim, so Tab (and a screen reader) stays in the menu and its
+ * button; closed, the panel is inert, out of reach as it slides away.
+ * Opening moves focus into it, and closing it from the scrim or Escape hands
+ * focus back to the button. On home the button comes and goes (initHome).
  */
 export function initChartNav() {
   initSkipLink();
@@ -191,10 +220,20 @@ export function initChartNav() {
   const button = document.getElementById("ch-chart-btn");
   const panel = document.getElementById("ch-chart");
   const scrim = document.getElementById("ch-chart-scrim");
-  if (!page || !button || !panel || !scrim) return;
+  if (!(page instanceof HTMLElement) || !button || !panel || !scrim) {
+    chartAbort?.abort();
+    chartAbort = null;
+    return;
+  }
+  // Its first load runs this twice for the same page
   if (button.dataset.chartReady) return;
   button.dataset.chartReady = "1";
+  chartAbort?.abort();
+  chartAbort = new AbortController();
+  const { signal } = chartAbort;
 
+  /** The page behind the scrim, inert while the menu is open */
+  let behind = [];
   const setOpen = (open) => {
     page.dataset.chart = open ? "open" : "closed";
     button.setAttribute("aria-expanded", String(open));
@@ -202,7 +241,11 @@ export function initChartNav() {
       "aria-label",
       open ? "Close the menu" : "Open the menu",
     );
+    panel.toggleAttribute("inert", !open);
+    for (const el of behind) el.removeAttribute("inert");
+    behind = open ? inertAllBut(page, [button, panel, scrim]) : [];
   };
+  panel.setAttribute("inert", "");
 
   const close = () => {
     const inside = panel.contains(document.activeElement);
@@ -210,22 +253,43 @@ export function initChartNav() {
     if (inside || document.activeElement === document.body) button.focus();
   };
 
-  button.addEventListener("click", () => {
-    if (page.dataset.chart === "open") {
-      setOpen(false);
-      return;
-    }
-    setOpen(true);
-    // The panel turns visible on the same frame; it can take focus now
-    panel.focus({ preventScroll: true });
-  });
-  scrim.addEventListener("click", close);
-  panel.addEventListener("click", (event) => {
-    if (event.target instanceof Element && event.target.closest("a")) {
-      setOpen(false);
-    }
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && page.dataset.chart === "open") close();
-  });
+  button.addEventListener(
+    "click",
+    () => {
+      if (page.dataset.chart === "open") {
+        setOpen(false);
+        return;
+      }
+      setOpen(true);
+      // The panel turns visible on the same frame; it can take focus now
+      panel.focus({ preventScroll: true });
+    },
+    { signal },
+  );
+  scrim.addEventListener("click", close, { signal });
+  panel.addEventListener(
+    "click",
+    (event) => {
+      if (event.target instanceof Element && event.target.closest("a")) {
+        setOpen(false);
+      }
+    },
+    { signal },
+  );
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape" && page.dataset.chart === "open") close();
+    },
+    { signal },
+  );
+  // Grown to a desk screen, the panel is gone: the page behind wakes with it
+  const desk = window.matchMedia?.(DESK);
+  desk?.addEventListener(
+    "change",
+    () => {
+      if (desk.matches && page.dataset.chart === "open") setOpen(false);
+    },
+    { signal },
+  );
 }

@@ -143,6 +143,27 @@ describe("a back/forward visit through the router", () => {
     expect(isRestoredNavigation()).toBe(true);
   });
 
+  it("counts the next page after a Back that loaded the page as a new visit", async () => {
+    // A fresh module: the document's own load, which came by Back
+    vi.resetModules();
+    performance.getEntriesByType.mockReturnValue([{ type: "back_forward" }]);
+    const restore = await import("./navigation-restore.js");
+    restore.initNavigationRestore();
+    expect(restore.isRestoredNavigation()).toBe(true);
+
+    // On to another page through the router
+    const before = new Event("astro:before-preparation");
+    Object.assign(before, {
+      navigationType: "push",
+      to: new URL("https://gwenda.test/contact/party"),
+    });
+    document.dispatchEvent(before);
+    document.documentElement.className = "";
+    document.dispatchEvent(new Event("astro:after-swap"));
+
+    expect(restore.isRestoredNavigation()).toBe(false);
+  });
+
   it("keeps a second Back's landing instant when the first's ends", () => {
     initNavigationRestore();
     const root = document.documentElement;

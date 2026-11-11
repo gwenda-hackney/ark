@@ -1,4 +1,4 @@
-import { initSignup, initSignupAnchors } from "./signup.js";
+import { initSignupAnchors, initSignups } from "./signup.js";
 import {
   initNavigationRestore,
   whenNavigationReady,
@@ -555,12 +555,7 @@ function initPage() {
     teardownMenuToc = initMenuToc();
   });
 
-  // The page's own sign-up (home, /contact, /join-list) and the one in the foot
-  for (const signupForm of document.querySelectorAll("form.signup-form")) {
-    if (signupForm.dataset.gwBound === "1") continue;
-    signupForm.dataset.gwBound = "1";
-    initSignup(signupForm);
-  }
+  initSignups();
   initSignupAnchors();
   placeHomeContactRule();
   window.addEventListener("resize", placeHomeContactRule, { signal });

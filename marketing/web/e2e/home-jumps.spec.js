@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { arrived, settle } from "./support.js";
 
 /**
  * Home's numbered links (#240), on the hero and on the bar that slides in on
@@ -10,29 +11,6 @@ import { expect, test } from "@playwright/test";
 
 /** Air the landing keeps above a section: scroll-margin-top in chart.css. */
 const LANDING_AIR = 16;
-
-/** Frames the page has to stay put to count as still, on a busy machine too. */
-const STILL_FRAMES = 12;
-
-/** Wait until the page has stopped moving. */
-async function settle(page) {
-  await page.evaluate(
-    (frames) =>
-      new Promise((resolve) => {
-        const since = performance.now();
-        let last = scrollY;
-        let still = 0;
-        const tick = () => {
-          still = scrollY === last ? still + 1 : 0;
-          last = scrollY;
-          if (still >= frames && performance.now() - since > 400) resolve();
-          else requestAnimationFrame(tick);
-        };
-        requestAnimationFrame(tick);
-      }),
-    STILL_FRAMES,
-  );
-}
 
 /**
  * Do something, and return every scroll position the page passed through on
@@ -101,22 +79,6 @@ async function expectLanded(page, id) {
 
 const hero = (page) => page.locator("#hero");
 const bar = (page) => page.locator(".ch-bar");
-
-/**
- * The page change is over: the new page is in (`selector` is on it), its
- * move between pages has finished, and the page has come to rest.
- */
-async function arrived(page, selector) {
-  await expect(page.locator(selector).first()).toBeAttached();
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        document.documentElement.matches(":active-view-transition"),
-      ),
-    )
-    .toBe(false);
-  await settle(page);
-}
 
 const arrivedHome = (page) => arrived(page, ".ch-home #hero");
 
