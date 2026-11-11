@@ -1,17 +1,19 @@
 /**
  * Sync stable public/ brand files from src/assets sources.
  *
- * Run when favicon or logo sources change:
+ * Run when logo sources change:
  *   npm run generate:brand-assets
+ *
+ * The favicons and the home-screen icon are drawn by write-favicons.mjs.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { spawnSync } from "node:child_process";
 import sharp from "sharp";
 import colors from "../src/config/colors.json" with { type: "json" };
 
 const outDir = resolve(process.cwd(), "public");
-const faviconSrc = resolve(
+/** The old G: only the Apple Wallet pass icons still use it. */
+const walletIconSrc = resolve(
   process.cwd(),
   "src/assets/images/logos/favicon-light.png",
 );
@@ -50,29 +52,6 @@ async function writePaddedSquareIcon(sourcePath, size, outPath) {
     .composite([{ input: scaled, gravity: "center" }])
     .png()
     .toFile(outPath);
-}
-
-const faviconPngPath = resolve(outDir, "favicon.png");
-await writePaddedSquareIcon(faviconSrc, 96, faviconPngPath);
-await writePaddedSquareIcon(
-  faviconSrc,
-  180,
-  resolve(outDir, "apple-touch-icon.png"),
-);
-
-const ico = spawnSync(
-  "convert",
-  [
-    faviconPngPath,
-    "-define",
-    "icon:auto-resize=96,48,32,16",
-    resolve(outDir, "favicon.ico"),
-  ],
-  { encoding: "utf8" },
-);
-if (ico.status !== 0) {
-  console.error("convert failed — install ImageMagick to generate favicon.ico");
-  process.exit(1);
 }
 
 const logoMeta = await sharp(logoSrc).metadata();
@@ -142,7 +121,7 @@ async function writeWalletLogo(file, width, height) {
 
 async function writeWalletIcon(file, size) {
   const outPath = resolve(walletDir, file);
-  await writePaddedSquareIcon(faviconSrc, size, outPath);
+  await writePaddedSquareIcon(walletIconSrc, size, outPath);
   const { readFileSync } = await import("node:fs");
   walletAssetBuffers[file] = readFileSync(outPath);
 }
@@ -199,9 +178,6 @@ for (const [file, width, height] of walletStripSizes) {
   await writeWalletStripFallback(file, width, height);
 }
 
-console.log("Wrote public/favicon.png (from favicon-light.png)");
-console.log("Wrote public/favicon.ico");
-console.log("Wrote public/apple-touch-icon.png");
 console.log(
   `Wrote public/brand/logo-organization.png (${orgWidth}×${orgCanvasHeight}, ${colors.bg} background)`,
 );

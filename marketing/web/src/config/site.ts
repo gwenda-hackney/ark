@@ -112,10 +112,19 @@ export const siteConfig = {
   },
   /** Stable paths in public/ — synced from src/assets (see generate:brand-assets). */
   brand: {
+    /** The record with the skull (#240), drawn from src/assets/images/logos/icon/ by generate:favicons */
     faviconPath: "/favicon.ico",
+    faviconSvgPath: "/favicon.svg",
     faviconPngPath: "/favicon.png",
     faviconSize: 96,
     appleTouchIconPath: "/apple-touch-icon.png",
+    /** The web app manifest: name and icons for a phone's home screen */
+    manifestPath: "/site.webmanifest",
+    /** Android home-screen icons, on the board colour, listed in the manifest */
+    appIcons: [
+      { path: "/icon-192.png", size: 192 },
+      { path: "/icon-512.png", size: 512 },
+    ],
     /** Organization schema logo — min 112×112, dark brand background. */
     organizationLogoPath: "/brand/logo-organization.png",
     organizationLogoWidth: 511,

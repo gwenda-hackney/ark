@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- Gwenda's record drawn for 16px, one unit a pixel: a cream rim, a black
+       ring, the mustard label, and the skull on the pixel grid so it stays
+       crisp. No groove at this size. Bigger sizes: favicon.svg. -->
+  <circle cx="8" cy="8" r="8" fill="#f2e8d2"/>
+  <circle cx="8" cy="8" r="7" fill="#0b0a08"/>
+  <circle cx="8" cy="8" r="6" fill="#dba63c"/>
+  <!-- Skull, 9 wide: crown with the eyes and nose cut out, three teeth -->
+  <path fill="#0b0a08" fill-rule="evenodd" d="M5 4h5v1h1v1h1v4h-1v1H4v-1H3V6h1V5h1zM4 7v2h3V7zm4 0v2h3V7zM7 9v1h1V9zM5 11h1v1H5zm2 0h1v1H7zm2 0h1v1H9z"/>
+</svg>

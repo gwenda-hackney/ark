@@ -6,6 +6,7 @@ import { isPreview, previewOrigin } from "../config/env";
 import SocialMeta from "../components/SocialMeta.astro";
 import StructuredData from "../components/StructuredData.astro";
 import Fonts from "../components/Fonts.astro";
+import FaviconLinks from "../components/FaviconLinks.astro";
 import PreviewRibbon from "../components/PreviewRibbon.astro";
 import BookingButton from "../components/BookingButton.astro";
 import { colors } from "../config/colors";
@@ -101,18 +102,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
          half-made animation in their place */
     }
     <ViewTransitions fallback="swap" />
-    <link rel="icon" href={siteConfig.brand.faviconPath} sizes="any" />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes={`${siteConfig.brand.faviconSize}x${siteConfig.brand.faviconSize}`}
-      href={siteConfig.brand.faviconPngPath}
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href={siteConfig.brand.appleTouchIconPath}
-    />
+    <FaviconLinks />
 
     <slot name="head" />
   </head>

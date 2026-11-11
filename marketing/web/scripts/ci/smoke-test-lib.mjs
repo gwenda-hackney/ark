@@ -40,6 +40,36 @@ function attribute(tag, name) {
     .trim();
 }
 
+/**
+ * The icons a page's head links to (rel "icon" and "apple-touch-icon"), in
+ * order: the smoke test fetches each, so a missing one fails the deploy.
+ *
+ * @param {string} html
+ * @returns {string[]}
+ */
+export function iconPaths(html) {
+  const paths = [];
+  for (const [tag] of html.matchAll(/<link\b[^>]*>/gi)) {
+    const rel = attribute(tag, "rel").toLowerCase().split(/\s+/);
+    if (rel.includes("icon") || rel.includes("apple-touch-icon"))
+      paths.push(attribute(tag, "href"));
+  }
+  return paths;
+}
+
+/**
+ * The web app manifest a page's head links to; empty when there is none.
+ *
+ * @param {string} html
+ */
+export function manifestPath(html) {
+  for (const [tag] of html.matchAll(/<link\b[^>]*>/gi)) {
+    if (attribute(tag, "rel").toLowerCase() === "manifest")
+      return attribute(tag, "href");
+  }
+  return "";
+}
+
 /** The width a picture's address asks the image CDN for; 0 when it names none. */
 function askedWidth(url) {
   try {

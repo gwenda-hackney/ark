@@ -172,7 +172,11 @@ export function isPublicPath(pathname) {
   if (pathname === "/sitemap.xml") return true;
   if (pathname === "/favicon.ico") return true;
   if (pathname === "/favicon.png") return true;
+  if (pathname === "/favicon.svg") return true;
   if (pathname === "/apple-touch-icon.png") return true;
+  // The manifest is fetched without cookies, and with it its icons
+  if (pathname === "/site.webmanifest") return true;
+  if (pathname === "/icon-192.png" || pathname === "/icon-512.png") return true;
   if (pathname.startsWith("/brand/")) return true;
   if (pathname.startsWith("/og/")) return true;
   if (pathname.startsWith("/_astro/")) return true;
