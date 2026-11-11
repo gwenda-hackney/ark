@@ -3,14 +3,12 @@ import { siteConfig } from "../config/site";
 const { geo } = siteConfig.location;
 
 /**
- * How to get to Gwenda (#240), shared by home's way-here row and Finding us
- * so the two never disagree. Written to match the map's own notes, and the
- * real walk (traced from OpenStreetMap): about 200 m, 270 paces, down the
- * yard; about 360 m by the water.
+ * How to get to Gwenda (#240), shared by Finding us and its map so the two
+ * never disagree. Written to match the map's own notes, and the real walk
+ * (traced from OpenStreetMap): about 200 m, 270 paces, down the yard; about
+ * 360 m by the water.
  */
 export const directions = {
-  /** The walk in a line, for home's Find us. */
-  short: "Five minutes’ walk from Hackney Wick station, right on the canal.",
   /** Where we are, before the how. */
   intro:
     "On the canal where the Hertford Union meets the Lee, round the corner from Barge East. Five minutes from Hackney Wick station, ten if you stop to look at the walls.",

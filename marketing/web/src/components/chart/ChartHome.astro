@@ -1,70 +1,30 @@
 ---
 /**
  * Home (#240): the logo on the leather and the way in (the five numbered
- * places). Then the two things people come
- * for: what's on (this week's nights, the deals and the pop-up kitchen) and
- * the menu. Then a short row for finding us, a party and playing here, and a
- * row of photos last; the list is in the foot, who we are on /about.
+ * places). Then the two things people come for: what's on (this week's
+ * nights, the deals and the pop-up kitchen) and the menu. Then Bookings, a
+ * table or a party, and a row of photos last. Finding us, the hours and
+ * the list are in the foot; who we are on /about.
  */
 import "../../styles/chart.css";
 import "../../styles/chart-home.css";
 import { siteConfig } from "../../config/site";
-import { directions } from "../../data/directions";
 import { chartHeroLogo } from "../../lib/chart-assets";
-import {
-  PARTY_FORM_SLUG,
-  PLAY_FORM_SLUG,
-  formPublicPath,
-} from "../../lib/form-paths";
 import { chartSections } from "../../lib/chart-nav";
 import ChartNav from "./ChartNav.astro";
 import ChartFooter from "./ChartFooter.astro";
-import ChartBadge from "./ChartBadge.astro";
+import HomeBookings from "./HomeBookings.astro";
 import HomeMenu from "./HomeMenu.astro";
 import HomeNights from "./HomeNights.astro";
 import HomePhotos from "./HomePhotos.astro";
 
-const { copy, location } = siteConfig;
-const { contactPage } = copy;
+const { copy } = siteConfig;
 /**
  * The way in, on the hero: the same numbered places as the menu panel, each
  * going down to its own section here (`home` in lib/chart-nav), which links
  * on to its page.
  */
 const sections = chartSections("/");
-
-/**
- * The practical row, after the menu: finding us, a party, playing here. The
- * list isn't here: the foot of every page has the sign-up. Each is a stop on
- * the trail, its badge where its trail starts (ChartBadge); the link under
- * it is plain words.
- */
-const more = [
-  {
-    id: "find-us",
-    title: "Find us",
-    text: `${location.addressShort}. ${directions.short}`,
-    href: "/contact#find-us",
-    link: "How to get here",
-    badge: "compass",
-  },
-  {
-    id: "party",
-    title: contactPage.partyHeading,
-    text: contactPage.partyLead,
-    href: formPublicPath(PARTY_FORM_SLUG),
-    link: contactPage.partyCta,
-    badge: "bottle",
-  },
-  {
-    id: "play",
-    title: contactPage.playHeading,
-    text: contactPage.playShort,
-    href: formPublicPath(PLAY_FORM_SLUG),
-    link: contactPage.playCta,
-    badge: "record",
-  },
-] as const;
 ---
 
 <div class="ch-page ch-home">
@@ -102,27 +62,7 @@ const more = [
 
     <HomeNights />
     <HomeMenu />
-
-    <section
-      class="ch-home-section ch-home-more"
-      aria-label="Find us, parties and playing here"
-    >
-      {
-        more.map((item) => (
-          <a
-            href={item.href}
-            class="ch-home-more-item ch-waypoint"
-            id={item.id}
-          >
-            <ChartBadge kind={item.badge} />
-            <h2>{item.title}</h2>
-            <p>{item.text}</p>
-            <span class="ch-home-more-link">{item.link} →</span>
-          </a>
-        ))
-      }
-    </section>
-
+    <HomeBookings />
     <HomePhotos />
   </main>
   <ChartFooter />

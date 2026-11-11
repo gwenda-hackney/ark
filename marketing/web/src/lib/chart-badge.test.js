@@ -89,22 +89,19 @@ function astroFiles(dir, root = dir) {
 describe("the badges on the site (#240)", () => {
   const files = astroFiles(new URL("..", import.meta.url).pathname);
 
-  it("sit on home's row and over Contact's party and play, nowhere else", () => {
+  it("sit over Contact's party and play, nowhere else", () => {
     const using = files
       .filter(({ text }) => /<ChartBadge\b/.test(text))
       .map(({ file }) => file)
       .sort();
-    expect(using).toEqual([
-      "components/chart/ChartHome.astro",
-      "pages/contact.astro",
-    ]);
+    expect(using).toEqual(["pages/contact.astro"]);
   });
 
   it("leave the buttons and links plain words", () => {
     const marked = files.flatMap(({ file, text }) =>
       [
         ...text.matchAll(
-          /<(a|span)\b[^>]*class="[^"]*\b(ch-btn|ch-home-more-link)\b[^"]*"[^>]*>([\s\S]*?)<\/\1\s*>/g,
+          /<(a|span)\b[^>]*class="[^"]*\b(ch-btn)\b[^"]*"[^>]*>([\s\S]*?)<\/\1\s*>/g,
         ),
       ]
         .filter(([, , , inner]) => /<Chart(Record|Badge)\b/.test(inner))

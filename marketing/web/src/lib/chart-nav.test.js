@@ -15,7 +15,7 @@ describe("chartSections", () => {
       ["I", "What's on", "/whats-on"],
       ["II", "Drinks", "/bar"],
       ["III", "Food", "/kitchen"],
-      ["IV", "Parties", "/contact/party"],
+      ["IV", "Bookings", "/#bookings"],
       ["V", "Contact", "/contact"],
     ]);
   });
@@ -26,9 +26,16 @@ describe("chartSections", () => {
       ["What's on", "whats-on"],
       ["Drinks", "drinks"],
       ["Food", "food"],
-      ["Parties", "party"],
+      ["Bookings", "bookings"],
       ["Contact", undefined],
     ]);
+  });
+
+  it("sends Bookings to its section on home from every page: a table and a party, side by side", () => {
+    const bookings = chartSections("/bar").find(
+      (item) => item.label === "Bookings",
+    );
+    expect(bookings.href).toBe(`/#${bookings.home}`);
   });
 
   it("marks the page you are on as the page", () => {
@@ -36,8 +43,9 @@ describe("chartSections", () => {
     expect(marked("/contact")).toEqual([["Contact", "page"]]);
   });
 
-  it("marks the party form as Parties, not Contact", () => {
-    expect(marked("/contact/party")).toEqual([["Parties", "page"]]);
+  it("marks the party form as in Bookings, not Contact", () => {
+    // In it, not its page: Bookings' link is to home's section
+    expect(marked("/contact/party")).toEqual([["Bookings", "true"]]);
   });
 
   it("marks a page inside a section as that section, not as the page", () => {
@@ -45,7 +53,7 @@ describe("chartSections", () => {
       ["What's on", "true"],
     ]);
     expect(marked("/contact/play")).toEqual([["Contact", "true"]]);
-    expect(marked("/contact/party/submitted")).toEqual([["Parties", "true"]]);
+    expect(marked("/contact/party/submitted")).toEqual([["Bookings", "true"]]);
   });
 
   it("marks nothing on home or on a page outside the five", () => {

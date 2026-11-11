@@ -1,7 +1,7 @@
 /**
  * Focus on arrival (#240): someone who follows a link to a form finds the
- * cursor in its first box ("Get on the list" lands in the email box, Parties
- * in the name box). The page says where, in its markup:
+ * cursor in its first box ("Get on the list" lands in the email box, Book
+ * your party in the name box). The page says where, in its markup:
  *
  * - `data-focus-on-arrival="page"` on the part of a page that is the page's
  *   whole point (/join-list, /contact/<form>). Every visit puts the cursor in

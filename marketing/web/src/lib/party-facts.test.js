@@ -1,5 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { capacityLine, partyFactLines, readParties } from "./party-facts.js";
+import {
+  capacityLine,
+  partyFactLines,
+  partyOccasions,
+  playKinds,
+  readParties,
+} from "./party-facts.js";
+
+describe("playKinds", () => {
+  const form = (options) => ({
+    fields: [{ key: "name" }, { key: "whatYouDo", options }],
+  });
+
+  it("is the play form's what-you-do choices, without the catch-all", () => {
+    expect(
+      playKinds(
+        form([
+          { label: "DJ" },
+          { label: " Live act " },
+          { label: "Band" },
+          { label: "Other" },
+        ]),
+      ),
+    ).toEqual(["DJ", "Live act", "Band"]);
+  });
+
+  it("is empty without the form or the question", () => {
+    expect(playKinds(null)).toEqual([]);
+    expect(playKinds({ fields: [{ key: "name" }] })).toEqual([]);
+  });
+});
 
 const texts = (raw) =>
   partyFactLines(readParties(raw)).map((line) => line.text);
@@ -71,5 +101,37 @@ describe("party facts", () => {
       replyWithin: "",
     });
     expect(readParties({ standing: "80" })).toBeNull();
+  });
+});
+
+describe("partyOccasions", () => {
+  /** The party form as the site reads it: its questions, a choice's words and value. */
+  const form = (options) => ({
+    fields: [
+      { key: "name", label: "Name", options: null },
+      { key: "occasion", label: "What’s the occasion?", options },
+    ],
+  });
+
+  it("lists the form's kinds of party, in its order, by their words", () => {
+    expect(
+      partyOccasions(
+        form([
+          { label: "Birthday", value: "Birthday" },
+          { label: "Leaving do", value: "Leaving do" },
+          { label: "Work do", value: "Work do" },
+          { label: "Something else", value: "Other" },
+        ]),
+      ),
+    ).toEqual(["Birthday", "Leaving do", "Work do", "Something else"]);
+  });
+
+  it("is none without the form, the question or its choices", () => {
+    expect(partyOccasions(null)).toEqual([]);
+    expect(partyOccasions({ fields: [] })).toEqual([]);
+    expect(partyOccasions(form(null))).toEqual([]);
+    expect(
+      partyOccasions(form([{ label: "  " }, { label: "Wedding " }])),
+    ).toEqual(["Wedding"]);
   });
 });

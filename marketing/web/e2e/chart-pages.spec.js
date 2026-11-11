@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 /**
  * Every page wears the site's look (#240): the numbered navigation across
  * the top (ChartNav) and the foot (ChartFooter), never the old header and
- * its menu (Menu, Featured artist, no Drinks, Food or Parties). A wrong
+ * its menu (Menu, Featured artist, no Drinks, Food or Bookings). A wrong
  * address gets a page that says so, with a 404, not a copy of home.
  */
 
@@ -19,7 +19,7 @@ const PAGES = [
 async function expectChart(page) {
   const nav = page.locator(".ch-bar");
   await expect(nav).toBeVisible();
-  for (const label of ["What's on", "Drinks", "Food", "Parties", "Contact"]) {
+  for (const label of ["What's on", "Drinks", "Food", "Bookings", "Contact"]) {
     await expect(nav.getByRole("link", { name: label })).toBeVisible();
   }
   await expect(page.locator("footer.ch-footer")).toBeVisible();
@@ -52,13 +52,13 @@ test.describe("a wrong address", () => {
         "Nothing here",
       );
       await expectChart(page);
-      // The way on: the five places, each to its page
+      // The way on: the five places, each to its page (Bookings to home's)
       const places = page.getByRole("navigation", { name: "Try instead" });
       for (const [label, href] of [
         ["What's on", "/whats-on"],
         ["Drinks", "/bar"],
         ["Food", "/kitchen"],
-        ["Parties", "/contact/party"],
+        ["Bookings", "/#bookings"],
         ["Contact", "/contact"],
       ]) {
         await expect(
