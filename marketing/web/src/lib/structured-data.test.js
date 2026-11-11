@@ -13,15 +13,23 @@ describe("the navigation search engines read", () => {
     expect(
       list.itemListElement.map(({ name, url }) => ({ name, url })),
     ).toEqual(
-      links.map((link) => ({
-        name: link.label,
-        // Each page's own address, as its canonical link gives it
-        url: `${DOMAIN}${link.href}/`,
-      })),
+      links.map((link) => {
+        const [path, part] = link.href.split("#");
+        return {
+          name: link.label,
+          // Each page's own address, as its canonical link gives it, and
+          // the part of it a link goes to
+          url: `${DOMAIN}${path}/${part ? `#${part}` : ""}`,
+        };
+      }),
     );
-    expect(list.itemListElement.map((item) => item.url)).toContain(
-      `${DOMAIN}/bookings/`,
-    );
+    const urls = list.itemListElement.map((item) => item.url);
+    expect(urls).toContain(`${DOMAIN}/bookings/`);
+  });
+
+  it("takes a link to a part of a page to that part of the page's own address", () => {
+    const play = list.itemListElement.find((item) => item.name === "Play here");
+    expect(play.url).toBe(`${DOMAIN}/bookings/#play`);
   });
 
   it("numbers them in order", () => {

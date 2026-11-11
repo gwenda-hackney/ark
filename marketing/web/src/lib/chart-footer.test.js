@@ -57,7 +57,8 @@ describe("FOOT_LINKS", () => {
   it("is Photos, Play here and About", () => {
     expect(FOOT_LINKS).toEqual([
       { label: "Photos", href: "/photos" },
-      { label: "Play here", href: "/contact/play" },
+      // Bookings' play half, which says what playing here is, then the form
+      { label: "Play here", href: "/bookings#play" },
       { label: "About", href: "/about" },
     ]);
   });

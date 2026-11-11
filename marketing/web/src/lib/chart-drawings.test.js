@@ -50,7 +50,7 @@ describe("the compass rose (#240)", () => {
   // Its needle, the one stroke no other drawing has
   const needle = "M12 5.6l1.8 5.2L12 18.4l-1.8-7.6z";
 
-  it("is drawn once: the menu panel's and Find us's badge are the same", () => {
+  it("is drawn once, here, for the menu panel", () => {
     expect(DRAWINGS.compass.body).toContain(needle);
     const copies = sources(new URL("..", import.meta.url).pathname)
       .filter(({ text }) => text.includes(needle))

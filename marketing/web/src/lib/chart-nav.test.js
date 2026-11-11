@@ -46,17 +46,26 @@ describe("chartSections", () => {
     expect(marked("/bookings/")).toEqual([["Bookings", "page"]]);
   });
 
-  it("marks the party form as in Bookings, not Contact", () => {
-    // In it, not its page: Bookings' page is /bookings
+  it("marks both forms, the party and the play, as in Bookings, not Contact", () => {
+    // In it, not its page: Bookings' page is /bookings. Their addresses stay
+    // under /contact.
     expect(marked("/contact/party")).toEqual([["Bookings", "true"]]);
+    expect(marked("/contact/play")).toEqual([["Bookings", "true"]]);
+    expect(marked("/contact/play/")).toEqual([["Bookings", "true"]]);
+    // And the pages after they're sent
+    expect(marked("/contact/party/submitted")).toEqual([["Bookings", "true"]]);
+    expect(marked("/contact/play/submitted")).toEqual([["Bookings", "true"]]);
+  });
+
+  it("keeps any other form under /contact in Contact", () => {
+    expect(marked("/contact/verify")).toEqual([["Contact", "true"]]);
+    expect(marked("/contact/some-other-form")).toEqual([["Contact", "true"]]);
   });
 
   it("marks a page inside a section as that section, not as the page", () => {
     expect(marked("/whats-on/karaoke-with-ross")).toEqual([
       ["What's on", "true"],
     ]);
-    expect(marked("/contact/play")).toEqual([["Contact", "true"]]);
-    expect(marked("/contact/party/submitted")).toEqual([["Bookings", "true"]]);
   });
 
   it("marks nothing on home or on a page outside the five", () => {

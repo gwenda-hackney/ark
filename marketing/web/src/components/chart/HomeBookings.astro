@@ -3,7 +3,9 @@
  * Home's Bookings (#240), IV in the navigation: the section's heading and
  * note, then the two halves, a party and playing here (BookingHalves, the
  * same as on /bookings). Home's own links to Bookings come down here; from
- * every other page Bookings goes to its page.
+ * every other page Bookings goes to its page. Like every section on home it
+ * links on to its page: "More →" by the heading, as Photos does, since the
+ * halves have their own buttons.
  */
 import { siteConfig } from "../../config/site";
 import BookingHalves from "./BookingHalves.astro";
@@ -18,7 +20,16 @@ const words = siteConfig.copy.bookings;
 >
   <header class="ch-home-head">
     <h2 class="ch-poster" id="home-bookings">{words.heading}</h2>
-    <p class="ch-home-head-note">{words.note}</p>
+    <div class="ch-home-head-end">
+      <p class="ch-home-head-note">{words.note}</p>
+      <a
+        href="/bookings"
+        class="ch-photos-more-link"
+        aria-label="More on bookings"
+      >
+        More <span aria-hidden="true">→</span>
+      </a>
+    </div>
   </header>
 
   <BookingHalves />

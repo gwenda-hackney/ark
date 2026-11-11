@@ -594,6 +594,15 @@
   }
 }
 
+/* Bookings: its note and the way on to its page together, at the end of
+   the head where the other sections' notes sit */
+.ch-home-head-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 2.5rem;
+}
+
 /* Photos last: one row, and the way to the rest beside the title */
 .ch-home-photos .ch-home-head {
   margin-bottom: 1.5rem;

@@ -68,3 +68,62 @@ test.describe("a wrong address", () => {
     });
   }
 });
+
+test.describe("one job per place", () => {
+  test("home's Bookings links on to its page, by the heading, as Photos does", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const more = page
+      .locator("#bookings .ch-home-head")
+      .getByRole("link", { name: "More on bookings" });
+    await expect(more).toHaveAttribute("href", "/bookings");
+    await expect(more).toHaveClass(/\bch-photos-more-link\b/);
+  });
+
+  test("Bookings has the party and the play, each with its way to the form", async ({
+    page,
+  }) => {
+    await page.goto("/bookings");
+    await expect(
+      page.locator("#party").getByRole("link", { name: "Book your party" }),
+    ).toHaveAttribute("href", "/contact/party");
+    await expect(
+      page.locator("#play").getByRole("link", { name: "Apply to play" }),
+    ).toHaveAttribute("href", "/contact/play");
+  });
+
+  test("Contact is finding us and the list, not a party or playing", async ({
+    page,
+  }) => {
+    await page.goto("/contact");
+    await expect(page.locator("#find-us")).toBeVisible();
+    await expect(page.locator("#list")).toBeVisible();
+    await expect(page.locator("#party, #play")).toHaveCount(0);
+    const main = page.locator("main");
+    await expect(
+      main.locator('a[href^="/contact/party"], a[href^="/contact/play"]'),
+    ).toHaveCount(0);
+  });
+
+  for (const path of ["/contact/party", "/contact/play"]) {
+    test(`${path} is in Bookings in the navigation`, async ({ page }) => {
+      await page.goto(path);
+      const nav = page.locator(".ch-bar");
+      await expect(nav.getByRole("link", { name: "Bookings" })).toHaveAttribute(
+        "aria-current",
+        "true",
+      );
+      await expect(
+        nav.getByRole("link", { name: "Contact" }),
+      ).not.toHaveAttribute("aria-current", /.+/);
+    });
+  }
+
+  test("the foot's Play here goes to Bookings' play half", async ({ page }) => {
+    await page.goto("/bar");
+    await expect(
+      page.locator(".ch-footer").getByRole("link", { name: "Play here" }),
+    ).toHaveAttribute("href", "/bookings#play");
+  });
+});
