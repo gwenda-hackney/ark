@@ -64,10 +64,11 @@ describe("groupPages", () => {
 		]);
 	});
 
-	it("keeps Website out of Programme", () => {
+	it("keeps Website out of Programme, and the weekly email in it", () => {
 		assert.deepEqual(ids("programme"), [
 			["events-series", "events-schedule"],
 			["artist", "forms"],
+			["email"],
 		]);
 	});
 
@@ -104,7 +105,7 @@ describe("stripGroups", () => {
 			"Reconcile",
 			"Export",
 		]);
-		assert.deepEqual(labels("programme"), ["Series", "Schedule", "Artist", "Applications"]);
+		assert.deepEqual(labels("programme"), ["Series", "Schedule", "Artist", "Applications", "Email"]);
 		assert.deepEqual(labels("website"), ["Website", "Developer tools"]);
 	});
 

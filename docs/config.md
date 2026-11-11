@@ -135,6 +135,8 @@ Ops **Developer tools → Settings** lists every setting in its environment and 
 | `lightspeed.archive_skus` | per env / ops | Lightspeed SKUs archived from the ops stock view | |
 | `website.auto_update` | per env / ops | Whether a saved event goes on the website by itself. On unless the value is `off`; no row means on. See below. | dev row |
 | `ops.admin_emails` | all / ops | Who sees Developer tools (everyone in dev) | |
+| `weekly_email.sending` | per env / ops | The weekly what's on email goes to the mailing list only when production's row says `on`. No row, or anything else, is off. Changed by an admin on ops' Weekly email page. See [ops README](../ops/site/README.md#weekly-email). | |
+| `weekly_email.mode`, `.day`, `.time`, `.notify_emails` | per env / ops | Weekly email: `approve` to make each one wait for an admin (otherwise it sends by itself), the day (`mon`…`sun`, default `tue`), the London time (`HH:MM`, default `11:00`), and who is told when one waits or fails (default: the admins). | |
 | `forms.notify_email` | dev / web | Form notifications outside production: `alerts@gwenda.co.uk`. Required outside production (none means no email). Production has no row: each form's own address. | **`FORMS_NOTIFY_EMAIL`** in `.env` (your email) |
 
 Do **not** put credentials here.

@@ -176,6 +176,7 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/events/schedule"), true);
     assert.equal(isSpaDocumentPath("/events/new"), true);
     assert.equal(isSpaDocumentPath("/web"), true);
+    assert.equal(isSpaDocumentPath("/email"), true);
     assert.equal(isSpaDocumentPath("/forms"), true);
     assert.equal(isSpaDocumentPath("/more"), true);
     assert.equal(isSpaDocumentPath("/more/x"), false);
@@ -309,6 +310,7 @@ describe("spa-path", () => {
     assert.equal(navigationLeavesEditor("/events/12/gallery", "/events/12"), false);
     assert.equal(navigationLeavesEditor("/events/12", "/events"), true);
     assert.equal(shellPageKey("/web"), "web");
+    assert.equal(shellPageKey("/email"), "email");
     assert.equal(shellPageKey("/forms"), "forms");
     assert.equal(shellPageKey("/forms/12"), "forms");
     assert.deepEqual(parseShellPath("/forms/12"), { page: "forms", slug: "12" });

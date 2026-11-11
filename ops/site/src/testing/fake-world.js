@@ -7,7 +7,9 @@
  *   each reachable only with its own token, as in real life.
  * - Sanity: documents in memory, queried with groq-js (the real GROQ engine)
  *   under the raw / published / previewDrafts perspectives.
- * - Google: service-account tokens, Drive folders, Calendar events.
+ * - Google: service-account tokens, Drive folders, Calendar events, Gmail sends.
+ * - Mailchimp: one audience and its campaigns. A world's env has no Mailchimp
+ *   key, like dev; `world.mailchimp.connect(world.env)` gives it one.
  *
  * Every world gets fresh random tokens, so ops' module-level caches (keyed by
  * token) never carry one test's data into the next. Anything not faked throws
@@ -448,6 +450,8 @@ class FakeGoogle {
   constructor() {
     this.driveFiles = new Map([[DRIVE_EVENTS_ROOT, { id: DRIVE_EVENTS_ROOT, name: "Events", mimeType: "application/vnd.google-apps.folder", parents: [] }]]);
     this.calendarEvents = new Map();
+    /** Mail sent through Gmail: { to, subject, text, message }. */
+    this.mail = [];
   }
 
   /** Calendar events on the events calendar, for assertions. */
@@ -464,6 +468,21 @@ class FakeGoogle {
     const method = (init.method || "GET").toUpperCase();
     if (url.host === "oauth2.googleapis.com" && url.pathname === "/token") {
       return json({ access_token: `google-token-${newId()}`, expires_in: 3600, token_type: "Bearer" });
+    }
+    if (url.host === "gmail.googleapis.com" && method === "POST" && url.pathname.endsWith("/messages/send")) {
+      const raw = JSON.parse(init.body || "{}").raw || "";
+      const message = Buffer.from(raw, "base64url").toString("utf8");
+      const header = (name) => message.match(new RegExp(`^${name}: (.*)$`, "mi"))?.[1]?.trim() || "";
+      // The text part, decoded when the composer encoded it.
+      const [head, ...rest] = message.split(/\r?\n\r?\n/);
+      const body = rest.join("\n\n");
+      const text = /^Content-Transfer-Encoding: base64/im.test(head)
+        ? Buffer.from(body, "base64").toString("utf8")
+        : /^Content-Transfer-Encoding: quoted-printable/im.test(head)
+          ? body.replace(/=\r?\n/g, "").replace(/=([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+          : body;
+      this.mail.push({ to: header("To"), subject: header("Subject"), text, message });
+      return json({ id: `gmail-${newId()}` });
     }
     if (url.pathname === "/upload/drive/v3/files" && method === "POST") return this.driveUpload(init);
     if (url.pathname.startsWith("/drive/v3/files")) return this.drive(url, init, method);
@@ -588,6 +607,160 @@ async function testServiceAccount() {
   return serviceAccountJson;
 }
 
+// -------------------------------------------------------------- Mailchimp
+
+/**
+ * Mailchimp's Marketing API with one audience, the way the real account has
+ * one. Nothing leaves the process: `tests` is every test email asked for,
+ * `audienceSends` every send to the whole audience, `log` every call.
+ * `fail` makes a step answer badly: { create | content | test | send |
+ * delete | audience | campaign: { status, detail, landed } } (`landed`: the
+ * send happened but the answer was an error, as when a response is lost).
+ */
+class FakeMailchimp {
+  constructor(suffix) {
+    this.key = `mc-${suffix}-us99`;
+    this.listId = "list-test";
+    this.memberCount = 244;
+    this.campaigns = new Map();
+    this.deleted = [];
+    this.tests = [];
+    this.audienceSends = [];
+    this.log = [];
+    this.fail = {};
+    this.nextCampaign = 1;
+  }
+
+  /** Give an env this account's key and audience. */
+  connect(env) {
+    env.MAILCHIMP_API_KEY = this.key;
+    env.MAILCHIMP_AUDIENCE_ID = this.listId;
+  }
+
+  /** Campaigns still in the account. */
+  drafts() {
+    return [...this.campaigns.values()].filter((campaign) => campaign.status === "save");
+  }
+
+  failure(step) {
+    const failure = this.fail[step];
+    if (!failure) return null;
+    if (failure.once) delete this.fail[step];
+    return failure;
+  }
+
+  refuse(failure) {
+    return json({ title: "Error", status: failure.status || 500, detail: failure.detail || "It broke." }, failure.status || 500);
+  }
+
+  handle(url, init) {
+    const method = (init.method || "GET").toUpperCase();
+    const path = url.pathname.replace(/^\/3\.0/, "");
+    this.log.push(`${method} ${path}`);
+    if (url.host !== "us99.api.mailchimp.com") throw new Error(`Fake Mailchimp: wrong data centre ${url.host}`);
+    if ((init.headers?.Authorization || init.headers?.authorization) !== `Basic ${btoa(`anystring:${this.key}`)}`) {
+      return json({ title: "API Key Invalid", status: 401, detail: "Your API key may be invalid." }, 401);
+    }
+    const body = init.body ? JSON.parse(init.body) : {};
+    const step = (name) => this.failure(name);
+
+    if (method === "GET" && path === `/lists/${this.listId}`) {
+      const failure = step("audience");
+      if (failure) return this.refuse(failure);
+      return json({
+        id: this.listId,
+        name: "Gwenda",
+        stats: { member_count: this.memberCount },
+        campaign_defaults: { from_name: "Gwenda", from_email: "hello@example.com" },
+      });
+    }
+    if (method === "POST" && path === "/campaigns") {
+      const failure = step("create");
+      if (failure) return this.refuse(failure);
+      if (body.recipients?.list_id !== this.listId) return json({ status: 400, detail: "No such list." }, 400);
+      const id = `camp${this.nextCampaign}`;
+      const campaign = {
+        id,
+        web_id: 5000 + this.nextCampaign,
+        type: body.type,
+        status: "save",
+        emails_sent: 0,
+        send_time: "",
+        recipients: { list_id: this.listId, recipient_count: this.memberCount },
+        settings: { ...body.settings },
+        content: null,
+      };
+      this.nextCampaign += 1;
+      this.campaigns.set(id, campaign);
+      return json(campaign);
+    }
+    const match = path.match(/^\/campaigns\/([^/]+)(\/content|\/actions\/test|\/actions\/send)?$/);
+    if (!match) throw new Error(`Fake Mailchimp: unhandled ${method} ${path}`);
+    const campaign = this.campaigns.get(match[1]);
+    const missing = () => json({ title: "Resource Not Found", status: 404, detail: "The requested resource could not be found." }, 404);
+    const action = match[2] || "";
+    if (!action && method === "GET") {
+      const failure = step("campaign");
+      if (failure) return this.refuse(failure);
+      return campaign ? json(campaign) : missing();
+    }
+    if (!action && method === "PATCH") {
+      if (!campaign) return missing();
+      Object.assign(campaign.settings, body.settings || {});
+      return json(campaign);
+    }
+    if (!action && method === "DELETE") {
+      const failure = step("delete");
+      if (failure) return this.refuse(failure);
+      if (!campaign) return missing();
+      if (campaign.status !== "save") return json({ status: 400, detail: "A sent campaign can't be deleted this way." }, 400);
+      this.campaigns.delete(campaign.id);
+      this.deleted.push(campaign);
+      return new Response(null, { status: 204 });
+    }
+    if (action === "/content" && method === "PUT") {
+      const failure = step("content");
+      if (failure) return this.refuse(failure);
+      if (!campaign) return missing();
+      campaign.content = { html: body.html, plain_text: body.plain_text };
+      return json(campaign.content);
+    }
+    if (action === "/actions/test" && method === "POST") {
+      const failure = step("test");
+      if (failure) return this.refuse(failure);
+      if (!campaign) return missing();
+      if (!campaign.content?.html) return json({ status: 400, detail: "The campaign has no content." }, 400);
+      this.tests.push({
+        campaignId: campaign.id,
+        to: body.test_emails,
+        subject: campaign.settings.subject_line,
+        html: campaign.content.html,
+      });
+      return new Response(null, { status: 204 });
+    }
+    if (action === "/actions/send" && method === "POST") {
+      const failure = step("send");
+      if (failure && !failure.landed) return this.refuse(failure);
+      if (!campaign) return missing();
+      // Like Mailchimp: a campaign goes out once.
+      if (campaign.status !== "save") return json({ status: 400, detail: "This campaign has already been sent." }, 400);
+      if (!campaign.content?.html) return json({ status: 400, detail: "The campaign has no content." }, 400);
+      campaign.status = "sent";
+      campaign.emails_sent = this.memberCount;
+      campaign.send_time = new Date().toISOString();
+      this.audienceSends.push({
+        campaignId: campaign.id,
+        subject: campaign.settings.subject_line,
+        html: campaign.content.html,
+        recipients: this.memberCount,
+      });
+      if (failure) return this.refuse(failure);
+      return new Response(null, { status: 204 });
+    }
+    throw new Error(`Fake Mailchimp: unhandled ${method} ${path}`);
+  }
+}
+
 // ------------------------------------------------------------------ world
 
 function json(body, status = 200) {
@@ -603,6 +776,7 @@ export async function createFakeWorld() {
   const sanity = new FakeSanity();
   const google = new FakeGoogle();
   const suffix = crypto.randomUUID();
+  const mailchimp = new FakeMailchimp(suffix);
   const opsToken = `ops-${suffix}`;
   const configToken = `config-${suffix}`;
   baserow.addWorkspace(opsToken, opsTables());
@@ -643,6 +817,7 @@ export async function createFakeWorld() {
     if (url.host === FILES_HOST) return baserow.serveFile(url);
     if (url.host.endsWith(".api.sanity.io") || url.host.endsWith(".apicdn.sanity.io")) return sanity.handle(url, merged);
     if (url.host.endsWith("googleapis.com")) return google.handle(url, merged);
+    if (url.host.endsWith(".api.mailchimp.com")) return mailchimp.handle(url, merged);
     // The Sanity image CDN: the bytes of any asset, by its address.
     if (url.host === "cdn.sanity.io") {
       return new Response(new Blob([url.pathname, new Uint8Array(1024).fill(5)]), { headers: { "Content-Type": "image/jpeg" } });
@@ -655,6 +830,7 @@ export async function createFakeWorld() {
     baserow,
     sanity,
     google,
+    mailchimp,
     calls,
     install() {
       globalThis.fetch = fakeFetch;
