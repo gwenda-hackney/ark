@@ -14,7 +14,7 @@ All Gwenda email (RSVP confirmations, form mail, ops and site-health alerts) goe
 | Credential | Google service account with domain-wide delegation for `gmail.send` | Secrets Manager `GOOGLE_SERVICE_ACCOUNT_JSON` (Ark/Ops); apps read it as `GMAIL_SERVICE_ACCOUNT_JSON` |
 | RSVP From | `Gwenda Events <events@gwenda.co.uk>` (no-reply) | `EVENTS_FROM` in `shared/mail-from.js` |
 | Staff notifications, alerts From | `Gwenda <notifications@gwenda.co.uk>` | `NOTIFICATIONS_FROM` |
-| Form From / Reply-To / notify | e.g. `play@gwenda.co.uk` | Sanity form document (falls back to the events address) |
+| Form From / Reply-To / notify | `play@gwenda.co.uk` (Play at Gwenda's), `enquiries@gwenda.co.uk` (party enquiries) | Sanity form document (falls back to the events address) |
 | Alert recipient | `alerts@gwenda.co.uk` | Wrangler `ALERT_EMAIL` |
 
 The service account impersonates `notifications@` and sends as it, or as an alias or group that mailbox may send as. The addresses are the same in every environment, so they are code constants, not config.
@@ -32,6 +32,7 @@ Event confirmations include on-brand HTML with the logo, a calendar ticket (`.ic
 - [ ] **One user**: `notifications@gwenda.co.uk`
 - [ ] **Alias** on that user (Admin → Directory → Users → notifications@ → User information → Email aliases): `events@gwenda.co.uk`
 - [ ] **Google Group** `play@gwenda.co.uk` for form mail: members who should receive submissions; allow `notifications@` to send as the group.
+- [ ] **Google Group** `enquiries@gwenda.co.uk` for party enquiries: members who should receive them; allow `notifications@` to send as the group. It must accept posts from `notifications@` (the enquiries) and from outside the organisation (customers replying to their receipt).
 - [ ] **Google Group** `alerts@gwenda.co.uk` for ops alerts: members who should get site health and form infrastructure mail. Only the organisation (or `notifications@` as a member) may post, never the public internet.
 - [ ] **Service account** in Google Cloud, with its JSON key stored in Secrets Manager as `GOOGLE_SERVICE_ACCOUNT_JSON`.
 - [ ] **Domain-wide delegation** in Admin → Security → Access and data control → API controls → Domain-wide delegation: add the service account's client ID with the scope `https://www.googleapis.com/auth/gmail.send`.
@@ -70,6 +71,7 @@ By hand, locally:
 - [ ] Open a valid invite: `/events/<slug>?event-password=<three-word-password>`
 - [ ] RSVP **Yes** with your email, then check the inbox (and spam) for From **Gwenda Events** / `events@gwenda.co.uk`, the logo, and `gwenda-ticket.ics`
 - [ ] Submit `/contact/play`: From / Reply-To show `play@gwenda.co.uk`, and the notification arrives at `FORMS_NOTIFY_EMAIL` from your `.env`
+- [ ] Submit `/contact/party`: From / Reply-To show `enquiries@gwenda.co.uk`, and the notification arrives at `FORMS_NOTIFY_EMAIL` from your `.env`
 
 The RSVP is saved even if email fails (best-effort). Check the terminal for `RSVP confirmation email failed` if nothing arrives.
 
@@ -88,7 +90,7 @@ The RSVP is saved even if email fails (best-effort). Check the terminal for `RSV
 |---------|-------|
 | No email at all | `GMAIL_SERVICE_ACCOUNT_JSON` present? Locally: `npm run env:status`. Hosted: secrets synced and the site redeployed? |
 | `Gmail token failed (401/403)` | Domain-wide delegation missing, or the scope isn't exactly `gmail.send`. |
-| “Sender address rejected” / wrong From | `events@` must be an Admin alias of `notifications@`; `play@` must let `notifications@` send as the group. |
+| “Sender address rejected” / wrong From | `events@` must be an Admin alias of `notifications@`; `play@` and `enquiries@` must each let `notifications@` send as the group. |
 
 ---
 

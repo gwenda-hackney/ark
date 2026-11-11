@@ -1,15 +1,57 @@
 ---
+/**
+ * Contact (#240): the one page for reaching us. How to find us (the map
+ * and the walk from the station), having a party here, playing here, and
+ * getting on the list.
+ */
+import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Subpage from "../components/Subpage.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import ChartMap from "../components/chart/ChartMap.astro";
+import EmailSignup from "../components/EmailSignup.astro";
+import OpeningHours from "../components/chart/OpeningHours.astro";
+import "../styles/chart-contact.css";
 import { siteConfig } from "../config/site";
-import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
-import { withHome } from "../lib/site-nav.js";
+import { directions } from "../data/directions";
+import { contactDrinksPhoto, homeDecksPhoto } from "../lib/chart-assets";
+import { fetchOpeningHours } from "../lib/sanity/opening-hours";
+import {
+  formPublicPath,
+  PARTY_FORM_SLUG,
+  PLAY_FORM_SLUG,
+} from "../lib/form-paths";
 
 const { contactPage } = siteConfig.copy;
-const contactNav = withHome([
-  { href: "/join-list", label: contactPage.listHeading },
-  { href: formPublicPath(PLAY_FORM_SLUG), label: contactPage.playHeading },
-]);
+const { social, location } = siteConfig;
+const week = await fetchOpeningHours();
+
+/** The four ways in, as cards at the top: each goes straight to its place */
+const cards = [
+  {
+    title: "Find us",
+    line: location.addressShort,
+    href: "#find-us",
+    arrow: "↓",
+  },
+  {
+    title: "Have a party",
+    line: contactPage.partyShort,
+    href: formPublicPath(PARTY_FORM_SLUG),
+    arrow: "→",
+  },
+  {
+    title: "Play here",
+    line: contactPage.playEyebrow,
+    href: formPublicPath(PLAY_FORM_SLUG),
+    arrow: "→",
+  },
+  {
+    title: "Get on the list",
+    line: contactPage.listEyebrow,
+    href: "/join-list",
+    arrow: "→",
+  },
+];
 ---
 
 <BaseLayout
@@ -17,39 +59,124 @@ const contactNav = withHome([
   description={siteConfig.seo.contact.description}
   showBooking={false}
 >
-  <Subpage
-    class="contact-hub"
-    innerClass="contact-hub-inner"
-    navItems={contactNav}
-    eyebrow={contactPage.eyebrow}
-    title={contactPage.heading}
+  <ChartPage
+    class="ch-find-page ch-contact-page"
+    title="Contact"
+    lead="Where we are, having a party, playing here, and how to hear what’s on."
   >
-    <p slot="lead">{contactPage.lead}</p>
+    <nav class="ch-contact-cards" aria-label="Contact">
+      {
+        cards.map((card) => (
+          <a href={card.href} class="ch-contact-card">
+            <span class="ch-contact-card-title">
+              {card.title}
+              <span class="ch-contact-card-arrow" aria-hidden="true">
+                {card.arrow}
+              </span>
+            </span>
+            <span class="ch-contact-card-line">{card.line}</span>
+          </a>
+        ))
+      }
+    </nav>
 
-    <div class="contact-hub-paths">
-      <article
-        class="contact-hub-path reveal reveal-stagger"
-        style="--reveal-delay: 0.08s"
+    <section class="ch-contact-part ch-find" id="find-us">
+      <h2 class="ch-sheet-head">Find us</h2>
+      <!--
+        One block: the map large on one side, the address, the way in a
+        word and the hours beside it. On a phone the address and the hours
+        come first, then the map, then the walk in words.
+      -->
+      <div class="ch-find-grid">
+        <div class="ch-find-where">
+          <p class="ch-find-address">
+            {location.streetAddress}<br />{location.addressLocality}
+            {location.postalCode}
+          </p>
+          <p class="ch-find-intro">{directions.intro}</p>
+          <a
+            href={directions.mapsUrl}
+            class="ch-btn ch-btn--solid"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Directions on Google Maps
+            <span aria-hidden="true">↗</span>
+            <span class="visually-hidden">(opens Google Maps)</span>
+          </a>
+        </div>
+        <OpeningHours week={week} today class="ch-find-hours" />
+        <ChartMap class="ch-find-map" />
+        <section class="ch-find-walk">
+          <h3 class="ch-find-head">{directions.fromStation.heading}</h3>
+          <ol class="ch-find-steps">
+            {directions.fromStation.steps.map((step) => <li>{step}</li>)}
+          </ol>
+          <p class="ch-find-by-water">{directions.fromStation.byWater}</p>
+          <p class="ch-find-note">{directions.fromStation.note}</p>
+        </section>
+        <section class="ch-find-towpath">
+          <h3 class="ch-find-head">{directions.fromTowpath.heading}</h3>
+          <p>{directions.fromTowpath.text}</p>
+        </section>
+      </div>
+    </section>
+
+    <section class="ch-contact-part ch-contact-play" id="party">
+      <div>
+        <h2 class="ch-sheet-head">{contactPage.partyHeading}</h2>
+        <p>{contactPage.partyLead}</p>
+        <a href={formPublicPath(PARTY_FORM_SLUG)} class="ch-btn ch-btn--solid"
+          >{contactPage.partyCta}</a
+        >
+      </div>
+      <a
+        href={formPublicPath(PARTY_FORM_SLUG)}
+        class="ch-contact-photo ch-print"
+        tabindex="-1"
+        aria-hidden="true"
       >
-        <p class="contact-hub-path-eyebrow">{contactPage.listEyebrow}</p>
-        <h2>{contactPage.listHeading}</h2>
-        <p>{contactPage.listLead}</p>
-        <a href="/join-list" class="btn btn-primary">{contactPage.listCta}</a>
-      </article>
+        <Image {...contactDrinksPhoto} alt="" loading="lazy" />
+        <span class="ch-print-note">{contactPage.partyPhotoNote}</span>
+      </a>
+    </section>
 
-      <div class="contact-hub-rule" aria-hidden="true"></div>
-
-      <article
-        class="contact-hub-path reveal reveal-stagger"
-        style="--reveal-delay: 0.16s"
-      >
-        <p class="contact-hub-path-eyebrow">{contactPage.playEyebrow}</p>
-        <h2>{contactPage.playHeading}</h2>
+    <section class="ch-contact-part ch-contact-play" id="play">
+      <div>
+        <h2 class="ch-sheet-head">{contactPage.playHeading}</h2>
         <p>{contactPage.playLead}</p>
-        <a href={formPublicPath(PLAY_FORM_SLUG)} class="btn btn-ghost"
+        <a href={formPublicPath(PLAY_FORM_SLUG)} class="ch-btn ch-btn--solid"
           >{contactPage.playCta}</a
         >
-      </article>
-    </div>
-  </Subpage>
+      </div>
+      <a
+        href={formPublicPath(PLAY_FORM_SLUG)}
+        class="ch-contact-photo ch-print"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <Image {...homeDecksPhoto} alt="" loading="lazy" />
+        <span class="ch-print-note">{contactPage.playPhotoNote}</span>
+      </a>
+    </section>
+
+    <section class="ch-contact-part" id="list" data-focus-on-arrival="anchor">
+      <h2 class="ch-sheet-head">{contactPage.listHeading}</h2>
+      <p>{contactPage.listLead}</p>
+      <div class="ch-form">
+        <EmailSignup mode="promo" embedded />
+      </div>
+      <p class="ch-contact-also">
+        Or follow <a
+          href={social.instagram}
+          class="ch-link"
+          target="_blank"
+          rel="noopener noreferrer">@gwendahackney</a
+        > on Instagram, or write to <a
+          href={`mailto:${siteConfig.contact.email}`}
+          class="ch-link">{siteConfig.contact.email}</a
+        >.
+      </p>
+    </section>
+  </ChartPage>
 </BaseLayout>

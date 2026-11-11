@@ -251,7 +251,7 @@ export async function resendFormEmail(env, rowId, kind) {
 
   let sent;
   if (kind === "notify") {
-    sent = await sendFormNotificationEmail(env, { form, answers });
+    sent = await sendFormNotificationEmail(env, { form, answers, rowId });
   } else {
     const email = row.replyTo.trim().toLowerCase();
     if (!email) throw httpError("Submission has no reply-to email.", 400);

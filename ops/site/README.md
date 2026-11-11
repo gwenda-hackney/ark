@@ -52,6 +52,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/sections` | Guest menu sections |
 | `/web` | The website and its preview: what is waiting, health, publish |
 | `/forms` | People who submitted a site form |
+| `/venue` | Venue details: the opening hours and the party facts (how many fit, what's included, how soon we reply), which go on the website when saved |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow config database) |
 

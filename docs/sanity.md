@@ -55,9 +55,9 @@ The ops editor is not technical, so ops uses plain words: *preview site* and *we
 ### Code (developers)
 
 1. Merge to `main`: CI deploys dev (ops and both dev sites) with the unit tests and smoke tests. Unreleased code is tried there, against dev data. Other branches get a branch preview on the dev website.
-2. Merge `main` into `release`: CI builds prod's **preview** from the release code on drafts over published, runs pre-deploy migrations, and runs the deep smoke test with a test email and a real play-form submission (both to alerts@, test row deleted).
+2. Merge `main` into `release`: CI builds prod's **preview** from the release code on drafts over published, runs pre-deploy migrations, and runs the deep smoke test with a test email and a real submission of each form it tests (Play at Gwenda and the party enquiry, `SMOKE_FORMS` in `marketing/web/functions/_lib/form-smoke.js`; all to alerts@, test rows deleted). A form that a post-deploy migration has yet to make is reported as waiting here, and submitted by its first promote.
 3. Check the preview. Publish anything waiting in ops if it should go live with the code.
-4. Run **Web promote** by hand: it rebuilds the live site from `release` and published documents, runs the checks, then the post-deploy migrations (docs/migrations.md).
+4. Run **Web promote** by hand: it rebuilds the live site from `release` and published documents, runs the checks (the same form submissions), then the post-deploy migrations (docs/migrations.md), then submits any form those migrations have just made.
 
 ### Developer tools (admins)
 

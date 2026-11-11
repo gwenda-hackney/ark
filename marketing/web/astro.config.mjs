@@ -2,6 +2,7 @@ import { defineConfig, envField } from "astro/config";
 import { resolve } from "node:path";
 import { loadEnv } from "vite";
 import { devSiteGate } from "./scripts/dev-site-gate.js";
+import { devOwnOrigin } from "./scripts/lib/dev-own-origin.mjs";
 import { missingLocalSettings } from "../../shared/config.js";
 import {
   issueSubscribeTokens,
@@ -708,10 +709,15 @@ function devEventPages() {
               // Dev annotates every tag (<series-body data-astro-source-file=…>),
               // which hides the tags the fill replaces; the build doesn't.
               (
-                await (
-                  await fetch(new URL(path, url), {
-                    headers: { cookie: req.headers.cookie || "" },
-                  })
+                await // From the server itself, not the address the browser used:
+                // a forwarded port (localhost:4322) isn't open in here.
+                (
+                  await fetch(
+                    new URL(path, devOwnOrigin(server.httpServer?.address())),
+                    {
+                      headers: { cookie: req.headers.cookie || "" },
+                    },
+                  )
                 ).text()
               ).replace(/ data-astro-source-(?:file|loc)="[^"]*"/g, ""),
           );

@@ -1,0 +1,38 @@
+---
+/**
+ * Home's photos (#240): the newest few in two rows, at the foot of home; the
+ * rest are on /photos. Which ones is lib/photos.js (homePhotoPlan): never
+ * one a menu board already has pinned up.
+ */
+import { homePhotoPlan } from "../../lib/photos.js";
+import { galleryPhotos } from "../../lib/photo-sources";
+import PhotoWall from "./PhotoWall.astro";
+
+const { row: photos, more } = homePhotoPlan(galleryPhotos());
+---
+
+{
+  photos.length > 0 && (
+    <section
+      class="ch-home-section ch-photos ch-home-photos"
+      id="photos"
+      aria-labelledby="home-photos"
+    >
+      <header class="ch-home-head">
+        <h2 class="ch-poster" id="home-photos">
+          Photos
+        </h2>
+        {more > 0 && (
+          <a
+            href="/photos"
+            class="ch-photos-more-link"
+            aria-label="More photos"
+          >
+            More <span aria-hidden="true">→</span>
+          </a>
+        )}
+      </header>
+      <PhotoWall photos={photos} row />
+    </section>
+  )
+}

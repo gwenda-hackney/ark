@@ -12,10 +12,11 @@ import { initOverlayScrollbars } from "./scrollbar.js";
 import { initContactForm, initContactFormSubmitted } from "./contact-form.js";
 import { currentPageAnchorId, pageAnchorSections } from "./page-anchors.js";
 import { initSchedulePage } from "./schedule.js";
-import { initHomeNext, initSeriesPage, initWhatsOnPage } from "./whats-on.js";
+import { initHomeNext, initWhatsOnPage } from "./whats-on.js";
 import { initArtistLive } from "./artist-live.js";
 import { initGallery } from "./gallery.js";
 import { fadeInEventPhotos } from "./image-fade.js";
+import { initFocusOnArrival } from "./focus-on-arrival.js";
 
 /** @type {AbortController | null} */
 let pageAbort = null;
@@ -538,7 +539,6 @@ function initPage() {
   initHomeNext();
   initArtistLive();
   initWhatsOnPage();
-  initSeriesPage();
   initSchedulePage();
 
   let teardownSectionHash = () => {};
@@ -555,11 +555,9 @@ function initPage() {
     teardownMenuToc = initMenuToc();
   });
 
-  const signupForm = document.getElementById("signup-form");
-  if (
-    signupForm instanceof HTMLFormElement &&
-    signupForm.dataset.gwBound !== "1"
-  ) {
+  // The page's own sign-up (home, /contact, /join-list) and the one in the foot
+  for (const signupForm of document.querySelectorAll("form.signup-form")) {
+    if (signupForm.dataset.gwBound === "1") continue;
     signupForm.dataset.gwBound = "1";
     initSignup(signupForm);
   }
@@ -577,6 +575,8 @@ function initPage() {
   if (document.getElementById("contact-success")) {
     initContactFormSubmitted();
   }
+  // After the forms have put back what was typed, so it picks the first empty box.
+  initFocusOnArrival({ signal });
 }
 
 document.addEventListener("astro:page-load", initPage);

@@ -1,5 +1,6 @@
 import { sanityQuery } from "./sanity-query.js";
 import { portableTextToRich } from "./rich-text.js";
+import { categoryOf } from "../../src/lib/promotions.js";
 import {
   resolveHeroUrl,
   resolveSeriesHeroUrl,
@@ -14,6 +15,7 @@ const EVENTS_LIST_QUERY = `*[_type == "event" && coalesce(eventType, "public") =
   pageUrl,
   seriesId,
   seriesTitle,
+  category,
   recurrence,
   isSpecialEdition,
   time,
@@ -39,6 +41,7 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   "id": slug.current,
   formerSlugs,
   title,
+  category,
   schedule,
   datesPending,
   "gallery": gallery[]{
@@ -52,6 +55,7 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   },
   recurrence,
   replacesSeriesId,
+  pageUrl,
   shortDescription,
   nightSchedule[]{ label, startTime, endTime },
   description,
@@ -75,6 +79,7 @@ export async function fetchPublishedEvents(env) {
       pageUrl: String(row.pageUrl || "").trim(),
       seriesId: row.seriesId || row.id,
       seriesTitle: row.seriesTitle || "",
+      category: categoryOf(row),
       recurrence: row.recurrence || "",
       isSpecialEdition: Boolean(row.isSpecialEdition),
       time: row.time || "",
@@ -113,6 +118,8 @@ export async function fetchPublishedSeries(env) {
       seriesId: row.id,
       formerSlugs: Array.isArray(row.formerSlugs) ? row.formerSlugs : [],
       title: row.title,
+      // A night, a promotion or a pop-up kitchen (#240).
+      category: categoryOf(row),
       schedule:
         row.schedule === "repeating"
           ? "repeating"
@@ -120,6 +127,8 @@ export async function fetchPublishedSeries(env) {
             ? "once"
             : "manual",
       replacesSeriesId: String(row.replacesSeriesId || "").trim(),
+      // The series' own link from ops: its page elsewhere, or one of our forms.
+      pageUrl: String(row.pageUrl || "").trim(),
       datesPending: row.datesPending === true,
       gallery: Array.isArray(row.gallery) ? row.gallery : [],
       recurrence: row.recurrence || "",

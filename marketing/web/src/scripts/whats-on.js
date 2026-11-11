@@ -2,12 +2,7 @@ import { formatShortEventDate } from "../../functions/_lib/event-series.js";
 import { artistRunLabel } from "../lib/artist-run.js";
 import { artistTeaser } from "../lib/artist-teaser.js";
 import { diaryGroups } from "../lib/diary-groups.js";
-import {
-  diaryCardModel,
-  nightCardModel,
-  renderEventCard,
-  seriesCardModel,
-} from "../lib/event-card.js";
+import { diaryCardModel, renderEventCard } from "../lib/event-card.js";
 
 /** One element from the shared card renderer (src/lib/event-card.js). */
 function cardElement(model) {
@@ -24,13 +19,6 @@ function seriesCard(event, { eager = false } = {}) {
   item.dataset.schedule = event.schedule === "once" ? "once" : "series";
   item.appendChild(cardElement(diaryCardModel(event, { eager })));
   return item;
-}
-
-/** Series page: one night. */
-function nightCard(night, detail, { eager = false } = {}) {
-  return cardElement(
-    nightCardModel(night, { eager, seriesSchedule: detail?.nightSchedule }),
-  );
 }
 
 function openHostJump(event, href) {
@@ -374,143 +362,5 @@ function setupLoadMore(content, list) {
       { rootMargin: "480px" },
     );
     observer.observe(more);
-  }
-}
-
-async function refreshSeriesDetail(page, root, { signal } = {}) {
-  const seriesId = root.dataset.seriesId || "";
-  if (!seriesId) throw new Error("Missing series.");
-  const res = await fetch(`/api/whats-on/${encodeURIComponent(seriesId)}`, {
-    credentials: "same-origin",
-    cache: "no-store",
-    signal,
-  });
-  if (signal?.aborted) return;
-  if (res.status === 404) {
-    window.location.assign("/whats-on");
-    return;
-  }
-  if (!res.ok) throw new Error(`Series failed (${res.status})`);
-  const data = await res.json();
-  if (signal?.aborted) return;
-  if (!document.contains(page) || !document.contains(root)) return;
-  const detail = data.series;
-  if (!detail) throw new Error("Series not found.");
-  page
-    .querySelector(".whats-on-series-main")
-    ?.replaceWith(cardElement(seriesCardModel(detail)));
-  page
-    .querySelector(".whats-on-series-pending")
-    ?.toggleAttribute("hidden", !detail.datesPending);
-  const list = root.querySelector(".events-list");
-  const nights = Array.isArray(detail.nights) ? detail.nights : [];
-  if (list instanceof HTMLOListElement && root.dataset.seriesRich === "true") {
-    list.replaceChildren(
-      ...nights.map((night, index) =>
-        nightCard(night, detail, { eager: index === 0 }),
-      ),
-    );
-  }
-  root.dataset.seriesNext = detail.next ? JSON.stringify(detail.next) : "";
-  page.dataset.live = "ready";
-}
-
-/** @type {AbortController | null} */
-let seriesAbort = null;
-
-export function initSeriesPage() {
-  const root = document.getElementById("series-nights");
-  if (!(root instanceof HTMLElement)) return;
-  const page = document.querySelector("main.whats-on-series-page");
-
-  seriesAbort?.abort();
-  seriesAbort = new AbortController();
-  const { signal } = seriesAbort;
-
-  const live = readsLiveDiary(pageSiteEnv()) && page instanceof HTMLElement;
-  if (live) page.dataset.live = "pending";
-
-  void (async () => {
-    if (live) {
-      try {
-        await refreshSeriesDetail(page, root, { signal });
-      } catch (error) {
-        if (signal.aborted || error?.name === "AbortError") return;
-        if (page.dataset.live === "pending") page.dataset.live = "static";
-      }
-    }
-    if (signal.aborted || !document.contains(root)) return;
-    setupSeriesLoadMore(root, signal);
-  })();
-}
-
-function setupSeriesLoadMore(root, signal) {
-  if (root.dataset.seriesRich !== "true") return;
-  const seriesId = root.dataset.seriesId || "";
-  let nextCursor = null;
-  try {
-    nextCursor = root.dataset.seriesNext
-      ? JSON.parse(root.dataset.seriesNext)
-      : null;
-  } catch {
-    nextCursor = null;
-  }
-  if (!seriesId || !nextCursor) return;
-
-  // Avoid stacking another infinite-scroll sentinel on re-init (View Transitions).
-  document.getElementById("series-more")?.remove();
-
-  let loadingMore = false;
-  const list = root.querySelector(".events-list");
-  if (!(list instanceof HTMLOListElement)) return;
-
-  const more = document.createElement("p");
-  more.id = "series-more";
-  more.className = "events-more";
-  root.appendChild(more);
-
-  async function loadMore() {
-    if (loadingMore || !nextCursor || signal.aborted) return;
-    loadingMore = true;
-    more.textContent = "Looking further ahead…";
-    try {
-      const params = new URLSearchParams({
-        after: nextCursor.after,
-        afterId: nextCursor.afterId || "",
-        limit: "6",
-      });
-      const res = await fetch(
-        `/api/whats-on/${encodeURIComponent(seriesId)}?${params}`,
-        { credentials: "same-origin", signal },
-      );
-      if (!res.ok) throw new Error(`Series failed (${res.status})`);
-      const data = await res.json();
-      if (signal.aborted || !document.contains(list)) return;
-      const detail = data.series;
-      const nights = Array.isArray(detail?.nights) ? detail.nights : [];
-      list.append(...nights.map((night) => nightCard(night, detail)));
-      nextCursor = detail?.next || null;
-      more.textContent = "";
-      if (!nextCursor) more.remove();
-    } catch (error) {
-      if (error?.name === "AbortError") return;
-      more.remove();
-      nextCursor = null;
-    } finally {
-      loadingMore = false;
-    }
-  }
-
-  if ("IntersectionObserver" in window) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) void loadMore();
-      },
-      { rootMargin: "480px" },
-    );
-    observer.observe(more);
-    signal.addEventListener("abort", () => observer.disconnect(), {
-      once: true,
-    });
   }
 }

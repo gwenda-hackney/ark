@@ -1,13 +1,19 @@
 ---
 import { Image } from "astro:assets";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import PageHeader from "../../components/PageHeader.astro";
-import Subpage from "../../components/Subpage.astro";
+import ChartPage from "../../components/chart/ChartPage.astro";
 import ContactForm from "../../components/ContactForm.astro";
+import PartyFacts from "../../components/chart/PartyFacts.astro";
 import { siteConfig } from "../../config/site";
-import { PLAY_FORM_SLUG, isReservedFormSlug } from "../../lib/form-paths";
+import {
+  PARTY_FORM_SLUG,
+  PLAY_FORM_SLUG,
+  isReservedFormSlug,
+} from "../../lib/form-paths";
 import { fetchFormBySlug, fetchFormSlugs } from "../../lib/sanity/forms";
-import turnTable from "../../assets/images/play/turn-table.jpg";
+import { fetchVenueDetails } from "../../lib/sanity/venue-details";
+import { partyDrinksPhoto, playDecksPhoto } from "../../lib/chart-assets";
+import "../../styles/chart-forms.css";
 
 export async function getStaticPaths() {
   try {
@@ -37,7 +43,29 @@ const pageDescription =
   form.intro?.trim() ||
   siteConfig.seo.home.description;
 
-const showTurntable = form.slug === PLAY_FORM_SLUG;
+/**
+ * The play and party forms open on a photo taped up and our own words, in
+ * place of the form's intro line. A form with no entry here shows its intro.
+ */
+const { playIntro, playPhotoNote, partyIntro, partyPhotoNote, partyPhotoAlt } =
+  siteConfig.copy.contactPage;
+const intro = {
+  [PLAY_FORM_SLUG]: {
+    ...playIntro,
+    photo: playDecksPhoto,
+    photoNote: playPhotoNote,
+    photoAlt: "",
+  },
+  [PARTY_FORM_SLUG]: {
+    ...partyIntro,
+    photo: partyDrinksPhoto,
+    photoNote: partyPhotoNote,
+    photoAlt: partyPhotoAlt,
+  },
+}[form.slug];
+/** The party form says what ops has on the room (how many fit, what's included, how soon we reply): only what's filled in. */
+const parties =
+  form.slug === PARTY_FORM_SLUG ? (await fetchVenueDetails()).parties : null;
 const eyebrow = form.eyebrow?.trim() || "";
 const heading = form.heading?.trim() || "";
 const showEyebrow =
@@ -45,65 +73,41 @@ const showEyebrow =
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
-  <Subpage
-    class:list={["contact-page", showTurntable && "contact-page--play"]}
-    innerClass="contact-inner"
-    href="/contact"
-    layout={showTurntable ? "split" : "stack"}
+  <ChartPage
+    class="ch-form-page ch-sheet-form-page"
+    title={heading}
+    lead={intro ? undefined : form.intro?.trim() || undefined}
   >
     {
-      showTurntable ? (
-        <aside slot="aside" class="contact-visual">
-          <div class="contact-visual-bg" aria-hidden="true" />
-          <div
-            class="contact-visual-stage"
-            data-play-parallax
-            aria-hidden="true"
-          >
-            <Image
-              src={turnTable}
-              alt=""
-              widths={[720, 1080, 1440]}
-              sizes="(min-width: 900px) 33vw, 100vw"
-              class="contact-visual-image"
-              loading="eager"
-              fetchpriority="high"
-            />
-          </div>
-          <div class="contact-visual-overlay" aria-hidden="true" />
-          <div class="contact-visual-vignette" aria-hidden="true" />
-        </aside>
-      ) : null
+      showEyebrow && (
+        <span slot="head" class="ch-caps">
+          {eyebrow}
+        </span>
+      )
     }
-
-    <div id="contact-panel" class="contact-panel">
-      {
-        showTurntable ? (
-          <header class="page-header page-header--start contact-header reveal">
-            <h1 class="contact-play-title">
-              <span class="contact-play-title-gold">Play</span>
-              <span class="contact-play-title-at"> at </span>
-              <span class="contact-play-title-name">Gwenda</span>
-            </h1>
-            {form.intro ? (
-              <div class="page-header-lead">
-                <p>{form.intro}</p>
-              </div>
-            ) : null}
-          </header>
-        ) : (
-          <PageHeader
-            class="contact-header"
-            eyebrow={showEyebrow ? eyebrow : undefined}
-            title={heading}
-            align="start"
-          >
-            {form.intro ? <p>{form.intro}</p> : null}
-          </PageHeader>
-        )
-      }
-
+    {
+      intro && (
+        <div class="ch-form-intro">
+          <div class="ch-form-intro-text">
+            <p class="ch-form-intro-lead">{intro.lead}</p>
+            <p>{intro.body}</p>
+            <PartyFacts parties={parties} />
+            <p class="ch-form-intro-cue">
+              {intro.cue}
+              <svg viewBox="0 0 28 40" aria-hidden="true">
+                <path d="M15 2c-5 9-6 20-2 33M4 25c3 4 6 8 9 11 2-4 6-9 11-12" />
+              </svg>
+            </p>
+          </div>
+          <figure class="ch-print">
+            <Image {...intro.photo} alt={intro.photoAlt} loading="eager" />
+            <figcaption class="ch-print-note">{intro.photoNote}</figcaption>
+          </figure>
+        </div>
+      )
+    }
+    <div id="contact-panel" class="ch-form" data-focus-on-arrival="page">
       <ContactForm form={form} />
     </div>
-  </Subpage>
+  </ChartPage>
 </BaseLayout>

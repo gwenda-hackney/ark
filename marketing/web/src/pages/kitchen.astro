@@ -1,0 +1,36 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import ChartMenu from "../components/chart/ChartMenu.astro";
+import StandingCards from "../components/chart/StandingCards.astro";
+import { siteConfig } from "../config/site";
+import { menuChapters } from "../data/menu";
+import { fetchWhatsOnCatalog } from "../lib/sanity/events";
+import { fetchMenu } from "../lib/sanity/menu";
+
+const menu = await fetchMenu();
+const chapters = menuChapters(menu, "kitchen");
+/** Who's in the kitchen: the pop-up, from What's on's catalog. */
+const { series, occurrences } = await fetchWhatsOnCatalog().catch(() => ({
+  series: [],
+  occurrences: [],
+}));
+---
+
+<BaseLayout
+  title={`Food · ${siteConfig.name}`}
+  description="Food at Gwenda, by the canal in Hackney Wick: what the kitchen’s cooking right now."
+  showBooking={false}
+>
+  <ChartPage class="ch-menu-page" title="Food">
+    <StandingCards
+      series={series}
+      occurrences={occurrences}
+      chapters={chapters}
+      show="popup"
+      headed={false}
+      top
+    />
+    <ChartMenu sections={chapters} empty="The kitchen menu’s on its way." />
+  </ChartPage>
+</BaseLayout>

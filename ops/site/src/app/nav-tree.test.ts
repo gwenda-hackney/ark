@@ -52,7 +52,7 @@ describe("NAV_ROUTES", () => {
 		assert.equal(settings?.heading, true);
 		assert.deepEqual(
 			settings?.children?.map((row) => row.id),
-			["users", "config", "dev-tools"],
+			["venue", "users", "config", "dev-tools"],
 		);
 	});
 });
@@ -89,6 +89,7 @@ describe("flattenNavRoutes", () => {
 				"artist",
 				"forms",
 				"web",
+				"venue",
 				"users",
 				"config",
 				"dev-tools",
@@ -170,7 +171,7 @@ describe("visibleRoutes", () => {
 	it("hides developer tools from non-admins", () => {
 		const ids = (list: typeof routes) =>
 			list.find((row) => row.id === "settings")?.children?.map((row) => row.id);
-		assert.deepEqual(ids(visibleRoutes(routes, false)), ["users", "config"]);
-		assert.deepEqual(ids(visibleRoutes(routes, true)), ["users", "config", "dev-tools"]);
+		assert.deepEqual(ids(visibleRoutes(routes, false)), ["venue", "users", "config"]);
+		assert.deepEqual(ids(visibleRoutes(routes, true)), ["venue", "users", "config", "dev-tools"]);
 	});
 });

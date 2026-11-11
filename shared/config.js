@@ -85,7 +85,7 @@ export const SETTINGS = {
   "clickup.events_list_id": { service: "ops", about: "ClickUp list for event tasks" },
   "website.auto_update": {
     service: "ops",
-    about: 'Saved events go on the website by themselves; "off" makes them wait for Update website',
+    about: 'Saved events and venue details go on the website by themselves; "off" makes them wait for Update website',
   },
   "ops.admin_emails": { service: "ops", about: "Who sees ops developer tools" },
   "lightspeed.archive_skus": { service: "ops", about: "POS SKUs ops treats as archived" },

@@ -1,0 +1,40 @@
+---
+/**
+ * The room (#240): the party facts from ops (Settings → Venue details)
+ * through the `venueDetails` document (lib/party-facts.js), on the party
+ * form's page under its intro. How many fit, what's included, how soon we
+ * reply, each fact on its own line and only those filled in. None filled
+ * in, nothing at all.
+ */
+import "../../styles/chart-party-facts.css";
+import { partyFactLines } from "../../lib/party-facts.js";
+import type { PartyFacts } from "../../lib/sanity/venue-details";
+
+interface Props {
+  parties: PartyFacts | null;
+  heading?: string;
+  class?: string;
+}
+
+const { parties, heading = "The room", class: className = "" } = Astro.props;
+const lines = partyFactLines(parties);
+const headingId = "party-facts-head";
+---
+
+{
+  lines.length > 0 && (
+    <section
+      class:list={["ch-party-facts", className]}
+      aria-labelledby={headingId}
+    >
+      <h2 class="ch-party-facts-head" id={headingId}>
+        {heading}
+      </h2>
+      <ul class="ch-party-facts-list">
+        {lines.map((line) => (
+          <li class={`is-${line.kind}`}>{line.text}</li>
+        ))}
+      </ul>
+    </section>
+  )
+}

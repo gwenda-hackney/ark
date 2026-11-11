@@ -7,6 +7,7 @@ import {
   formatFormReceiptSubject,
   replyToFromAnswers,
 } from "../../../../shared/forms/format.js";
+import { COLOURS } from "../../../../shared/email/shell.js";
 
 const sampleForm = {
   title: "Play at Gwenda",
@@ -363,12 +364,16 @@ describe("formatFormNotifyHtml", () => {
           value: "https://soundcloud.com/alex",
         },
       ],
-      year: 2026,
     });
 
-    expect(html).toContain("#0d0d0d");
-    expect(html).toContain("#c9a84c");
-    expect(html).toContain("Cormorant Garamond");
+    // The Gwenda Social look (shared/email/shell.js), not the old gold serif
+    expect(html).toContain(COLOURS.board);
+    expect(html).toContain(COLOURS.mustard);
+    expect(html).toContain("Protest Strike");
+    expect(html).not.toContain("Cormorant");
+    expect(html).not.toContain("#c9a84c");
+    expect(html).toContain("https://gwenda.co.uk/brand/logo-email-social.png");
+    expect(html).toContain("<title>Play at Gwenda: DJ Alex</title>");
     expect(html).toContain("DJ Alex");
     expect(html).toContain("About you");
     expect(html).toContain("Your music");
@@ -376,8 +381,50 @@ describe("formatFormNotifyHtml", () => {
     expect(html).toContain("https://soundcloud.com/alex");
     expect(html).not.toContain(">Phone<");
     expect(html).not.toContain("/contact/play");
-    expect(html).toContain("© 2026 Gwenda");
-    expect(html).toContain("Reply to write back");
+    expect(html).toContain("Gwenda Social · Unit 4003, 4 Schwartz Wharf");
+    expect(html).toContain("Reply to this email to write back");
+    // A transactional email: no mailing-list tags
+    expect(html).not.toContain("*|");
+    expect(html).not.toMatch(/unsubscribe/i);
+  });
+
+  it("links the submission in ops when it has one", () => {
+    const answers = [{ key: "name", label: "Name", value: "Alex" }];
+    const opsUrl = "https://gwenda-ops.pages.dev/forms/12";
+    expect(
+      formatFormNotifyHtml({ form: sampleForm, answers, opsUrl }),
+    ).toContain(`href="${opsUrl}"`);
+    expect(formatFormEmail({ form: sampleForm, answers, opsUrl })).toContain(
+      `In ops: ${opsUrl}`,
+    );
+    expect(formatFormNotifyHtml({ form: sampleForm, answers })).not.toContain(
+      "Open in ops",
+    );
+  });
+
+  it("escapes what people type, and survives long or missing answers", () => {
+    const long = "word ".repeat(400).trim();
+    const html = formatFormNotifyHtml({
+      form: sampleForm,
+      answers: [
+        { key: "name", label: "Name", value: '<script>alert("x")</script>' },
+        { key: "email", label: "Email", value: "alex@example.com" },
+        { key: "musicLink", label: "Link", value: 'https://a.example/"><b>' },
+        { key: "extra", label: "Not on the form <b>", value: long },
+      ],
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<b>");
+    expect(html).toContain("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;");
+    expect(html).toContain(long);
+    for (const variant of ["ops", "applicant"]) {
+      expect(() =>
+        formatFormNotifyHtml({ form: undefined, answers: undefined, variant }),
+      ).not.toThrow();
+      expect(() =>
+        formatFormEmail({ form: undefined, answers: undefined, variant }),
+      ).not.toThrow();
+    }
   });
 
   it("shows what changed on updates", () => {
@@ -396,9 +443,8 @@ describe("formatFormNotifyHtml", () => {
           kind: "text",
         },
       ],
-      year: 2026,
     });
-    expect(html).toContain("Update");
+    expect(html).toContain("Play at Gwenda · updated");
     expect(html).toContain("What changed");
     expect(html).toContain("<s ");
     expect(html).toContain("Alex");
@@ -423,7 +469,6 @@ describe("formatFormNotifyHtml", () => {
           added: ["Live"],
         },
       ],
-      year: 2026,
     });
     expect(html).toContain("<s ");
     expect(html).toContain("DJ");
@@ -439,14 +484,17 @@ describe("formatFormNotifyHtml", () => {
       ],
       variant: "applicant",
       editUrl: "https://gwenda.co.uk/contact/edit?t=token",
-      year: 2026,
     });
-    expect(html).toContain("Hi Alex,");
-    expect(html).toContain("Thank you for writing");
-    expect(html).toContain("Change your application");
-    expect(html).toContain("https://gwenda.co.uk/contact/edit?t=token");
+    expect(html).toContain("Got it");
+    expect(html).toContain("Thanks, Alex.");
+    expect(html).toContain("Change it");
+    expect(html).toContain('href="https://gwenda.co.uk/contact/edit?t=token"');
+    expect(html).toContain(
+      "You’re getting this because you filled in Play at Gwenda on gwenda.co.uk.",
+    );
     expect(html).not.toContain("What changed");
-    expect(html).not.toContain("Reply to write back");
+    expect(html).not.toContain("Reply to this email");
+    expect(html).not.toContain("Open in ops");
     expect(html).not.toContain(">Received<");
     expect(html).not.toContain(">Updated<");
   });
@@ -459,7 +507,7 @@ describe("formatFormNotifySubject", () => {
         { key: "name", label: "Name", value: "Alex" },
         { key: "artistName", label: "Artist", value: "DJ Alex" },
       ]),
-    ).toBe("DJ Alex applied · Play at Gwenda");
+    ).toBe("Play at Gwenda: DJ Alex");
   });
 
   it("uses update wording when resubmitted", () => {
@@ -469,17 +517,15 @@ describe("formatFormNotifySubject", () => {
         [{ key: "name", label: "Name", value: "Dan" }],
         { updated: true },
       ),
-    ).toBe("Dan updated their application · Play at Gwenda");
+    ).toBe("Play at Gwenda updated: Dan");
   });
 });
 
 describe("formatFormReceiptSubject", () => {
-  it("uses thank-you and update subjects", () => {
-    expect(formatFormReceiptSubject(sampleForm)).toBe(
-      "Play at Gwenda | Thank you",
-    );
+  it("says got it, or got your changes", () => {
+    expect(formatFormReceiptSubject(sampleForm)).toBe("Got it: Play at Gwenda");
     expect(formatFormReceiptSubject(sampleForm, { updated: true })).toBe(
-      "Play at Gwenda | We received your update",
+      "Got your changes: Play at Gwenda",
     );
   });
 });

@@ -296,6 +296,7 @@ export async function publishEventPreview(
       formerSlugs: event.formerSlugs || [],
       takingApplications: event.takingApplications === true,
       category: event.category,
+      pageUrl: event.pageUrl,
     }),
   });
 

@@ -1,0 +1,25 @@
+---
+/**
+ * Every gallery photo (#240). Home shows the newest few and links here.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import PhotoWall from "../components/chart/PhotoWall.astro";
+import { galleryPhotos } from "../lib/photo-sources";
+
+const photos = galleryPhotos();
+---
+
+<BaseLayout
+  title="Photos · Gwenda"
+  description="Photos from Gwenda in Hackney Wick: the food, the room, the terrace and the decks."
+  showBooking={false}
+>
+  <ChartPage
+    class="ch-photos-page ch-photos"
+    title="Photos"
+    lead="The food, the room, the terrace and the decks."
+  >
+    <PhotoWall photos={photos} />
+  </ChartPage>
+</BaseLayout>

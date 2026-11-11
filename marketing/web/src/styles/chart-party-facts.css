@@ -1,0 +1,52 @@
+/*
+ * The room (#240, PartyFacts.astro): the party facts under the party form's
+ * intro, small, the way the opening hours sit on Contact: a heading in gold
+ * capitals, then a line for each fact over a drawn rule.
+ */
+.ch-party-facts {
+  max-width: 24rem;
+  margin: 0.25rem 0 1.75rem;
+}
+
+.ch-party-facts-head {
+  margin: 0 0 0.25rem;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ch-gold);
+}
+
+.ch-party-facts-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.ch-party-facts-list li {
+  padding: 0.3rem 0;
+  /* a trail under each: chart-rules.css */
+  color: var(--ch-ink);
+}
+
+/* How many fit leads, a shade brighter */
+.ch-party-facts-list .is-capacity {
+  color: var(--ch-cream);
+  font-variant-numeric: tabular-nums;
+}
+
+.ch-party-facts-list .is-reply {
+  color: var(--ch-ink-2);
+  font-style: italic;
+}
+
+@media (max-width: 56rem) {
+  .ch-party-facts {
+    max-width: none;
+    margin-bottom: 1.25rem;
+  }
+}

@@ -1,0 +1,306 @@
+---
+/**
+ * The deals and the pop-up kitchen (#240), each a section of its own: a
+ * heading, then cards in the family of the night cards: the picture in a
+ * frame with a tag stuck on its corner where a night has its date ("Deal",
+ * "Pop-up kitchen"), the name, when it runs, a line. The whole card leads
+ * to its own page on What's on, deal and pop-up alike; a pop-up's small
+ * links go on to its menu and to the cooks themselves. A
+ * promotion or a pop-up kitchen is a series ops marks as one
+ * (lib/promotions.js, lib/popup-kitchen.js); What's on leaves their nights
+ * out. A section with nothing in it isn't there at all. On home the two
+ * sit side by side, part of What's on (`home`): the next three of each at
+ * most, small and one under another when there's more than one, and a line
+ * to the rest (lib/home-stands.js).
+ */
+import { Image } from "astro:assets";
+import "../../styles/chart-nights.css";
+import { siteConfig } from "../../config/site";
+import { chartFlag, guestChefLogo } from "../../lib/chart-assets";
+import { formatEventSpan } from "../../data/events";
+import {
+  imageSrcset,
+  isWholeFit,
+  sizedImageUrl,
+  tinyImageUrl,
+} from "../../../functions/_lib/sanity-image-url.js";
+import { londonToday } from "../../lib/london-day.js";
+import { homeStandRow } from "../../lib/home-stands.js";
+import { frameRatio, standSizes } from "../../lib/night-cards.js";
+import { popupKitchens } from "../../lib/popup-kitchen.js";
+import { promotionDeals } from "../../lib/promotions.js";
+import { standWhen } from "../../lib/stand-when.js";
+import type { Event, EventSeries } from "../../types/events";
+import type { MenuSection } from "../../types/menu";
+
+interface Props {
+  series: EventSeries[];
+  occurrences: Event[];
+  /** The kitchen menu's chapters: a pop-up's "See the menu" goes to its own. */
+  chapters?: MenuSection[];
+  /** Which sections: both, or the pop-up kitchen alone (the food page). */
+  show?: "all" | "popup";
+  /** Each section under its heading ("Deals", "Pop-up kitchen"). */
+  headed?: boolean;
+  /**
+   * On home: inside What's on, under its nights, the sections side by side
+   * in one row (stacked on a phone), each under a heading a level down.
+   */
+  home?: boolean;
+  /** Above what follows rather than under what came before. */
+  top?: boolean;
+}
+
+const {
+  series,
+  occurrences,
+  chapters = [],
+  show = "all",
+  headed = true,
+  home = false,
+  top = false,
+} = Astro.props;
+const today = londonToday();
+
+/** One clock for both: "Wed to Sat, 5pm–7pm". */
+function whenLine(
+  days: string,
+  row: { startTime: string; endTime: string; time: string },
+) {
+  return [days, formatEventSpan(row.startTime, row.endTime, row.time)]
+    .filter(Boolean)
+    .join(", ");
+}
+
+/**
+ * The card's line over its coming nights, and its last night, for the page
+ * to bring it up to the visitor's day (lib/stand-when.js,
+ * scripts/stand-cards.js).
+ */
+function turnover(kind: "deal" | "popup", id: string) {
+  const row = series.find((item) => item.seriesId === id);
+  const { timeline, last } = standWhen(kind, row, occurrences, today, whenLine);
+  return { timeline: JSON.stringify(timeline), last };
+}
+
+function picture(photo: string, photoPosition: string) {
+  const whole = isWholeFit(photo);
+  return {
+    photo: sizedImageUrl(photo, 640),
+    /** The same picture at each size: the browser takes the one that fits. */
+    photoSizes: imageSrcset(photo),
+    photoPosition,
+    /** Ops says show the whole image (#27): a flyer, never cropped. */
+    whole,
+    /** A flyer shown whole gets a frame its own shape: no strips, no crop. */
+    ratio: frameRatio(photo, whole),
+    placeholder: tinyImageUrl(photo),
+  };
+}
+
+/**
+ * Until ops holds a pop-up's line and link, the guest chef named in the
+ * site's settings fills them in (config/site.ts), for that chef only. Their
+ * mark is our own sharp copy, ahead of the series' picture.
+ */
+function guestFallback(title: string) {
+  const { guestChef } = siteConfig;
+  const same =
+    title.trim().toLowerCase() === guestChef.name.trim().toLowerCase();
+  return same ? { ...guestChef, logo: guestChefLogo } : null;
+}
+
+const kitchens = popupKitchens(series, occurrences, chapters, today).map(
+  (kitchen) => {
+    const fallback = guestFallback(kitchen.title);
+    const page = kitchen.pageUrl || fallback?.instagram || "";
+    return {
+      kind: "popup",
+      tag: "Pop-up kitchen",
+      id: kitchen.id,
+      title: kitchen.title,
+      when: whenLine(kitchen.when, kitchen),
+      turnover: turnover("popup", kitchen.id),
+      note: kitchen.note || fallback?.line || "",
+      offer: "",
+      href: kitchen.href,
+      ...picture(fallback ? "" : kitchen.photo, kitchen.photoPosition),
+      logo: fallback?.logo ?? null,
+      links: [
+        { href: kitchen.menuHref, text: "See the menu →", external: false },
+        ...(page
+          ? [
+              {
+                href: page,
+                text: /instagram\.com/i.test(page) ? "Instagram" : "Their page",
+                external: true,
+              },
+            ]
+          : []),
+      ],
+    };
+  },
+);
+
+const deals =
+  show === "popup"
+    ? []
+    : promotionDeals(series, occurrences, today).map((deal) => ({
+        kind: "deal",
+        tag: "Deal",
+        id: deal.id,
+        title: deal.title,
+        when: whenLine(deal.days, deal),
+        turnover: turnover("deal", deal.id),
+        note: deal.note,
+        offer: deal.offer,
+        href: deal.href,
+        ...picture(deal.photo, deal.photoPosition),
+        logo: null,
+        links: [],
+      }));
+
+const kinds = [
+  { id: "deals", title: "Deals", moreText: "More deals", cards: deals },
+  {
+    id: "pop-up-kitchen",
+    title: "Pop-up kitchen",
+    moreText: "More pop-ups",
+    cards: kitchens,
+  },
+];
+
+/**
+ * On home, the next few of each (lib/home-stands.js), and the way to the
+ * rest on What's on; elsewhere, all of them.
+ */
+const { sections, compact } = home
+  ? homeStandRow(kinds)
+  : {
+      sections: kinds
+        .filter((kind) => kind.cards.length > 0)
+        .map((kind) => ({ ...kind, more: 0 })),
+      compact: false,
+    };
+
+/** On home the row is part of What's on: its headings are a level down. */
+const Row = home ? "div" : Fragment;
+const rowProps = home
+  ? { class: compact ? "ch-stand-row ch-stand-row--compact" : "ch-stand-row" }
+  : {};
+const Heading = home ? "h3" : "h2";
+const Name = home ? "h4" : "h3";
+/** A card alone in its section takes the row, and is bigger; not in home's. */
+const alone = (section: { cards: unknown[] }) =>
+  !home && section.cards.length === 1;
+---
+
+<Row {...rowProps}>
+  {
+    sections.map((section) => (
+      <section
+        class:list={["ch-stand-section", top && "ch-stand-section--top"]}
+        id={section.id}
+      >
+        {headed && (
+          <header class="ch-home-head">
+            <Heading class="ch-poster">{section.title}</Heading>
+          </header>
+        )}
+        <ul class:list={["ch-stands", alone(section) && "ch-stands--one"]}>
+          {section.cards.map((card) => (
+            <li
+              class:list={["ch-stand", `ch-stand--${card.kind}`]}
+              style={`--shape: ${card.ratio}`}
+              data-stand-when={card.turnover.timeline}
+              data-stand-last={card.turnover.last}
+            >
+              <span
+                class:list={[
+                  "ch-night-photo",
+                  card.whole && "ch-night-photo--whole",
+                  card.logo && "ch-stand-photo--logo",
+                ]}
+                style={
+                  card.whole && card.placeholder
+                    ? `--placeholder: url("${card.placeholder}")`
+                    : undefined
+                }
+              >
+                {card.photo && (
+                  <img
+                    src={card.photo}
+                    srcset={card.photoSizes || undefined}
+                    sizes={
+                      card.photoSizes
+                        ? standSizes(card.ratio, alone(section))
+                        : undefined
+                    }
+                    alt=""
+                    loading="lazy"
+                    style={
+                      card.photoPosition
+                        ? `object-position: ${card.photoPosition}`
+                        : undefined
+                    }
+                  />
+                )}
+                {!card.photo && card.logo && (
+                  <Image {...card.logo} width={340} alt="" />
+                )}
+                {!card.photo && !card.logo && (
+                  <Image {...chartFlag} alt="" class="ch-night-mark" />
+                )}
+                <span class="ch-stand-tag">{card.tag}</span>
+              </span>
+              <div class="ch-stand-body">
+                <Name class="ch-stand-name">
+                  <a href={card.href} class="ch-stand-link">
+                    {card.title}
+                  </a>
+                </Name>
+                <p
+                  class="ch-night-time"
+                  data-stand-when-line
+                  hidden={!card.when}
+                >
+                  {card.when}
+                </p>
+                {card.note && <p class="ch-night-note">{card.note}</p>}
+                {card.offer && <p class="ch-night-offer">{card.offer}</p>}
+                {card.links.length > 0 && (
+                  <p class="ch-stand-links">
+                    {card.links.map((link) =>
+                      link.external ? (
+                        <a
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {link.text}
+                        </a>
+                      ) : (
+                        <a href={link.href}>{link.text}</a>
+                      ),
+                    )}
+                  </p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+        {section.more > 0 && (
+          <a href={`/whats-on#${section.id}`} class="ch-stand-more">
+            {section.moreText} <span aria-hidden="true">→</span>
+          </a>
+        )}
+      </section>
+    ))
+  }
+</Row>
+
+<script>
+  import { initStandCards } from "../../scripts/stand-cards.js";
+  initStandCards();
+  document.addEventListener("astro:page-load", () => initStandCards());
+</script>

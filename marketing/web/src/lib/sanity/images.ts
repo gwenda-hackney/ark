@@ -135,6 +135,11 @@ function buildGalleryImageUrl(source: SanityImageSource): string {
     .url();
 }
 
+/**
+ * Only the most anyone is sent (a flyer opened large): each place that shows
+ * a hero asks for its own width, with sizedImageUrl and imageSrcset in
+ * functions/_lib/sanity-image-url.js.
+ */
 const HERO_WIDTH = 1600;
 const HERO_HEIGHT = 1000; // 16×10 — What's on cards and series heroes
 

@@ -34,6 +34,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/sections/") ||
     p === "/users" ||
     p.startsWith("/users/") ||
+    p === "/venue" ||
+    p.startsWith("/venue/") ||
     p === "/events" ||
     p.startsWith("/events/") ||
     p === "/artists" ||
@@ -202,6 +204,7 @@ export function parseShellPath(path) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
+  if (p === "/venue" || p.startsWith("/venue/")) return { page: "venue" };
   if (p === "/more") return { page: "more" };
   if (p === "/events" || p === "/events/nights" || p === "/events/schedule") {
     return {
@@ -415,6 +418,7 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "breakeven" ||
     from === "cashflow" ||
     from === "users" ||
+    from === "venue" ||
     from === "more" ||
     from === "events" ||
     from === "artists" ||

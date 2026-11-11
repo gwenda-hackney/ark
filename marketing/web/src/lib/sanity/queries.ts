@@ -10,6 +10,7 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   pageUrl,
   seriesId,
   seriesTitle,
+  category,
   recurrence,
   isSpecialEdition,
   time,
@@ -43,10 +44,12 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   }
 }`;
 
-export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
+/** A series taken off in ops is marked `removed` until the website lets it go. */
+export const SERIES_QUERY = `*[_type == "eventSeries" && removed != true] | order(title asc) {
   "id": slug.current,
   formerSlugs,
   title,
+  category,
   schedule,
   datesPending,
   "gallery": gallery[]{
@@ -98,12 +101,19 @@ export const RSVP_EVENTS_QUERY = `*[_type == "event" && defined(slug.current) &&
   description
 }`;
 
-/** Menu sections with nested items — ordered for display (Studio drag rank). */
+/**
+ * Menu sections with nested items — ordered for display (Studio drag rank).
+ * A section's `id` is its slug: ops writes it once and leaves it alone, so
+ * it is what the section's links are made of (lib/menu-anchors.js). One
+ * without a slug goes by its document id, and so does a parent without one.
+ */
 export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
-  "id": slug.current,
+  "id": coalesce(slug.current, _id),
   title,
   subtitle,
-  "parentId": parent->slug.current,
+  kind,
+  "popupSeriesId": coalesce(popupSeries->slug.current, popupSeries._ref),
+  "parentId": coalesce(parent->slug.current, parent._ref),
   "items": *[_type == "menuItem" && references(^._id) && removed != true] | order(orderRank asc) {
     "id": _id,
     name,
@@ -149,6 +159,11 @@ const FORM_FIELDS_PROJECTION = `fields[] {
 /** Enabled forms for static paths. */
 export const FORM_SLUGS_QUERY = `*[_type == "form" && enabled == true && defined(slug.current)]{
   "slug": slug.current
+}`;
+
+export const FORM_BUTTONS_QUERY = `*[_type == "form" && enabled == true && defined(slug.current)]{
+  "slug": slug.current,
+  heading
 }`;
 
 export const FORM_BY_SLUG_QUERY = `*[_type == "form" && enabled == true && slug.current == $slug][0] {

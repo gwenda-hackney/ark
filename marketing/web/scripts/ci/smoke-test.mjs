@@ -9,14 +9,26 @@
  *                    both Baserow databases, config DB, the three D1 databases
  *                    (migrated, a test row written and deleted) and Gmail login
  *   --send-email     with --deep, send a test email to alerts@gwenda.co.uk
- *   --form-test      with --deep, submit the play form end to end: row saved, team and
- *                    applicant emails to alerts@ (not play@), row deleted afterwards;
- *                    and sign up a test address twice (tags merged), row deleted
+ *   --form-test      with --deep, submit every form the site tests (SMOKE_FORMS in
+ *                    functions/_lib/form-smoke.js: play, party) end to end: row saved,
+ *                    team and applicant emails to alerts@ (not the form's inbox), row
+ *                    deleted afterwards; and sign up a test address twice (tags
+ *                    merged), row deleted. A form that a post-deploy migration has
+ *                    yet to make is reported as WAIT and listed in the step output
+ *                    `forms-pending`
+ *   --forms a,b      with --form-test, submit only these forms, which must exist, and
+ *                    skip the sign-up: for the forms left waiting, once the
+ *                    post-deploy migrations have run
  */
+import { appendFileSync } from "node:fs";
 import {
   assertHealthPayload,
   assertHomePageHealthy,
+  assertPicturesSized,
   collectSameOriginAssetPaths,
+  deepCheckLine,
+  parseFormsArg,
+  pendingForms,
 } from "./smoke-test-lib.mjs";
 
 const args = process.argv.slice(2);
@@ -35,6 +47,7 @@ const expectedVersion =
 const deep = args.includes("--deep");
 const sendEmail = args.includes("--send-email");
 const formTest = args.includes("--form-test");
+const onlyForms = parseFormsArg(getArg("--forms"));
 const gateBypassKey =
   getArg("--gate-bypass-key") || process.env.SMOKE_TEST_GATE_BYPASS_KEY || "";
 const retries = Number(
@@ -199,6 +212,12 @@ async function runChecks() {
   assertHomePageHealthy(html);
   console.log("OK homepage content checks passed");
 
+  // No flyer downloads bigger than it shows, on home or What's on (#240).
+  assertPicturesSized(html, "/");
+  const whatsOn = await checkPath("/whats-on", { cookie });
+  assertPicturesSized(await whatsOn.text(), "/whats-on");
+  console.log("OK flyers are offered at the sizes they show");
+
   await checkSubscribeApi(cookie);
   await checkRsvpApi(cookie);
   await checkCriticalAssets(html, cookie);
@@ -227,14 +246,25 @@ async function runDeepChecks() {
       Authorization: `Bearer ${secret}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ sendEmail, formTest, label }),
+    body: JSON.stringify({
+      sendEmail,
+      formTest,
+      ...(onlyForms.length ? { forms: onlyForms } : {}),
+      label,
+    }),
   });
   const data = await res.json().catch(() => null);
   if (!data?.checks) throw new Error(`/api/health/deep returned ${res.status}`);
   for (const check of data.checks) {
-    const line = `${check.name}: ${check.ok ? check.detail : check.error} (${check.ms}ms)`;
-    if (check.ok) console.log(`OK ${line}`);
-    else console.error(`FAIL ${line}`);
+    if (check.ok) console.log(deepCheckLine(check));
+    else console.error(deepCheckLine(check));
+  }
+  // Forms still waiting for their migration: the workflow submits them after it.
+  if (process.env.GITHUB_OUTPUT) {
+    appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `forms-pending=${pendingForms(data.checks).join(",")}\n`,
+    );
   }
   if (!data.ok)
     throw new Error("Deep health check failed (see FAIL lines above).");

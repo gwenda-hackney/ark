@@ -1,6 +1,5 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const SIGNUP_FOCUS_DELAY_MS = 650;
 const SIGNUP_GLOW_MS = 2000;
 
 /** @type {{ csrfToken: string, secret: string } | null} */
@@ -32,8 +31,7 @@ function ensureSubscribeAuth() {
   return subscribeAuthPromise;
 }
 
-function highlightSignupField() {
-  const field = document.querySelector(".signup-field");
+function highlightSignupField(field) {
   if (!field) return;
 
   field.classList.remove("is-targeted");
@@ -56,43 +54,52 @@ export function initSignupAnchors() {
   const email = document.getElementById("email");
   if (!email) return;
 
-  const focusEmail = () => {
-    const section = document.getElementById("list");
+  // The glow only: the cursor is focus-on-arrival.js's (data-focus-on-arrival).
+  const glowEmail = () => {
+    const section = email.closest(".signup");
     if (section?.classList.contains("is-confirmed")) return;
 
     const form = email.closest(".signup-form");
     if (form?.hidden || form?.classList.contains("is-success")) return;
 
-    highlightSignupField();
-
-    window.setTimeout(() => {
-      email.focus({ preventScroll: true });
-    }, SIGNUP_FOCUS_DELAY_MS);
+    highlightSignupField(email.closest(".signup-field"));
   };
 
   document.querySelectorAll('a[href="#list"]').forEach((link) => {
-    link.addEventListener("click", focusEmail, { signal });
+    link.addEventListener("click", glowEmail, { signal });
   });
 
   window.addEventListener(
     "hashchange",
     () => {
-      if (location.hash === "#list") focusEmail();
+      if (location.hash === "#list") glowEmail();
     },
     { signal },
   );
 
-  if (location.hash === "#list") focusEmail();
+  if (location.hash === "#list") glowEmail();
 }
 
 export function initSignup(form) {
-  const section = document.getElementById("list");
-  const confirmEl = document.getElementById("signup-confirm");
-  const errorEl = document.getElementById("signup-error");
+  // The signup the form sits in, not whatever on the page is called #list:
+  // embedded in a page section (/contact#list, /join-list) they differ, and
+  // a page can carry two (its own and the one in the foot), so everything is
+  // looked up inside this one.
+  const section = form.closest(".signup");
+  const confirmEl = section?.querySelector(".signup-confirm") ?? null;
+  const errorEl = form.querySelector(".signup-error");
   const submitBtn = form.querySelector('button[type="submit"]');
   const defaultBtnText = submitBtn?.textContent ?? "";
 
-  ensureSubscribeAuth();
+  // The form is in the foot of every page: ask for the tokens (and their
+  // cookie) once someone starts filling it in, not on every page view.
+  form.addEventListener(
+    "focusin",
+    () => {
+      ensureSubscribeAuth().catch(() => {});
+    },
+    { once: true },
+  );
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -147,8 +154,8 @@ export function initSignup(form) {
     }
   });
 
-  document
-    .querySelector(".signup-confirm-back")
+  section
+    ?.querySelector(".signup-confirm-back")
     ?.addEventListener("click", () => {
       resetSignup({
         section,

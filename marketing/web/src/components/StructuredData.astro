@@ -1,6 +1,8 @@
 ---
 import { siteConfig } from "../config/site";
 import { bookingUrl } from "../config/booking";
+import { openingHoursSpecification } from "../lib/opening-hours.js";
+import { fetchOpeningHours } from "../lib/sanity/opening-hours";
 
 interface Props {
   url: string;
@@ -12,8 +14,10 @@ const { url, title, description } = Astro.props;
 const { location, social, name, domain, contact, brand, seoTopics } =
   siteConfig;
 const logoUrl = new URL(brand.organizationLogoPath, domain).href;
-const menuUrl = new URL("/menu/", domain).href;
+const menuUrl = new URL("/bar/", domain).href;
 const eventsUrl = new URL("/whats-on/", domain).href;
+/** From ops (Venue details); left out when there are none. */
+const hours = openingHoursSpecification(await fetchOpeningHours());
 
 const structuredData = {
   "@context": "https://schema.org",
@@ -115,6 +119,8 @@ const structuredData = {
       url: domain,
       image: logoUrl,
       email: contact.email,
+      telephone: contact.telephone,
+      ...(hours.length ? { openingHoursSpecification: hours } : {}),
       parentOrganization: { "@id": `${domain}/#organization` },
       address: {
         "@type": "PostalAddress",
@@ -130,7 +136,7 @@ const structuredData = {
         longitude: location.geo.longitude,
       },
       hasMap: location.mapsUrl,
-      servesCuisine: ["Italian", "Cocktails"],
+      servesCuisine: ["Burgers", "Cocktails"],
       knowsAbout: seoTopics,
       acceptsReservations: bookingUrl,
       hasMenu: menuUrl,

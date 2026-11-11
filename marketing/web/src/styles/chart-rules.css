@@ -1,0 +1,107 @@
+/*
+ * Hand-drawn rules (#240): every line that divides one thing from the next
+ * is a pencil trail, as on a treasure map, not a ruled border. Uneven
+ * dashes, each a little crooked and heavier in the middle, the odd dot
+ * where the pencil skipped, the whole line wandering a pixel or so up and
+ * down. One tile, 360 by 6, coming back to the same height at both ends,
+ * so it repeats along any width without a seam.
+ *
+ * It is a mask: the line takes its colour from --ch-trail-ink (the page's
+ * line colour unless set; var(--ch-trail-faint) on the solid boards,
+ * var(--ch-gold) for a gold one). Its place is the edge of the thing it
+ * divides, so the spacing is the host's own padding. Rows next to each
+ * other start the tile at different points and every other one is turned
+ * over, so no two lines in a list are alike.
+ *
+ * Kept straight on purpose: edges of things rather than lines between
+ * them (inputs, cards, the boards, the bar's, the dock's and the foot's
+ * gold rules, the menu drawer's side).
+ */
+.ch-page {
+  --ch-trail: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='6'%3E%3Cpath d='M3.5 3.1l.4-.5 3.2 0 3.3.3 3.3.6.3.4-.3.5-3.3-.1-3.3-.3-3.2-.5zM19.7 3.6l.3-.4 3.6 0 3.7.2 3.6.5.4.5-.4.4-3.6 0-3.7-.2-3.6-.5zM37.8 3.5l.4-.5 3.9-.1 3.9.5.4.4-.4.5-3.9.1-3.9-.5zM53 4l.4-.5 4.1-.4 4.1.1.3.5-.3.4-4.1.5-4.1-.2zM67.2 3.7l.4-.4 3.6-.2 3.6.1 3.6.3.3.4-.3.5-3.6.2-3.6-.1-3.6-.3zM83.8 3.3l.3-.5 4.3-.2 4.3.4.4.5-.4.4-4.3.2-4.3-.4zM100.1 3.1l.3-.4 3.9-.2 3.9.4.4.4-.4.4-3.9.1-3.9-.3zM113.2 3.1l.3-.4 3.6-.2 3.7-.1 3.6.1.3.4-.3.3-3.6.3-3.7.1-3.6-.1zM131.4 3.2l.3-.5 3.4-.1 3.4.1 3.5.2 3.4.3.3.4-.3.5-3.4.1-3.5 0-3.4-.2-3.4-.4zM151.7 3.5l.3-.4 4-.5 3.9-.2 4 .1.4.4-.4.5-4 .4-3.9.2-4 0zM171.6 3.3l.3-.4 3.4-.1 3.5-.1 3.4.1 3.4.2.4.4-.4.5-3.4.1-3.4 0-3.5-.1-3.4-.2zM192.7 2.8l.5-1 1.5.6.5.9-.5.9-1.5-.5zM198.2 2.9l.4-.3 3.4-.3 3.4.3.4.4-.4.4-3.4.2-3.4-.3zM210.2 2.4l.3-.4 3.2-.1 3.2.2 3.1.4.4.5-.4.5-3.1 0-3.2-.2-3.2-.4zM225.9 2.9l.3-.4 3.5-.3 3.5-.2 3.5 0 3.5 0 .3.4-.3.4-3.5.3-3.5.2-3.5 0-3.5 0zM246.9 2.5l.4-.4 3.1-.2 3 .1 3.1.3.4.5-.4.5-3.1.1-3 0-3.1-.4zM262.1 2.5l.4-.4 3.8-.2 3.9.4.3.4-.3.5-3.9.2-3.8-.4zM277.7 2.5l.3-.5 4.1-.1 4.1.4.3.4-.3.4-4.1.2-4.1-.4zM292.7 2.5l.4-.5 3.5-.5 3.5.1.3.5-.3.5-3.5.5-3.5-.1zM306.8 1.8l.3-.5 3.7-.1 3.6.2 3.6.4.4.5-.4.4-3.6.1-3.6-.2-3.7-.4zM325.2 2.4l.4-.4 3.4-.1 3.4 0 3.5.1 3.4.3.3.3-.3.4-3.4.1-3.5 0-3.4-.1-3.4-.3zM344.1 2.9l.4-.5 3.9-.2 3.8-.1 3.9.3.4.4-.4.4-3.9.3-3.8 0-3.9-.2z'/%3E%3C/svg%3E");
+  /* On the solid boards, a shade quieter than on the leather */
+  --ch-trail-faint: rgb(242 232 210 / 0.22);
+}
+
+/*
+ * Where the trails are: a line along the top of each of the first list
+ * (between rows, above a part), along the bottom of each of the second
+ * (under every row, the last one too). A host only has to be a box for the
+ * line to sit on the edge of: position: relative, unless it is positioned
+ * already.
+ */
+:where(
+  .ch-list li + li,
+  .ch-night:not([hidden]) ~ .ch-night:not(.ch-night--lead),
+  .ch-contact-part + .ch-contact-part,
+  .ch-find-walk,
+  .ch-form .contact-actions,
+  .ch-footer-small,
+  .ch-home-more-item
+) {
+  position: relative;
+  --ch-trail-at: -3px;
+}
+
+:where(
+  .ch-menu-items li,
+  .ch-hours-table:not(.ch-footer *) tr,
+  .ch-party-facts-list li
+) {
+  position: relative;
+  --ch-trail-at: calc(100% - 3px);
+}
+
+/* The same two lists: the line itself, centred on that edge */
+:is(
+  .ch-list li + li,
+  .ch-night:not([hidden]) ~ .ch-night:not(.ch-night--lead),
+  .ch-contact-part + .ch-contact-part,
+  .ch-find-walk,
+  .ch-form .contact-actions,
+  .ch-footer-small,
+  .ch-home-more-item
+)::before,
+:is(
+  .ch-menu-items li,
+  .ch-hours-table:not(.ch-footer *) tr,
+  .ch-party-facts-list li
+)::after {
+  content: "";
+  position: absolute;
+  top: var(--ch-trail-at);
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--ch-trail-ink, var(--ch-rule));
+  -webkit-mask: var(--ch-trail) var(--ch-trail-x, 0px) 0 / 360px 6px repeat-x;
+  mask: var(--ch-trail) var(--ch-trail-x, 0px) 0 / 360px 6px repeat-x;
+  scale: 1 var(--ch-trail-flip, 1);
+  pointer-events: none;
+}
+
+/* No two neighbours alike: three starting points, every other one turned */
+.ch-page :is(li, tr, section, .ch-home-more-item):nth-child(3n + 2) {
+  --ch-trail-x: -131px;
+}
+
+.ch-page :is(li, tr, section, .ch-home-more-item):nth-child(3n) {
+  --ch-trail-x: -253px;
+}
+
+.ch-page :is(li, tr, section, .ch-home-more-item):nth-child(even) {
+  --ch-trail-flip: -1;
+}
+
+/* On the boards: home's menu, the beer band */
+.ch-menu-items,
+.ch-sheet-row--band {
+  --ch-trail-ink: var(--ch-trail-faint);
+}
+
+/* What's on is a list with lines only on a phone (chart-nights.css) */
+@media (min-width: 40.0625rem) {
+  .ch-night:not([hidden]) ~ .ch-night:not(.ch-night--lead)::before {
+    content: none;
+  }
+}

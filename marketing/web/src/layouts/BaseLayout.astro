@@ -96,7 +96,11 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
     </script>
 
     <Fonts />
-    <ViewTransitions />
+    {
+      /* Without the browser's view transitions, a plain instant swap: no
+         half-made animation in their place */
+    }
+    <ViewTransitions fallback="swap" />
     <link rel="icon" href={siteConfig.brand.faviconPath} sizes="any" />
     <link
       rel="icon"

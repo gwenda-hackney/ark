@@ -1,0 +1,42 @@
+---
+/**
+ * A section page (#240): the navigation (ChartNav), a header (the title, a
+ * line), the page, the footer.
+ */
+import "../../styles/chart.css";
+import ChartNav from "./ChartNav.astro";
+import ChartFooter from "./ChartFooter.astro";
+import { chartSections } from "../../lib/chart-nav";
+
+interface Props {
+  title: string;
+  lead?: string;
+  class?: string;
+}
+
+const { title, lead, class: className } = Astro.props;
+/**
+ * The ring beside the title: the number of the place in the navigation this
+ * page is, or is a part of (the play form is a part of Contact). None on a
+ * page outside the five, such as Photos.
+ */
+const numeral = chartSections(Astro.url.pathname).find(
+  (item) => item.current,
+)?.numeral;
+---
+
+<div class="ch-page" data-chart="closed">
+  <ChartNav />
+  <main class:list={["ch-main", className]} id="main">
+    <header class="ch-page-head">
+      {numeral && <span class="ch-ring ch-ring--title">{numeral}</span>}
+      <div>
+        <h1 class="ch-title">{title}</h1>
+        {lead && <p class="ch-lead ch-ital">{lead}</p>}
+        <slot name="head" />
+      </div>
+    </header>
+    <slot />
+  </main>
+  <ChartFooter />
+</div>

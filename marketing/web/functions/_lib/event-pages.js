@@ -10,29 +10,21 @@
  * server (astro.config.mjs).
  */
 import { createImageUrlBuilder } from "@sanity/image-url";
+import { escapeHtml, renderGallery } from "../../src/lib/event-card.js";
 import {
-  escapeHtml,
-  nightCardModel,
-  renderEventCard,
-  renderGallery,
-  seriesCardModel,
-} from "../../src/lib/event-card.js";
-import {
-  eventDescriptionParagraphs,
-  formatEventRecurrence,
-} from "../../src/data/events";
-import { EVENT_FEED_PAGE_SIZE, diaryCacheControl } from "./event-feed.js";
+  eventPageModel,
+  renderEventPage as renderEventBody,
+} from "../../src/lib/event-page.js";
+import { londonToday } from "../../src/lib/london-day.js";
+import { categoryOf } from "../../src/lib/promotions.js";
+import { diaryCacheControl } from "./event-feed.js";
 import {
   buildSeriesDetail,
   nightPagePaths,
   seriesGallery,
   seriesRedirects,
 } from "./event-series.js";
-import {
-  portableTextToRich,
-  richParagraphHtml,
-  richToPlain,
-} from "./rich-text.js";
+import { portableTextToRich, richToPlain } from "./rich-text.js";
 import {
   sanityDatasetForEnv,
   sanityProjectId,
@@ -52,10 +44,34 @@ const TOKENS = {
   title: "__EVENT_TITLE__",
   description: "__EVENT_DESCRIPTION__",
   eyebrow: "__EVENT_EYEBROW__",
-  layout: "__EVENT_LAYOUT__",
+  kind: "__EVENT_KIND__",
   slug: "__EVENT_SLUG__",
 };
 const BODY = /<series-body>([\s\S]*?)<\/series-body>/;
+const PART = /<series-part name="([^"]*)"[^>]*>([\s\S]*?)<\/series-part>/g;
+
+/**
+ * What only the build knows, cut out of the shell by name: Book a table's
+ * words when bookings are on (the button is the night's own, lib/event-page.js),
+ * the logo, a guest chef's mark, where a pop-up's menu is, each contact
+ * form's button
+ * (src/pages/whats-on/series-shell.astro writes them, lib/event-page.js
+ * places them).
+ */
+function shellParts(html) {
+  const parts = new Map();
+  const rest = html.replace(PART, (_all, name, inner) => {
+    parts.set(
+      name
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, "&"),
+      inner.trim(),
+    );
+    return "";
+  });
+  return { parts, rest };
+}
 
 const NIGHT_PAGES_QUERY = `{
   "events": *[_type == "event" && defined(slug.current) && removed != true] {
@@ -92,7 +108,8 @@ export async function resolveEventPage(env, pathname) {
 async function resolveSeries(env, seriesId) {
   const { occurrences, series } = await fetchPublishedCatalog(env);
   const detail = buildSeriesDetail(occurrences, seriesId, {
-    limit: EVENT_FEED_PAGE_SIZE,
+    // Every day of an event on the one page (the feed's most).
+    limit: 24,
     series,
   });
   if (!detail) {
@@ -102,20 +119,33 @@ async function resolveSeries(env, seriesId) {
       ? { redirect: `/whats-on/${moved.to}/`, status: 301 }
       : { redirect: "/whats-on/", status: 302 };
   }
-  const rich = Boolean(detail.richDetail);
+  const record = series.find((row) => row.seriesId === detail.seriesId);
+  const nights = occurrences
+    .filter((night) => night.seriesId === detail.seriesId)
+    .sort((x, y) => String(x.date).localeCompare(String(y.date)));
+  // A night follows its series; one written before ops had categories keeps its own.
+  const category =
+    categoryOf(record) !== "event"
+      ? categoryOf(record)
+      : categoryOf(detail.nights[0]);
   return {
     shell: SERIES_SHELL,
     fill: (html) => {
-      const pending = BODY.exec(html)?.[1] || "";
-      const body = [
-        rich ? "" : renderEventCard(seriesCardModel(detail)),
-        detail.datesPending ? pending : "",
-        seriesNightsHtml(detail),
-        // Photos ops copied from the series' Drive gallery (#30); none while ops has it off.
-        renderGallery(detail.gallery, { title: detail.title }),
-      ].join("");
+      const { parts, rest } = shellParts(html);
+      const pending = BODY.exec(rest)?.[1] || "";
+      const model = eventPageModel(
+        // The series' own line of days and its fixed-run flag, for a pop-up's
+        // "when"; and its own link, for a series with no night to carry one.
+        {
+          ...detail,
+          schedule: record?.schedule || detail.schedule,
+          pageUrl: record?.pageUrl || "",
+        },
+        { category, nights, today: londonToday(), parts },
+      );
+      const body = renderEventBody(model, { pending });
       return fillShell(
-        html.replace(BODY, () => body),
+        rest.replace(BODY, () => body),
         {
           path: [SERIES_SHELL, `/whats-on/${detail.seriesId}`],
           values: {
@@ -123,43 +153,13 @@ async function resolveSeries(env, seriesId) {
             [TOKENS.description]: seriesSummary(
               richToPlain(detail.description),
             ),
-            [TOKENS.eyebrow]: detail.scheduleLabel
-              ? formatEventRecurrence(detail.scheduleLabel)
-              : "Regular events",
-            [TOKENS.layout]: rich
-              ? "whats-on-series-page--rich"
-              : "whats-on-series-page--recurring",
-          },
-          html: {
-            "<series-lead></series-lead>": rich
-              ? eventDescriptionParagraphs(detail.description)
-                  .map(richParagraphHtml)
-                  .join("")
-              : "",
+            [TOKENS.eyebrow]: model.kicker,
+            [TOKENS.kind]: model.kind,
           },
         },
       );
     },
   };
-}
-
-function seriesNightsHtml(detail) {
-  const rich = Boolean(detail.richDetail);
-  const cards = rich
-    ? `<ol class="events-list">${detail.nights
-        .map((night, index) =>
-          renderEventCard(
-            nightCardModel(night, {
-              eager: index === 0,
-              seriesSchedule: detail.nightSchedule,
-            }),
-          ),
-        )
-        .join("")}</ol>`
-    : "";
-  return `<div id="series-nights" data-series-id="${escapeHtml(detail.seriesId)}" data-series-next="${escapeHtml(
-    detail.next ? JSON.stringify(detail.next) : "",
-  )}" data-series-rich="${rich}"${rich ? "" : " hidden"}>${cards}</div>`;
 }
 
 async function resolveNight(env, seriesId, date, ticket) {

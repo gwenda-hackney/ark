@@ -1,0 +1,294 @@
+---
+/**
+ * The way to the bar, drawn as a chart (#240): the real streets, water and
+ * railway round Hackney Wick, traced from OpenStreetMap
+ * (chart-map-trace.ts) and drawn over in chalk on a board. The walk from
+ * the station's south side in paces, down White Post Lane to the big
+ * round Gwenda sign and down the yard to the door, and the other way by
+ * the water in dots; the water as dark bands with soundings, the X at the
+ * bar on the Hertford Union. Every word on it stays 12px or more on a
+ * phone.
+ */
+import "../../styles/chart-map.css";
+import { directions } from "../../data/directions";
+import {
+  BRIDGES,
+  BUILDINGS,
+  LEE_LINE,
+  PLACES,
+  RAILS,
+  SHEET,
+  STREETS,
+  TIES,
+  TOWPATHS,
+  UNION_LINE,
+  UNITS_PER_METRE,
+  WALK,
+  WALK_BY_WATER,
+  WATER,
+  YARDS,
+} from "./chart-map-trace";
+
+interface Props {
+  class?: string;
+  /**
+   * The drawing alone, as a picture inside a link: no credit line, and
+   * hidden from screen readers, as the link says it.
+   */
+  thumb?: boolean;
+}
+
+const { class: className, thumb = false } = Astro.props;
+const Tag = thumb ? "span" : "figure";
+const [width, height] = SHEET;
+
+/** A hundred paces of 0.75 m, for the scale */
+const hundredPaces = Math.round(100 * 0.75 * UNITS_PER_METRE * 10) / 10;
+const [barX, barY] = PLACES.bar;
+const [exitX, exitY] = PLACES.stationExit;
+const [bargeX, bargeY] = PLACES.bargeEast;
+
+/**
+ * The sign at the turning off White Post Lane, as a small map mark on the
+ * right of the yard as you turn in, on the building's side (the real one
+ * is a big round red board with a white middle). Its name is written beside it, so the X
+ * stays the one place that says "here".
+ */
+const [cornerX, cornerY] = PLACES.sign;
+const [signX, signY] = [cornerX + 30, cornerY + 21];
+
+/** Depths in the water, in feet, the way an old chart has them: [x, y, depth] */
+const SOUNDINGS: Array<[number, number, string]> = [
+  [466, 410, "5"],
+  [486, 476, "6"],
+  [552, 646, "5½"],
+  [575, 766, "6"],
+  [372, 571, "4"],
+  [118, 760, "4½"],
+];
+---
+
+<Tag class:list={["ch-map", className]}>
+  <svg
+    viewBox={`0 0 ${width} ${height}`}
+    role={thumb ? undefined : "img"}
+    aria-labelledby={thumb ? undefined : "ch-map-title ch-map-desc"}
+    aria-hidden={thumb ? "true" : undefined}
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    {
+      !thumb && (
+        <>
+          <title id="ch-map-title">
+            Map: the walk from Hackney Wick station to Gwenda
+          </title>
+          <desc id="ch-map-desc">
+            {[
+              ...directions.fromStation.steps,
+              directions.fromStation.byWater,
+            ].join(" ")}
+          </desc>
+        </>
+      )
+    }
+    <defs>
+      <!-- Chalk on the board: the line wanders a little, and the board's
+           grain shows through it -->
+      <filter id="ch-map-chalk" x="-2%" y="-2%" width="104%" height="104%">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.018"
+          numOctaves="2"
+          seed="4"
+          result="wander"></feTurbulence>
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="wander"
+          scale="5"
+          xChannelSelector="R"
+          yChannelSelector="G"
+          result="drawn"></feDisplacementMap>
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.6"
+          numOctaves="2"
+          seed="2"
+          result="grain"></feTurbulence>
+        <feColorMatrix
+          in="grain"
+          type="matrix"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 2.05"
+          result="tooth"></feColorMatrix>
+        <feComposite in="drawn" in2="tooth" operator="in"></feComposite>
+      </filter>
+      <!-- The buildings, hatched -->
+      <pattern
+        id="ch-map-hatch"
+        width="9"
+        height="9"
+        patternUnits="userSpaceOnUse"
+        patternTransform="rotate(38)"
+      >
+        <path class="ch-map-hatch" d="M0 4.5H9"></path>
+      </pattern>
+      <g id="ch-map-streets">{STREETS.map((d) => <path d={d} />)}</g>
+      <g id="ch-map-yards">{YARDS.map((d) => <path d={d} />)}</g>
+      <g id="ch-map-bridges">{BRIDGES.map((d) => <path d={d} />)}</g>
+      <g id="ch-map-water">{WATER.map((d) => <path d={d} />)}</g>
+      <path id="ch-map-lee-line" d={LEE_LINE}></path>
+      <path id="ch-map-union-line" d={UNION_LINE}></path>
+    </defs>
+
+    <rect class="ch-map-board" width={width} height={height}></rect>
+
+    <g filter="url(#ch-map-chalk)">
+      <path class="ch-map-buildings" d={BUILDINGS}></path>
+      <!-- Streets as two lines: the kerbs, then the road between them -->
+      <use href="#ch-map-yards" class="ch-map-kerb ch-map-kerb--yard"></use>
+      <use href="#ch-map-streets" class="ch-map-kerb"></use>
+      <use href="#ch-map-yards" class="ch-map-road ch-map-road--yard"></use>
+      <use href="#ch-map-streets" class="ch-map-road"></use>
+      <!-- The water: a bank drawn round it, then the dark water over the inside -->
+      <use href="#ch-map-water" class="ch-map-bank"></use>
+      <use href="#ch-map-water" class="ch-map-water"></use>
+      <use href="#ch-map-bridges" class="ch-map-kerb"></use>
+      <use href="#ch-map-bridges" class="ch-map-road"></use>
+      <g class="ch-map-towpath">{TOWPATHS.map((d) => <path d={d} />)}</g>
+      <g class="ch-map-rail">
+        {RAILS.map((d) => <path d={d} />)}
+        <path d={TIES}></path>
+      </g>
+      <!-- Two ways in: by the water in dots, down the yard in dashes -->
+      <path class="ch-map-walk ch-map-walk--water" d={WALK_BY_WATER}></path>
+      <path class="ch-map-walk" d={WALK}></path>
+      <circle class="ch-map-station" cx={exitX} cy={exitY - 32} r="11"></circle>
+      <circle class="ch-map-spot" cx={bargeX} cy={bargeY} r="5"></circle>
+      <!-- The sign: a small red disc, white in the middle, in the corner -->
+      <circle class="ch-map-sign-rim" cx={signX} cy={signY} r="15"></circle>
+      <circle class="ch-map-sign-face" cx={signX} cy={signY} r="9"></circle>
+    </g>
+
+    <!--
+      Gwenda: a red X at the bar, in the same chalk. Drawn in, stroke by
+      stroke, when it comes into view.
+    -->
+    <g class="ch-map-here" filter="url(#ch-map-chalk)">
+      <path pathLength="1" d={`M${barX - 19} ${barY - 21}c13 12 26 26 40 42`}
+      ></path>
+      <path pathLength="1" d={`M${barX + 20} ${barY - 20}c-14 13 -27 27 -40 41`}
+      ></path>
+    </g>
+
+    <!-- Words stay crisp, each with a rim of the board under it -->
+    <g class="ch-map-words">
+      {
+        SOUNDINGS.map(([x, y, depth]) => (
+          <text class="ch-map-sounding" x={x} y={y + 7}>
+            {depth}
+          </text>
+        ))
+      }
+      <text class="ch-map-water-name" dy="0.32em">
+        <textPath href="#ch-map-lee-line" startOffset="50%"
+          >Lee Navigation</textPath
+        >
+      </text>
+      <text class="ch-map-water-name" dy="0.32em">
+        <textPath href="#ch-map-union-line" startOffset="50%"
+          >Hertford Union</textPath
+        >
+      </text>
+
+      <text class="ch-map-place" x="26" y="158">Hackney Wick</text>
+      <text class="ch-map-mark" x="148" y="230">station</text>
+      <text class="ch-map-mark" x={bargeX + 12} y={bargeY - 2}>
+        <tspan x={bargeX + 12}>Barge</tspan>
+        <tspan x={bargeX + 12} dy="23">East</tspan>
+      </text>
+      <text class="ch-map-area" x="370" y="712">Fish Island</text>
+      <text class="ch-map-mark">
+        <tspan x={signX + 19} y={signY + 1}>the big</tspan>
+        <tspan x={signX + 19} dy="22">round sign</tspan>
+      </text>
+
+      <!-- The directions, in the hand -->
+      <text class="ch-map-note" transform="rotate(-9 150 268)">
+        <tspan x="150" y="268">Down White Post Lane,</tspan>
+        <tspan x="150" dy="28">turn at the Gwenda sign</tspan>
+      </text>
+      <text class="ch-map-note" transform="rotate(-6 278 464)">
+        <tspan x="278" y="456">down the yard,</tspan>
+        <tspan x="278" dy="28">270 paces in all</tspan>
+      </text>
+      <text class="ch-map-note" x="298" y="343" transform="rotate(-14 298 343)"
+        >or by the water</text
+      >
+      <text class="ch-map-name" x="296" y="566" transform="rotate(-6 296 566)"
+        >Gwenda</text
+      >
+      <text
+        class="ch-map-note ch-map-note--end"
+        x="292"
+        y="604"
+        transform="rotate(-6 292 604)">X marks the bar</text
+      >
+
+      <!-- A hundred paces, and north straight up -->
+      <g class="ch-map-scale" transform="translate(24 46)">
+        <path
+          d={`M0 0h${hundredPaces}M0 -6v12M${hundredPaces / 2} -4v8M${hundredPaces} -6v12`}
+        ></path>
+        <text class="ch-map-mark" x={hundredPaces + 10} y="8">100 paces</text>
+      </g>
+      <g class="ch-map-rose" transform="translate(540 88)">
+        <circle class="ch-map-rose-ground" r="40"></circle>
+        <circle r="31"></circle>
+        <path d="M0 -44v8M0 36v8M-44 0h8M36 0h8"></path>
+        <path d="M0 -28 6 -6 0 28 -6 -6z"></path>
+        <path class="ch-map-rose-north" d="M0 -28 6 -6h-12z"></path>
+        <path d="M-28 0 -6 -6 28 0 -6 6z"></path>
+        <text class="ch-map-n" y="-50">N</text>
+      </g>
+    </g>
+  </svg>
+  {
+    !thumb && (
+      <figcaption>
+        Drawn from{" "}
+        <a
+          href="https://www.openstreetmap.org/copyright"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          © OpenStreetMap contributors
+        </a>
+      </figcaption>
+    )
+  }
+</Tag>
+
+<script>
+  /* Draw the X when the map scrolls into view (once per page) */
+  function drawTheX() {
+    const marks = document.querySelectorAll<SVGElement>(".ch-map-here");
+    if (!("IntersectionObserver" in window)) return;
+    const seen = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.add("is-drawn");
+          seen.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.6 },
+    );
+    for (const mark of marks) {
+      mark.classList.add("is-waiting");
+      seen.observe(mark);
+    }
+  }
+  drawTheX();
+  document.addEventListener("astro:after-swap", drawTheX);
+</script>

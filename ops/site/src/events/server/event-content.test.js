@@ -97,6 +97,17 @@ test("series template is a first-class sanity document", () => {
   assert.equal("formerSlugs" in document, false);
 });
 
+test("a series carries the event's link, for a page with no night to carry it", () => {
+  const base = { slug: "hire-gwenda", title: "Hire Gwenda", datesPending: true };
+  assert.equal(
+    sanitySeriesDocument({ ...base, pageUrl: " https://gwenda.co.uk/contact/party " }).pageUrl,
+    "https://gwenda.co.uk/contact/party",
+  );
+  // Left off when there is none, so series without a link stay unchanged
+  assert.equal("pageUrl" in sanitySeriesDocument(base), false);
+  assert.equal("pageUrl" in sanitySeriesDocument({ ...base, pageUrl: "" }), false);
+});
+
 test("a series lists its former web addresses for the website to redirect", () => {
   const document = sanitySeriesDocument({
     slug: "gwenda-nights",
