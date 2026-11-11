@@ -13,7 +13,7 @@
 .ch-home-section {
   max-width: 72rem;
   margin: 0 auto;
-  padding: 2.5rem clamp(1.25rem, 6vw, 4.75rem) 3.5rem;
+  padding: 2.5rem clamp(var(--ch-gutter), 6vw, 4.75rem) 3.5rem;
   box-sizing: content-box;
   scroll-margin-top: 1rem;
 }
@@ -37,9 +37,14 @@
   margin-top: 2.75rem;
 }
 
+/* On a phone: the page's one gutter, as on every other page */
 @media (max-width: 40rem) {
   .ch-home-section {
+    padding-inline: var(--ch-gutter);
     padding-bottom: 2.5rem;
+    /* A jump from the hero's buttons lands the title under the menu button,
+       not behind it */
+    scroll-margin-top: 2.25rem;
   }
 
   .ch-home-head {
@@ -259,8 +264,28 @@
 }
 
 @media (max-width: 40rem) {
+  /* A board inside the gutter: its own padding stays small, so the list
+     isn't set in twice */
   .ch-menu-side {
-    padding: 1.25rem 1.125rem 1.5rem;
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  /* Each part's name over what it starts from, so every tile is alike
+     whatever the length of its name */
+  .ch-menu-more a {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.125rem;
+    min-height: 3.5rem;
+  }
+
+  /* Full-size targets for the links that are only words */
+  .ch-menu-side-head h3 a,
+  .ch-menu-rest {
+    display: inline-block;
+    padding-block: 0.625rem;
+    margin-block: -0.625rem;
   }
 }
 
@@ -296,9 +321,10 @@
 }
 
 @media (max-width: 48rem) {
+  /* Room under the print for its tilt, so it doesn't crowd the title */
   .ch-home-play {
     grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
+    gap: 2.25rem;
   }
 }
 
@@ -359,5 +385,11 @@
 /* The foot lines up with home's sections */
 .ch-home .ch-footer {
   box-sizing: content-box;
-  padding-inline: clamp(1.25rem, 6vw, 4.75rem);
+  padding-inline: clamp(var(--ch-gutter), 6vw, 4.75rem);
+}
+
+@media (max-width: 40rem) {
+  .ch-home .ch-footer {
+    padding-inline: var(--ch-gutter);
+  }
 }

@@ -54,6 +54,10 @@
   /* The word SOCIAL under the logo: heavy and worn, like the logo's lettering */
   --ch-sign: "Rubik Distressed", "Arial Black", system-ui, sans-serif;
 
+  /* The page's side gutter: every section, the foot and the floating button
+     keep this far from the screen's edge */
+  --ch-gutter: 1.25rem;
+
   /* The headline faces come in one weight: never faked bolder */
   font-synthesis: none;
   min-height: 100vh;
@@ -394,7 +398,7 @@
   position: relative;
   display: grid;
   justify-items: center;
-  padding: 4.5rem 1.25rem var(--ch-hero-foot);
+  padding: 4.5rem var(--ch-gutter) var(--ch-hero-foot);
   text-align: center;
   animation: ch-rise 1.1s ease-out both;
 }
@@ -589,7 +593,7 @@
   max-width: 72rem;
   margin: 0 auto;
   /* Clear of the menu button in the corner */
-  padding: 5rem 1.25rem 4rem;
+  padding: 5rem var(--ch-gutter) 4rem;
 }
 
 /* Wide enough that the button sits in the margin: the title can come up */
@@ -704,7 +708,7 @@
 .ch-footer {
   max-width: 72rem;
   margin: 0 auto;
-  padding: 0 1.25rem 2.5rem;
+  padding: 0 var(--ch-gutter) 2.5rem;
 }
 
 .ch-footer-row {
@@ -730,6 +734,25 @@
 .ch-footer-links a:hover,
 .ch-footer .ch-caps:hover {
   color: var(--ch-gold);
+}
+
+/* On a phone every link in the foot is a full-size target, a row each way */
+@media (max-width: 40rem) {
+  .ch-footer-row {
+    row-gap: 0.25rem;
+    padding-top: 0.75rem;
+  }
+
+  .ch-footer-links {
+    row-gap: 0;
+  }
+
+  .ch-footer-links a,
+  .ch-footer-row > a.ch-caps {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
 }
 
 /* The log */
@@ -836,6 +859,21 @@
   color: var(--ch-gold);
 }
 
+/* On a phone each is a full-size target; the rows keep their distance */
+@media (max-width: 40rem) {
+  .ch-jump {
+    row-gap: 0;
+    margin: -1.5rem 0 1.5rem;
+  }
+
+  .ch-jump a {
+    display: inline-flex;
+    align-items: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
 .ch-sheet {
   padding: 1rem 0 0;
   color: var(--ch-ink);
@@ -869,6 +907,14 @@
   /* Solid, never see-through: the leather's cracks stay out from behind the
      list. The first board is the old mustard wash's own colour on the black */
   background: var(--ch-board);
+}
+
+/* On a phone the board sits on the page's gutter: less padding of its own,
+   so the list isn't set in twice */
+@media (max-width: 40rem) {
+  .ch-sheet-row--band {
+    padding-inline: 0.875rem;
+  }
 }
 
 .ch-sheet-row--band .ch-chapter {
@@ -1244,7 +1290,7 @@
    .ch-page in front so home's bigger buttons don't resize it: one size on every page */
 .ch-page .ch-btn.ch-book-fixed {
   position: fixed;
-  right: max(1.25rem, env(safe-area-inset-right));
+  right: max(var(--ch-gutter), env(safe-area-inset-right));
   bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
   z-index: 40;
   min-height: 2.75rem;
@@ -1268,16 +1314,29 @@
   padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }
 
+/* A field or a heading brought into view (Tab, a jump link, the keyboard's
+   Next) stops above the button, not under it */
+:root:has(.ch-book-fixed) {
+  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* On a phone: a little smaller, its right edge on the page's gutter */
 @media (max-width: 40rem) {
   .ch-page .ch-btn.ch-book-fixed {
-    right: max(0.875rem, env(safe-area-inset-right));
-    bottom: calc(0.875rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     padding: 0 1rem;
     font-size: 0.875rem;
   }
 
   .ch-page:has(.ch-book-fixed) .ch-footer {
     padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* A short page (the list signup) fills the screen, so its foot's links
+     start below the button rather than under it */
+  .ch-page:has(.ch-book-fixed) .ch-main {
+    min-height: 100vh;
+    min-height: 100svh;
   }
 }
 
@@ -1288,6 +1347,14 @@
   justify-content: center;
   gap: 0.75rem;
   margin-top: 2.25rem;
+}
+
+/* A narrow phone: the two stay side by side (stacked, the second would sit
+   under Book a table on a short screen) */
+@media (max-width: 23.9375rem) {
+  .ch-home .ch-hero-actions .ch-btn {
+    padding: 0 1.25rem;
+  }
 }
 
 /* Eyebrows over the section titles: a size up, in gold, so they read */
@@ -1777,6 +1844,17 @@
   .ch-find-ways {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  /* The directions button fits a narrow phone: it was wider than the page */
+  .ch-map figcaption {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ch-map figcaption .ch-btn {
+    max-width: 100%;
+    padding: 0 0.875rem;
+    font-size: 0.9375rem;
+  }
 }
 
 .ch-find-page .ch-main {
@@ -1929,9 +2007,19 @@
 }
 
 @media (max-width: 48rem) {
+  /* Room under the button for the print's tilt and its tape */
   .ch-contact-play {
     grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
+    gap: 2.25rem;
+  }
+
+  /* The last part ends where the page's own foot room begins */
+  .ch-contact-part:last-child {
+    padding-bottom: 0;
+  }
+
+  .ch-contact-part:last-child > :last-child {
+    margin-bottom: 0;
   }
 }
 

@@ -445,4 +445,26 @@ a.ch-event-photo:focus-visible {
   .ch-event-foot {
     margin-top: 3.5rem;
   }
+
+  /* Full-size targets for the links that are only words */
+  .ch-event-back {
+    margin: -0.875rem 0 0.625rem;
+  }
+
+  .ch-event-back a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .ch-page .ch-event-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-bottom: 0;
+    border-bottom: 0;
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.3em;
+  }
 }

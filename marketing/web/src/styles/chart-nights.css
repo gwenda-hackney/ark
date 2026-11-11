@@ -355,8 +355,15 @@
 /* On a phone: the big one stacked, the rest as rows with a small photo */
 @media (max-width: 40rem) {
   .ch-nights {
-    /* The small pictures down the side: one height, as wide as each is */
+    /* The small pictures down the side: one frame for all (4:5), so every
+       row's words start on the same line */
     --night-h: 8.125rem;
+  }
+
+  /* A sticker hangs over the top of its picture, not its side: the picture
+     is on the page's gutter, and the sticker stays clear of the screen's edge */
+  .ch-night-date {
+    left: 0;
   }
 
   .ch-night-list {
@@ -383,12 +390,14 @@
   }
 
   .ch-night:not(.ch-night--lead) .ch-night-card {
-    grid-template-columns: calc(var(--shape, 0.8) * var(--night-h)) minmax(
-        0,
-        1fr
-      );
+    grid-template-columns: calc(0.8 * var(--night-h)) minmax(0, 1fr);
     gap: 1rem;
     align-items: center;
+  }
+
+  /* A flyer of another shape sits whole in the frame, over its own blur */
+  .ch-night:not(.ch-night--lead) .ch-night-photo {
+    aspect-ratio: 4 / 5;
   }
 
   .ch-night:not(.ch-night--lead) .ch-night-date {
@@ -594,17 +603,46 @@
     gap: 2.25rem;
   }
 
+  /* The picture's column is one width on every card, so a deal's words and
+     the kitchen's start on the same line; each picture keeps its own shape */
   .ch-stand,
   .ch-stands--one .ch-stand {
-    --stand-h: 9.375rem;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
     gap: 1.125rem;
+  }
+
+  /* The tag hangs over the top of the card: room for it under the title */
+  .ch-stand-section .ch-home-head {
+    margin-bottom: 2.25rem;
   }
 
   .ch-stand-tag,
   .ch-stand--deal .ch-stand-tag {
     top: -0.875rem;
+    /* Clear of the screen's edge, as the dates are; on one line */
+    left: 0;
+    max-width: none;
+    white-space: nowrap;
     padding: 0.25rem 0.4375rem 0.3125rem;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
+  }
+
+  /* Full-size targets for the links under the words; the line under each
+     stays close to it */
+  .ch-stand-links {
+    gap: 0 1.5rem;
+    margin-top: 0 !important;
+  }
+
+  .ch-page .ch-stand-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-bottom: 0;
+    border-bottom: 0;
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.3em;
   }
 
   .ch-stand--deal .ch-stand-tag {
