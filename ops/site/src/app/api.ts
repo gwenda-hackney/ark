@@ -615,7 +615,8 @@ export type CodeDiff = {
 };
 
 export type SitePendingItem = {
-  kind: "document" | "artist";
+  /** "popup": a pop-up kitchen the built site still shows has ended (site-pending.js). */
+  kind: "document" | "artist" | "popup";
   id: string;
   change: "added" | "changed" | "removed";
   label: string;

@@ -7,6 +7,12 @@
  * autoUpdateTick every few minutes; when a site has pending changes and nobody
  * has changed anything for QUIET_MS, it starts one build. One automatic retry
  * after a failure, then it waits for someone to press "Update website now".
+ *
+ * The site also changes with the date alone: it shows a pop-up kitchen
+ * until its last night, decided when it is built. So a pop-up whose last
+ * night has passed since the build is pending too ("… pop-up kitchen ended"),
+ * and the site is rebuilt the morning after, once: that build's snapshot
+ * records the new day, so the pop-up is no longer pending.
  */
 import {
   SNAPSHOT_CONFIG_KEY,
@@ -17,6 +23,9 @@ import {
 } from "../../../../../shared/site-snapshot.js";
 import { readState as readConfigState, writeState as writeConfigState } from "../../../../../shared/config.js";
 import { listArtists } from "../../../../../shared/artists.js";
+import { londonToday } from "../../../../../marketing/web/src/lib/london-day.js";
+import { popupLastNights } from "../../events/server/popups.js";
+import { createLogger } from "../../platform/log.js";
 import { PREVIEW, sanityQuery } from "../../platform/sanity.js";
 import {
   dispatchProductionDeploy,
@@ -70,23 +79,49 @@ export async function writeState(env, site, state, { write = writeConfigState } 
   await write(env, "ops", STATE_KEY, site, JSON.stringify(state));
 }
 
-/** Current data vs the last build of one site. */
+/**
+ * Pop-up kitchens the built site still shows but that are over: the last
+ * night was on or after the day it was built, and before today (London days,
+ * as the website decides). Pending items, so they show on the Website page.
+ */
+export function popupsEndedSince(builtAt, popups, today) {
+  if (!builtAt || Number.isNaN(Date.parse(builtAt))) return [];
+  const builtOn = londonToday(new Date(builtAt));
+  return popups
+    .filter((popup) => popup.lastNight >= builtOn && popup.lastNight < today)
+    .map((popup) => ({
+      kind: "popup",
+      id: popup.id,
+      change: "changed",
+      label: `${popup.name}: pop-up kitchen ended`,
+      type: "popup",
+      name: popup.name,
+      lastNight: popup.lastNight,
+    }));
+}
+
+/** Current data vs the last build of one site. `now`: epoch ms, for pop-ups that have ended. */
 export async function computePending(
   env,
   site,
-  { query = sanityQuery, artists = listArtists, read = readConfigState } = {},
-  { fingerprints = {}, budget = Infinity } = {},
+  { query = sanityQuery, artists = listArtists, read = readConfigState, popups = popupLastNights } = {},
+  { fingerprints = {}, budget = Infinity, now = Date.now() } = {},
 ) {
-  const [snapshotText, docs, artistRows] = await Promise.all([
+  const [snapshotText, docs, artistRows, popupRows] = await Promise.all([
     read(env, "web", SNAPSHOT_CONFIG_KEY, site).catch(() => ""),
     query(env, VIEWS[site], SNAPSHOT_DOCS_QUERY),
     artists(env).catch(() => []),
+    // Without them the site is checked as before; the next tick tries again.
+    popups(env).catch(() => []),
   ]);
-  return pendingSince(
+  const pending = pendingSince(
     parseSnapshot(snapshotText),
     { docs: docs || [], artists: artistRows },
     { fingerprints, budget },
   );
+  if (!pending.known) return pending;
+  const ended = popupsEndedSince(pending.builtAt, popupRows, londonToday(new Date(now)));
+  return ended.length ? { ...pending, items: [...pending.items, ...ended] } : pending;
 }
 
 /**
@@ -146,22 +181,36 @@ async function startBuild(env, site, state, now, dispatch) {
   };
 }
 
-/** One scheduler pass over `sites` (both by default). */
+/** Says in the log why a build started when a pop-up kitchen ending is part of it. */
+function logPopupsEnded(log, site, items) {
+  const ended = items.filter((item) => item.kind === "popup");
+  if (!ended.length) return;
+  const names = ended.map((item) => `${item.name} (last night ${item.lastNight})`).join(", ");
+  log.info(`Rebuilding the ${site} website: a pop-up kitchen has ended: ${names}`, {
+    site,
+    popups: ended.map(({ id, name, lastNight }) => ({ id, name, lastNight })),
+  });
+}
+
+/** One scheduler pass over `sites` (both by default). `deps.log`: the request's logger. */
 export async function autoUpdateTick(env, deps = {}) {
   const now = deps.now ?? Date.now();
   const status = deps.status ?? fetchDeployStatus;
+  const log = deps.log ?? createLogger();
   const results = {};
   for (const site of deps.sites ?? SITES) {
     const state = await readState(env, site, deps);
     const pending = await computePending(env, site, deps, {
       fingerprints: state.fingerprints,
       budget: deps.budget ?? TICK_FINGERPRINT_BUDGET,
+      now,
     });
     const run = state.runId ? await status(env, state.runId).catch(() => null) : null;
     let { state: next, action } = decide(state, pending, { now, run });
     if (action === "build") {
       try {
         next = await startBuild(env, site, next, now, (deps.dispatch ?? dispatcherFor)(site));
+        logPopupsEnded(log, site, pending.items);
       } catch (error) {
         next = {
           ...next,
@@ -196,8 +245,9 @@ export async function updateNow(env, site, deps = {}) {
 export async function siteStatus(env, site, deps = {}) {
   // The tick keeps fingerprints by revision; reuse them, so a page load only
   // fingerprints documents changed since the last tick.
+  const now = deps.now ?? Date.now();
   const state = await readState(env, site, deps);
-  const pending = await computePending(env, site, deps, { fingerprints: state.fingerprints });
+  const pending = await computePending(env, site, deps, { fingerprints: state.fingerprints, now });
   const changedAt = state.changedAt ? Date.parse(state.changedAt) : null;
   return {
     site,
@@ -212,7 +262,7 @@ export async function siteStatus(env, site, deps = {}) {
     // Estimate only: the next cron tick after the quiet period.
     autoUpdateAt:
       pending.items.length && changedAt && !state.runId
-        ? new Date(Math.max(changedAt + QUIET_MS, Date.now())).toISOString()
+        ? new Date(Math.max(changedAt + QUIET_MS, now)).toISOString()
         : null,
   };
 }

@@ -1,6 +1,7 @@
-import { test } from "vitest";
+import { describe, test } from "vitest";
 import assert from "node:assert/strict";
-import { QUIET_MS, autoUpdateTick, decide, parseState } from "./site-pending.js";
+import { memoryEventRepository } from "../../events/server/adapters/memory-events.js";
+import { QUIET_MS, autoUpdateTick, decide, parseState, siteStatus } from "./site-pending.js";
 
 const T0 = Date.parse("2026-09-25T10:00:00Z");
 const item = (id, change = "changed") => ({ kind: "document", id, change, label: id });
@@ -60,6 +61,7 @@ test("the tick builds each quiet site once and saves state", async () => {
     write: async (_env, service, key, site, value) => store.set(`${service}:${key}:${site}`, value),
     query: async () => [],
     artists: async () => [],
+    popups: async () => [],
     status: async () => ({ completed: false }),
     dispatch: (site) => async () => {
       dispatched.push(site);
@@ -99,6 +101,7 @@ test("the tick fingerprints a few documents per run, keeps them, and only one si
     write: async (_env, service, key, site, value) => store.set(`${service}:${key}:${site}`, value),
     query: async () => (queries++, docs),
     artists: async () => [],
+    popups: async () => [],
     status: async () => ({ completed: false }),
     dispatch: () => async () => ({ runId: 1 }),
   };
@@ -114,4 +117,123 @@ test("the tick fingerprints a few documents per run, keeps them, and only one si
   assert.equal(result.production.pending, 5);
   assert.equal(Object.keys(saved().fingerprints).length, 5);
   assert.equal(queries, 3, "the preview site wasn't checked");
+});
+
+describe("a pop-up kitchen's last night", () => {
+  const FIVE_MINUTES = 5 * 60 * 1000;
+  const BUILD_MS = 10 * 60 * 1000;
+  const SNAPSHOT = "web:site.build_snapshot:production";
+  const snapshot = (at) => JSON.stringify({ version: 1, at, documents: {}, artists: {} });
+
+  /**
+   * The live site's scheduler as production runs it: a tick every five
+   * minutes, ops' series in a memory repository, and a build that takes ten
+   * minutes and then records what it was made from, as the deploy job does
+   * (shared/site-snapshot.js). Nothing in Sanity changes after `builtAt`.
+   */
+  async function scheduler({ series, builtAt }) {
+    const eventRepository = memoryEventRepository();
+    for (const { name, category, nights } of series) {
+      const event = await eventRepository.create({ name, category });
+      await eventRepository.saveNights(event.id, nights.map((date) => ({ date })));
+    }
+    const store = new Map([[SNAPSHOT, snapshot(builtAt)]]);
+    const builds = [];
+    const logs = [];
+    const env = { eventRepository };
+    const deps = (now) => ({
+      sites: ["production"],
+      now,
+      read: async (_env, service, key, site) => store.get(`${service}:${key}:${site}`) || "",
+      write: async (_env, service, key, site, value) => store.set(`${service}:${key}:${site}`, value),
+      query: async () => [],
+      artists: async () => [],
+      dispatch: () => async () => {
+        builds.push(new Date(now).toISOString());
+        return { runId: builds.length, runUrl: "" };
+      },
+      status: async (_env, runId) => ({
+        completed: now >= Date.parse(builds[runId - 1]) + BUILD_MS,
+        conclusion: "success",
+      }),
+      log: { info: (message, fields) => logs.push({ message, ...fields }) },
+    });
+    /** Every tick from `from` to `until`; a build that has finished has saved its snapshot first. */
+    async function ticks(from, until) {
+      const actions = [];
+      for (let now = Date.parse(from); now <= Date.parse(until); now += FIVE_MINUTES) {
+        const landed = builds.filter((at) => Date.parse(at) + BUILD_MS <= now).at(-1);
+        if (landed) store.set(SNAPSHOT, snapshot(landed));
+        actions.push((await autoUpdateTick(env, deps(now))).production);
+      }
+      return actions;
+    }
+    return { env, deps, ticks, builds, logs };
+  }
+
+  const NOVEMBER_POPUP = { name: "Chez Pickle", category: "popup", nights: ["2026-11-08", "2026-11-09", "2026-11-10"] };
+
+  test("the morning after it, the site is rebuilt once, and the log says why", async () => {
+    const site = await scheduler({ series: [NOVEMBER_POPUP], builtAt: "2026-11-09T15:00:00Z" });
+    // From the evening of its last night until noon the next day.
+    const actions = await site.ticks("2026-11-10T21:00:00Z", "2026-11-11T12:00:00Z");
+    assert.deepEqual(site.builds, ["2026-11-11T00:10:00.000Z"], "ten quiet minutes after London's midnight");
+    assert.equal(actions.filter((tick) => tick.action === "build").length, 1);
+    assert.equal(site.logs.length, 1);
+    assert.match(site.logs[0].message, /Chez Pickle/);
+    assert.match(site.logs[0].message, /ended/);
+    assert.equal(site.logs[0].site, "production");
+  });
+
+  test("the morning after is London's: in summer it comes an hour before UTC midnight", async () => {
+    const site = await scheduler({
+      series: [{ ...NOVEMBER_POPUP, nights: ["2026-07-08", "2026-07-09", "2026-07-10"] }],
+      builtAt: "2026-07-09T15:00:00Z",
+    });
+    await site.ticks("2026-07-10T21:00:00Z", "2026-07-11T06:00:00Z");
+    // 00:10 in London; the build made then is the morning after, not the last night.
+    assert.deepEqual(site.builds, ["2026-07-10T23:10:00.000Z"]);
+  });
+
+  test("the Website page lists it while the rebuild waits", async () => {
+    const site = await scheduler({ series: [NOVEMBER_POPUP], builtAt: "2026-11-09T15:00:00Z" });
+    const status = await siteStatus(site.env, "production", site.deps(Date.parse("2026-11-11T00:05:00Z")));
+    assert.deepEqual(
+      status.items.map(({ kind, change, label }) => ({ kind, change, label })),
+      [{ kind: "popup", change: "changed", label: "Chez Pickle: pop-up kitchen ended" }],
+    );
+  });
+
+  test("a pop-up whose last night is today or tomorrow is still on: no rebuild", async () => {
+    const site = await scheduler({
+      series: [
+        { name: "Tonight's Last", category: "popup", nights: ["2026-11-10", "2026-11-11"] },
+        { name: "Tomorrow's Last", category: "popup", nights: ["2026-11-11", "2026-11-12"] },
+      ],
+      builtAt: "2026-11-09T15:00:00Z",
+    });
+    const actions = await site.ticks("2026-11-11T00:00:00Z", "2026-11-11T12:00:00Z");
+    assert.deepEqual(site.builds, []);
+    assert.ok(actions.every((tick) => tick.action === "idle"));
+  });
+
+  test("a series that isn't a pop-up kitchen doesn't rebuild the site when it ends", async () => {
+    const site = await scheduler({
+      series: [
+        { name: "Jazz Night", nights: ["2026-11-03", "2026-11-10"] },
+        { name: "Happy Hour", category: "promotion", nights: ["2026-11-09", "2026-11-10"] },
+      ],
+      builtAt: "2026-11-09T15:00:00Z",
+    });
+    await site.ticks("2026-11-11T00:00:00Z", "2026-11-11T12:00:00Z");
+    assert.deepEqual(site.builds, []);
+  });
+
+  test("a site already built that morning isn't built again", async () => {
+    // Someone pressed Update website at two minutes past midnight.
+    const site = await scheduler({ series: [NOVEMBER_POPUP], builtAt: "2026-11-11T00:02:00Z" });
+    await site.ticks("2026-11-11T00:05:00Z", "2026-11-11T12:00:00Z");
+    assert.deepEqual(site.builds, []);
+    assert.deepEqual(site.logs, []);
+  });
 });

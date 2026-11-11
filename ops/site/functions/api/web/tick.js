@@ -16,6 +16,9 @@ function sameSecret(a, b) {
  * Scheduler pass, called every few minutes by the site-deploy webhook's cron
  * with the shared DEPLOY_WEBHOOK_SECRET. Public path: no user session.
  *
+ * Each site's check also rebuilds it the morning after a pop-up kitchen's last
+ * night (site-pending.js), since the site shows a pop-up until then.
+ *
  * It also moves the "getting ready for the website" queue on by one step,
  * for when nobody has ops open, and the events' Drive copy (#183). Each step
  * is its own request (`?step=jobs`, `?step=drive`) so it gets its own
@@ -38,7 +41,7 @@ export const onRequestPost = withApiHandler(async (context) => {
   }
   const site = url.searchParams.get("site");
   if (step === "site" && SITES.includes(site)) {
-    return jsonResponse({ ok: true, sites: await autoUpdateTick(context.env, { sites: [site] }) });
+    return jsonResponse({ ok: true, sites: await autoUpdateTick(context.env, { sites: [site], log: context.log }) });
   }
   const call = (params) => {
     const next = new URL(url);
