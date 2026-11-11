@@ -84,9 +84,12 @@ describe("recordDrawing", () => {
     expect(viewBox).toBe("3 3 174 174");
     expect(body).not.toMatch(/<rect\b/);
     expect(body).toMatch(/^<circle cx="90" cy="90" r="87" fill="#f2e8d2"\/>/);
-    // The three grooves and the skull stay
+    // The three grooves stay, and the middle is the logo's pairing: a
+    // mustard ring, a black centre, the skull in cream on it
     expect(body.match(/<circle r=/g)).toHaveLength(3);
-    expect(body).toMatch(/<path fill="#0b0a08" fill-rule="evenodd"/);
+    expect(body).toMatch(
+      /<circle cx="90" cy="90" r="59" fill="#dba63c"\/><circle cx="90" cy="90" r="50" fill="#0b0a08"\/><path fill="#f2e8d2" fill-rule="evenodd"/,
+    );
   });
 
   it("keeps the tab's drawing on its own pixel grid, comments and all whitespace out", () => {

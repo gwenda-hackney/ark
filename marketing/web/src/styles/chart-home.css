@@ -117,12 +117,6 @@
   transform: translateX(0.25rem);
 }
 
-.ch-menu-all:focus-visible {
-  outline: 2px solid var(--ch-gold);
-  outline-offset: 2px;
-  border-radius: 0.125rem;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .ch-menu-all > span {
     transition: none;
@@ -151,12 +145,6 @@
 .ch-menu-side-head h3 a:focus-visible,
 .ch-menu-side-head h3 a:active {
   color: var(--ch-cream);
-}
-
-.ch-menu-side-head h3 a:focus-visible {
-  outline: 2px solid var(--ch-gold);
-  outline-offset: 4px;
-  border-radius: 0.125rem;
 }
 
 .ch-menu-side-head p {
@@ -236,12 +224,6 @@
   color: var(--ch-cream);
 }
 
-.ch-menu-rest:focus-visible {
-  outline: 2px solid var(--ch-gold);
-  outline-offset: 4px;
-  border-radius: 0.125rem;
-}
-
 /*
  * The rest of the menu: each chapter by name, and what it starts from. Every
  * tile is a link to that part of the menu's page (lib/menu-anchors.js).
@@ -282,6 +264,14 @@
     box-shadow 0.2s ease;
 }
 
+/* Wherever the dock shows (a touch screen), a tile is a full-size target.
+   Narrow tiles are taller still (below) */
+@media not all and (min-width: 62.5rem) {
+  .ch-menu-more a {
+    min-height: 2.75rem;
+  }
+}
+
 /*
  * Under the mouse, the keyboard or a thumb: the theme's mustard round the
  * tile and on its name. The line is drawn inside, so the tile, its row and
@@ -292,11 +282,6 @@
 .ch-menu-more a:active {
   background: var(--ch-board-3);
   box-shadow: inset 0 0 0 1.5px var(--ch-mustard);
-}
-
-.ch-menu-more a:focus-visible {
-  outline: 2px solid var(--ch-gold);
-  outline-offset: 2px;
 }
 
 .ch-menu-more a > span:first-child {
@@ -411,8 +396,11 @@
   .ch-menu-side {
     padding: 1.25rem 1rem 1.5rem;
   }
+}
 
-  /* Full-size targets for the links that are only words */
+/* Wherever the dock shows (a touch screen): full-size targets for the links
+   that are only words, in the same place as before */
+@media not all and (min-width: 62.5rem) {
   .ch-menu-side-head h3 a,
   .ch-menu-rest {
     display: inline-block;
@@ -482,12 +470,6 @@
 .ch-page .ch-stand-more:hover,
 .ch-page .ch-stand-more:focus-visible {
   color: var(--ch-cream);
-}
-
-.ch-stand-more:focus-visible {
-  outline: 2px solid var(--ch-gold);
-  outline-offset: 2px;
-  border-radius: 0.125rem;
 }
 
 @media (min-width: 40.0625rem) {
@@ -687,10 +669,14 @@
   color: var(--ch-cream);
 }
 
-.ch-photos-more-link:focus-visible {
-  outline: 2px solid var(--ch-gold);
-  outline-offset: 4px;
-  border-radius: 0.125rem;
+/* Wherever the dock shows (a touch screen), a full-size target, in the same
+   place as before */
+@media not all and (min-width: 62.5rem) {
+  .ch-page .ch-photos-more-link {
+    display: inline-block;
+    padding-block: 0.5rem;
+    margin-block: -0.5rem;
+  }
 }
 
 /* The foot lines up with home's sections */

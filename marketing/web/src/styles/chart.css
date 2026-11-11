@@ -9,7 +9,7 @@
 @import "@fontsource/zilla-slab/latin-400-italic.css";
 @import "@fontsource/zilla-slab/latin-500.css";
 @import "@fontsource/zilla-slab/latin-700.css";
-@import "@fontsource/rubik-distressed/latin-400.css";
+@import "./chart-sign-font.css";
 /* Every divider line, drawn by hand */
 @import "./chart-rules.css";
 
@@ -23,8 +23,9 @@
   --ch-ink-3: #8c826e;
   --ch-gold: #c9a24a;
   --ch-red: #b3161d;
-  /* The red for small type and marks on the black: brighter, so it reads */
-  --ch-red-ink: #dc4a3a;
+  /* The red for small type and marks on the black and the boards: brighter,
+     so it reads (4.8:1 on the board, 5.2:1 on the black) */
+  --ch-red-ink: #e4513f;
   /* Olive: the trees at the wharf, the one cool colour */
   --ch-olive: #747e54;
   /* Brass: a duller gold for labels, so bright gold stays for what you act on */
@@ -60,6 +61,10 @@
      keep this far from the screen's edge */
   --ch-gutter: 1.25rem;
 
+  /* The keyboard's ring (Where the keyboard is, below) */
+  --ch-focus-ring: 2px solid var(--ch-mustard);
+  --ch-focus-offset: 3px;
+
   /* The headline faces come in one weight: never faked bolder */
   font-synthesis: none;
   min-height: 100vh;
@@ -83,12 +88,28 @@ body:has(.ch-page) {
   background-size: 720px 720px;
 }
 
-.ch-page a:where(:not(.ch-btn)) {
+/* A link takes its text's colour unless a class gives it one (.ch-link's
+   gold): weighs no more than its element (html only keeps it over
+   global.css's gold `a` in any order), so any class wins over it */
+html :where(.ch-page) a:where(:not(.ch-btn)) {
   color: inherit;
 }
 
 .ch-page a {
   text-decoration: none;
+}
+
+/*
+ * Where the keyboard is: one ring for the whole look, in the record's
+ * mustard, a little clear of what it marks (global.css takes every outline
+ * away). A part that also marks focus its own way (a colour, a line) keeps
+ * that beside the ring, never instead of it. Not on what is only focused
+ * from a script (tabindex -1: the main, a heading landed on, the open menu):
+ * a place to land, not a control.
+ */
+.ch-page :focus-visible:where(:not([tabindex="-1"])) {
+  outline: var(--ch-focus-ring);
+  outline-offset: var(--ch-focus-offset);
 }
 
 .ch-caps {
@@ -222,12 +243,6 @@ body:has(.ch-page) {
   }
 }
 
-.ch-chart-btn:focus-visible,
-.ch-chart a:focus-visible {
-  outline: 1px solid var(--ch-gold);
-  outline-offset: 3px;
-}
-
 .ch-chart-scrim {
   position: fixed;
   inset: 0;
@@ -268,6 +283,14 @@ body:has(.ch-page) {
   transition:
     transform 0.3s ease,
     visibility 0s;
+}
+
+/* With reduced motion it doesn't slide: there at once, and gone at once */
+@media (prefers-reduced-motion: reduce) {
+  .ch-chart,
+  .ch-page[data-chart="open"] .ch-chart {
+    transition: none;
+  }
 }
 
 /* Opening moves focus to the panel itself: no ring round all of it */
@@ -440,8 +463,6 @@ body:has(.ch-page) {
 
 .ch-skip:focus {
   transform: translateX(-50%);
-  outline: 2px solid var(--ch-mustard);
-  outline-offset: 2px;
 }
 
 /* The page's main lands from the skip link without a ring round all of it */
@@ -640,11 +661,6 @@ body:has(.ch-page) {
   to {
     clip-path: inset(-0.25rem -0.25rem -0.25rem -0.25rem);
   }
-}
-
-.ch-bar a:focus-visible {
-  outline: 1px solid var(--ch-ink);
-  outline-offset: 0.25rem;
 }
 
 /*
@@ -1128,11 +1144,6 @@ html[data-chart-leaving] .ch-page {
   color: var(--ch-mustard);
 }
 
-.ch-hero-nav a:focus-visible {
-  outline: 1px solid var(--ch-gold);
-  outline-offset: 3px;
-}
-
 @media (max-width: 40rem) {
   .ch-hero-nav {
     margin-top: 1.75rem;
@@ -1438,8 +1449,9 @@ html[data-chart-leaving] .ch-page {
   color: var(--ch-gold);
 }
 
-/* On a phone each is a full-size target; the rows keep their distance */
-@media (max-width: 40rem) {
+/* Wherever the dock shows (a touch screen) each is a full-size target; the
+   rows keep their distance */
+@media not all and (min-width: 62.5rem) {
   .ch-jump {
     row-gap: 0;
     margin: -1.5rem 0 1.5rem;
@@ -1857,13 +1869,6 @@ html[data-chart-leaving] .ch-page {
   background: #d8b25a;
 }
 
-.ch-btn:focus-visible,
-.ch-page .btn.btn-primary:focus-visible,
-.ch-page .btn.btn-ghost:focus-visible {
-  outline: 1px solid var(--ch-ink);
-  outline-offset: 0.4rem;
-}
-
 /* The smaller button: Book a table floating, and the dock's two. .ch-page in
    front so home's bigger buttons don't resize them: one size on every page */
 .ch-page .ch-btn.ch-btn--compact {
@@ -2000,10 +2005,21 @@ html[data-chart-leaving] .ch-page {
   color: var(--ch-ink-3);
 }
 
-.ch-page .gw-field input:focus,
-.ch-page .gw-field textarea:focus {
-  outline: none;
+/*
+ * A field in focus, in every form (the list's, the play and party forms'):
+ * its line turns gold, and the ring (Where the keyboard is) goes round it,
+ * without global.css's glow. global.css takes the outline off its fields at
+ * more weight than the ring has, hence these longer selectors.
+ */
+.ch-page .gw-field input:focus-visible,
+.ch-page .gw-field textarea:focus-visible,
+.ch-page .gw-field > select:focus-visible,
+.ch-page .gw-select-trigger:focus-visible,
+.ch-page .signup-field input[type="email"]:focus-visible {
   border-color: var(--ch-gold);
+  box-shadow: none;
+  outline: var(--ch-focus-ring);
+  outline-offset: var(--ch-focus-offset);
 }
 
 /* The page head already says it; the embedded signup keeps its form only */
@@ -2076,10 +2092,6 @@ html[data-chart-leaving] .ch-page {
   color: var(--ch-ink-3);
 }
 
-.ch-page .signup-field input[type="email"]:focus {
-  border-color: var(--ch-gold);
-}
-
 /* The row is a 44px target; the box is as tall as one line of the text, so
    it sits level with a single line and with the first of two. */
 .ch-page .signup-consent {
@@ -2119,12 +2131,6 @@ html[data-chart-leaving] .ch-page {
   border-color: var(--ch-mustard);
   background-color: var(--ch-mustard);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 8.6l3.6 3.6 7.4-8.4' fill='none' stroke='%230b0a08' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-.ch-page .signup-consent input:focus-visible,
-.ch-page .contact-tag input:focus-visible {
-  outline: 2px solid var(--ch-cream);
-  outline-offset: 3px;
 }
 
 .ch-page .signup-error,

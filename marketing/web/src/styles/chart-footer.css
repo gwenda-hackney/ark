@@ -125,12 +125,9 @@
   color: var(--ch-mustard);
 }
 
-/* global.css takes every outline away: the foot draws its own */
+/* In focus a link turns mustard, beside the page's ring (chart.css) */
 .ch-footer a:focus-visible {
   color: var(--ch-mustard);
-  outline: 1px solid var(--ch-ink);
-  outline-offset: 0.25rem;
-  border-radius: 1px;
 }
 
 /* Map · the phone, on one line under the address, underlined in gold */
@@ -321,8 +318,9 @@
   filter: brightness(1.15);
 }
 
+/* The page's ring, hugging the record */
 .ch-footer .ch-footer-top:focus-visible {
-  outline: 2px solid var(--ch-mustard);
+  outline: var(--ch-focus-ring);
   outline-offset: 0;
   border-radius: 50%;
 }

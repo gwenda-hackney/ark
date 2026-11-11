@@ -55,6 +55,12 @@ interface Props {
   thisWeek?: boolean;
   /** The line when there's nothing to show. */
   empty?: string;
+  /**
+   * The first picture loads with the page, for when it's in the first view.
+   * Home's are below the hero and What's on's below its deals, so there they
+   * wait, and what is in the first view (home's logo) comes first.
+   */
+  leadEager?: boolean;
 }
 
 const {
@@ -63,6 +69,7 @@ const {
   shown,
   weeks = false,
   thisWeek = false,
+  leadEager = true,
   empty = "Nothing in the diary just now. Get on the list and we’ll tell you first.",
 } = Astro.props;
 const today = londonToday();
@@ -188,7 +195,7 @@ const lists = weeks
                           night.photoSizes ? nightSizes(night.ratio) : undefined
                         }
                         alt=""
-                        loading={index === 0 ? "eager" : "lazy"}
+                        loading={index === 0 && leadEager ? "eager" : "lazy"}
                         style={
                           night.photoPosition
                             ? `object-position: ${night.photoPosition}`

@@ -93,9 +93,10 @@
   fill: var(--ch-ink);
 }
 
-/* The sign at the turning: a small red disc with a white middle */
+/* The sign at the turning: a small red disc with a white middle. The bright
+   red, so it stands off the board (--ch-red is 2.6:1 there) */
 .ch-map-sign-rim {
-  fill: var(--ch-red);
+  fill: var(--ch-red-ink);
   stroke: var(--ch-board);
   stroke-width: 2.5;
 }
@@ -104,9 +105,9 @@
   fill: var(--ch-cream);
 }
 
-/* Gwenda: the X, big and red */
+/* Gwenda: the X, big and red (the bright red, as the sign's) */
 .ch-map-here {
-  stroke: var(--ch-red);
+  stroke: var(--ch-red-ink);
   stroke-width: 11;
 }
 
