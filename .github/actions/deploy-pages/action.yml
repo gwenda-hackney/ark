@@ -162,6 +162,9 @@ runs:
       shell: bash
       run: cd marketing/web && node scripts/write-build-headers.mjs
       env:
+        # Which site this is: only the live one skips Functions for built pages
+        PUBLIC_IS_PREVIEW: ${{ inputs.public-is-preview }}
+        SITE_ENV: ${{ inputs.secrets-profile }}
         PUBLIC_BUILD_SHA: ${{ inputs.build-sha }}
         PUBLIC_BUILD_TIME: ${{ inputs.build-time }}
         PUBLIC_BUILD_VERSION: ${{ inputs.build-version }}
