@@ -1,0 +1,94 @@
+/*
+ * The featured artist's page (ArtistPage.astro, #240): its layout stays
+ * (the portrait beside the name, the room, the work), set in the chart's
+ * type and colours. The wall's live check (scripts/artist-live.js) swaps
+ * the intro from templates with the same classes.
+ */
+.ch-artist .artist-intro {
+  margin-top: 0;
+}
+
+.ch-artist .section-eyebrow {
+  margin: 0 0 0.5rem;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  color: var(--ch-mustard);
+}
+
+/* The artist's name, under the page's title */
+.ch-artist .page-header-title {
+  font-family: var(--ch-display);
+  font-weight: 400;
+  font-size: clamp(2rem, 4.5vw, 2.75rem);
+  letter-spacing: 0;
+  line-height: 1.05;
+  color: var(--ch-cream);
+}
+
+.ch-artist .page-header-title::after,
+.ch-artist .artist-section-header h2::after {
+  display: none;
+}
+
+.ch-artist .artist-section-header {
+  text-align: left;
+}
+
+.ch-artist .artist-section-header h2,
+.ch-artist .artist-next h2 {
+  font-family: var(--ch-press);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 3vw, 2.125rem);
+  letter-spacing: 0;
+  line-height: 1.15;
+  color: var(--ch-tallow);
+}
+
+.ch-artist .artist-lead,
+.ch-artist .artist-copy,
+.ch-artist .artist-copy p,
+.ch-artist .artist-programme,
+.ch-artist .artist-more,
+.ch-artist .artist-next p {
+  font-family: var(--ch-book);
+  font-size: 1.1875rem;
+  line-height: 1.55;
+  color: var(--ch-ink-2);
+}
+
+.ch-artist .artist-lead {
+  color: var(--ch-ink);
+}
+
+.ch-artist .artist-site a,
+.ch-artist .artist-more a,
+.ch-artist .artist-archive a {
+  font-family: var(--ch-book);
+  letter-spacing: 0;
+  color: var(--ch-gold);
+  border-bottom: 1px solid currentColor;
+}
+
+.ch-artist .artist-site a:hover,
+.ch-artist .artist-more a:hover,
+.ch-artist .artist-archive a:hover {
+  color: var(--ch-mustard);
+  text-decoration: none;
+}
+
+/* A work's name, written under it */
+.ch-artist .artist-samples figcaption {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.375rem;
+  letter-spacing: 0;
+  color: var(--ch-mustard);
+}
+
+.ch-artist .artist-section,
+.ch-artist .artist-next,
+.ch-artist .artist-archive {
+  border-top: 1px dashed var(--ch-rule);
+}

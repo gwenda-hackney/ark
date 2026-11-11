@@ -11,6 +11,7 @@ import { fetchWhatsOnCatalog } from "../lib/sanity/events";
 import { fetchMenu } from "../lib/sanity/menu";
 import { closedDays } from "../lib/opening-hours.js";
 import { fetchOpeningHours } from "../lib/sanity/opening-hours";
+import { nightsStructuredData } from "../lib/structured-data.js";
 
 const { series, occurrences } = await fetchWhatsOnCatalog().catch(() => ({
   series: [],
@@ -24,9 +25,19 @@ const { title: pageTitle, description: pageDescription } =
 /** "We're shut on Mondays." from the opening hours; nothing without them. */
 const shut = closedDays(await fetchOpeningHours());
 const lead = `What’s coming up.${shut ? ` We’re shut on ${shut}.` : ""}`;
+/** The nights for search engines, as events at Gwenda. */
+const events = {
+  "@context": "https://schema.org",
+  "@graph": nightsStructuredData(nights, siteConfig),
+};
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
+  <script
+    type="application/ld+json"
+    slot="head"
+    set:html={JSON.stringify(events)}
+  />
   <ChartPage title="What's on" lead={lead}>
     <StandingCards
       series={series}

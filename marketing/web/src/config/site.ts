@@ -33,11 +33,6 @@ export const siteConfig = {
       description:
         "What’s on at Gwenda in Hackney Wick: DJs, bands, chess, and the odd party by the canal.",
     },
-    schedule: {
-      title: "Schedule · Gwenda",
-      description:
-        "Every night at Gwenda, listed week by week. Residencies and one-off evenings in Hackney Wick.",
-    },
     menu: {
       title: "Menu · Gwenda",
       description:
@@ -222,6 +217,17 @@ export const siteConfig = {
     signupSuccessTitle: "You're in",
     signupSuccessLead: "We'll let you know what's coming up. No spam, promise.",
     signupSuccessBack: "Back to Gwenda",
+    /** The page for a wrong address (404.astro, #240). */
+    notFound: {
+      pageTitle: "Nothing here · Gwenda",
+      description: "That page doesn’t exist at Gwenda, or it’s moved.",
+      title: "Nothing here",
+      line: "That page doesn’t exist, or it’s moved. Try one of these instead.",
+      /** Handwritten under the bottle, tipped over with nothing coming out. */
+      caption: "all gone",
+      /** The five places' name, for screen readers. */
+      placesLabel: "Try instead",
+    },
     contactPage: {
       eyebrow: "Get in touch",
       heading: "Say hello",

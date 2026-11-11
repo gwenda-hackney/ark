@@ -1,25 +1,17 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Subpage from "../components/Subpage.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import "../styles/chart-text.css";
 import { siteConfig } from "../config/site";
-import { withHome } from "../lib/site-nav.js";
-
-const privacyNav = withHome([
-  { href: "#who-we-are", label: "Who we are" },
-  { href: "#what-we-collect", label: "What we collect" },
-  { href: "#how-we-use-your-data", label: "How we use your data" },
-  { href: "#third-parties", label: "Third parties" },
-  { href: "#your-rights", label: "Your rights" },
-  { href: "#cookies", label: "Cookies" },
-]);
 ---
 
 <BaseLayout
   title={siteConfig.seo.privacy.title}
   description={siteConfig.seo.privacy.description}
+  showBooking={false}
 >
-  <Subpage class="legal-page" navItems={privacyNav} title="Privacy Policy">
-    <p class="legal-updated">Last updated: June 2026</p>
+  <ChartPage class="ch-text" title="Privacy Policy">
+    <p class="ch-caps ch-text-updated" slot="head">Last updated: June 2026</p>
 
     <section id="who-we-are">
       <h2>Who we are</h2>
@@ -105,5 +97,5 @@ const privacyNav = withHome([
         cookies for security and performance when serving the site.
       </p>
     </section>
-  </Subpage>
+  </ChartPage>
 </BaseLayout>

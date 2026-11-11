@@ -2,6 +2,7 @@
 import { siteConfig } from "../config/site";
 import { bookingUrl } from "../config/booking";
 import { openingHoursSpecification } from "../lib/opening-hours.js";
+import { siteNavigation } from "../lib/structured-data.js";
 import { fetchOpeningHours } from "../lib/sanity/opening-hours";
 
 interface Props {
@@ -58,49 +59,7 @@ const structuredData = {
         },
       ],
     },
-    {
-      "@type": "ItemList",
-      "@id": `${domain}/#navigation`,
-      name: "Main navigation",
-      itemListElement: [
-        {
-          "@type": "SiteNavigationElement",
-          position: 1,
-          name: "Behind the doors",
-          url: `${domain}/#story`,
-        },
-        {
-          "@type": "SiteNavigationElement",
-          position: 2,
-          name: "Menu",
-          url: menuUrl,
-        },
-        {
-          "@type": "SiteNavigationElement",
-          position: 3,
-          name: "What's on",
-          url: eventsUrl,
-        },
-        {
-          "@type": "SiteNavigationElement",
-          position: 4,
-          name: "Featured artist",
-          url: new URL("/artists/current/", domain).href,
-        },
-        {
-          "@type": "SiteNavigationElement",
-          position: 5,
-          name: "Contact",
-          url: new URL("/contact/", domain).href,
-        },
-        {
-          "@type": "SiteNavigationElement",
-          position: 6,
-          name: siteConfig.copy.signupNavCta,
-          url: `${domain}/#list`,
-        },
-      ],
-    },
+    siteNavigation(domain),
     {
       "@type": "WebPage",
       "@id": `${url}#webpage`,

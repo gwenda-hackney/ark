@@ -32,13 +32,16 @@ import {
 } from "./sanity-query.js";
 import { fetchPublishedCatalog } from "./sanity-events.js";
 
-/** Built shells. Visiting one directly finds no such series and goes to What's on. */
+/** Built shells. Visiting one directly goes to What's on. */
 export const SERIES_SHELL = "/whats-on/series-shell";
 export const NIGHT_SHELL = "/whats-on/series-shell/night-shell";
 export const TICKET_SHELL = `${NIGHT_SHELL}/ticket`;
 
-/** Static pages under /whats-on that are not a series. */
-const STATIC_PAGES = new Set(["schedule"]);
+/**
+ * Pages under /whats-on that are gone, and where they went for good: the
+ * old schedule listed what What's on lists, week by week (#240).
+ */
+const MOVED_PAGES = new Map([["schedule", "/whats-on/"]]);
 
 const TOKENS = {
   title: "__EVENT_TITLE__",
@@ -88,8 +91,11 @@ const NIGHT_PAGES_QUERY = `{
 const HERO_IMAGE_QUERY = `*[_type == "event" && slug.current == $slug && removed != true][0].heroImage { crop, hotspot, asset }`;
 
 /**
- * What to send for a path under /whats-on: `null` when it isn't an event
- * page, else `{ redirect, status }` or `{ shell, fill }` for renderEventPage.
+ * What to send for a path under /whats-on: `{ redirect, status }` or
+ * `{ shell, fill }` for renderEventPage; `null` when it isn't an event page,
+ * or is under an address that was never a series, for the static site to
+ * answer: it has no such page either, so that is its "Nothing here" page
+ * with a 404 (src/pages/404.astro), not home.
  */
 export async function resolveEventPage(env, pathname) {
   if (!pathname.startsWith("/whats-on/")) return null;
@@ -98,9 +104,12 @@ export async function resolveEventPage(env, pathname) {
     .split("/")
     .slice(2)
     .map(decodeURIComponent);
-  if (!parts.length || parts.length > 3 || STATIC_PAGES.has(parts[0]))
-    return null;
+  if (!parts.length || parts.length > 3) return null;
   if (parts.length === 3 && parts[2] !== "ticket") return null;
+  if (parts.length === 1 && MOVED_PAGES.has(parts[0]))
+    return { redirect: MOVED_PAGES.get(parts[0]), status: 301 };
+  if (`/whats-on/${parts[0]}` === SERIES_SHELL)
+    return { redirect: "/whats-on/", status: 302 };
   if (parts.length === 1) return resolveSeries(env, parts[0]);
   return resolveNight(env, parts[0], parts[1], parts.length === 3);
 }
@@ -115,9 +124,12 @@ async function resolveSeries(env, seriesId) {
   if (!detail) {
     // A web address changed in ops: the old one leads to the series.
     const moved = seriesRedirects(series).find((row) => row.from === seriesId);
-    return moved
-      ? { redirect: `/whats-on/${moved.to}/`, status: 301 }
-      : { redirect: "/whats-on/", status: 302 };
+    if (moved) return { redirect: `/whats-on/${moved.to}/`, status: 301 };
+    // A series that has had its last night: what's on now instead.
+    const known =
+      series.some((row) => row.seriesId === seriesId) ||
+      occurrences.some((night) => night.seriesId === seriesId);
+    return known ? { redirect: "/whats-on/", status: 302 } : null;
   }
   const record = series.find((row) => row.seriesId === detail.seriesId);
   const nights = occurrences
@@ -187,7 +199,11 @@ async function resolveNight(env, seriesId, date, ticket) {
         redirect: `${moved.to}${ticket ? "/ticket" : ""}/`,
         status: 301,
       };
-    return { redirect: `/whats-on/${seriesId}/`, status: 302 };
+    // A night no longer on the website: its series, if there ever was one.
+    const known =
+      (data.series || []).some((row) => row.seriesId === seriesId) ||
+      pages.some((row) => row.series === seriesId);
+    return known ? { redirect: `/whats-on/${seriesId}/`, status: 302 } : null;
   }
   const { event } = page;
   // The night's own photos from the series gallery (#30).

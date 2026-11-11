@@ -14,6 +14,7 @@ import {
   mapsSearchUrl,
   phoneHref,
   phoneText,
+  PRIVACY_LINK,
 } from "../../lib/chart-footer.js";
 import { fetchVenueDetails } from "../../lib/sanity/venue-details";
 import EmailSignup from "../EmailSignup.astro";
@@ -92,7 +93,7 @@ const mapUrl = mapsSearchUrl({
         <a href={social.instagram} target="_blank" rel="noopener noreferrer"
           >Instagram</a
         >
-        <a href="/privacy">Privacy</a>
+        <a href={PRIVACY_LINK.href}>{PRIVACY_LINK.label}</a>
       </nav>
       <span class="ch-footer-copy"
         >© {year} {siteConfig.name} {copy.social}</span

@@ -1,4 +1,5 @@
 import bottleImg from "../assets/images/logos/bottle.png";
+import dryBottleImg from "../assets/images/logos/bottle-dry.png";
 import roomImg from "../assets/images/hero/hero.png";
 import chezPickleImg from "../assets/images/food/chez-pickle.png";
 import turntableImg from "../assets/images/play/turn-table.jpg";
@@ -80,4 +81,17 @@ export const guestChefLogo = {
   width: 112,
   format: "webp" as const,
   densities: [1, 2] as const,
+};
+
+/**
+ * The logo's bottle tipped over with nothing coming out, on the "Nothing
+ * here" page (404.astro): up to 20rem (320px) on a desk, 13rem on a phone.
+ * A stand-in until proper artwork: it is cropped from the logo with the pour
+ * masked off, so it is only 526px wide; drawn artwork replaces the file.
+ */
+export const dryBottle = {
+  src: dryBottleImg,
+  widths: [263, 526],
+  sizes: "(max-width: 40rem) 13rem, 20rem",
+  format: "webp" as const,
 };

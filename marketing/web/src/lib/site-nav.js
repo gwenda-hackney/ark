@@ -1,31 +1,3 @@
-import { diaryGroups } from "./diary-groups.js";
-
-/**
- * This page's anchors and child pages. The wordmark goes home.
- * Back is a separate control, so Home is not a nav item.
- */
-export function withHome(items = []) {
-  return items.filter((item) => navPathname(item?.href) !== "/");
-}
-
-/**
- * One level up, when someone opens a page with no history.
- * `/artists` and `/events` redirect, so those parents skip the redirect.
- *
- * @param {string} [pathname]
- */
-export function parentHref(pathname = "/") {
-  const path = navPathname(pathname || "/");
-  if (!path || path === "/") return "";
-  if (path === "/artists/current") return "/";
-  const parts = path.split("/").filter(Boolean);
-  if (parts[0] === "artists") return "/artists/current";
-  if (parts.length === 1) return parts[0] === "events" ? "/whats-on" : "/";
-  const parent = `/${parts.slice(0, -1).join("/")}`;
-  if (parent === "/events") return "/whats-on";
-  return parent;
-}
-
 /**
  * Path of a nav href. In-page hashes are not routes.
  * `/menu/` and `/menu` are the same page.
@@ -97,44 +69,4 @@ export function sitePageLinks(pathname = "/", { showMenu = true } = {}) {
 export function shouldReloadNavLink(href) {
   const value = String(href || "");
   return value.includes("#") && !value.startsWith("#");
-}
-
-/** Section anchors exist only when both groups are on the diary. */
-export function diarySectionFlags(nights) {
-  const list = Array.isArray(nights) ? nights : [];
-  const regular = list.some((event) => event?.schedule !== "once");
-  const special = list.some((event) => event?.schedule === "once");
-  return {
-    showRegular: regular && special,
-    showSpecial: special,
-  };
-}
-
-/**
- * What's on: anchors on this page, then the schedule subpage.
- * The schedule does not repeat this menu, and it does not list each week.
- *
- * @param {Array} [nights]
- */
-export function whatsOnNavItems(nights = []) {
-  const { showRegular, showSpecial } = diarySectionFlags(nights);
-  return withHome([
-    ...(showSpecial
-      ? [{ href: "#special", label: diaryGroups.special.label }]
-      : []),
-    ...(showRegular
-      ? [{ href: "#series", label: diaryGroups.series.label }]
-      : []),
-    { href: "/whats-on/schedule", label: "Full schedule" },
-  ]);
-}
-
-/** Featured artist: this page's galleries, when they have pictures. */
-export function artistNavItems(artist) {
-  return withHome([
-    ...(artist?.gwenda?.length
-      ? [{ href: "#at-gwenda", label: "At Gwenda" }]
-      : []),
-    ...(artist?.art?.length ? [{ href: "#work", label: "More" }] : []),
-  ]);
 }

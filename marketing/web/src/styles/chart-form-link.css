@@ -1,0 +1,27 @@
+/*
+ * The pages the links in a form's emails open (FormLinkPage.astro, #240):
+ * the title and a line say how it went, then the way on.
+ */
+.ch-form-link [data-form-link] {
+  max-width: 36rem;
+}
+
+.ch-form-link [data-form-link] .ch-lead {
+  margin: 0;
+}
+
+.ch-form-link [data-form-link] .ch-lead:empty {
+  display: none;
+}
+
+.ch-form-link-ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 2rem 0 0;
+}
+
+/* The buttons are flex boxes: hidden must still hide them */
+.ch-form-link [data-form-link] [hidden] {
+  display: none;
+}

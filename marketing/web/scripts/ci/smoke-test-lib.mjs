@@ -33,6 +33,23 @@ export function assertHomePageHealthy(html) {
   }
 }
 
+/**
+ * A wrong address (#240) is answered where it was asked, with the site's own
+ * "Nothing here" page (src/pages/404.astro, built as 404.html) and a 404
+ * status. Without that file Pages serves home with a 200 for any address, so
+ * a mistyped link looks fine and search engines index copies of home.
+ *
+ * @param {{ path: string, status: number, html: string }} response
+ */
+export function assertNotFoundPage({ path, status, html }) {
+  if (status !== 404) {
+    throw new Error(`${path} returned ${status}, expected 404`);
+  }
+  if (!/<title>[^<]*Gwenda/i.test(html)) {
+    throw new Error(`${path} is a 404, but isn't the site's own page`);
+  }
+}
+
 function attribute(tag, name) {
   const match = new RegExp(`\\s${name}=(?:"([^"]*)"|'([^']*)')`, "i").exec(tag);
   return (match?.[1] ?? match?.[2] ?? "")

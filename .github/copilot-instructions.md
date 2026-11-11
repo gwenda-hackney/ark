@@ -81,7 +81,7 @@ Server code is organised by domain-driven design, so a storage change (Baserow �
 - **Production custom domains:** `ensure-pages-domain.mjs` for `gwenda.co.uk` and `www.gwenda.co.uk` only (production deploy).
 - **Preview URL:** `preview.gwenda-blue.pages.dev` only — no custom domain in zone (keeps the preview out of prod Web Analytics).
 - **Web Analytics:** Cloudflare dashboard zone auto-inject on production only; no analytics CI scripts or manual HTML beacons.
-- **Smoke tests:** `scripts/ci/smoke-test.mjs` — homepage (gate bypass on previews), `/api/subscribe`, critical `/_astro/` assets, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`.
+- **Smoke tests:** `scripts/ci/smoke-test.mjs` — homepage (gate bypass on previews), `/api/subscribe`, critical `/_astro/` assets, `/robots.txt`, a wrong address gets the "Nothing here" page with a 404 (`src/pages/404.astro` → `404.html`), `X-Gwenda-Version` must match `--expected-version`.
 - **Secrets:** Bitwarden SM is source of truth (Ark / Ark/Ops / Ark/Web). GitHub keeps only `BWS_ACCESS_TOKEN`. Never commit secrets.
 
 ## Code quality

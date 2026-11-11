@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assertHomePageHealthy,
+  assertNotFoundPage,
   collectSameOriginAssetPaths,
   assertPicturesSized,
   assertSubscribeTokens,
@@ -46,6 +47,39 @@ describe("assertHomePageHealthy", () => {
 
   it("refuses a page that isn't ours", () => {
     expect(() => assertHomePageHealthy(footSignup)).toThrow(/title/);
+  });
+});
+
+describe("assertNotFoundPage", () => {
+  const ours =
+    "<title>Nothing here · Gwenda</title><h1>Nothing here</h1><footer></footer>";
+
+  it("accepts a wrong address answered with our page that says so, and a 404", () => {
+    expect(() =>
+      assertNotFoundPage({ path: "/nope", status: 404, html: ours }),
+    ).not.toThrow();
+  });
+
+  it("refuses a wrong address answered with home and a 200 (no 404 page: #240)", () => {
+    expect(() =>
+      assertNotFoundPage({
+        path: "/nope",
+        status: 200,
+        html: "<title>Gwenda Social | Hackney Wick, London</title>",
+      }),
+    ).toThrow(/\/nope returned 200, expected 404/);
+  });
+
+  it("refuses a wrong address sent somewhere else", () => {
+    expect(() =>
+      assertNotFoundPage({ path: "/whats-on/nope", status: 302, html: "" }),
+    ).toThrow(/\/whats-on\/nope returned 302, expected 404/);
+  });
+
+  it("refuses a 404 that isn't our page", () => {
+    expect(() =>
+      assertNotFoundPage({ path: "/nope", status: 404, html: "Not found" }),
+    ).toThrow(/isn't the site's own/);
   });
 });
 

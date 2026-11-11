@@ -229,14 +229,37 @@ describe("series page", () => {
     expect(response.headers.get("Location")).toBe("/whats-on/negroni-chess/");
   });
 
-  it("sends an unknown address to What's on, not the homepage", async () => {
-    const response = await render("/whats-on/no-such-series");
+  it("sends a series that has ended to What's on", async () => {
+    sanity.series.push(series("summer-nights", { title: "Summer nights" }));
+    sanity.events.push(night("summer-nights", "2000-07-04"));
+    const response = await render("/whats-on/summer-nights");
     expect(response.status).toBe(302);
     expect(response.headers.get("Location")).toBe("/whats-on/");
   });
 
-  it("leaves the static schedule page and other paths alone", async () => {
-    expect(await render("/whats-on/schedule/")).toBeNull();
+  it("leaves an address that was never a series to the site's 404 page", async () => {
+    // Not an event page: the static site answers, and it has no such page
+    expect(await render("/whats-on/no-such-series")).toBeNull();
+    expect(await render("/whats-on/no-such-series/")).toBeNull();
+  });
+
+  it("sends the old schedule to What's on for good (#240)", async () => {
+    for (const path of ["/whats-on/schedule", "/whats-on/schedule/"]) {
+      const response = await render(path);
+      expect(response.status).toBe(301);
+      expect(response.headers.get("Location")).toBe("/whats-on/");
+    }
+  });
+
+  it("sends a built shell to What's on: it's no page of its own", async () => {
+    for (const path of [SERIES_SHELL, NIGHT_SHELL, TICKET_SHELL]) {
+      const response = await render(`${path}/`);
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe("/whats-on/");
+    }
+  });
+
+  it("leaves other paths alone", async () => {
     expect(await render("/menu")).toBeNull();
     expect(await render("/whats-on/a/b/c")).toBeNull();
   });
@@ -321,6 +344,13 @@ describe("night and ticket pages", () => {
     const response = await render("/whats-on/negroni-chess/2099-02-01");
     expect(response.status).toBe(302);
     expect(response.headers.get("Location")).toBe("/whats-on/negroni-chess/");
+  });
+
+  it("leaves a night under an address that was never a series to the 404 page", async () => {
+    expect(await render("/whats-on/no-such-series/2099-02-01")).toBeNull();
+    expect(
+      await render("/whats-on/no-such-series/2099-02-01/ticket"),
+    ).toBeNull();
   });
 });
 
