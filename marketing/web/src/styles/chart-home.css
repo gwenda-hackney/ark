@@ -610,13 +610,13 @@
   padding-top: 1rem;
 }
 
+/* The line over each is a trail starting from the item's badge
+   (ChartBadge, a waypoint in chart-rules.css); room under the badge */
 .ch-home-more-item {
   display: grid;
   align-content: start;
   gap: 0.5rem;
-  padding-top: 1.25rem;
-  /* The line over each is a trail, in mustard (chart-rules.css) */
-  --ch-trail-ink: var(--ch-mustard);
+  padding-top: 1.75rem;
 }
 
 .ch-home-more-item h2 {
@@ -651,19 +651,6 @@
   color: var(--ch-mustard);
 }
 
-/* Apply to play's mark: the record (ChartRecord), as on Contact's button */
-.ch-home-more-link:has(.ch-record) {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.ch-home-more-link .ch-record {
-  flex: none;
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
 @media (max-width: 48rem) {
   .ch-home-more {
     grid-template-columns: minmax(0, 1fr);
@@ -672,7 +659,7 @@
 
   .ch-home-more-item {
     gap: 0.375rem;
-    padding-top: 1rem;
+    padding-top: 1.5rem;
   }
 
   .ch-home-more-item p {

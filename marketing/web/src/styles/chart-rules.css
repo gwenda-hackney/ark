@@ -8,7 +8,7 @@
  *
  * It is a mask: the line takes its colour from --ch-trail-ink (the page's
  * line colour unless set; var(--ch-trail-faint) on the solid boards,
- * var(--ch-gold) for a gold one). Its place is the edge of the thing it
+ * var(--ch-gold) for a gold one, mustard from a waypoint's badge). Its place is the edge of the thing it
  * divides, so the spacing is the host's own padding. Rows next to each
  * other start the tile at different points and every other one is turned
  * over, so no two lines in a list are alike.
@@ -70,7 +70,8 @@
   content: "";
   position: absolute;
   top: var(--ch-trail-at);
-  left: 0;
+  /* From the edge, or after the badge at a waypoint (below) */
+  left: var(--ch-trail-from, 0);
   right: 0;
   height: 6px;
   background: var(--ch-trail-ink, var(--ch-rule));
@@ -97,6 +98,41 @@
 .ch-menu-items,
 .ch-sheet-row--band {
   --ch-trail-ink: var(--ch-trail-faint);
+}
+
+/*
+ * A waypoint: a badge (ChartBadge) where a section's trail starts, the
+ * trail running on from it, like a stop on a treasure map. Any host above
+ * becomes one with the class ch-waypoint and the badge as its child: the
+ * badge sits on the line at its start, centred on it, and the line starts
+ * a little after it, in the badge's mustard, so the two read as one way
+ * in. The host's own padding leaves room under the badge for what
+ * follows, as it does under a line. Home's row and Contact's party and
+ * play; the foot's record is its own (chart-footer.css).
+ */
+.ch-waypoint {
+  --ch-waypoint-size: 1.75rem;
+  --ch-trail-ink: var(--ch-mustard);
+}
+
+.ch-waypoint > .ch-badge {
+  position: absolute;
+  top: calc(var(--ch-trail-at) + 3px - var(--ch-waypoint-size) / 2);
+  left: 0;
+  z-index: 1;
+  width: var(--ch-waypoint-size);
+  height: var(--ch-waypoint-size);
+}
+
+.ch-waypoint::before,
+.ch-waypoint::after {
+  --ch-trail-from: calc(var(--ch-waypoint-size) + 0.5rem);
+}
+
+@media (max-width: 48rem) {
+  .ch-waypoint {
+    --ch-waypoint-size: 1.5rem;
+  }
 }
 
 /* What's on is a list with lines only on a phone (chart-nights.css) */

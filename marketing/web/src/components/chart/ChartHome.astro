@@ -20,7 +20,7 @@ import {
 import { chartSections } from "../../lib/chart-nav";
 import ChartNav from "./ChartNav.astro";
 import ChartFooter from "./ChartFooter.astro";
-import ChartRecord from "./ChartRecord.astro";
+import ChartBadge from "./ChartBadge.astro";
 import HomeMenu from "./HomeMenu.astro";
 import HomeNights from "./HomeNights.astro";
 import HomePhotos from "./HomePhotos.astro";
@@ -36,7 +36,9 @@ const sections = chartSections("/");
 
 /**
  * The practical row, after the menu: finding us, a party, playing here. The
- * list isn't here: the foot of every page has the sign-up.
+ * list isn't here: the foot of every page has the sign-up. Each is a stop on
+ * the trail, its badge where its trail starts (ChartBadge); the link under
+ * it is plain words.
  */
 const more = [
   {
@@ -45,6 +47,7 @@ const more = [
     text: `${location.addressShort}. ${directions.short}`,
     href: "/contact#find-us",
     link: "How to get here",
+    badge: "compass",
   },
   {
     id: "party",
@@ -52,6 +55,7 @@ const more = [
     text: contactPage.partyLead,
     href: formPublicPath(PARTY_FORM_SLUG),
     link: contactPage.partyCta,
+    badge: "bottle",
   },
   {
     id: "play",
@@ -59,10 +63,9 @@ const more = [
     text: contactPage.playShort,
     href: formPublicPath(PLAY_FORM_SLUG),
     link: contactPage.playCta,
-    /** The record as its mark, as on Contact's Apply to play */
-    record: true,
+    badge: "record",
   },
-];
+] as const;
 ---
 
 <div class="ch-page ch-home">
@@ -106,13 +109,15 @@ const more = [
     >
       {
         more.map((item) => (
-          <a href={item.href} class="ch-home-more-item" id={item.id}>
+          <a
+            href={item.href}
+            class="ch-home-more-item ch-waypoint"
+            id={item.id}
+          >
+            <ChartBadge kind={item.badge} />
             <h2>{item.title}</h2>
             <p>{item.text}</p>
-            <span class="ch-home-more-link">
-              {item.record && <ChartRecord />}
-              {item.link} →
-            </span>
+            <span class="ch-home-more-link">{item.link} →</span>
           </a>
         ))
       }
