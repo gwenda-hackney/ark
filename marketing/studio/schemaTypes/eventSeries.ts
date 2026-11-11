@@ -70,6 +70,20 @@ export const eventSeries = defineType({
         "Set by ops when the series has no nights yet. What's on shows it with “Check back soon for the next date”.",
     }),
     defineField({
+      name: "category",
+      title: "What it is",
+      type: "string",
+      readOnly: true,
+      description:
+        "Set by ops. Left empty for a night; a promotion (a standing deal such as Happy Hour) or a pop-up kitchen otherwise. What's on shows nights only.",
+      options: {
+        list: [
+          { title: "A promotion", value: "promotion" },
+          { title: "A pop-up kitchen", value: "popup" },
+        ],
+      },
+    }),
+    defineField({
       name: "takingApplications",
       title: "Taking applications",
       type: "boolean",

@@ -59,6 +59,20 @@ export const event = defineType({
       description: "Set by ops. Slug of the parent series.",
     }),
     defineField({
+      name: "category",
+      title: "What it is",
+      type: "string",
+      readOnly: true,
+      description:
+        "Set by ops, from the night's series. Left empty for a night; a promotion (a standing deal such as Happy Hour) or a pop-up kitchen otherwise. What's on shows nights only.",
+      options: {
+        list: [
+          { title: "A promotion", value: "promotion" },
+          { title: "A pop-up kitchen", value: "popup" },
+        ],
+      },
+    }),
+    defineField({
       name: "seriesTitle",
       title: "Series title",
       type: "string",
