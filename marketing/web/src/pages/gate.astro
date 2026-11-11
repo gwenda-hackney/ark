@@ -3,6 +3,7 @@ import "../styles/global.css";
 import { Image } from "astro:assets";
 import SocialMeta from "../components/SocialMeta.astro";
 import Fonts from "../components/Fonts.astro";
+import FaviconLinks from "../components/FaviconLinks.astro";
 import PreviewRibbon from "../components/PreviewRibbon.astro";
 import { siteConfig } from "../config/site";
 import { isPreview, previewOrigin } from "../config/env";
@@ -27,13 +28,7 @@ const canonicalUrl = new URL(next === "/" ? "/" : next, siteOrigin).href;
       url={canonicalUrl}
     />
     <Fonts />
-    <link rel="icon" href={siteConfig.brand.faviconPath} sizes="any" />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes={`${siteConfig.brand.faviconSize}x${siteConfig.brand.faviconSize}`}
-      href={siteConfig.brand.faviconPngPath}
-    />
+    <FaviconLinks />
   </head>
   <body class="gate-page">
     <PreviewRibbon />

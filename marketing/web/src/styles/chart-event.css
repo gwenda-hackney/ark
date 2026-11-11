@@ -413,7 +413,7 @@ a.ch-event-photo:focus-visible {
     margin-bottom: 2.5rem;
   }
 
-  /* No flyer: the logo in a shorter frame, so the words come sooner */
+  /* No flyer: the record in a shorter frame, so the words come sooner */
   .ch-event-photo--mark {
     aspect-ratio: 4 / 3;
   }

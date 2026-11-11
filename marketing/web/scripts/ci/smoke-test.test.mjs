@@ -4,6 +4,8 @@ import {
   collectSameOriginAssetPaths,
   assertPicturesSized,
   deepCheckLine,
+  iconPaths,
+  manifestPath,
   oversizedPictures,
   parseFormsArg,
   pendingForms,
@@ -116,5 +118,39 @@ describe("oversizedPictures", () => {
       <img src="/_astro/bottle.abc.webp" srcset="/_astro/bottle.abc.webp 1x, /_astro/bottle.def.webp 2x" alt="">`;
     expect(oversizedPictures(html)).toEqual([]);
     expect(() => assertPicturesSized(html, "/")).not.toThrow();
+  });
+});
+
+describe("iconPaths", () => {
+  it("lists every icon the head links to, and nothing else", () => {
+    const html = `<head>
+      <link rel="stylesheet" href="/_astro/index.abc.css">
+      <link rel="icon" href="/favicon.ico" sizes="32x32">
+      <link rel="icon" type="image/png" sizes="96x96" href="/favicon.png">
+      <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+      <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+      <link rel="canonical" href="https://gwenda.co.uk/">
+    </head>`;
+    expect(iconPaths(html)).toEqual([
+      "/favicon.ico",
+      "/favicon.png",
+      "/favicon.svg",
+      "/apple-touch-icon.png",
+    ]);
+  });
+
+  it("finds none on a page without them", () => {
+    expect(iconPaths("<head><title>Gwenda</title></head>")).toEqual([]);
+  });
+});
+
+describe("manifestPath", () => {
+  it("finds the web app manifest the head links to", () => {
+    const html = `<link rel="icon" href="/favicon.svg"><link rel="manifest" href="/site.webmanifest">`;
+    expect(manifestPath(html)).toBe("/site.webmanifest");
+  });
+
+  it("is empty on a page without one", () => {
+    expect(manifestPath('<link rel="icon" href="/favicon.svg">')).toBe("");
   });
 });

@@ -5,6 +5,7 @@ import {
   renderEventPage,
   siteFormLink,
 } from "./event-page.js";
+import { recordSvg } from "./chart-record.js";
 import { oversizedPictures } from "../../scripts/ci/smoke-test-lib.mjs";
 import { bookingUrl, bookingUrlFor } from "../config/booking";
 
@@ -83,13 +84,15 @@ describe("an ordinary night", () => {
     expect(oversizedPictures(html)).toEqual([]);
   });
 
-  it("has the logo where there is no flyer", () => {
-    const { html } = page(karaoke({ heroImageUrl: "" }), {
-      parts: new Map([
-        ["mark", '<img class="ch-night-mark" src="/logo.webp">'],
-      ]),
-    });
-    expect(html).toContain('src="/logo.webp"');
+  it("has the record in the empty frame where there is no flyer, not the logo (#240)", () => {
+    const { html } = page(karaoke({ heroImageUrl: "" }));
+    const frame = html.split(/<span class="[^"]*ch-event-photo--mark"\s*>/)[1];
+    expect(
+      frame?.startsWith(
+        recordSvg({ size: "large", className: "ch-night-mark" }),
+      ),
+    ).toBe(true);
+    expect(html).not.toMatch(/<img\b[^>]*ch-night-mark/);
     expect(html).toContain("<span>Thu</span><b>8</b>");
   });
 

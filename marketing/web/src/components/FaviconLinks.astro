@@ -1,0 +1,26 @@
+---
+/**
+ * The site's icons, in every page's head: the record with the logo's skull
+ * on its label (#240). Current browsers take the SVG; the .ico (16 and 32,
+ * each drawn for its size) is for the rest. The .ico must not say
+ * sizes="any", or Chrome picks it over the SVG. The PNG is for search
+ * results; the touch icon for an iPhone's home screen, the manifest's
+ * icons for Android's.
+ *
+ * Drawn from src/assets/images/logos/icon/ by `npm run generate:favicons`.
+ */
+import { siteConfig } from "../config/site";
+
+const { brand } = siteConfig;
+---
+
+<link rel="icon" href={brand.faviconPath} sizes="32x32" />
+<link
+  rel="icon"
+  type="image/png"
+  sizes={`${brand.faviconSize}x${brand.faviconSize}`}
+  href={brand.faviconPngPath}
+/>
+<link rel="icon" type="image/svg+xml" href={brand.faviconSvgPath} />
+<link rel="apple-touch-icon" sizes="180x180" href={brand.appleTouchIconPath} />
+<link rel="manifest" href={brand.manifestPath} />

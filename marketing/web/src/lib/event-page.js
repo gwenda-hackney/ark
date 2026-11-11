@@ -8,8 +8,8 @@
  * eventPageModel decides what the page shows; renderEventPage turns it into
  * HTML. The page is filled in on request (functions/_lib/event-pages.js), in
  * the Pages Function and the dev server alike, so nothing here needs the
- * build: what only the build knows (whether bookings are on, the logo, a
- * guest chef's mark, where a pop-up's menu is) comes in as `parts`, cut from
+ * build: what only the build knows (whether bookings are on, a guest
+ * chef's mark, where a pop-up's menu is) comes in as `parts`, cut from
  * the built shell (src/pages/whats-on/series-shell.astro).
  */
 import {
@@ -33,6 +33,7 @@ import {
   tinyImageUrl,
 } from "../../functions/_lib/sanity-image-url.js";
 import { bookingUrlFor } from "../config/booking";
+import { recordSvg } from "./chart-record.js";
 import { SafeHtml, attrs, html, renderGallery } from "./event-card.js";
 import { daysAway } from "./london-day.js";
 import { nightDay, nightRuns, runDay } from "./night-cards.js";
@@ -44,6 +45,9 @@ export const MORE_DATES = 8;
 
 /** A photo's frame when it isn't a flyer shown whole: 4:5, as on the cards. */
 const PHOTO_SHAPE = 0.8;
+
+/** No flyer: the record in the empty frame, as on the night cards. */
+const NO_FLYER_MARK = recordSvg({ size: "large", className: "ch-night-mark" });
 
 /**
  * How wide the page shows its pictures, for the browser to pick a size by
@@ -291,7 +295,6 @@ export function eventPageModel(
   const lead = {
     picture,
     logo,
-    mark: parts.get("mark") || "",
     tag:
       kind === "promotion" ? "Deal" : kind === "popup" ? "Pop-up kitchen" : "",
     date: kind === "event" && next?.date ? stickerDay(detail, next.date) : null,
@@ -514,7 +517,7 @@ function leadHtml(model) {
           >${raw(lead.logo)}${sticker}</span
         >`
       : html`<span class="ch-night-photo ch-event-photo ch-event-photo--mark"
-          >${raw(lead.mark)}${sticker}</span
+          >${raw(NO_FLYER_MARK)}${sticker}</span
         >`;
   const actions =
     lead.book || lead.links.length

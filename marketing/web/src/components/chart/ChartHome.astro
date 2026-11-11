@@ -20,6 +20,7 @@ import {
 import { chartSections } from "../../lib/chart-nav";
 import ChartNav from "./ChartNav.astro";
 import ChartFooter from "./ChartFooter.astro";
+import ChartRecord from "./ChartRecord.astro";
 import HomeMenu from "./HomeMenu.astro";
 import HomeNights from "./HomeNights.astro";
 import HomePhotos from "./HomePhotos.astro";
@@ -58,6 +59,8 @@ const more = [
     text: contactPage.playShort,
     href: formPublicPath(PLAY_FORM_SLUG),
     link: contactPage.playCta,
+    /** The record as its mark, as on Contact's Apply to play */
+    record: true,
   },
 ];
 ---
@@ -106,7 +109,10 @@ const more = [
           <a href={item.href} class="ch-home-more-item" id={item.id}>
             <h2>{item.title}</h2>
             <p>{item.text}</p>
-            <span class="ch-home-more-link">{item.link} →</span>
+            <span class="ch-home-more-link">
+              {item.record && <ChartRecord />}
+              {item.link} →
+            </span>
           </a>
         ))
       }

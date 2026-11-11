@@ -15,6 +15,13 @@ export const FOOT_LINKS = [
   { label: "About", href: "/about" },
 ];
 
+/**
+ * The record on the trail over the small print: the way back up to the top
+ * of the page, to its main, which every page with the foot has (as Skip to
+ * content does).
+ */
+export const BACK_TO_TOP = { href: "#main", label: "Back to top" };
+
 /** Google Maps, searching for the place by its name and address. */
 export function mapsSearchUrl({ name, address }) {
   const query = [name, address].filter(Boolean).join(", ");

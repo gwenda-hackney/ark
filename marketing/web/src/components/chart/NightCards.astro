@@ -3,7 +3,7 @@
  * Nights as cards (#240), on home and What's on: the next night big, then
  * the ones after it in rows, each with its date stuck on the corner. A photo
  * is 4:5 (the Instagram shape); a flyer ops marks "show whole image" keeps
- * its own shape, uncropped; a night with no photo gets the logo. The
+ * its own shape, uncropped; a night with no photo gets the record. The
  * pictures in a row are one height, and each card is as wide as its picture
  * (frameRatio). `shown` caps how many show (home shows a few; What's on the
  * lot), and `thisWeek` keeps to this week (home's; homeWeek); `weeks`
@@ -13,9 +13,8 @@
  * more are rendered than show, so the browser can drop the ones that have
  * passed since the build (scripts/night-cards.js).
  */
-import { Image } from "astro:assets";
 import "../../styles/chart-nights.css";
-import { chartFlag } from "../../lib/chart-assets";
+import ChartRecord from "./ChartRecord.astro";
 import { formatEventSpan } from "../../data/events";
 import {
   imageSrcset,
@@ -198,7 +197,7 @@ const lists = weeks
                       />
                     )}
                     {!night.photo && (
-                      <Image {...chartFlag} alt="" class="ch-night-mark" />
+                      <ChartRecord size="large" class="ch-night-mark" />
                     )}
                     <span class="ch-night-date">
                       <span>{night.weekday}</span>

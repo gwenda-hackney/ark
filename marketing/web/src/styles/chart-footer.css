@@ -289,6 +289,44 @@
   color: var(--ch-ink-2);
 }
 
+/*
+ * The record (ChartRecord) in the middle of the trail, a waypoint at the end
+ * of the walk: the trail breaks round it (a ring of the board's colour), and
+ * it is the way back up to the top. The jump is smooth only where motion is
+ * welcome (global.css); scripts/chart-nav.js puts the keyboard there too.
+ */
+.ch-footer-top {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  translate: -50% -50%;
+}
+
+.ch-footer-top .ch-record {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--ch-board);
+  box-shadow: 0 0 0 0.625rem var(--ch-board);
+  transition: filter 0.2s ease;
+}
+
+.ch-footer-top:hover .ch-record {
+  filter: brightness(1.15);
+}
+
+.ch-footer .ch-footer-top:focus-visible {
+  outline: 2px solid var(--ch-mustard);
+  outline-offset: 0;
+  border-radius: 50%;
+}
+
 /* A phone: less air, the © under the links */
 @media (max-width: 40rem) {
   .ch-footer-inner {
@@ -309,5 +347,11 @@
 
   .ch-footer-copy {
     padding: 0.25rem 0 0.5rem;
+  }
+
+  .ch-footer-top .ch-record {
+    width: 1.75rem;
+    height: 1.75rem;
+    box-shadow: 0 0 0 0.5rem var(--ch-board);
   }
 }

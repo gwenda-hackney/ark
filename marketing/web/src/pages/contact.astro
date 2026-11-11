@@ -8,6 +8,7 @@ import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
 import ChartMap from "../components/chart/ChartMap.astro";
+import ChartRecord from "../components/chart/ChartRecord.astro";
 import EmailSignup from "../components/EmailSignup.astro";
 import OpeningHours from "../components/chart/OpeningHours.astro";
 import "../styles/chart-contact.css";
@@ -146,7 +147,7 @@ const cards = [
         <h2 class="ch-sheet-head">{contactPage.playHeading}</h2>
         <p>{contactPage.playLead}</p>
         <a href={formPublicPath(PLAY_FORM_SLUG)} class="ch-btn ch-btn--solid"
-          >{contactPage.playCta}</a
+          ><ChartRecord />{contactPage.playCta}</a
         >
       </div>
       <a

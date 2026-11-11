@@ -19,7 +19,6 @@ const SHELLS = {
 <body><main class="ch-event ch-event--__EVENT_KIND__"><a href="/whats-on">Back</a>
 <p class="ch-event-kicker">__EVENT_EYEBROW__</p><h1>__EVENT_TITLE__</h1>
 <series-part name="book">Book a table</series-part>
-<series-part name="mark"><img class="ch-night-mark" src="/logo.webp" alt=""></series-part>
 <series-part name="logo:chez pickle"><img src="/chez-pickle.webp" alt="Chez Pickle"></series-part>
 <series-part name="menu:chez-pickle">/kitchen#chez-pickle</series-part>
 <series-part name="form:party">Book your party</series-part>
@@ -109,6 +108,14 @@ describe("series page", () => {
     expect(html).not.toContain("__EVENT_");
     expect(html).not.toContain("series-body>");
     expect(html).not.toContain("Check back soon");
+  });
+
+  it("shows the record in a night's empty frame, not the faded logo (#240)", async () => {
+    const html = await (await render("/whats-on/negroni-chess")).text();
+    expect(html).toMatch(
+      /<span class="[^"]*ch-event-photo--mark"\s*><svg\b[^>]*\sclass="ch-record ch-night-mark"/,
+    );
+    expect(html).not.toMatch(/<img\b[^>]*ch-night-mark/);
   });
 
   it("shows the series' gallery when it has one", async () => {

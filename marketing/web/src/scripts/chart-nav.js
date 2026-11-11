@@ -1,17 +1,18 @@
 /**
- * Skip to content, on every page: the jump scrolls to the page's main, and
- * focus goes there too.
+ * Skip to content at the top of every page, and the record at the foot (Back
+ * to top): the jump scrolls to the page's main, and focus goes there too.
  */
 function initSkipLink() {
-  const skip = document.querySelector(".ch-page .ch-skip");
   const main = document.getElementById("main");
-  if (!(skip instanceof HTMLElement) || !main) return;
-  if (skip.dataset.skipReady) return;
-  skip.dataset.skipReady = "1";
-  skip.addEventListener("click", () => {
-    main.setAttribute("tabindex", "-1");
-    main.focus({ preventScroll: true });
-  });
+  if (!main) return;
+  for (const link of document.querySelectorAll('.ch-page a[href="#main"]')) {
+    if (!(link instanceof HTMLElement) || link.dataset.skipReady) continue;
+    link.dataset.skipReady = "1";
+    link.addEventListener("click", () => {
+      main.setAttribute("tabindex", "-1");
+      main.focus({ preventScroll: true });
+    });
+  }
 }
 
 /**
@@ -133,7 +134,8 @@ function initHome() {
           ? event.target.closest("a[href]")
           : null;
       if (!(link instanceof HTMLAnchorElement)) return;
-      if (link.classList.contains("ch-skip")) return;
+      // Skip to content and Back to top land on main itself (initSkipLink)
+      if (link.getAttribute("href") === "#main") return;
       if (link.pathname !== location.pathname || !link.hash) return;
       const target = document.getElementById(
         decodeURIComponent(link.hash.slice(1)),

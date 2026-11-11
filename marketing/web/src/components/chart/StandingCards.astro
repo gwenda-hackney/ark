@@ -15,8 +15,9 @@
  */
 import { Image } from "astro:assets";
 import "../../styles/chart-nights.css";
+import ChartRecord from "./ChartRecord.astro";
 import { siteConfig } from "../../config/site";
-import { chartFlag, guestChefLogo } from "../../lib/chart-assets";
+import { guestChefLogo } from "../../lib/chart-assets";
 import { formatEventSpan } from "../../data/events";
 import {
   imageSrcset,
@@ -249,7 +250,7 @@ const alone = (section: { cards: unknown[] }) =>
                   <Image {...card.logo} width={340} alt="" />
                 )}
                 {!card.photo && !card.logo && (
-                  <Image {...chartFlag} alt="" class="ch-night-mark" />
+                  <ChartRecord size="large" class="ch-night-mark" />
                 )}
                 <span class="ch-stand-tag">{card.tag}</span>
               </span>

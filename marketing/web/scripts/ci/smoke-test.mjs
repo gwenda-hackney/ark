@@ -27,6 +27,8 @@ import {
   assertPicturesSized,
   collectSameOriginAssetPaths,
   deepCheckLine,
+  iconPaths,
+  manifestPath,
   parseFormsArg,
   pendingForms,
 } from "./smoke-test-lib.mjs";
@@ -222,15 +224,40 @@ async function runChecks() {
   await checkRsvpApi(cookie);
   await checkCriticalAssets(html, cookie);
   await checkPath("/robots.txt", { expectVersionHeader: false, cookie });
-  await checkPath("/favicon.ico", { expectVersionHeader: false, cookie });
-  await checkPath("/favicon.png", { expectVersionHeader: false, cookie });
+  await checkIcons(html, cookie);
   await checkPath("/brand/logo-organization.png", {
     expectVersionHeader: false,
     cookie,
   });
+}
 
-  if (!html.includes('href="/favicon.ico"')) {
-    throw new Error("Homepage missing stable favicon link");
+/**
+ * Home links the record icon in every form (#240), and each is served as an
+ * image: a missing file can come back as a page of HTML with a 200.
+ */
+async function checkIcons(html, cookie) {
+  const paths = iconPaths(html);
+  for (const path of [
+    "/favicon.ico",
+    "/favicon.svg",
+    "/apple-touch-icon.png",
+  ]) {
+    if (!paths.includes(path)) {
+      throw new Error(`Homepage missing icon link ${path}`);
+    }
+  }
+  // The manifest, and the Android home-screen icons it lists
+  const manifest = manifestPath(html);
+  if (!manifest) throw new Error("Homepage missing the web app manifest link");
+  const res = await checkPath(manifest, { expectVersionHeader: false, cookie });
+  const listed = ((await res.json()).icons || []).map((icon) => icon.src);
+  if (listed.length === 0) throw new Error(`${manifest} lists no icons`);
+  for (const path of new Set([...paths, ...listed])) {
+    const res = await checkPath(path, { expectVersionHeader: false, cookie });
+    const type = res.headers.get("content-type") || "";
+    if (!type.startsWith("image/")) {
+      throw new Error(`${baseUrl}${path} expected an image, got ${type}`);
+    }
   }
 }
 

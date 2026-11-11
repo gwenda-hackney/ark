@@ -96,15 +96,17 @@
   object-position: 50% 50% !important;
 }
 
-/* No photo: the logo, faint, in the middle of the dark */
-.ch-night-photo img.ch-night-mark {
+/* No photo: the record (ChartRecord), lying in the middle of the dark like
+   a record on its sleeve, a soft shadow under it */
+.ch-night-photo .ch-night-mark {
   position: absolute;
   inset: 0;
-  width: auto;
-  height: 62%;
+  display: block;
+  width: 48%;
+  height: auto;
+  aspect-ratio: 1;
   margin: auto;
-  object-fit: contain;
-  opacity: 0.35;
+  filter: drop-shadow(0 6px 14px rgb(0 0 0 / 0.55));
 }
 
 .ch-night-card:hover .ch-night-photo img,
@@ -423,12 +425,14 @@
     border-radius: 0.25rem;
   }
 
-  /* No flyer: the logo alone, faint, no dark box behind it */
-  .ch-night:not(.ch-night--lead) .ch-night-photo img.ch-night-mark {
+  /* No flyer: the record alone in the picture's place, no dark box behind it */
+  .ch-night:not(.ch-night--lead) .ch-night-photo .ch-night-mark {
     position: static;
-    aspect-ratio: auto;
-    margin: 0;
-    opacity: 0.4;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+    width: 72%;
+    filter: none;
   }
 
   /* The date, plain: day, number, month. No paper, no tilt; today in red */

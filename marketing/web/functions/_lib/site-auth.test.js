@@ -19,7 +19,12 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/health")).toBe(true);
     expect(isPublicPath("/health/")).toBe(true);
     expect(isPublicPath("/favicon.png")).toBe(true);
+    expect(isPublicPath("/favicon.svg")).toBe(true);
     expect(isPublicPath("/apple-touch-icon.png")).toBe(true);
+    // Browsers fetch the manifest without cookies
+    expect(isPublicPath("/site.webmanifest")).toBe(true);
+    expect(isPublicPath("/icon-192.png")).toBe(true);
+    expect(isPublicPath("/icon-512.png")).toBe(true);
     expect(isPublicPath("/brand/logo-organization.png")).toBe(true);
     expect(isPublicPath("/og/events/private-launch-party.jpg")).toBe(true);
   });
