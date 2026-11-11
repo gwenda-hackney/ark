@@ -1,0 +1,84 @@
+---
+/**
+ * Opening hours (#240), from ops (Settings → Venue details) through the
+ * `venueDetails` document (lib/opening-hours.js). `table`: the week, with
+ * today's line above it when `today` (worked out in the browser,
+ * scripts/opening-hours.js); `line`: the week on one line, for the foot.
+ * No week, nothing at all.
+ */
+import "../../styles/chart-hours.css";
+import { weekRows } from "../../lib/opening-hours.js";
+
+interface Props {
+  week: Array<{
+    day: string;
+    closed: boolean;
+    opens: string;
+    closes: string;
+  }> | null;
+  variant?: "table" | "line";
+  /** The table's heading; none in the foot. */
+  heading?: string;
+  /** Today's line above the table: open now and till when, or the next opening. */
+  today?: boolean;
+  class?: string;
+}
+
+const {
+  week,
+  variant = "table",
+  heading = "Opening hours",
+  today = false,
+  class: className = "",
+} = Astro.props;
+const rows = weekRows(week);
+const headingId = "opening-hours-head";
+---
+
+{
+  rows.length > 0 && variant === "line" && (
+    <p class:list={["ch-hours-line", className]}>
+      <span class="ch-hours-line-label">Open</span>
+      {rows.map((row) => (
+        <span class:list={["ch-hours-line-day", row.closed && "is-closed"]}>
+          <span class="ch-hours-line-name">{`${row.days} `}</span>
+          {row.closed ? "closed" : row.hours}
+        </span>
+      ))}
+    </p>
+  )
+}
+{
+  rows.length > 0 && variant === "table" && (
+    <section class:list={["ch-hours", className]} aria-labelledby={headingId}>
+      <h3 class="ch-find-head" id={headingId}>
+        {heading}
+      </h3>
+      {today && (
+        <p
+          class="ch-hours-today"
+          data-hours-today
+          data-week={JSON.stringify(week)}
+          aria-live="polite"
+          hidden
+        />
+      )}
+      <table class="ch-hours-table">
+        <tbody>
+          {rows.map((row) => (
+            <tr class:list={[row.closed && "is-closed"]}>
+              <th scope="row">{row.days}</th>
+              <td>{row.hours}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )
+}
+
+<script>
+  import { initOpeningHours } from "../../scripts/opening-hours.js";
+
+  initOpeningHours();
+</script>

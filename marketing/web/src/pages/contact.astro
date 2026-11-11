@@ -9,9 +9,11 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
 import ChartMap from "../components/chart/ChartMap.astro";
 import EmailSignup from "../components/EmailSignup.astro";
+import OpeningHours from "../components/chart/OpeningHours.astro";
 import { siteConfig } from "../config/site";
 import { directions } from "../data/directions";
 import { contactDrinksPhoto, homeDecksPhoto } from "../lib/chart-assets";
+import { fetchOpeningHours } from "../lib/sanity/opening-hours";
 import {
   formPublicPath,
   PARTY_FORM_SLUG,
@@ -20,6 +22,7 @@ import {
 
 const { contactPage } = siteConfig.copy;
 const { social } = siteConfig;
+const week = await fetchOpeningHours();
 ---
 
 <BaseLayout
@@ -41,7 +44,10 @@ const { social } = siteConfig;
 
     <section class="ch-contact-part" id="find-us">
       <h2 class="ch-sheet-head">Find us</h2>
-      <p class="ch-find-intro">{directions.intro}</p>
+      <div class="ch-find-top">
+        <p class="ch-find-intro">{directions.intro}</p>
+        <OpeningHours week={week} today />
+      </div>
       <ChartMap />
       <div class="ch-find-ways">
         <section>

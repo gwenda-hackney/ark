@@ -101,6 +101,8 @@ export const siteConfig = {
   },
   contact: {
     email: "hello@gwenda.co.uk",
+    /** As on the Google listing; international form for schema.org and tel: links. */
+    telephone: "+44 20 4637 4754",
   },
   /** Who's cooking: the guest chef in the kitchen, named on home's food side. */
   guestChef: {

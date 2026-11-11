@@ -1,6 +1,8 @@
 ---
 import { siteConfig } from "../config/site";
 import { bookingUrl } from "../config/booking";
+import { openingHoursSpecification } from "../lib/opening-hours.js";
+import { fetchOpeningHours } from "../lib/sanity/opening-hours";
 
 interface Props {
   url: string;
@@ -14,6 +16,8 @@ const { location, social, name, domain, contact, brand, seoTopics } =
 const logoUrl = new URL(brand.organizationLogoPath, domain).href;
 const menuUrl = new URL("/bar/", domain).href;
 const eventsUrl = new URL("/whats-on/", domain).href;
+/** From ops (Venue details); left out when there are none. */
+const hours = openingHoursSpecification(await fetchOpeningHours());
 
 const structuredData = {
   "@context": "https://schema.org",
@@ -115,6 +119,8 @@ const structuredData = {
       url: domain,
       image: logoUrl,
       email: contact.email,
+      telephone: contact.telephone,
+      ...(hours.length ? { openingHoursSpecification: hours } : {}),
       parentOrganization: { "@id": `${domain}/#organization` },
       address: {
         "@type": "PostalAddress",

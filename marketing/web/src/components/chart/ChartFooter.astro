@@ -1,9 +1,12 @@
 ---
-/** The foot of every page in The Chart (#240): where we are, the few links. */
+/** The foot of every page in The Chart (#240): where we are, when we're open, the few links. */
 import { siteConfig } from "../../config/site";
+import { fetchOpeningHours } from "../../lib/sanity/opening-hours";
+import OpeningHours from "./OpeningHours.astro";
 
 const { social, location } = siteConfig;
 const year = new Date().getFullYear();
+const week = await fetchOpeningHours();
 ---
 
 <footer class="ch-footer">
@@ -28,4 +31,5 @@ const year = new Date().getFullYear();
       >© {year} {siteConfig.name} {siteConfig.copy.social}</span
     >
   </div>
+  <OpeningHours week={week} variant="line" />
 </footer>

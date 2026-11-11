@@ -9,6 +9,8 @@ import { menuChapters } from "../data/menu";
 import { nightsOnly } from "../lib/promotions.js";
 import { fetchWhatsOnCatalog } from "../lib/sanity/events";
 import { fetchMenu } from "../lib/sanity/menu";
+import { closedDays } from "../lib/opening-hours.js";
+import { fetchOpeningHours } from "../lib/sanity/opening-hours";
 
 const { series, occurrences } = await fetchWhatsOnCatalog().catch(() => ({
   series: [],
@@ -19,10 +21,13 @@ const menu = await fetchMenu().catch(() => ({ sections: [] }));
 const nights = getUpcomingEvents(nightsOnly(occurrences)).slice(0, 24);
 const { title: pageTitle, description: pageDescription } =
   siteConfig.seo.whatsOn;
+/** "We're shut on Mondays." from the opening hours; nothing without them. */
+const shut = closedDays(await fetchOpeningHours());
+const lead = `What’s coming up.${shut ? ` We’re shut on ${shut}.` : ""}`;
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
-  <ChartPage title="What's on" lead="What’s coming up. We’re shut on Mondays.">
+  <ChartPage title="What's on" lead={lead}>
     <StandingCards
       series={series}
       occurrences={occurrences}

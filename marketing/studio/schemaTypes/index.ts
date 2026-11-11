@@ -6,9 +6,11 @@ import { formField } from "./formField";
 import { menuItem } from "./menuItem";
 import { menuSection } from "./menuSection";
 import { siteSettings } from "./siteSettings";
+import { venueDetails } from "./venueDetails";
 
 export const schemaTypes = [
   siteSettings,
+  venueDetails,
   menuSection,
   menuItem,
   eventDescription,

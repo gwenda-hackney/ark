@@ -56,9 +56,16 @@ export function documentFingerprint(doc) {
   return fingerprint(stableStringify(clean));
 }
 
+/** "venueDetails" → "Venue details": a one-of-a-kind document is named after its type. */
+function typeWords(type) {
+  const words = String(type).replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+  return words[0].toUpperCase() + words.slice(1);
+}
+
 export function documentLabel(doc) {
   if (!doc) return "";
-  const title = doc.title || doc.name || doc.label || doc.slug?.current || doc._id;
+  const own = doc._type && doc._id === doc._type ? typeWords(doc._type) : doc._id;
+  const title = doc.title || doc.name || doc.label || doc.slug?.current || own;
   if (doc._type === "event" && doc.date) return `${title} · ${doc.date}`;
   return String(title);
 }

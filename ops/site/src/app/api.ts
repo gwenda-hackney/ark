@@ -446,6 +446,21 @@ export function deleteOpsUser(id: string) {
   });
 }
 
+export function getVenueDetails() {
+  return coalesce("venue", () =>
+    request<import("../venue/types").VenueDetailsResponse>("/api/venue"),
+  );
+}
+
+/** Save the whole week of opening hours; it goes on the website by itself. */
+export function saveOpeningHours(days: import("../venue/types").OpeningDay[]) {
+  return request<import("../venue/types").SaveHoursResponse>("/api/venue/hours", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ days }),
+  });
+}
+
 export function analyzeRecipeNote(body: { item: unknown; analysis: unknown }) {
   return request<{ ok: boolean; text: string; model?: string }>(
     "/api/menu/analyze",

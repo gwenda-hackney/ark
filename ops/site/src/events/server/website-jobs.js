@@ -24,7 +24,8 @@
  * A step that fails is remembered against the event's content, so it is not
  * retried in a loop. Changing the event, or "Try again", clears it.
  */
-import { environmentOf, getSetting, readState, writeState } from "../../../../../shared/config.js";
+import { environmentOf, readState, writeState } from "../../../../../shared/config.js";
+import { AUTO_UPDATE_KEY, websiteFollowsSaves } from "../../website/server/auto-update.js";
 import {
   calendarConfigured,
   calendarNightsBehind,
@@ -47,21 +48,8 @@ export const PREVIEW_STEP = 12;
 /** Documents put on (or taken off) the website in one step. */
 export const LIVE_STEP = 20;
 export const FAILURES_KEY = "site.prep_failures";
-export const AUTO_UPDATE_KEY = "website.auto_update";
-
-/**
- * Saved events go on the website by themselves, unless the setting says
- * "off". When the settings can't be read it may say "off", so the answer is
- * no for this pass: events stop at the preview, and the next pass asks again.
- */
-export async function websiteFollowsSaves(env) {
-  try {
-    const value = await getSetting(env, "ops", AUTO_UPDATE_KEY);
-    return value.toLowerCase() !== "off";
-  } catch {
-    return false;
-  }
-}
+/** Saved events go on the website by themselves unless the setting says "off" (the website's rule, shared with opening hours). */
+export { AUTO_UPDATE_KEY, websiteFollowsSaves };
 
 /** Changes whenever anything the calendar or website shows changes. */
 export function contentSignature(event) {
