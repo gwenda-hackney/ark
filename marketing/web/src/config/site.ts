@@ -202,30 +202,15 @@ export const siteConfig = {
     bookTableHeading: "Book a table",
     bookTableLead: "Olive trees at Schwartz Wharf. A table, when you want one.",
     /**
-     * Home's Bookings (#240, HomeBookings.astro, IV in the navigation): a
-     * table, or a party, side by side. A table is booked on OpenTable (when
-     * Site settings has bookings on); a party on its form.
+     * Home's Bookings (#240, HomeBookings.astro, IV in the navigation):
+     * having a party here and playing here, side by side, each to its form.
      */
     bookings: {
       heading: "Bookings",
-      note: "A table for tonight, or the place for your party.",
-      /** When tables aren't booked online: the party half alone. */
-      notePartyOnly: "Got something to celebrate? Have it here.",
-      /** Under Book a table: where the button goes. */
-      tableWhere: "On OpenTable, in a new tab.",
+      note: "Have your party here, or come and play.",
       partyHeading: "Have a party",
       partyLine: "Tell us what you’re planning and we’ll come back to you.",
-      /**
-       * What a party here can have, a line each: only what the party form
-       * already offers (its food, drinks and music questions). How many fit
-       * and anything else comes from ops (Settings → Venue details).
-       */
-      partyOffer: [
-        "A few tables or the whole place",
-        "Food from whoever’s in the kitchen: we’ll ask them for you",
-        "A bar tab or a drinks package",
-        "Bring a DJ or a playlist, or have ours",
-      ],
+      playLine: "Got records? Got a band? Tell us what you’d bring.",
     },
     signupHeading: "Get on the list",
     signupNavCta: "Get on the list",
@@ -266,7 +251,6 @@ export const siteConfig = {
       playLead:
         "Got records? Got a band? Got a mate who won’t shut up about their mixes? We want this place to sound like Hackney Wick, so come and play. Tell us what you’d bring.",
       /** The lead's first words, by the way to the play form under home's What's on. */
-      playNudge: "Got records? Got a band?",
       playCta: "Apply to play",
       /** The top of the play form's own page, beside the decks. */
       playIntro: {

@@ -1,41 +1,47 @@
 ---
 /**
- * Home's Bookings (#240), IV in the navigation: the two ways to book, side
- * by side. Book a table goes to OpenTable, the same link as the Book a
- * table button on every page, and only while Site settings has bookings on
- * (else the party half has the section to itself). Have a party says what
- * a party here can have and goes to the party form: the kinds of party are
- * the form's own choices, how many fit and the rest come from ops (Settings
- * → Venue details), only what's filled in. No photos: the words and the
- * buttons are the point. The party half keeps the old `#party` anchor, so
- * links to it still land.
+ * Home's Bookings (#240), IV in the navigation: having a party here and
+ * playing here, side by side and built the same way, kept short: a
+ * heading, a line, the kinds (each read from its form's own choices) and
+ * the button to its form, where the rest is. A table has its own button on
+ * every page, so it isn't here. The halves keep the `#party` and `#play`
+ * anchors, so links to them land.
  */
 import { siteConfig } from "../../config/site";
-import { bookingUrl } from "../../config/booking";
-import { PARTY_FORM_SLUG, formPublicPath } from "../../lib/form-paths";
-import { partyFactLines, partyOccasions } from "../../lib/party-facts.js";
+import {
+  PARTY_FORM_SLUG,
+  PLAY_FORM_SLUG,
+  formPublicPath,
+} from "../../lib/form-paths";
+import { partyOccasions, playKinds } from "../../lib/party-facts.js";
 import { fetchFormBySlug } from "../../lib/sanity/forms";
-import { fetchSiteSettings } from "../../lib/sanity/site-settings";
-import { fetchVenueDetails } from "../../lib/sanity/venue-details";
-import ChartBell from "./ChartBell.astro";
 
-const { copy } = siteConfig;
-const { bookings: words, contactPage } = copy;
-const { bookingEnabled } = await fetchSiteSettings();
-const partyForm = await fetchFormBySlug(PARTY_FORM_SLUG).catch(() => null);
-const occasions = partyOccasions(partyForm);
-const { parties } = await fetchVenueDetails();
-const facts = partyFactLines(parties);
-/**
- * The party's lines: how many fit leads (when ops has it), then what a
- * party here can have, then what ops says is included, then how soon we
- * reply.
- */
-const partyLines = [
-  ...facts.filter((line) => line.kind === "capacity"),
-  ...words.partyOffer.map((text) => ({ kind: "offer", text })),
-  ...facts.filter((line) => line.kind === "included"),
-  ...facts.filter((line) => line.kind === "reply"),
+const { bookings: words, contactPage } = siteConfig.copy;
+const [partyForm, playForm] = await Promise.all([
+  fetchFormBySlug(PARTY_FORM_SLUG).catch(() => null),
+  fetchFormBySlug(PLAY_FORM_SLUG).catch(() => null),
+]);
+
+/** The two halves, in the same shape, the party first. */
+const halves = [
+  {
+    id: "party",
+    heading: words.partyHeading,
+    line: words.partyLine,
+    kindsLabel: "Kinds of party",
+    kinds: partyOccasions(partyForm),
+    href: formPublicPath(PARTY_FORM_SLUG),
+    cta: contactPage.partyCta,
+  },
+  {
+    id: "play",
+    heading: contactPage.playHeading,
+    line: words.playLine,
+    kindsLabel: "Who plays here",
+    kinds: playKinds(playForm),
+    href: formPublicPath(PLAY_FORM_SLUG),
+    cta: contactPage.playCta,
+  },
 ];
 ---
 
@@ -46,64 +52,33 @@ const partyLines = [
 >
   <header class="ch-home-head">
     <h2 class="ch-poster" id="home-bookings">{words.heading}</h2>
-    <p class="ch-home-head-note">
-      {bookingEnabled ? words.note : words.notePartyOnly}
-    </p>
+    <p class="ch-home-head-note">{words.note}</p>
   </header>
 
-  <div class:list={["ch-bookings", !bookingEnabled && "ch-bookings--party"]}>
+  <div class="ch-bookings">
     {
-      bookingEnabled && (
+      halves.map((half) => (
         <article
-          class="ch-booking ch-booking--table"
-          aria-labelledby="home-book-table"
+          class={`ch-booking ch-booking--${half.id}`}
+          id={half.id}
+          aria-labelledby={`home-${half.id}`}
         >
-          <h3 id="home-book-table">{copy.bookTableHeading}</h3>
-          <p class="ch-booking-line">{copy.bookTableLead}</p>
+          <h3 id={`home-${half.id}`}>{half.heading}</h3>
+          <p class="ch-booking-line">{half.line}</p>
+          {half.kinds.length > 0 && (
+            <ul class="ch-booking-kinds" aria-label={half.kindsLabel}>
+              {half.kinds.map((kind) => (
+                <li>{kind}</li>
+              ))}
+            </ul>
+          )}
           <div class="ch-booking-go">
-            <a
-              href={bookingUrl}
-              class="ch-btn ch-btn--solid"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ChartBell />
-              {copy.bookingCta}
+            <a href={half.href} class="ch-btn ch-btn--solid">
+              {half.cta}
             </a>
-            <p class="ch-booking-where">{words.tableWhere}</p>
           </div>
         </article>
-      )
+      ))
     }
-
-    <article
-      class="ch-booking ch-booking--party"
-      id="party"
-      aria-labelledby="home-party"
-    >
-      <h3 id="home-party">{words.partyHeading}</h3>
-      <p class="ch-booking-line">{words.partyLine}</p>
-      {
-        occasions.length > 0 && (
-          <ul class="ch-booking-kinds" aria-label="Kinds of party">
-            {occasions.map((kind) => (
-              <li>{kind}</li>
-            ))}
-          </ul>
-        )
-      }
-      <ul class="ch-booking-offer">
-        {
-          partyLines.map((line) => (
-            <li class={`is-${line.kind}`}>{line.text}</li>
-          ))
-        }
-      </ul>
-      <div class="ch-booking-go">
-        <a href={formPublicPath(PARTY_FORM_SLUG)} class="ch-btn ch-btn--solid"
-          >{contactPage.partyCta}</a
-        >
-      </div>
-    </article>
   </div>
 </section>

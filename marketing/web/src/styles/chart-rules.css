@@ -45,8 +45,7 @@
 :where(
   .ch-menu-items li,
   .ch-hours-table:not(.ch-footer *) tr,
-  .ch-party-facts-list li,
-  .ch-booking-offer li
+  .ch-party-facts-list li
 ) {
   position: relative;
   --ch-trail-at: calc(100% - 3px);
@@ -64,8 +63,7 @@
 :is(
   .ch-menu-items li,
   .ch-hours-table:not(.ch-footer *) tr,
-  .ch-party-facts-list li,
-  .ch-booking-offer li
+  .ch-party-facts-list li
 )::after {
   content: "";
   position: absolute;

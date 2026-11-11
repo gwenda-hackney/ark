@@ -595,21 +595,15 @@
 }
 
 /*
- * Bookings (IV, HomeBookings): a table and a party side by side on the
- * leather, the party's half the wider (it has more to say). Each is its
- * heading, a line, and its button straight after what it says. On a phone,
- * one under the other.
+ * Bookings (IV, HomeBookings): a party and playing here side by side on
+ * the leather, the same width and built the same way: heading, line, kinds and
+ * its button. On a phone, one under the other.
  */
 .ch-bookings {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2rem clamp(2rem, 5vw, 4.5rem);
   align-items: start;
-}
-
-/* Tables not booked online: the party alone, a half's width or so */
-.ch-bookings--party {
-  grid-template-columns: minmax(0, 40rem);
 }
 
 .ch-booking {
@@ -669,46 +663,13 @@
   filter: url(#ch-cut);
 }
 
-/* What a party can have, a line each over a drawn trail (chart-rules.css) */
-.ch-booking-offer {
-  width: 100%;
-  max-width: 32rem;
-  margin: 0.25rem 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: 1.0625rem;
-  line-height: 1.4;
-}
-
-.ch-booking-offer li {
-  padding: 0.5rem 0;
-  color: var(--ch-ink);
-}
-
-/* How many fit, from ops, leads a shade brighter */
-.ch-booking-offer .is-capacity {
-  color: var(--ch-cream);
-  font-variant-numeric: tabular-nums;
-}
-
-.ch-booking-offer .is-reply {
-  color: var(--ch-ink-2);
-  font-style: italic;
-}
-
-/* The button, with a word on where it goes */
+/* The button to its form */
 .ch-booking-go {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem 1.25rem;
   padding-top: 0.75rem;
-}
-
-.ch-booking-where {
-  margin: 0;
-  font-size: 0.9375rem;
-  color: var(--ch-ink-3);
 }
 
 @media (max-width: 48rem) {
@@ -719,36 +680,6 @@
 
   .ch-booking-go {
     padding-top: 0.5rem;
-  }
-}
-
-/* Under What's on's button: the way to the play form, in pen */
-.ch-home-play {
-  margin: 1.5rem 0 0;
-  text-align: center;
-  font-family: var(--ch-pen);
-  font-weight: 600;
-  font-size: 1.5rem;
-  line-height: 1.2;
-  color: var(--ch-ink-2);
-}
-
-.ch-page .ch-home-play a {
-  color: var(--ch-mustard);
-  transition: color 0.2s ease;
-}
-
-.ch-page .ch-home-play a:hover,
-.ch-page .ch-home-play a:focus-visible {
-  color: var(--ch-cream);
-}
-
-/* Wherever the dock shows (a touch screen), a full-size target */
-@media not all and (min-width: 62.5rem) {
-  .ch-page .ch-home-play a {
-    display: inline-block;
-    padding-block: 0.5rem;
-    margin-block: -0.5rem;
   }
 }
 

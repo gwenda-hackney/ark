@@ -96,8 +96,30 @@ export const PARTY_OCCASION_KEY = "occasion";
  * @returns {string[]}
  */
 export function partyOccasions(form) {
+  return formChoices(form, PARTY_OCCASION_KEY);
+}
+
+/** The play form's question for what an act does (its key never changes once live). */
+export const PLAY_KIND_KEY = "whatYouDo";
+
+/**
+ * What acts play here, as the play form offers them: "DJ", "Selector",
+ * "Live act", "Band"…, without its "Other" (which reads as nothing on its
+ * own). Home's Play at Gwenda shows them as the party half shows its kinds.
+ *
+ * @param {Parameters<typeof partyOccasions>[0]} form
+ * @returns {string[]}
+ */
+export function playKinds(form) {
+  return formChoices(form, PLAY_KIND_KEY).filter(
+    (label) => label.toLowerCase() !== "other",
+  );
+}
+
+/** A form question's choices, by its key, as the venue has them in Studio. */
+function formChoices(form, key) {
   const fields = Array.isArray(form?.fields) ? form.fields : [];
-  const question = fields.find((field) => field?.key === PARTY_OCCASION_KEY);
+  const question = fields.find((field) => field?.key === key);
   const options = Array.isArray(question?.options) ? question.options : [];
   return options.map((option) => textOf(option?.label)).filter(Boolean);
 }

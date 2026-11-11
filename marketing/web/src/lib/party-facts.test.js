@@ -3,8 +3,33 @@ import {
   capacityLine,
   partyFactLines,
   partyOccasions,
+  playKinds,
   readParties,
 } from "./party-facts.js";
+
+describe("playKinds", () => {
+  const form = (options) => ({
+    fields: [{ key: "name" }, { key: "whatYouDo", options }],
+  });
+
+  it("is the play form's what-you-do choices, without the catch-all", () => {
+    expect(
+      playKinds(
+        form([
+          { label: "DJ" },
+          { label: " Live act " },
+          { label: "Band" },
+          { label: "Other" },
+        ]),
+      ),
+    ).toEqual(["DJ", "Live act", "Band"]);
+  });
+
+  it("is empty without the form or the question", () => {
+    expect(playKinds(null)).toEqual([]);
+    expect(playKinds({ fields: [{ key: "name" }] })).toEqual([]);
+  });
+});
 
 const texts = (raw) =>
   partyFactLines(readParties(raw)).map((line) => line.text);
