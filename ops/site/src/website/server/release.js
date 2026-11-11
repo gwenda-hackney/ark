@@ -268,11 +268,13 @@ export const DIRECTIONS = ["to-production", "discard"];
  * Publish the preview to the website (default), or `direction: "discard"` to
  * drop drafts so the preview shows the website again. `ids` limits it to
  * chosen documents; omit to take everything that differs. The diff is
- * recomputed here, never trusted from the browser.
+ * recomputed here, never trusted from the browser. `limit` caps how many
+ * documents one call writes or removes (the background website job goes a
+ * step at a time); `remaining` says how many are left for the next call.
  */
 export async function publishRelease(
   env,
-  { ids = null, direction = "to-production" } = {},
+  { ids = null, direction = "to-production", limit = Infinity } = {},
   { query = sanityQuery, mutate = sanityMutatePublished } = {},
 ) {
   assertSanityWritable(env);
@@ -293,7 +295,12 @@ export async function publishRelease(
     return { direction, inSync: null, written: [], discarded: chosen, deleted: [], included: [], warnings: [] };
   }
 
-  const plan = planRelease(entries, ids);
+  const whole = planRelease(entries, ids);
+  // Writes first, in the order references need; then removals, nights before their series.
+  const writes = whole.writes.slice(0, limit);
+  const deletes = whole.deletes.slice(0, Math.max(0, limit - writes.length));
+  const plan = { writes, deletes, included: whole.included.filter((id) => writes.includes(id)) };
+  const remaining = whole.writes.length + whole.deletes.length - writes.length - deletes.length;
   const previewById = new Map(preview.map((doc) => [doc._id, doc]));
   // Drafts that already match the website (a night restaged with no real
   // change) have nothing to publish; drop them so no stray drafts remain (#56).
@@ -332,10 +339,11 @@ export async function publishRelease(
   return {
     direction,
     // Publish all: every preview document now matches the website.
-    inSync: ids ? null : preview.map((doc) => doc._id),
+    inSync: ids || remaining ? null : preview.map((doc) => doc._id),
     written: plan.writes,
     deleted,
     included: plan.included,
+    remaining,
     warnings,
   };
 }
