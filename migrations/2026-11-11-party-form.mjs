@@ -10,7 +10,7 @@
  * it alone, so it is safe to run again.
  *
  * One exception, for forms made by this migration's earlier versions, which
- * sent party enquiries elsewhere (OLD_DEFAULTS): an address of form-party (or
+ * sent party enquiries elsewhere (EARLIER): an address of form-party (or
  * its draft) that is still what an earlier version put there moves to where
  * party enquiries go now (ADDRESSES). An address the venue has since changed
  * stays as they set it, and a form the venue made themselves at
@@ -26,27 +26,27 @@ export const FORM_ID = "form-party";
 export const FORM_SLUG = "party";
 
 /**
- * The form's addresses. Enquiries go to, and replies to the receipt come
- * back to, bookings@, the venue's bookings group (in production; every other
- * site sends to forms.notify_email). The receipt is sent From the events
- * address, the one form mail falls back to (shared/forms/form-email.js):
- * notifications@ is already allowed to send as it (docs/email.md), which
- * nobody has set up for bookings@.
+ * The form's addresses: all three are enquiries@, the venue's enquiries
+ * group, as Play at Gwenda's uses play@ for all three. Enquiries go to it (in
+ * production; every other site sends to forms.notify_email), and the receipt
+ * is sent From it, so replies come back to it. For that the group must let
+ * notifications@, the mailbox all mail is sent as, send as the group and
+ * post to it (docs/email.md).
  */
-export const ADDRESSES = {
-  notifyEmail: "bookings@gwenda.co.uk",
-  fromEmail: "events@gwenda.co.uk",
-  replyToEmail: "bookings@gwenda.co.uk",
-};
+const ENQUIRIES = "enquiries@gwenda.co.uk";
+export const ADDRESSES = { notifyEmail: ENQUIRIES, fromEmail: ENQUIRIES, replyToEmail: ENQUIRIES };
 
 /**
- * What earlier versions of this migration put in the form, oldest first.
- * Only an address that is still one of these, in its own field, is replaced.
+ * The addresses earlier versions of this migration wrote, field by field
+ * (hello@ in all three, then events@ as From, then bookings@). Only an
+ * address that is still one of these, in its own field, is replaced.
  */
-export const OLD_DEFAULTS = [
-  { notifyEmail: "hello@gwenda.co.uk", fromEmail: "hello@gwenda.co.uk", replyToEmail: "hello@gwenda.co.uk" },
-  { notifyEmail: "enquiries@gwenda.co.uk", fromEmail: "events@gwenda.co.uk", replyToEmail: "enquiries@gwenda.co.uk" },
-];
+const WAS_EVERYWHERE = ["hello@gwenda.co.uk", "bookings@gwenda.co.uk"];
+export const EARLIER = {
+  notifyEmail: WAS_EVERYWHERE,
+  fromEmail: [...WAS_EVERYWHERE, "events@gwenda.co.uk"],
+  replyToEmail: WAS_EVERYWHERE,
+};
 
 const YES_NO_MAYBE = ["Yes", "No", "Maybe"];
 
@@ -173,7 +173,7 @@ async function moveOldAddresses(content, forms, log, { dryRun }) {
     if (![FORM_ID, `drafts.${FORM_ID}`].includes(form._id)) continue;
     const set = Object.fromEntries(
       Object.entries(ADDRESSES).filter(
-        ([field, address]) => form[field] !== address && OLD_DEFAULTS.some((old) => old[field] === form[field]),
+        ([field, address]) => form[field] !== address && EARLIER[field].includes(form[field]),
       ),
     );
     const fields = Object.keys(set);

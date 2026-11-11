@@ -1,7 +1,13 @@
 /** The party enquiry form's migration: creates the Sanity form once, and only once. */
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { ADDRESSES, FORM_ID, FORM_SLUG, OLD_DEFAULTS, partyFormDocument, up } from "../../migrations/2026-11-11-party-form.mjs";
+import { ADDRESSES, FORM_ID, FORM_SLUG, EARLIER, partyFormDocument, up } from "../../migrations/2026-11-11-party-form.mjs";
+
+const [HELLO, ENQUIRIES, BOOKINGS, EVENTS] = ["hello", "enquiries", "bookings", "events"].map(
+  (name) => `${name}@gwenda.co.uk`,
+);
+/** A form with one address in all three fields. */
+const all = (address) => ({ notifyEmail: address, fromEmail: address, replyToEmail: address });
 
 /** Sanity as a migration sees it (scripts/lib/migrations.mjs sanityContent). */
 function fakeSanity(existing = []) {
@@ -53,45 +59,49 @@ describe("party form migration", () => {
     }
   });
 
-  it("sends enquiries and replies to bookings@, from an address the mailbox can send as", () => {
+  it("uses enquiries@ for all three addresses, as Play uses play@", () => {
     const doc = partyFormDocument();
-    assert.equal(doc.notifyEmail, "bookings@gwenda.co.uk");
-    assert.equal(doc.replyToEmail, "bookings@gwenda.co.uk");
-    assert.equal(doc.fromEmail, "events@gwenda.co.uk");
+    assert.equal(doc.notifyEmail, "enquiries@gwenda.co.uk");
+    assert.equal(doc.fromEmail, "enquiries@gwenda.co.uk");
+    assert.equal(doc.replyToEmail, "enquiries@gwenda.co.uk");
   });
 
-  it("moves a form still on the old address to the new ones, the draft too", async () => {
-    const old = OLD_DEFAULTS[0];
+  it("moves a form still on the first addresses (hello@) to the new ones, the draft too", async () => {
     const sanity = fakeSanity([
-      { _id: FORM_ID, ...old },
-      { _id: `drafts.${FORM_ID}`, ...old },
+      { _id: FORM_ID, ...all(HELLO) },
+      { _id: `drafts.${FORM_ID}`, ...all(HELLO) },
     ]);
     const lines = await run(sanity);
     assert.deepEqual(sanity.mutations, [
       { patch: { id: FORM_ID, set: ADDRESSES } },
       { patch: { id: `drafts.${FORM_ID}`, set: ADDRESSES } },
     ]);
-    assert.match(lines.join("\n"), /changed form-party: notifyEmail hello@gwenda\.co\.uk → bookings@gwenda\.co\.uk/);
+    assert.match(lines.join("\n"), /changed form-party: notifyEmail hello@gwenda\.co\.uk → enquiries@gwenda\.co\.uk/);
   });
 
-  it("moves a form on the second default (enquiries@) too, leaving its From as it is", async () => {
-    const sanity = fakeSanity([{ _id: FORM_ID, ...OLD_DEFAULTS[1] }]);
-    const lines = await run(sanity);
-    assert.deepEqual(sanity.mutations, [
-      { patch: { id: FORM_ID, set: { notifyEmail: "bookings@gwenda.co.uk", replyToEmail: "bookings@gwenda.co.uk" } } },
-    ]);
-    assert.match(lines.join("\n"), /notifyEmail enquiries@gwenda\.co\.uk → bookings@gwenda\.co\.uk/);
-    assert.doesNotMatch(lines.join("\n"), /fromEmail/);
+  it("moves every set an earlier version wrote, and only the fields that differ", async () => {
+    const cases = [
+      // enquiries@ with From events@: only the From moves
+      [{ ...all(ENQUIRIES), fromEmail: EVENTS }, { fromEmail: ENQUIRIES }],
+      [{ ...all(BOOKINGS), fromEmail: EVENTS }, ADDRESSES],
+      [all(BOOKINGS), ADDRESSES],
+    ];
+    for (const [was, set] of cases) {
+      const sanity = fakeSanity([{ _id: FORM_ID, ...was }]);
+      await run(sanity);
+      assert.deepEqual(sanity.mutations, [{ patch: { id: FORM_ID, set } }]);
+    }
   });
 
-  it("only ever writes the new addresses, and none of the old ones is a new one", () => {
-    assert.equal(Object.values(ADDRESSES).includes("enquiries@gwenda.co.uk"), false);
-    assert.equal(Object.values(ADDRESSES).includes("hello@gwenda.co.uk"), false);
+  it("never lists a current address as an earlier one, so a second run does nothing", () => {
+    for (const [field, address] of Object.entries(ADDRESSES)) {
+      assert.equal(EARLIER[field].includes(address), false, field);
+    }
   });
 
   it("keeps an address the venue has changed, and moves only the ones still old", async () => {
     const sanity = fakeSanity([
-      { _id: FORM_ID, notifyEmail: "parties@gwenda.co.uk", fromEmail: "play@gwenda.co.uk", replyToEmail: "hello@gwenda.co.uk" },
+      { _id: FORM_ID, notifyEmail: "parties@gwenda.co.uk", fromEmail: "play@gwenda.co.uk", replyToEmail: HELLO },
     ]);
     await run(sanity);
     assert.deepEqual(sanity.mutations, [{ patch: { id: FORM_ID, set: { replyToEmail: ADDRESSES.replyToEmail } } }]);
@@ -106,7 +116,7 @@ describe("party form migration", () => {
 
   it("never touches a form the venue made at the same web address", async () => {
     const sanity = fakeSanity([
-      { _id: "venue-made", ...OLD_DEFAULTS[0] },
+      { _id: "venue-made", ...all(HELLO) },
     ]);
     const lines = await run(sanity);
     assert.deepEqual(sanity.mutations, []);
@@ -115,7 +125,7 @@ describe("party form migration", () => {
 
   it("only reports the address change on a dry run", async () => {
     const sanity = fakeSanity([
-      { _id: FORM_ID, ...OLD_DEFAULTS[0] },
+      { _id: FORM_ID, ...all(HELLO) },
     ]);
     const lines = await run(sanity, { dryRun: true });
     assert.deepEqual(sanity.mutations, []);
