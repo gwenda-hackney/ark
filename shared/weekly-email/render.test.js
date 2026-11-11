@@ -135,6 +135,16 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
   });
 });
 
+describe("renderWeeklyEmail: the top", () => {
+  it("centres the heading and the week's dates under the centred logo", () => {
+    const top = email.html.slice(email.html.indexOf("Hackney Wick</div>"), email.html.indexOf("We’re shut on Mondays"));
+    // The heading's row, its own table (the stroke under it) and its words
+    expect(top).toMatch(/<td align="center"[^>]*><table [^>]*align="center"[^>]*style="[^"]*margin:0 auto;[^"]*"><tr><td [^>]*><h1 [^>]*text-align:center;/);
+    // The dates under it
+    expect(top.slice(top.lastIndexOf("<p "))).toContain("text-align:center;");
+  });
+});
+
 describe("renderWeeklyEmail: missing data", () => {
   it("renders a week with nothing on", () => {
     const empty = renderWeeklyEmail(weeklyEmailModel({ series: [], occurrences: [] }, { today: "2026-11-09" }));

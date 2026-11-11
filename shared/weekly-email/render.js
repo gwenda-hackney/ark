@@ -241,11 +241,11 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
   // The logo and what the place is
   rows.push(...logoHeader({ origin: site.origin, name: site.name, social: site.social, logo: logoUrl }));
 
-  // What's on this week
+  // What's on this week, centred under the logo like the flyer below it
   rows.push(
     row(
-      `${title("What’s on this week")}<p class="slab" style="margin:12px 0 0;font-family:${FONTS.slab};font-size:18px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};">${esc(model.week.span)}. We’re shut on Mondays.</p>`,
-      { bottom: 28 },
+      `${title("What’s on this week", { align: "center" })}<p class="slab" style="margin:12px 0 0;font-family:${FONTS.slab};font-size:18px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};text-align:center;">${esc(model.week.span)}. We’re shut on Mondays.</p>`,
+      { bottom: 28, align: "center" },
     ),
   );
 

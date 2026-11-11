@@ -1,10 +1,16 @@
 /** What the Weekly email page says, kept out of the components so it's tested. */
 import type { WeeklyEmailRun, WeeklyEmailSettings, WeeklyEmailStatus } from "./email-api";
 
-/** The email inside its preview frame: links open in a new tab, never inside the frame. */
+/**
+ * The email inside its preview frame, as Gmail shows it: Gmail drops the
+ * email's <link>s and loads no web fonts, so its faces are the ones on the
+ * reader's computer (shared/email/shell.js FONTS). Only Apple Mail loads the
+ * website's fonts. Links open in a new tab, never inside the frame.
+ */
 export function previewDocument(html: string): string {
-	const base = '<base target="_blank">';
-	return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (head) => `${head}${base}`) : `${base}${html}`;
+	const top = `<base target="_blank"><meta http-equiv="Content-Security-Policy" content="font-src 'none'">`;
+	const email = html.replace(/<link\b[^>]*>/gi, "");
+	return /<head[^>]*>/i.test(email) ? email.replace(/<head[^>]*>/i, (head) => `${head}${top}`) : `${top}${email}`;
 }
 
 /** "Tue 10 Nov" from 2026-11-10. */
