@@ -142,7 +142,7 @@ describe("POST /api/forms: a party enquiry", () => {
 
     // To the sender: got it, what they sent, and the way to change it
     expect(receipt.to).toBe("sam@example.com");
-    expect(receipt.replyTo).toBe("hello@gwenda.co.uk");
+    expect(receipt.replyTo).toBe("enquiries@gwenda.co.uk");
     expect(receipt.subject).toBe("Got it: Party enquiry");
     expect(receipt.html).toContain("Thanks, Sam.");
     expect(receipt.html).toContain("Change it");

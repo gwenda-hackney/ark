@@ -7,8 +7,15 @@
  * After the website deploy, since only the new code knows the date and number
  * field types. It only creates the form when there is none (by id, or by its
  * web address): once it exists the venue edits it in Studio and this leaves
- * it alone, so it is safe to run again. Supports --dry-run (with --only),
- * which reports and writes nothing.
+ * it alone, so it is safe to run again.
+ *
+ * One exception, for forms made by this migration's first version, which put
+ * hello@ in all three addresses: an address of form-party (or its draft) that
+ * is still hello@ moves to where party enquiries go now (ADDRESSES). An
+ * address the venue has since changed stays as they set it, and a form the
+ * venue made themselves at /contact/party is never touched.
+ *
+ * Supports --dry-run (with --only), which reports and writes nothing.
  */
 export const app = "web";
 export const phase = "post";
@@ -17,8 +24,22 @@ export const about = "Party enquiry form: Book your party (/contact/party)";
 export const FORM_ID = "form-party";
 export const FORM_SLUG = "party";
 
-/** Where enquiries go in production; every other site sends to forms.notify_email. */
-const VENUE_MAIL = "hello@gwenda.co.uk";
+/**
+ * The form's addresses. Enquiries go to, and replies to the receipt come
+ * back to, enquiries@ (in production; every other site sends to
+ * forms.notify_email). The receipt is sent From the events address, the one
+ * form mail falls back to (shared/forms/form-email.js): notifications@ is
+ * already allowed to send as it (docs/email.md), which nobody has set up for
+ * enquiries@.
+ */
+export const ADDRESSES = {
+  notifyEmail: "enquiries@gwenda.co.uk",
+  fromEmail: "events@gwenda.co.uk",
+  replyToEmail: "enquiries@gwenda.co.uk",
+};
+
+/** What this migration first put in all three; only this is ever replaced. */
+export const OLD_ADDRESS = "hello@gwenda.co.uk";
 
 const YES_NO_MAYBE = ["Yes", "No", "Maybe"];
 
@@ -113,9 +134,7 @@ export function partyFormDocument() {
     intro:
       "Birthday, leaving do, work thing: tell us what you’re planning and we’ll come back to you.",
     seoDescription: "Having a party at Gwenda in Hackney Wick? Tell us the date and how many of you.",
-    notifyEmail: VENUE_MAIL,
-    fromEmail: VENUE_MAIL,
-    replyToEmail: VENUE_MAIL,
+    ...ADDRESSES,
     requireEmailVerification: false,
     submitLabel: "Send",
     successTitle: "Got it",
@@ -137,13 +156,40 @@ export function partyFormDocument() {
   };
 }
 
+/**
+ * Move the addresses of form-party (and its draft) that are still the old
+ * default to the new ones. Returns how many documents changed (or would).
+ */
+async function moveOldAddresses(content, forms, log, { dryRun }) {
+  let moved = 0;
+  for (const form of forms) {
+    if (![FORM_ID, `drafts.${FORM_ID}`].includes(form._id)) continue;
+    const set = Object.fromEntries(
+      Object.entries(ADDRESSES).filter(([field, address]) => form[field] === OLD_ADDRESS && address !== OLD_ADDRESS),
+    );
+    const fields = Object.keys(set);
+    if (!fields.length) continue;
+    moved += 1;
+    const what = fields.map((field) => `${field} ${OLD_ADDRESS} → ${set[field]}`).join(", ");
+    if (dryRun) {
+      log(`${content.project}: would change ${form._id}: ${what}`);
+      continue;
+    }
+    await content.mutate([{ patch: { id: form._id, set } }]);
+    log(`${content.project}: changed ${form._id}: ${what}`);
+  }
+  return moved;
+}
+
 export async function up({ sanity, log, dryRun = false }) {
   const content = sanity();
-  const existing = await content.query(`*[_type == "form" && (_id in $ids || slug.current == $slug)]{ _id }`, {
-    ids: [FORM_ID, `drafts.${FORM_ID}`],
-    slug: FORM_SLUG,
-  });
+  const existing = await content.query(
+    `*[_type == "form" && (_id in $ids || slug.current == $slug)]{ _id, notifyEmail, fromEmail, replyToEmail }`,
+    { ids: [FORM_ID, `drafts.${FORM_ID}`], slug: FORM_SLUG },
+  );
   if (existing?.length) {
+    const moved = await moveOldAddresses(content, existing, log, { dryRun });
+    if (moved) return;
     return log(`${content.project}: the party form is already there (${existing.map((doc) => doc._id).join(", ")})`);
   }
   const document = partyFormDocument();

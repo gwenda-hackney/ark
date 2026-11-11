@@ -244,6 +244,9 @@ export const siteConfig = {
       },
       /** Written on the border of the drinks photo, wherever it is pinned up. */
       partyPhotoNote: "Make a night of it.",
+      /** What the drinks photo shows, for anyone who can't see it. */
+      partyPhotoAlt:
+        "A margarita with a salted rim on the bar, beside a red cocktail.",
     },
   },
 } as const;

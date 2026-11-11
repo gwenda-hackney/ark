@@ -45,18 +45,20 @@ const pageDescription =
  * The play and party forms open on a photo taped up and our own words, in
  * place of the form's intro line. A form with no entry here shows its intro.
  */
-const { playIntro, playPhotoNote, partyIntro, partyPhotoNote } =
+const { playIntro, playPhotoNote, partyIntro, partyPhotoNote, partyPhotoAlt } =
   siteConfig.copy.contactPage;
 const intro = {
   [PLAY_FORM_SLUG]: {
     ...playIntro,
     photo: playDecksPhoto,
     photoNote: playPhotoNote,
+    photoAlt: "",
   },
   [PARTY_FORM_SLUG]: {
     ...partyIntro,
     photo: partyDrinksPhoto,
     photoNote: partyPhotoNote,
+    photoAlt: partyPhotoAlt,
   },
 }[form.slug];
 const eyebrow = form.eyebrow?.trim() || "";
@@ -92,7 +94,7 @@ const showEyebrow =
             </p>
           </div>
           <figure class="ch-print">
-            <Image {...intro.photo} alt="" loading="eager" />
+            <Image {...intro.photo} alt={intro.photoAlt} loading="eager" />
             <figcaption class="ch-print-note">{intro.photoNote}</figcaption>
           </figure>
         </div>
