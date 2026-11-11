@@ -25,15 +25,22 @@ const night = (seriesId, date, extra = {}) => ({
   ...extra,
 });
 
+/** The kitchen menu's chapters, as the food page has them. */
 const chapters = [
   {
     id: "burgers-and-more",
     title: "Chez Pickle",
+    kind: "kitchen",
     popupSeriesId: "chez-pickle",
     items: [],
     subsections: [{ id: "burgers", title: "Burgers", items: [{ id: "og" }] }],
   },
-  { id: "snacks", title: "Snacks", items: [{ id: "olives" }] },
+  {
+    id: "snacks",
+    title: "Snacks",
+    kind: "kitchen",
+    items: [{ id: "olives" }],
+  },
 ];
 
 describe("popupKitchens", () => {
@@ -156,7 +163,12 @@ describe("popupMenuHref", () => {
     expect(popupMenuHref("someone-else", chapters)).toBe("/kitchen");
     expect(
       popupMenuHref("chez-pickle", [
-        { id: "empty", popupSeriesId: "chez-pickle", items: [] },
+        {
+          id: "empty",
+          kind: "kitchen",
+          popupSeriesId: "chez-pickle",
+          items: [],
+        },
       ]),
     ).toBe("/kitchen");
   });

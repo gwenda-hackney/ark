@@ -5,6 +5,7 @@
  * What's on leaves its nights out; it shows once, on a card, with when it's
  * on, the way to its own page and the way to its menu.
  */
+import { menuAddresses, menuPage } from "./menu-anchors.js";
 import { nightDay } from "./night-cards.js";
 import {
   categoryOf,
@@ -80,12 +81,15 @@ function hasItems(chapter) {
 /**
  * Where a pop-up's menu is: its own chapter on the food page when one points
  * at the series and has something on it, else the food page.
+ *
+ * @param {string} seriesId the pop-up's series
+ * @param {Array<object>} chapters the kitchen menu's chapters, as fetched
  */
 export function popupMenuHref(seriesId, chapters) {
   const chapter = (chapters || []).find(
     (row) => row.popupSeriesId === seriesId && hasItems(row),
   );
-  return chapter ? `/kitchen#${chapter.id}` : "/kitchen";
+  return chapter ? menuAddresses(chapters)(chapter).href : menuPage("kitchen");
 }
 
 /**

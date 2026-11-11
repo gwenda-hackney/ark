@@ -20,19 +20,58 @@
   outline-offset: 3px;
 }
 
-.ch-photos-more {
+/*
+ * Home's few (PhotoWall `row`): even rows of squares, each photo cropped to
+ * its tile. Four abreast on a desk, three on a tablet, two on a phone; a
+ * tablet shows the first six and a phone the first four, so each ends on a
+ * full row. With fewer, a short last row sits in the middle.
+ */
+.ch-photo-row .series-gallery-list {
+  --across: 4;
+  --gap: 0.5rem;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  margin-top: 2.25rem;
+  gap: var(--gap);
+  columns: auto;
+}
+
+.ch-photo-row .series-gallery-item {
+  flex: 0 0 calc((100% - (var(--across) - 1) * var(--gap)) / var(--across));
+  margin: 0;
+  aspect-ratio: 1;
+}
+
+.ch-photo-row .series-gallery-item a,
+.ch-photo-row .series-gallery-item img {
+  height: 100%;
+}
+
+.ch-photo-row .series-gallery-item img {
+  object-fit: cover;
+}
+
+@media (max-width: 64rem) {
+  .ch-photo-row .series-gallery-list {
+    --across: 3;
+  }
+
+  .ch-photo-row .series-gallery-item:nth-child(n + 7) {
+    display: none;
+  }
+}
+
+@media (max-width: 40rem) {
+  .ch-photo-row .series-gallery-list {
+    --across: 2;
+  }
+
+  .ch-photo-row .series-gallery-item:nth-child(n + 5) {
+    display: none;
+  }
 }
 
 /* On its own page the wall takes the page's width */
 .ch-photos-page {
   max-width: 72rem;
-}
-
-.ch-photos-foot {
-  margin: 2.5rem 0 0;
-  font-size: 1.0625rem;
-  color: var(--ch-ink-2);
 }

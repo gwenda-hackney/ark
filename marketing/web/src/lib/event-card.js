@@ -21,8 +21,11 @@ import {
 import { followUpdatesLink } from "./follow-updates.js";
 import { richParagraphHtml } from "../../functions/_lib/rich-text.js";
 import {
+  IMAGE_LARGEST,
+  imageSrcset,
   isWholeFit,
-  withImageParams,
+  sizedImageUrl,
+  tinyImageUrl,
 } from "../../functions/_lib/sanity-image-url.js";
 
 const ESCAPES = {
@@ -76,32 +79,6 @@ export function attrs(map) {
 
 function text(value) {
   return String(value ?? "").trim();
-}
-
-/** Sanity image URL at a width, unless it is already framed. */
-export function sizedImageUrl(url, width) {
-  const src = text(url);
-  if (!src) return "";
-  if (/[?&](rect|fit|w)=/.test(src)) return src;
-  return withImageParams(src, `w=${width}&auto=format&q=86`);
-}
-
-/**
- * A tiny, blurred copy of a Sanity photo (a few hundred bytes) to show while
- * the real one loads. "" for anything that isn't a Sanity image.
- */
-export function tinyImageUrl(url) {
-  try {
-    const tiny = new URL(text(url));
-    if (tiny.hostname !== "cdn.sanity.io") return "";
-    tiny.searchParams.set("w", "48");
-    tiny.searchParams.set("q", "30");
-    tiny.searchParams.set("blur", "30");
-    tiny.searchParams.set("auto", "format");
-    return tiny.href;
-  } catch {
-    return "";
-  }
 }
 
 function scheduleRows(slots) {
@@ -383,6 +360,14 @@ export function renderEventCard(model) {
 /** Photos shown before "Show all" (scripts/gallery.js reveals the rest). */
 export const GALLERY_FIRST = 12;
 
+/**
+ * How wide a gallery photo is shown: its own column where the browser can
+ * tell (auto, for a lazy image), else the widest a column gets: half the
+ * screen on a phone, half the page's 64rem beyond (styles/global.css,
+ * scripts/gallery.js).
+ */
+const GALLERY_SIZES = "auto, (max-width: 40rem) 50vw, 30rem";
+
 export function renderGallery(images, { title = "" } = {}) {
   const photos = (Array.isArray(images) ? images : []).filter(
     (image) => image?.url && image.width > 0 && image.height > 0,
@@ -401,11 +386,13 @@ export function renderGallery(images, { title = "" } = {}) {
       hidden: index >= GALLERY_FIRST,
     })}><a${attrs({
       href: image.url,
-      "data-full": sizedImageUrl(image.url, 1800),
+      "data-full": sizedImageUrl(image.url, IMAGE_LARGEST),
       target: "_blank",
       rel: "noopener",
     })}><img${attrs({
-      src: sizedImageUrl(image.url, 900),
+      src: sizedImageUrl(image.url, 640),
+      srcset: imageSrcset(image.url),
+      sizes: imageSrcset(image.url) ? GALLERY_SIZES : "",
       alt,
       loading: "lazy",
       width: image.width,

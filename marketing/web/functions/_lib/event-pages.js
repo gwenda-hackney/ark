@@ -51,8 +51,10 @@ const BODY = /<series-body>([\s\S]*?)<\/series-body>/;
 const PART = /<series-part name="([^"]*)"[^>]*>([\s\S]*?)<\/series-part>/g;
 
 /**
- * What only the build knows, cut out of the shell by name: the Book a table
- * button, the logo, a guest chef's mark, where a pop-up's menu is
+ * What only the build knows, cut out of the shell by name: Book a table's
+ * words when bookings are on (the button is the night's own, lib/event-page.js),
+ * the logo, a guest chef's mark, where a pop-up's menu is, each contact
+ * form's button
  * (src/pages/whats-on/series-shell.astro writes them, lib/event-page.js
  * places them).
  */
@@ -132,8 +134,13 @@ async function resolveSeries(env, seriesId) {
       const { parts, rest } = shellParts(html);
       const pending = BODY.exec(rest)?.[1] || "";
       const model = eventPageModel(
-        // The series' own line of days and its fixed-run flag, for a pop-up's "when".
-        { ...detail, schedule: record?.schedule || detail.schedule },
+        // The series' own line of days and its fixed-run flag, for a pop-up's
+        // "when"; and its own link, for a series with no night to carry one.
+        {
+          ...detail,
+          schedule: record?.schedule || detail.schedule,
+          pageUrl: record?.pageUrl || "",
+        },
         { category, nights, today: londonToday(), parts },
       );
       const body = renderEventBody(model, { pending });

@@ -1,6 +1,6 @@
 /**
  * WeeklyEmailRepository on D1: the `weekly_emails` and `weekly_email_tests`
- * tables of the ops database (db/ops/migrations/0009_weekly_email.sql). The
+ * tables of the ops database (db/ops/migrations/0012_weekly_email.sql). The
  * only email code that knows them.
  */
 import { all, first, nowIso, run } from "../../../../../../shared/d1.js";

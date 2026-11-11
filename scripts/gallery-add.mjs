@@ -8,16 +8,18 @@
  *   npm run gallery:add -- --alt "Two burgers on the pass" ~/Downloads/IMG_0042.jpg
  *   npm run gallery:add -- --alt "..." --name burgers-on-the-pass photo.jpg
  *   npm run gallery:add -- --alt "..." --link https://www.instagram.com/p/abc/ photo.jpg
+ *   npm run gallery:add -- --alt "..." --menu drinks photo.jpg
  *
  * --alt says what the photo shows (read out by screen readers; required).
  * --name sets the file name; otherwise the input's name is slugged.
- * --link records where the photo was posted. Adding the same name again
- * replaces the photo and moves it to the front.
+ * --link records where the photo was posted. --menu drinks|food lets home's
+ * Drinks or Food board pin it up (lib/photos.js menuPhotos). Adding the same
+ * name again replaces the photo and moves it to the front.
  */
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { addPhoto, photoSlug } from "../marketing/web/src/lib/photos.js";
+import { PHOTO_MENUS, addPhoto, photoSlug } from "../marketing/web/src/lib/photos.js";
 
 const web = (path) =>
   fileURLToPath(new URL(`../marketing/web/src/${path}`, import.meta.url));
@@ -30,14 +32,19 @@ const args = process.argv.slice(2);
 const options = {};
 const inputs = [];
 for (let i = 0; i < args.length; i += 1) {
-  const flag = /^--(alt|name|link)$/.exec(args[i]);
+  const flag = /^--(alt|name|link|menu)$/.exec(args[i]);
   if (flag) options[flag[1]] = args[++i];
   else inputs.push(args[i]);
 }
 if (inputs.length !== 1 || !options.alt?.trim()) {
   console.error(
-    'Usage: npm run gallery:add -- --alt "what it shows" [--name <slug>] [--link <url>] <image>',
+    'Usage: npm run gallery:add -- --alt "what it shows" [--name <slug>] [--link <url>] [--menu drinks|food] <image>',
   );
+  process.exit(1);
+}
+
+if (options.menu && !PHOTO_MENUS.includes(options.menu)) {
+  console.error(`--menu is ${PHOTO_MENUS.join(" or ")}, not "${options.menu}".`);
   process.exit(1);
 }
 
@@ -76,6 +83,7 @@ const next = addPhoto(list, {
   file: `gallery/${slug}.webp`,
   alt: options.alt,
   link: options.link,
+  menu: options.menu,
 });
 writeFileSync(LIST, `${JSON.stringify(next, null, 2)}\n`);
 

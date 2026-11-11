@@ -2,35 +2,58 @@
 /**
  * Home's menu (#240): drinks and food side by side. Each side lists a few
  * things from its first chapter with their prices, then the rest of that
- * menu by name with what it starts from (lib/home-menu.js). A side with
- * nothing on it yet keeps its line.
+ * menu, a tile per chapter, with what it starts from (lib/home-menu.js),
+ * prints from the gallery taped up, and a plain line to the whole menu at
+ * its foot, in the same order on both. Every one of
+ * those is a link to its own section of that menu's page; where that is
+ * comes from the menu itself (lib/menu-anchors.js), never from a list here.
+ * A side with nothing on it yet keeps its line.
  */
 import { Image } from "astro:assets";
 import { menuChapters } from "../../data/menu";
-import { homeFoodPhoto } from "../../lib/chart-assets";
 import { menuTaste } from "../../lib/home-menu.js";
+import { menuPage } from "../../lib/menu-anchors.js";
+import { galleryPhotos } from "../../lib/photo-sources";
+import { homePhotoPlan } from "../../lib/photos.js";
 import { fetchMenu } from "../../lib/sanity/menu";
+import type { MenuKind } from "../../types/menu";
 
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
+
+/**
+ * The prints taped up on each board: the newest gallery photos marked for
+ * it (src/data/photos.json `menu`). Which photo goes where on home is
+ * lib/photos.js homePhotoPlan, for the boards and the photo row alike.
+ */
+const photoPlan = homePhotoPlan(galleryPhotos());
+/** A print's photo, 12rem across at most (192px), sharp at 2x. */
+const PHOTO_WIDTH = 192;
+
+/** A side's menu, by its `kind` in the data: its page, and a taste of it. */
+function menuOf(kind: MenuKind) {
+  return {
+    href: menuPage(kind),
+    taste: menuTaste(menuChapters(menu, kind)),
+  };
+}
 
 const sides = [
   {
     key: "drinks",
     title: "Drinks",
-    href: "/bar",
     link: "All the drinks",
     line: "Our own cocktails, the classics, cold beer, and a few with no booze in.",
-    taste: menuTaste(menuChapters(menu, "bar")),
-    photo: null,
+    photos: photoPlan.drinks,
+    ...menuOf("bar"),
   },
   {
     key: "food",
     title: "Food",
-    href: "/kitchen",
     link: "All the food",
-    line: "Burgers, fries and dips. Proper food to go with a drink.",
-    taste: menuTaste(menuChapters(menu, "kitchen")),
-    photo: homeFoodPhoto,
+    /** Not who's cooking or what: the pop-up kitchen's card says that. */
+    line: "Proper food to go with a drink.",
+    photos: photoPlan.food,
+    ...menuOf("kitchen"),
   },
 ];
 ---
@@ -44,7 +67,10 @@ const sides = [
   <div class="ch-menu-sides">
     {
       sides.map((side) => (
-        <article class:list={["ch-menu-side", `ch-menu-side--${side.key}`]}>
+        <article
+          class:list={["ch-menu-side", `ch-menu-side--${side.key}`]}
+          id={side.key}
+        >
           <header class="ch-menu-side-head">
             <h3>
               <a href={side.href}>{side.title}</a>
@@ -71,10 +97,7 @@ const sides = [
                 ))}
               </ul>
               {side.taste.lead.total > side.taste.lead.items.length && (
-                <a
-                  href={`${side.href}#${side.taste.lead.id}`}
-                  class="ch-menu-rest"
-                >
+                <a href={side.taste.lead.href} class="ch-menu-rest">
                   and {side.taste.lead.total - side.taste.lead.items.length}{" "}
                   more →
                 </a>
@@ -83,7 +106,7 @@ const sides = [
                 <ul class="ch-menu-more">
                   {side.taste.more.map((part) => (
                     <li>
-                      <a href={`${side.href}#${part.id}`}>
+                      <a href={part.href}>
                         <span>{part.title}</span>
                         {part.from && <span>from {part.from}</span>}
                       </a>
@@ -96,14 +119,26 @@ const sides = [
             <p class="ch-menu-soon">The list’s on its way.</p>
           )}
 
-          {side.photo && (
-            <span class="ch-menu-photo">
-              <Image {...side.photo} alt="" loading="lazy" />
-            </span>
+          {side.photos.length > 0 && (
+            <div class="ch-menu-photos">
+              {/* The newest goes up last, on top */}
+              {[...side.photos].reverse().map((photo) => (
+                <figure class="ch-menu-photo ch-print">
+                  <Image
+                    src={photo.image}
+                    alt={photo.alt}
+                    width={PHOTO_WIDTH}
+                    densities={[1, 2]}
+                    format="webp"
+                    loading="lazy"
+                  />
+                </figure>
+              ))}
+            </div>
           )}
 
-          <a href={side.href} class="ch-btn">
-            {side.link}
+          <a href={side.href} class="ch-menu-all">
+            {side.link} <span aria-hidden="true">→</span>
           </a>
         </article>
       ))

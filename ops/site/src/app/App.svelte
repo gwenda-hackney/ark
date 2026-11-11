@@ -12,6 +12,7 @@
 	import SuppliersPage from "../inventory/SuppliersPage.svelte";
 	import ConfigPage from "../config/ConfigPage.svelte";
 	import UsersPage from "../users/UsersPage.svelte";
+	import VenuePage from "../venue/VenuePage.svelte";
 	import WebPage from "../website/WebPage.svelte";
 	import DevToolsPage from "../website/DevToolsPage.svelte";
 	import SettingsPage from "../website/SettingsPage.svelte";
@@ -82,6 +83,8 @@
 						<SuppliersPage />
 					{:else if key === "users"}
 						<UsersPage />
+					{:else if key === "venue"}
+						<VenuePage />
 					{:else if key === "web"}
 						{#if parseShellPath(current).view === "dev"}
 							<DevToolsPage />

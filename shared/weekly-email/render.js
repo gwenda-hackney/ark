@@ -2,41 +2,36 @@
  * The weekly "what's on" email as HTML, plain text, a subject and the
  * preview line, from its model (model.js).
  *
- * This is email HTML, not the website's CSS: tables for layout, every style
- * inline, one column no wider than 600px, pictures at absolute addresses.
- * It's the website's sibling all the same: the leather board, cream type,
- * mustard and the red, date stickers, the poster face for names. Web fonts
- * load where the reader's app allows (Apple Mail); elsewhere each falls back
- * to a face that's on the machine (Impact and the like for the poster face,
- * Georgia for the slab and the pen).
+ * The look (colours, faces, the logo at the top, the button, the page around
+ * it) is the shell every Gwenda email shares, shared/email/shell.js; what is
+ * the weekly email's own is here: date stickers, the night cards, the deals.
  *
  * The foot carries Mailchimp's merge tags (unsubscribe, update details, the
  * postal address), which a campaign needs to be sent at all.
  */
 
-/** The site's colours (marketing/web/src/styles/chart.css), as plain hex. */
-export const COLOURS = {
-  board: "#1a1510",
-  board2: "#27211a",
-  ink: "#e8dfcc",
-  ink2: "#c2b79f",
-  cream: "#f2e8d2",
-  mustard: "#dba63c",
-  pop: "#d2342a",
-  dark: "#0b0a08",
-  rule: "#5a5246",
-};
+import { sizedImageUrl } from "../../marketing/web/functions/_lib/sanity-image-url.js";
+import {
+  COLOURS,
+  FONTS,
+  FOOT_LINK,
+  FOOT_SMALL,
+  button,
+  emailDocument,
+  esc,
+  footLinks,
+  heading,
+  href,
+  logoHeader,
+  row,
+  rule,
+  table,
+  textLink,
+  title,
+} from "../email/shell.js";
 
-const FONTS = {
-  /** Protest Strike, else the heaviest narrow face on the machine. */
-  display:
-    "'Protest Strike',Impact,'HelveticaNeue-CondensedBlack','Arial Narrow Bold','Roboto Condensed',sans-serif-condensed,'Arial Black',sans-serif",
-  slab: "'Zilla Slab',Georgia,'Times New Roman',serif",
-  pen: "Caveat,Georgia,'Times New Roman',serif",
-};
-
-const WEB_FONTS =
-  "https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Protest+Strike&family=Zilla+Slab:ital,wght@0,400;0,700;1,400&display=swap";
+/** The colours are the shell's; kept here for what reads them from this file. */
+export { COLOURS };
 
 /** Mailchimp's merge tags, filled in for each reader when a campaign goes out. */
 export const MAILCHIMP_TAGS = {
@@ -45,25 +40,6 @@ export const MAILCHIMP_TAGS = {
   archive: "*|ARCHIVE|*",
   addressLine: "*|LIST:ADDRESSLINE|*",
 };
-
-/** The content's width, and the gutter either side of it. */
-const WIDTH = 600;
-const GUTTER = 20;
-const INNER = WIDTH - GUTTER * 2;
-
-function esc(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/** Text or a merge tag as an href: only http(s), mailto, or a `*|TAG|*`. */
-function href(value) {
-  const raw = String(value ?? "").trim();
-  return /^(https?:\/\/|mailto:|\*\|[A-Z_:]+\|\*$)/i.test(raw) ? esc(raw) : "#";
-}
 
 /**
  * A picture at the size the email shows it (twice over, for sharp screens):
@@ -81,8 +57,9 @@ export function emailImageUrl(photo, shownWidth) {
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") return "";
   if (url.hostname !== "cdn.sanity.io") return url.toString();
-  const width = Math.min(1200, Math.round(shownWidth * 2));
-  url.searchParams.set("w", String(width));
+  // One size, as an email has no choice of them; never wider than the picture.
+  url = new URL(sizedImageUrl(url.toString(), Math.min(1200, Math.round(shownWidth * 2)), { quality: 80 }));
+  const width = Number(url.searchParams.get("w"));
   if (!photo.whole) {
     url.searchParams.set("h", String(Math.round(width * 1.25)));
     url.searchParams.set("fit", "crop");
@@ -93,8 +70,6 @@ export function emailImageUrl(photo, shownWidth) {
   }
   url.searchParams.set("fm", "jpg");
   url.searchParams.set("bg", "ffffff");
-  url.searchParams.set("q", "80");
-  url.searchParams.set("auto", "format");
   return url.toString();
 }
 
@@ -103,11 +78,6 @@ function image(photo, shownWidth, { fluid = false, className = "" } = {}) {
   if (!src) return "";
   const size = fluid ? `width:100%;max-width:${shownWidth}px;` : `width:${shownWidth}px;max-width:100%;`;
   return `<img src="${esc(src)}" width="${shownWidth}" alt="${esc(photo.alt || "")}"${className ? ` class="${className}"` : ""} style="display:block;${size}height:auto;border:0;outline:none;text-decoration:none;border-radius:4px;color:${COLOURS.cream};font-family:${FONTS.slab};font-size:14px;line-height:1.3;">`;
-}
-
-/** A layout table: no borders, no gaps, and not a table to a screen reader. */
-function table(rows, { width = "100%", style = "", attrs = "" } = {}) {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="${width}"${attrs ? ` ${attrs}` : ""} style="border-collapse:collapse;${style}">${rows}</table>`;
 }
 
 /** The date, on a sticker: mustard, or red on the day it goes out. */
@@ -142,12 +112,8 @@ const SLIPS = {
   offer: { paper: COLOURS.cream, print: COLOURS.dark },
 };
 
-function spacer(height) {
-  return `<tr><td height="${height}" style="height:${height}px;font-size:0;line-height:0;">&nbsp;</td></tr>`;
-}
-
-function name(title, link, size) {
-  return `<a href="${href(link)}" class="display" style="font-family:${FONTS.display};font-size:${size}px;line-height:1.1;font-weight:700;font-synthesis:none;color:${COLOURS.cream};text-decoration:none;">${esc(title)}</a>`;
+function name(text, link, size) {
+  return `<a href="${href(link)}" class="display" style="font-family:${FONTS.display};font-size:${size}px;line-height:1.1;font-weight:700;font-synthesis:none;color:${COLOURS.cream};text-decoration:none;">${esc(text)}</a>`;
 }
 
 function timeLine(text, size = 22) {
@@ -214,37 +180,6 @@ function standing(card, tag, slipStyle) {
   );
 }
 
-/** A section's name in the poster face, with the red stroke under it. */
-function heading(text) {
-  return table(
-    `<tr><td style="border-bottom:4px solid ${COLOURS.pop};padding:0 2px 4px 0;"><h2 class="display" style="margin:0;font-family:${FONTS.display};font-size:30px;line-height:1.1;font-weight:700;font-synthesis:none;color:${COLOURS.cream};">${esc(text)}</h2></td></tr>`,
-    { width: "", style: "width:auto;" },
-  );
-}
-
-function row(content, { top = 0, bottom = 0, align = "left" } = {}) {
-  return `<tr><td align="${align}" style="padding:${top}px ${GUTTER}px ${bottom}px;">${content}</td></tr>`;
-}
-
-function rule() {
-  return row(
-    table(
-      `<tr><td height="1" style="height:1px;border-top:1px dashed ${COLOURS.rule};font-size:0;line-height:0;">&nbsp;</td></tr>`,
-    ),
-    { top: 28, bottom: 28 },
-  );
-}
-
-/** A button that's a button in Outlook too (VML there, a padded link elsewhere). */
-function button(text, link) {
-  const label = esc(text);
-  return `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${href(link)}" style="height:50px;v-text-anchor:middle;width:230px;" arcsize="8%" stroke="f" fillcolor="${COLOURS.mustard}"><w:anchorlock/><center style="color:${COLOURS.dark};font-family:Georgia,serif;font-size:16px;font-weight:bold;letter-spacing:1px;">${label.toUpperCase()}</center></v:roundrect><![endif]--><!--[if !mso]><!--><a href="${href(link)}" class="slab" style="display:inline-block;background-color:${COLOURS.mustard};border-radius:4px;color:${COLOURS.dark};font-family:${FONTS.slab};font-size:16px;line-height:50px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-align:center;text-decoration:none;width:230px;-webkit-text-size-adjust:none;">${label}</a><!--<![endif]-->`;
-}
-
-function textLink(text, link) {
-  return `<a href="${href(link)}" class="slab" style="font-family:${FONTS.slab};font-size:14px;line-height:1.4;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${COLOURS.mustard};text-decoration:underline;">${esc(text)}</a>`;
-}
-
 /** "Wed 11 Nov", "Sat–Sun 21–22 Nov". */
 function stickerText({ weekday, day, month }) {
   return `${weekday} ${day} ${month}`;
@@ -300,29 +235,16 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
   const { site } = model;
   const subject = weeklySubject(model);
   const preheader = weeklyPreheader(model);
-  const logo = logoUrl || `${site.origin}/brand/logo-email-social.png`;
   const [lead, ...rest] = model.nights;
   const rows = [];
 
   // The logo and what the place is
-  rows.push(
-    row(
-      `<a href="${href(site.origin)}" style="text-decoration:none;"><img src="${esc(logo)}" width="200" alt="${esc(`${site.name} ${site.social}`)}" style="display:block;width:200px;max-width:100%;height:auto;margin:0 auto;border:0;outline:none;color:${COLOURS.cream};font-family:${FONTS.display};font-size:34px;font-weight:700;line-height:1.1;text-align:center;"></a>`,
-      { top: 32, bottom: 0, align: "center" },
-    ),
-    row(
-      `<div class="slab" style="font-family:${FONTS.slab};font-size:13px;line-height:1.3;font-weight:700;letter-spacing:0.34em;text-transform:uppercase;color:${COLOURS.mustard};text-align:center;">${esc(site.social)} · Hackney Wick</div>`,
-      { top: 10, bottom: 30, align: "center" },
-    ),
-  );
+  rows.push(...logoHeader({ origin: site.origin, name: site.name, social: site.social, logo: logoUrl }));
 
   // What's on this week
   rows.push(
     row(
-      `${table(
-        `<tr><td style="border-bottom:5px solid ${COLOURS.mustard};padding:0 4px 6px 0;"><h1 class="display h1" style="margin:0;font-family:${FONTS.display};font-size:42px;line-height:1.05;font-weight:700;font-synthesis:none;color:${COLOURS.cream};">What’s on this week</h1></td></tr>`,
-        { width: "", style: "width:auto;" },
-      )}<p class="slab" style="margin:12px 0 0;font-family:${FONTS.slab};font-size:18px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};">${esc(model.week.span)}. We’re shut on Mondays.</p>`,
+      `${title("What’s on this week")}<p class="slab" style="margin:12px 0 0;font-family:${FONTS.slab};font-size:18px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};">${esc(model.week.span)}. We’re shut on Mondays.</p>`,
       { bottom: 28 },
     ),
   );
@@ -376,55 +298,27 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
   );
 
   // The foot: where we are, and the way off the list
-  const small = `font-family:${FONTS.slab};font-size:13px;line-height:1.6;color:${COLOURS.ink2};text-align:center;`;
-  const footLink = `color:${COLOURS.ink};text-decoration:underline;`;
   rows.push(
     rule(),
     row(
-      `<p class="slab" style="margin:0;font-family:${FONTS.slab};font-size:13px;line-height:1.9;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;text-align:center;"><a href="${href(site.instagram)}" style="color:${COLOURS.mustard};text-decoration:underline;white-space:nowrap;">Instagram</a> &nbsp;·&nbsp; <a href="${href(site.whatsOn)}" style="color:${COLOURS.mustard};text-decoration:underline;white-space:nowrap;">What’s on</a> &nbsp;·&nbsp; <a href="${href(site.mapsUrl)}" style="color:${COLOURS.mustard};text-decoration:underline;white-space:nowrap;">Find us</a></p>` +
-        `<p class="slab" style="margin:22px 0 0;${small}">You’re getting this because you got on the list at ${esc(site.name)}. Had enough? <a href="${href(tags.unsubscribe)}" style="${footLink}">Unsubscribe</a>, or <a href="${href(tags.updateProfile)}" style="${footLink}">change your details</a>.</p>` +
-        `<p class="slab" style="margin:8px 0 0;${small}">${esc(site.name)} ${esc(site.social)} · ${esc(tags.addressLine)}</p>` +
-        `<p class="slab" style="margin:8px 0 0;${small}"><a href="${href(tags.archive)}" style="${footLink}">Read this in your browser</a></p>`,
+      footLinks([
+        { text: "Instagram", href: site.instagram },
+        { text: "What’s on", href: site.whatsOn },
+        { text: "Find us", href: site.mapsUrl },
+      ]) +
+        `<p class="slab" style="margin:22px 0 0;${FOOT_SMALL}">You’re getting this because you got on the list at ${esc(site.name)}. Had enough? <a href="${href(tags.unsubscribe)}" style="${FOOT_LINK}">Unsubscribe</a>, or <a href="${href(tags.updateProfile)}" style="${FOOT_LINK}">change your details</a>.</p>` +
+        `<p class="slab" style="margin:8px 0 0;${FOOT_SMALL}">${esc(site.name)} ${esc(site.social)} · ${esc(tags.addressLine)}</p>` +
+        `<p class="slab" style="margin:8px 0 0;${FOOT_SMALL}"><a href="${href(tags.archive)}" style="${FOOT_LINK}">Read this in your browser</a></p>`,
       { bottom: 40, align: "center" },
     ),
   );
 
-  const html = `<!doctype html>
-<html lang="en-GB" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="x-apple-disable-message-reformatting">
-<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
-<meta name="color-scheme" content="dark">
-<meta name="supported-color-schemes" content="dark">
-<title>${esc(subject)}</title>
-<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><style>.display{font-family:Impact,'Arial Narrow',Arial,sans-serif !important;font-weight:normal !important}.slab,.pen{font-family:Georgia,'Times New Roman',serif !important}</style><![endif]-->
-<!--[if !mso]><!--><link href="${WEB_FONTS}" rel="stylesheet"><!--<![endif]-->
-<style>
-:root{color-scheme:dark;supported-color-schemes:dark}
-body{margin:0;padding:0;width:100%;background-color:${COLOURS.board};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
-table{border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0}
-img{-ms-interpolation-mode:bicubic}
-a{color:${COLOURS.mustard}}
-@media (min-width:600px){.thumb{width:150px !important}.thumb-img{width:150px !important}}
-@media (max-width:420px){.h1{font-size:36px !important}}
-</style>
-</head>
-<body bgcolor="${COLOURS.board}" style="margin:0;padding:0;width:100%;background-color:${COLOURS.board};">
-<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:${COLOURS.board};">${esc(preheader)}${"&#847;&zwnj;&nbsp;".repeat(60)}</div>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="${COLOURS.board}" style="border-collapse:collapse;background-color:${COLOURS.board};">
-<tr><td align="center" style="padding:0;">
-<!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="${WIDTH}" align="center"><tr><td><![endif]-->
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;max-width:${WIDTH}px;margin:0 auto;">
-${rows.join("\n")}
-</table>
-<!--[if mso]></td></tr></table><![endif]-->
-</td></tr>
-</table>
-</body>
-</html>
-`;
+  const html = emailDocument({
+    title: subject,
+    preheader,
+    rows,
+    css: "@media (min-width:600px){.thumb{width:150px !important}.thumb-img{width:150px !important}}\n@media (max-width:420px){.h1{font-size:36px !important}}",
+  });
 
   return { subject, preheader, html, text: renderText(model, tags) };
 }

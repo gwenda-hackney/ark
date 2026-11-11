@@ -24,6 +24,8 @@ export type GalleryPhoto = {
   file: string;
   alt: string;
   link: string;
+  /** The menu board on home it can be pinned up on: "drinks", "food" or "". */
+  menu: string;
   image: ImageMetadata;
   ratio: number;
 };

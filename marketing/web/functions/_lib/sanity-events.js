@@ -55,6 +55,7 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   },
   recurrence,
   replacesSeriesId,
+  pageUrl,
   shortDescription,
   nightSchedule[]{ label, startTime, endTime },
   description,
@@ -126,6 +127,8 @@ export async function fetchPublishedSeries(env) {
             ? "once"
             : "manual",
       replacesSeriesId: String(row.replacesSeriesId || "").trim(),
+      // The series' own link from ops: its page elsewhere, or one of our forms.
+      pageUrl: String(row.pageUrl || "").trim(),
       datesPending: row.datesPending === true,
       gallery: Array.isArray(row.gallery) ? row.gallery : [],
       recurrence: row.recurrence || "",

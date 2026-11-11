@@ -92,6 +92,14 @@ export const eventSeries = defineType({
         "Set by ops. Lists this series on forms with a “Series taking applications” field, such as Play at Gwenda.",
     }),
     defineField({
+      name: "pageUrl",
+      title: "Link",
+      type: "url",
+      description:
+        "From ops: the event's own link. A link to one of the website's forms (gwenda.co.uk/contact/party) puts that form's button on the event's page.",
+      readOnly: true,
+    }),
+    defineField({
       name: "shortDescription",
       title: "Short description",
       type: "text",

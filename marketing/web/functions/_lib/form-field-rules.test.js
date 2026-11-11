@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  dateFieldError,
+  formatDateAnswer,
   formatErrorForFieldValue,
+  londonToday,
+  numberFieldError,
   isValidEmail,
   isValidInstagramOrLink,
   isValidPhone,
@@ -75,6 +79,65 @@ describe("form-field-rules", () => {
         type: "text",
         label: "Instagram",
         value: "@ok",
+      }),
+    ).toBe("");
+  });
+
+  it("takes a date from today, at the bar, to two years on", () => {
+    const today = "2026-11-11";
+    const ok = (value) => dateFieldError(value, { label: "Date", today });
+    expect(ok("2026-11-11")).toBe("");
+    expect(ok("2026-12-31")).toBe("");
+    expect(ok("2028-11-10")).toBe("");
+    expect(ok("2026-11-10")).toMatch(/that day has gone/);
+    expect(ok("2028-11-12")).toMatch(/next two years/);
+    // Not a day at all
+    for (const value of [
+      "2026-02-30",
+      "2026-13-01",
+      "12/12/2026",
+      "soon",
+      "",
+    ]) {
+      expect(ok(value), value).toMatch(/pick a date/);
+    }
+  });
+
+  it("counts today in London, not UTC", () => {
+    // 23:30 UTC on 30 June is already 1 July in London (summer time)
+    expect(londonToday(new Date("2026-06-30T23:30:00Z"))).toBe("2026-07-01");
+    expect(londonToday(new Date("2026-12-31T23:30:00Z"))).toBe("2026-12-31");
+  });
+
+  it("reads a date back as a day", () => {
+    expect(formatDateAnswer("2026-12-12")).toBe("Saturday 12 December 2026");
+    expect(formatDateAnswer("some time")).toBe("some time");
+  });
+
+  it("takes a whole number from 1 to 1000", () => {
+    const ok = (value) => numberFieldError(value, { label: "How many people" });
+    for (const value of ["1", "30", "1000", " 12 "]) expect(ok(value)).toBe("");
+    for (const value of ["0", "1001", "-4", "12.5", "1e3", "twelve", "30ish"]) {
+      expect(ok(value), value).toMatch(/How many people: enter a whole number/);
+    }
+  });
+
+  it("formatErrorForFieldValue checks date and number fields by type", () => {
+    expect(
+      formatErrorForFieldValue({
+        key: "date",
+        type: "date",
+        label: "Preferred date",
+        value: "2020-01-01",
+        today: "2026-11-11",
+      }),
+    ).toMatch(/Preferred date/);
+    expect(
+      formatErrorForFieldValue({
+        key: "people",
+        type: "number",
+        label: "How many people",
+        value: "40",
       }),
     ).toBe("");
   });

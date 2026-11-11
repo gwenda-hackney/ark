@@ -1,5 +1,8 @@
 import { sanityQuery } from "./sanity-query.js";
-import { formatErrorForFieldValue } from "../../../../shared/forms/field-rules.js";
+import {
+  formatDateAnswer,
+  formatErrorForFieldValue,
+} from "../../../../shared/forms/field-rules.js";
 import { FORM_QUERY } from "../../../../shared/forms/format.js";
 import { withSeriesChoices } from "../../../../shared/forms/series-choice.js";
 
@@ -49,10 +52,11 @@ function asStringArray(value) {
 }
 
 /**
- * Validate answers against the Sanity field list.
+ * Validate answers against the Sanity field list. `today` (YYYY-MM-DD at the
+ * bar) is what date fields count from; now unless given.
  * @returns {{ ok: true, answers: Array<{ key: string, label: string, value: string }> } | { ok: false, error: string }}
  */
-export function validateFormAnswers(form, answers) {
+export function validateFormAnswers(form, answers, { today } = {}) {
   if (!form?.fields?.length) {
     return { ok: false, error: "This form isn't available." };
   }
@@ -124,6 +128,7 @@ export function validateFormAnswers(form, answers) {
       type: field.type,
       label: field.label,
       value,
+      today,
     });
     if (formatError) {
       return { ok: false, error: formatError };
@@ -148,7 +153,13 @@ export function validateFormAnswers(form, answers) {
       continue;
     }
 
-    normalized.push({ key, label: field.label, value });
+    // A date reads as a day ("Saturday 12 December 2026") in emails and ops;
+    // the form's own value (2026-12-12) stays in the raw answers.
+    normalized.push({
+      key,
+      label: field.label,
+      value: field.type === "date" ? formatDateAnswer(value) : value,
+    });
   }
 
   return { ok: true, answers: normalized };

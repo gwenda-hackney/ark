@@ -1,0 +1,80 @@
+---
+/**
+ * Opening hours (#240), from ops (Settings → Venue details) through the
+ * `venueDetails` document (lib/opening-hours.js). `table`: the week, with
+ * today's line above it when `today` (worked out in the browser,
+ * scripts/opening-hours.js), under its own heading or, with `heading=""`,
+ * under one around it (the foot's). No week, nothing at all.
+ */
+import "../../styles/chart-hours.css";
+import { weekRows } from "../../lib/opening-hours.js";
+
+interface Props {
+  week: Array<{
+    day: string;
+    closed: boolean;
+    opens: string;
+    closes: string;
+  }> | null;
+  variant?: "table";
+  /** The table's heading; "" for none (the foot has its own). */
+  heading?: string;
+  /** Today's line above the table: open now and till when, or the next opening. */
+  today?: boolean;
+  class?: string;
+}
+
+const {
+  week,
+  variant = "table",
+  heading = "Opening hours",
+  today = false,
+  class: className = "",
+} = Astro.props;
+const rows = weekRows(week);
+const headingId = "opening-hours-head";
+const Box = heading ? "section" : "div";
+---
+
+{
+  rows.length > 0 && variant === "table" && (
+    <Box
+      class:list={["ch-hours", className]}
+      aria-labelledby={heading ? headingId : undefined}
+    >
+      {heading && (
+        <h3 class="ch-find-head" id={headingId}>
+          {heading}
+        </h3>
+      )}
+      {today && (
+        <p
+          class="ch-hours-today"
+          data-hours-today
+          data-week={JSON.stringify(week)}
+          aria-live="polite"
+          hidden
+        />
+      )}
+      <table class="ch-hours-table">
+        <tbody>
+          {rows.map((row) => (
+            <tr class:list={[row.closed && "is-closed"]}>
+              <th scope="row">{row.days}</th>
+              <td>{row.hours}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Box>
+  )
+}
+
+<script>
+  import { initOpeningHours } from "../../scripts/opening-hours.js";
+
+  initOpeningHours();
+  // A page reached through the router runs its scripts only the first time:
+  // fill today's line on every page it lands on
+  document.addEventListener("astro:page-load", () => initOpeningHours());
+</script>

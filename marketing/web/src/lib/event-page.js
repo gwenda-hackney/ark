@@ -8,7 +8,7 @@
  * eventPageModel decides what the page shows; renderEventPage turns it into
  * HTML. The page is filled in on request (functions/_lib/event-pages.js), in
  * the Pages Function and the dev server alike, so nothing here needs the
- * build: what only the build knows (the Book a table button, the logo, a
+ * build: what only the build knows (whether bookings are on, the logo, a
  * guest chef's mark, where a pop-up's menu is) comes in as `parts`, cut from
  * the built shell (src/pages/whats-on/series-shell.astro).
  */
@@ -18,15 +18,22 @@ import {
   formatEventRecurrence,
   formatEventSpan,
 } from "../data/events";
-import { richParagraphHtml } from "../../functions/_lib/rich-text.js";
-import { isWholeFit } from "../../functions/_lib/sanity-image-url.js";
 import {
-  SafeHtml,
-  attrs,
-  html,
-  renderGallery,
+  formPublicPath,
+  isReservedFormSlug,
+  slugFromFormPath,
+} from "../../functions/_lib/form-paths.js";
+import { richParagraphHtml } from "../../functions/_lib/rich-text.js";
+import { SITE_DOMAIN } from "../../../../shared/site-location.js";
+import {
+  IMAGE_LARGEST,
+  imageSrcset,
+  isWholeFit,
+  sizedImageUrl,
   tinyImageUrl,
-} from "./event-card.js";
+} from "../../functions/_lib/sanity-image-url.js";
+import { bookingUrlFor } from "../config/booking";
+import { SafeHtml, attrs, html, renderGallery } from "./event-card.js";
 import { daysAway } from "./london-day.js";
 import { nightDay, nightRuns, runDay } from "./night-cards.js";
 import { popupWhen } from "./popup-kitchen.js";
@@ -38,6 +45,18 @@ export const MORE_DATES = 8;
 /** A photo's frame when it isn't a flyer shown whole: 4:5, as on the cards. */
 const PHOTO_SHAPE = 0.8;
 
+/**
+ * How wide the page shows its pictures, for the browser to pick a size by
+ * (an <img>'s `sizes`); these follow styles/chart-event.css. The flyer
+ * beside the words is 26rem, 20rem on a tablet, and the screen less its
+ * gutters (up to 26rem) on a phone; a flyer wider than tall goes above the
+ * words, up to 44rem; a day's own flyer is 11rem.
+ */
+const FLYER_SIZES =
+  "(min-width: 64.0625rem) 26rem, (min-width: 48.0625rem) 20rem, (min-width: 28.5rem) 26rem, calc(100vw - 2.5rem)";
+const WIDE_FLYER_SIZES = "(min-width: 46.5rem) 44rem, calc(100vw - 2.5rem)";
+const DAY_FLYER_SIZES = "11rem";
+
 function text(value) {
   return String(value ?? "").trim();
 }
@@ -46,6 +65,33 @@ function text(value) {
 function shortDate(dateIso) {
   const { weekday, day, month } = nightDay(dateIso);
   return `${weekday} ${day} ${month}`;
+}
+
+/** A label as the built shell hands it over, back to plain words. */
+function partText(value) {
+  return text(value)
+    .replace(/&#39;|&#x27;|&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&");
+}
+
+/**
+ * Book a table for one night (#240), when bookings are on (the shell's part
+ * `book` is the button's words) and the night is still to come: OpenTable
+ * opened on that night, at its start time. The menu bar's Book a table is
+ * the plain one.
+ * @returns {{ href: string, label: string } | null}
+ */
+function bookModel(night, today, words) {
+  const date = text(night?.date);
+  if (!words || !date || date < today) return null;
+  const away = daysAway(date, today);
+  const day =
+    away === 0 ? "tonight" : away === 1 ? "tomorrow" : shortDate(date);
+  return {
+    href: bookingUrlFor({ date, time: night.startTime }),
+    label: `${words} for ${day}`,
+  };
 }
 
 /** Tonight or Tomorrow; "Next up" only where the page says so. */
@@ -95,6 +141,38 @@ function guestModel(name, url) {
   const guest = text(name);
   if (!guest) return null;
   return { name: guest, href: eventPageLink(url)?.href || "" };
+}
+
+const SITE_HOST = new URL(SITE_DOMAIN).hostname;
+
+/**
+ * An event whose link (ops' Link field) is one of this site's own forms,
+ * `gwenda.co.uk/contact/<form>`: its page gets that form's button ("Book
+ * your party") in place of Book a table. The button's words are the form's
+ * heading, which the built shell hands over as the part `form:<slug>`; a link
+ * to a form the site doesn't have is no form link.
+ * @returns {{ href: string, label: string } | null}
+ */
+export function siteFormLink(value, parts = new Map()) {
+  const raw = text(value);
+  if (!raw) return null;
+  let path = "";
+  if (raw.startsWith("/") && !raw.startsWith("//")) path = raw;
+  else {
+    try {
+      const url = new URL(raw);
+      const host = url.hostname.replace(/^www\./i, "");
+      if (/^https?:$/.test(url.protocol) && host === SITE_HOST) {
+        path = url.pathname;
+      }
+    } catch {
+      return null;
+    }
+  }
+  const slug = slugFromFormPath(path);
+  if (!slug || isReservedFormSlug(slug)) return null;
+  const label = partText(parts.get(`form:${slug}`));
+  return label ? { href: formPublicPath(slug), label } : null;
 }
 
 function span(row) {
@@ -158,6 +236,8 @@ export function eventPageModel(
   const days = kind === "event" && !repeating ? detail.nights || [] : [];
   const severalDays = days.length > 1;
   const nextSpan = span(next || detail);
+  /** The Book a table button's words, when bookings are on. */
+  const bookWords = partText(parts.get("book"));
 
   const guestKey = title.toLowerCase();
   const logo = kind === "popup" ? parts.get(`logo:${guestKey}`) || "" : "";
@@ -190,7 +270,10 @@ export function eventPageModel(
     kind === "event" && !severalDays
       ? guestModel(next?.artist, next?.pageUrl)
       : null;
-  const external = eventPageLink(next?.pageUrl);
+  // The night's link, else the series' own (a series with no dates has no night).
+  const link = text(next?.pageUrl) || text(detail.pageUrl);
+  const form = severalDays ? null : siteFormLink(link, parts);
+  const external = form ? null : eventPageLink(link);
   const fallbackPage = kind === "popup" ? parts.get(`page:${guestKey}`) : "";
   const page = severalDays
     ? null
@@ -231,6 +314,9 @@ export function eventPageModel(
         ),
     description: eventDescriptionParagraphs(words),
     links: [
+      form
+        ? { href: form.href, label: form.label, button: true, solid: true }
+        : null,
       kind === "popup"
         ? {
             href: parts.get(`menu:${text(detail.seriesId)}`) || "/kitchen",
@@ -242,7 +328,13 @@ export function eventPageModel(
         ? { href: page.href, label: page.label, external: true }
         : null,
     ].filter(Boolean),
-    book: parts.get("book") || "",
+    // A table for the night the page leads with. Not for an event that sends
+    // people to a form (a party enquiry), nor a deal, which names no night;
+    // an event over several days books each day in its own block.
+    book:
+      form || kind === "promotion" || severalDays
+        ? null
+        : bookModel(next, today, bookWords),
   };
 
   const dayBlocks = severalDays
@@ -264,6 +356,7 @@ export function eventPageModel(
           description:
             own && own !== words ? eventDescriptionParagraphs(own) : [],
           link: link && !who?.href ? link : null,
+          book: bookModel(night, today, bookWords),
           picture:
             photo && photo !== picture?.src
               ? pictureModel(photo, { alt: `${text(night.title)} flyer` })
@@ -339,9 +432,11 @@ function dateSticker(date) {
 }
 
 function pictureHtml(picture, { sizes, eager = false, sticker = "" }) {
+  const srcset = imageSrcset(picture.src);
   return html`<a${attrs({
     class: `ch-night-photo ch-event-photo${picture.whole ? " ch-night-photo--whole" : ""}`,
-    href: picture.src,
+    // The flyer opened large, in its own tab
+    href: sizedImageUrl(picture.src, IMAGE_LARGEST),
     target: "_blank",
     rel: "noopener",
     style: [
@@ -353,12 +448,23 @@ function pictureHtml(picture, { sizes, eager = false, sticker = "" }) {
       .filter(Boolean)
       .join("; "),
   })}><img${attrs({
-    src: picture.src,
-    sizes,
+    src: sizedImageUrl(picture.src, 640),
+    srcset,
+    sizes: srcset ? sizes : "",
     alt: picture.alt,
     loading: eager ? "eager" : "lazy",
     style: picture.position ? `object-position: ${picture.position}` : "",
   })} />${sticker}</a>`;
+}
+
+function bookHtml(book) {
+  if (!book) return "";
+  return html`<a${attrs({
+    class: "ch-btn ch-btn--solid",
+    href: book.href,
+    target: "_blank",
+    rel: "noopener noreferrer",
+  })}>${book.label}</a>`;
 }
 
 function guestHtml(guest) {
@@ -399,7 +505,7 @@ function leadHtml(model) {
     : dateSticker(lead.date);
   const frame = lead.picture
     ? pictureHtml(lead.picture, {
-        sizes: "(min-width: 48rem) 28rem, 100vw",
+        sizes: model.wide ? WIDE_FLYER_SIZES : FLYER_SIZES,
         eager: true,
         sticker,
       })
@@ -413,9 +519,12 @@ function leadHtml(model) {
   const actions =
     lead.book || lead.links.length
       ? html`<p class="ch-event-actions">
-          ${raw(lead.book)}${lead.links.map((link) =>
+          ${bookHtml(lead.book)}${lead.links.map((link) =>
             link.button
-              ? html`<a class="ch-btn" href="${link.href}">${link.label}</a>`
+              ? html`<a${attrs({
+                  class: link.solid ? "ch-btn ch-btn--solid" : "ch-btn",
+                  href: link.href,
+                })}>${link.label}</a>`
               : html`<a${attrs({
                   class: "ch-event-link",
                   href: link.href,
@@ -470,20 +579,26 @@ function daysHtml(days) {
               }${guestHtml(day.guest)}${scheduleHtml(day.schedule)}${wordsHtml(
                 day.description,
               )}${
-                day.link
-                  ? html`<p class="ch-event-actions"><a${attrs({
-                      class: "ch-event-link",
-                      href: day.link.href,
-                      target: "_blank",
-                      rel: "noopener noreferrer",
-                    })}>${day.link.label}</a></p>`
+                day.book || day.link
+                  ? html`<p class="ch-event-actions">
+                      ${bookHtml(day.book)}${
+                        day.link
+                          ? html`<a${attrs({
+                              class: "ch-event-link",
+                              href: day.link.href,
+                              target: "_blank",
+                              rel: "noopener noreferrer",
+                            })}>${day.link.label}</a>`
+                          : ""
+                      }
+                    </p>`
                   : ""
               }
             </div>
             ${
               day.picture
                 ? html`<figure class="ch-event-day-flyer">
-                    ${pictureHtml(day.picture, { sizes: "14rem" })}
+                    ${pictureHtml(day.picture, { sizes: DAY_FLYER_SIZES })}
                   </figure>`
                 : ""
             }

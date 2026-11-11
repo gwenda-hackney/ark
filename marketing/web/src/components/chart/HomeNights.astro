@@ -1,14 +1,20 @@
 ---
 /**
- * Home's what's on (#240): the next few nights as cards, the same as the
- * What's on page (NightCards), and the way to the lot; then the deals and
- * the pop-up kitchen, a section each (StandingCards).
+ * Home's what's on (#240), one block: this week's nights as cards, the same
+ * as the What's on page (NightCards) but only this week's, and next week's
+ * too at the weekend (homeWeek, `thisWeek`), under a line saying which;
+ * then the deals and the pop-up kitchen side by side
+ * (StandingCards); then the way to the lot, where all three are.
  */
 import { getUpcomingEvents } from "../../data/events";
 import { menuChapters } from "../../data/menu";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 import { fetchMenu } from "../../lib/sanity/menu";
 import { nightsOnly } from "../../lib/promotions.js";
+import { closedDays } from "../../lib/opening-hours.js";
+import { londonToday } from "../../lib/london-day.js";
+import { homeWeek } from "../../lib/night-cards.js";
+import { fetchOpeningHours } from "../../lib/sanity/opening-hours";
 import NightCards from "./NightCards.astro";
 import StandingCards from "./StandingCards.astro";
 
@@ -22,26 +28,43 @@ const { series, occurrences } = await fetchWhatsOnCatalog().catch(() => ({
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
 /** NightCards shows the first few, an event over several days as one. */
 const nights = getUpcomingEvents(nightsOnly(occurrences));
+/** Which days the nights are from, and what they're called: "This week". */
+const week = homeWeek(londonToday());
+/** "Shut Mondays." from the opening hours; nothing without them. */
+const shut = closedDays(await fetchOpeningHours());
 ---
 
-<section class="ch-home-section ch-home-nights" id="whats-on">
+<section
+  class="ch-home-section ch-home-nights"
+  id="whats-on"
+  aria-labelledby="home-whats-on"
+>
   <header class="ch-home-head">
-    <h2 class="ch-poster">What’s on</h2>
+    <h2 class="ch-poster" id="home-whats-on">What’s on</h2>
     <p class="ch-home-head-note">
-      Something on most nights. DJs, bands, chess, the odd party. Shut Mondays.
+      Something on most nights. DJs, bands, chess, the odd party.{
+        shut && ` Shut ${shut}.`
+      }
     </p>
   </header>
 
-  <NightCards nights={nights} series={series} shown={HOME_NIGHTS} />
+  <h3 class="ch-poster ch-home-sub" data-this-week-label>{week.label}</h3>
+  <NightCards
+    nights={nights}
+    series={series}
+    shown={HOME_NIGHTS}
+    thisWeek
+    empty="Nothing on this week. The bar’s open anyway."
+  />
+
+  <StandingCards
+    series={series}
+    occurrences={occurrences}
+    chapters={menuChapters(menu, "kitchen")}
+    home
+  />
 
   <div class="ch-home-actions">
     <a href="/whats-on" class="ch-btn ch-btn--solid">Everything that’s on</a>
   </div>
 </section>
-
-<StandingCards
-  series={series}
-  occurrences={occurrences}
-  chapters={menuChapters(menu, "kitchen")}
-  home
-/>

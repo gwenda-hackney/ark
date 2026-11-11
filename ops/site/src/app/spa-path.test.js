@@ -169,6 +169,7 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/config"), true);
     assert.equal(isSpaDocumentPath("/sections"), true);
     assert.equal(isSpaDocumentPath("/users"), true);
+    assert.equal(isSpaDocumentPath("/venue"), true);
     assert.equal(isSpaDocumentPath("/events"), true);
     assert.equal(isSpaDocumentPath("/artists"), true);
     assert.equal(isSpaDocumentPath("/events/nights"), true);
@@ -199,6 +200,7 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/suppliers"), "suppliers");
     assert.equal(shellPageKey("/sections"), "config");
     assert.equal(shellPageKey("/users"), "users");
+    assert.equal(shellPageKey("/venue"), "venue");
     assert.equal(shellPageKey("/more"), "more");
     assert.equal(shellPageKey("/more/"), "more");
     assert.equal(shellPageKey("/events/12"), "events");

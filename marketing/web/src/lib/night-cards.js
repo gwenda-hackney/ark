@@ -49,20 +49,51 @@ export function nightLabel(dateIso, todayIso, endIso = dateIso) {
 }
 
 /**
+ * Home's nights: which days (for nightsToShow's `days`, today the first) and
+ * what they're called. Weeks at the bar run Monday to Sunday, London time.
+ * Monday to Friday, the rest of this week, to its Sunday: "This week". At
+ * the weekend, next week too, to its Sunday: "This weekend and next week" on
+ * a Saturday, "Today and next week" on a Sunday. Built into the page and
+ * worked out again in the browser on the visitor's day.
+ *
+ * @param {string} todayIso
+ * @returns {{ days: number, label: string }}
+ */
+export function homeWeek(todayIso) {
+  /** Today to this Sunday: 7 on a Monday, 1 on a Sunday. */
+  const left = 7 - daysAway(todayIso, weekStart(todayIso));
+  if (left === 2) return { days: 9, label: "This weekend and next week" };
+  if (left === 1) return { days: 8, label: "Today and next week" };
+  return { days: left, label: "This week" };
+}
+
+/**
  * Of the dates on the page, in order, which show: none that have passed,
- * and no more than fit. Returns their indexes; the first one leads. A night
- * that runs over several days has passed only after its last.
+ * none that start too far ahead, and no more than fit. Returns their
+ * indexes; the first one leads. A night that runs over several days has
+ * passed only after its last, and is in the days ahead if its first is.
  *
  * @param {string[]} dates
  * @param {string} todayIso
  * @param {number} [shown] how many fit; all of them when left out
  * @param {Array<string | undefined>} [ends] each one's last day, when it
  *   runs past its date
+ * @param {number} [days] only nights starting in this many days from today
+ *   (today is the first; homeWeek); every one to come when left out
  */
-export function nightsToShow(dates, todayIso, shown = Infinity, ends = []) {
+export function nightsToShow(
+  dates,
+  todayIso,
+  shown = Infinity,
+  ends = [],
+  days = Infinity,
+) {
   return dates
-    .map((date, index) => ({ date: ends[index] || date, index }))
-    .filter(({ date }) => daysAway(date, todayIso) >= 0)
+    .map((date, index) => ({ date, end: ends[index] || date, index }))
+    .filter(
+      ({ date, end }) =>
+        daysAway(end, todayIso) >= 0 && daysAway(date, todayIso) < days,
+    )
     .slice(0, shown)
     .map(({ index }) => index);
 }
@@ -107,6 +138,43 @@ export function frameRatio(url, whole) {
   if (!shape) return PHOTO_RATIO;
   const [width, height] = shape.split("/").map(Number);
   return Math.round((width / height) * 10000) / 10000;
+}
+
+/** A width in rem for an <img>'s `sizes`, rounded up so it never undershoots. */
+function rem(value) {
+  // (0.8 × 24 is 19.200000000000003: not a reason to round up.)
+  return `${Math.ceil(Math.round(value * 10000) / 100) / 100}rem`;
+}
+
+/**
+ * How wide the big night's picture is shown, for the browser to pick a size
+ * by (an <img>'s `sizes`): 26rem beside its words, 20rem on a tablet, the
+ * screen less its gutters on a phone (styles/chart-nights.css).
+ */
+export const LEAD_NIGHT_SIZES =
+  "(min-width: 64.0625rem) 26rem, (min-width: 40.0625rem) 20rem, calc(100vw - 2.5rem)";
+
+/**
+ * And a night's in the rows after it: as wide as its shape makes it at the
+ * tallest a row gets (24rem, 21rem on a tablet); on a phone, the 5rem
+ * thumbnail beside its words.
+ *
+ * @param {number} shape width / height (frameRatio)
+ */
+export function nightSizes(shape) {
+  return `(min-width: 64.0625rem) ${rem(shape * 24)}, (min-width: 40.0625rem) ${rem(shape * 21)}, 5rem`;
+}
+
+/**
+ * A deal's or the pop-up kitchen's picture: as wide as its shape makes it at
+ * the card's height (15rem; 18.75rem for a card alone on a wide screen); on
+ * a phone, the 7.5rem column beside its words.
+ *
+ * @param {number} shape width / height (frameRatio)
+ * @param {boolean} alone the only card in its section
+ */
+export function standSizes(shape, alone) {
+  return `(min-width: 64.0625rem) ${rem(shape * (alone ? 18.75 : 15))}, (min-width: 40.0625rem) ${rem(shape * 15)}, 7.5rem`;
 }
 
 /**

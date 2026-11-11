@@ -1,4 +1,5 @@
 import { formatEventWhen } from "../data/events.ts";
+import { sizedImageUrl } from "../../functions/_lib/sanity-image-url.js";
 
 /** `/whats-on/<series>/<date>/ticket` (or legacy `/events/<slug>/ticket`). */
 function parseTicketQuery() {
@@ -85,7 +86,7 @@ function renderTicket(data, queryString) {
     const hero = document.getElementById("ticket-hero");
     const wrap = document.getElementById("ticket-hero-wrap");
     if (hero instanceof HTMLImageElement) {
-      hero.src = `${event.heroImageUrl}${event.heroImageUrl.includes("?") ? "&" : "?"}w=960&auto=format`;
+      hero.src = sizedImageUrl(event.heroImageUrl, 960);
       hero.alt = event.title || "Event at Gwenda";
     }
     if (wrap) wrap.hidden = false;

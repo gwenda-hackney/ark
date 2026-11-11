@@ -439,6 +439,7 @@ export function sanitySeriesDocument({
   formerSlugs = [],
   takingApplications = false,
   category = "event",
+  pageUrl = "",
 }) {
   const key = String(slug || "").trim();
   const doc = {
@@ -459,6 +460,10 @@ export function sanitySeriesDocument({
   if (takingApplications) doc.takingApplications = true;
   // A promotion or a pop-up kitchen; left off for a night.
   if (publishedCategory(category)) doc.category = publishedCategory(category);
+  // The event's own link, for a series with no night to carry it: the website
+  // puts a form's button on its page when the link is one of its forms. Left
+  // off when empty, so series without one stay unchanged.
+  if (String(pageUrl || "").trim()) doc.pageUrl = String(pageUrl).trim();
   // Old web addresses the website redirects here. Left off when none.
   const former = formerSlugs.map((old) => String(old || "").trim()).filter((old) => old && old !== key);
   if (former.length) doc.formerSlugs = former;

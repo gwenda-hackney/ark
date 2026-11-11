@@ -50,7 +50,8 @@ export const siteConfig = {
     },
     contact: {
       title: "Contact · Gwenda",
-      description: "Join the list or apply to play at Gwenda in Hackney Wick.",
+      description:
+        "Find us, book a party, apply to play or join the list at Gwenda in Hackney Wick.",
     },
     artists: {
       title: "Featured artist · Gwenda",
@@ -100,6 +101,8 @@ export const siteConfig = {
   },
   contact: {
     email: "hello@gwenda.co.uk",
+    /** As on the Google listing; international form for schema.org and tel: links. */
+    telephone: "+44 20 4637 4754",
   },
   /** Who's cooking: the guest chef in the kitchen, named on home's food side. */
   guestChef: {
@@ -203,6 +206,9 @@ export const siteConfig = {
       "What’s on, new nights, and the odd party. No spam, unsubscribe any time.",
     signupConsent:
       "Yes, email me about nights at Gwenda. I can unsubscribe whenever.",
+    /** The sign-up in the foot of every page: why, in a line, and the yes-box said short. */
+    signupFootLine: "What’s on, once a week.",
+    signupConsentShort: "Yes, email me. I can unsubscribe any time.",
     signupButton: "Sign me up",
     signupSuccessTitle: "You're in",
     signupSuccessLead: "We'll let you know what's coming up. No spam, promise.",
@@ -220,6 +226,9 @@ export const siteConfig = {
       playHeading: "Play at Gwenda",
       playLead:
         "Got records? Got a band? Got a mate who won’t shut up about their mixes? We want this place to sound like Hackney Wick, so come and play. Tell us what you’d bring.",
+      /** The lead cut down, for home's short row at the foot. */
+      playShort:
+        "Got records? Got a band? Come and play. Tell us what you’d bring.",
       playCta: "Apply to play",
       /** The top of the play form's own page, beside the decks. */
       playIntro: {
@@ -230,6 +239,24 @@ export const siteConfig = {
       },
       /** Written on the border of the decks photo, wherever it is pinned up. */
       playPhotoNote: "Your turn.",
+      /** Having a party here: Contact's part, home's foot and the form's top. */
+      partyHeading: "Having a party?",
+      partyLead:
+        "Birthday, leaving do, work thing: tell us what you’re planning and we’ll come back to you.",
+      /** The lead cut down, for Contact's card at the top. */
+      partyShort: "Birthday, leaving do, work thing",
+      partyCta: "Book your party",
+      /** The top of the party form's own page, beside the photo. */
+      partyIntro: {
+        lead: "Birthday, leaving do, work thing: tell us what you’re planning and we’ll come back to you.",
+        body: "A few tables or the whole place, a quiet one or a loud one. Give us a date and a rough number and we’ll take it from there.",
+        cue: "Fill this in, we’ll get back to you",
+      },
+      /** Written on the border of the drinks photo, wherever it is pinned up. */
+      partyPhotoNote: "Make a night of it.",
+      /** What the drinks photo shows, for anyone who can't see it. */
+      partyPhotoAlt:
+        "A margarita with a salted rim on the bar, beside a red cocktail.",
     },
   },
 } as const;

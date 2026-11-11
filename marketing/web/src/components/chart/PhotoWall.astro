@@ -11,9 +11,14 @@ import type { GalleryPhoto } from "../../lib/photo-sources";
 
 interface Props {
   photos: GalleryPhoto[];
+  /**
+   * Home's few, in even rows of squares, each photo cropped to its tile:
+   * laid out by the page's CSS (chart-photos.css), not in columns.
+   */
+  row?: boolean;
 }
 
-const { photos } = Astro.props;
+const { photos, row = false } = Astro.props;
 
 /**
  * Three columns of a 72rem page (about 365px each), or two when three would
@@ -28,6 +33,12 @@ const THUMB_MAX = 1000;
  * Browsers without it read the rest: the three-column widths.
  */
 const SIZES = "auto, (max-width: 600px) 50vw, (max-width: 1280px) 31vw, 380px";
+/**
+ * In home's rows a tile is a square about 280px a side on a desk, a third of
+ * a tablet, half a phone; a landscape photo cropped to a square is wider than
+ * its tile, so this is the cropped photo's width, not the tile's.
+ */
+const ROW_SIZES = "(max-width: 640px) 60vw, (max-width: 1024px) 40vw, 380px";
 const FULL_WIDTH = 1800;
 
 const tiles = await Promise.all(
@@ -50,8 +61,8 @@ const tiles = await Promise.all(
 );
 ---
 
-<div class="series-gallery">
-  <ul class="series-gallery-list">
+<div class:list={["series-gallery", row && "ch-photo-row"]}>
+  <ul class="series-gallery-list" data-gallery-row={row || undefined}>
     {
       tiles.map(({ photo, thumb, full }) => (
         <li class="series-gallery-item" style={`--ratio: ${photo.ratio}`}>
@@ -64,7 +75,7 @@ const tiles = await Promise.all(
             <img
               src={thumb.src}
               srcset={thumb.srcSet.attribute}
-              sizes={SIZES}
+              sizes={row ? ROW_SIZES : SIZES}
               alt={photo.alt}
               width={photo.image.width}
               height={photo.image.height}

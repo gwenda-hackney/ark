@@ -48,6 +48,7 @@ const TYPE_GROUPS = [
   ["menuItem", "Menu items"],
   ["artist", "Artists"],
   ["form", "Forms"],
+  ["venueDetails", "Venue details"],
 ];
 const TYPE_ORDER = new Map(TYPE_GROUPS.map(([type], index) => [type, index]));
 const TYPE_LABELS = new Map(TYPE_GROUPS);
@@ -149,7 +150,9 @@ export function summarizeValue(value) {
 
 export function documentLabel(doc) {
   if (!doc) return "";
-  const title = doc.title || doc.name || doc.label || doc.slug?.current || doc._id;
+  // A one-of-a-kind document (venueDetails, siteSettings) is named after its type.
+  const own = doc._id === doc._type ? typeLabel(doc._type) : doc._id;
+  const title = doc.title || doc.name || doc.label || doc.slug?.current || own;
   if (doc._type === "event" && doc.date) return `${title} · ${doc.date}`;
   return String(title);
 }

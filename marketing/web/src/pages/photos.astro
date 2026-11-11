@@ -5,11 +5,9 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
 import PhotoWall from "../components/chart/PhotoWall.astro";
-import { siteConfig } from "../config/site";
 import { galleryPhotos } from "../lib/photo-sources";
 
 const photos = galleryPhotos();
-const { instagram } = siteConfig.social;
 ---
 
 <BaseLayout
@@ -23,12 +21,5 @@ const { instagram } = siteConfig.social;
     lead="The food, the room, the terrace and the decks."
   >
     <PhotoWall photos={photos} />
-    {
-      instagram && (
-        <p class="ch-photos-foot">
-          More on <a href={instagram}>Instagram</a>.
-        </p>
-      )
-    }
   </ChartPage>
 </BaseLayout>

@@ -355,8 +355,6 @@
 /* On a phone: the big one stacked, the rest as rows with a small photo */
 @media (max-width: 40rem) {
   .ch-nights {
-    /* The small pictures down the side: one frame for all (4:5), so every
-       row's words start on the same line */
     --night-h: 8.125rem;
   }
 
@@ -369,7 +367,7 @@
   .ch-night-list {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
+    gap: 1.25rem;
   }
 
   .ch-night {
@@ -389,37 +387,112 @@
     gap: 1rem;
   }
 
+  /*
+   * The rest, a calm list: the date in a column of its own, a small picture
+   * at the flyer's own shape, then the words. Nothing sits on the picture
+   * and nothing is boxed; the columns are fixed, so every row's picture and
+   * words start on the same lines. A drawn line between rows, as on the
+   * menu (chart-rules.css).
+   */
+  .ch-night:not([hidden]) ~ .ch-night:not(.ch-night--lead) {
+    padding-top: 1.25rem;
+  }
+
   .ch-night:not(.ch-night--lead) .ch-night-card {
-    grid-template-columns: calc(0.8 * var(--night-h)) minmax(0, 1fr);
-    gap: 1rem;
+    grid-template-columns: 3.25rem 5rem minmax(0, 1fr);
+    gap: 0.875rem;
     align-items: center;
+    min-height: 2.75rem;
   }
 
-  /* A flyer of another shape sits whole in the frame, over its own blur */
+  /* The frame steps aside: the picture and the date stand in the row themselves */
   .ch-night:not(.ch-night--lead) .ch-night-photo {
-    aspect-ratio: 4 / 5;
+    display: contents;
   }
 
+  .ch-night:not(.ch-night--lead) .ch-night-photo::before {
+    display: none;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-photo img {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    height: auto;
+    aspect-ratio: var(--shape, 0.8);
+    border-radius: 0.25rem;
+  }
+
+  /* No flyer: the logo alone, faint, no dark box behind it */
+  .ch-night:not(.ch-night--lead) .ch-night-photo img.ch-night-mark {
+    position: static;
+    aspect-ratio: auto;
+    margin: 0;
+    opacity: 0.4;
+  }
+
+  /* The date, plain: day, number, month. No paper, no tilt; today in red */
   .ch-night:not(.ch-night--lead) .ch-night-date {
-    min-width: 2.75rem;
-    padding: 0.25rem 0.375rem 0.3125rem;
+    position: static;
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    padding: 0;
+    gap: 0.125rem;
+    color: var(--ch-ink-2);
     font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    transform: none;
+    filter: none;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-date::before {
+    display: none;
   }
 
   .ch-night:not(.ch-night--lead) .ch-night-date b {
-    font-size: 1.375rem;
+    font-size: 1.625rem;
+    color: var(--ch-mustard);
+  }
+
+  .ch-night--tonight:not(.ch-night--lead) .ch-night-date,
+  .ch-night--tonight:not(.ch-night--lead) .ch-night-date b {
+    color: var(--ch-red-ink);
+  }
+
+  /* Several days: the span of them fits the same column */
+  .ch-night--run:not(.ch-night--lead) .ch-night-date {
+    letter-spacing: 0;
+  }
+
+  .ch-night--run:not(.ch-night--lead) .ch-night-date b {
+    font-size: 1.125rem;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-body {
+    grid-column: 3;
+    grid-row: 1;
+    gap: 0.1875rem;
   }
 
   .ch-night:not(.ch-night--lead) .ch-night-name {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
+    line-height: 1.08;
   }
 
   .ch-night:not(.ch-night--lead) .ch-night-time {
-    font-size: 1.375rem;
+    font-size: 1.25rem;
   }
 
   .ch-night:not(.ch-night--lead) .ch-night-note {
-    font-size: 1rem;
+    font-size: 0.9375rem;
+  }
+
+  .ch-night:not(.ch-night--lead) .ch-night-offer {
+    margin-top: 0.25rem;
+    padding: 0.1875rem 0.4375rem 0.25rem;
+    font-size: 0.75rem;
   }
 }
 
@@ -449,6 +522,11 @@
 
 .ch-stands--one {
   grid-template-columns: minmax(0, 46rem);
+}
+
+/* A card whose last night has passed since the build (scripts/stand-cards.js) */
+.ch-stand[hidden] {
+  display: none;
 }
 
 /* The pictures are one height, each as wide as its own shape (--shape) */
@@ -613,13 +691,15 @@
 
   /* The tag hangs over the top of the card: room for it under the title */
   .ch-stand-section .ch-home-head {
-    margin-bottom: 2.25rem;
+    margin-bottom: 2.75rem;
   }
 
+  /* The tag stands on the picture's top edge like a tab, not over the flyer;
+     clear of the screen's edge; on one line */
   .ch-stand-tag,
   .ch-stand--deal .ch-stand-tag {
-    top: -0.875rem;
-    /* Clear of the screen's edge, as the dates are; on one line */
+    top: auto;
+    bottom: calc(100% - 0.25rem);
     left: 0;
     max-width: none;
     white-space: nowrap;

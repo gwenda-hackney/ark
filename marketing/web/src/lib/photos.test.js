@@ -3,9 +3,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   HOME_PHOTOS,
+  MENU_BOARD_PHOTOS,
+  PHOTO_MENUS,
   addPhoto,
+  homePhotoPlan,
   homePhotos,
   listPhotos,
+  menuPhotos,
   photoSlug,
 } from "./photos.js";
 
@@ -62,19 +66,191 @@ describe("listPhotos", () => {
   it("is empty for no list", () => {
     expect(listPhotos(undefined, files)).toEqual([]);
   });
+
+  it("says which menu board a photo is for, if any", () => {
+    const photos = listPhotos(
+      [
+        { file: "gallery/a.webp", alt: "A burger", menu: "food" },
+        { file: "gallery/b.jpg", alt: "A spritz", menu: "drinks" },
+        { file: "story/c.png", alt: "The room", menu: "the room" },
+      ],
+      files,
+    );
+    expect(photos.map((photo) => photo.menu)).toEqual(["food", "drinks", ""]);
+  });
+});
+
+describe("menuPhotos", () => {
+  const tagged = (name, menu) => ({
+    file: `gallery/${name}.webp`,
+    menu,
+    image: { src: `/${name}.webp`, width: 1200, height: 1500 },
+  });
+  const photos = [
+    tagged("room", ""),
+    tagged("spritz", "drinks"),
+    tagged("burger", "food"),
+    tagged("margarita", "drinks"),
+    tagged("negroni", "drinks"),
+    tagged("fries", "food"),
+  ];
+
+  it("is a board's own photos, newest first, as many as it has room for", () => {
+    const names = (list) => list.map((photo) => photo.file);
+    expect(names(menuPhotos(photos, "drinks", { limit: 2 }))).toEqual([
+      "gallery/spritz.webp",
+      "gallery/margarita.webp",
+    ]);
+    expect(names(menuPhotos(photos, "food", { limit: 1 }))).toEqual([
+      "gallery/burger.webp",
+    ]);
+  });
+
+  it("is empty for a board with no photos of its own", () => {
+    expect(menuPhotos(photos.slice(0, 1), "drinks")).toEqual([]);
+    expect(menuPhotos(undefined, "food")).toEqual([]);
+  });
+});
+
+describe("homePhotoPlan", () => {
+  const entry = (name, menu) => ({
+    file: `gallery/${name}.webp`,
+    alt: `A photo of ${name}`,
+    ...(menu ? { menu } : {}),
+  });
+  const list = [
+    entry("room"),
+    entry("spritz", "drinks"),
+    entry("terrace"),
+    entry("burger", "food"),
+    entry("decks"),
+    entry("margarita", "drinks"),
+    entry("canal"),
+    entry("fries", "food"),
+    entry("gate"),
+    entry("stools"),
+  ];
+  const files = Object.fromEntries(
+    list.map(({ file }) => [
+      file,
+      { src: `/${file}`, width: 1200, height: 1500 },
+    ]),
+  );
+  const plan = (entries) => homePhotoPlan(listPhotos(entries, files));
+  const names = (photos) =>
+    photos.map((photo) => photo.file.replace(/^gallery\/|\.webp$/g, ""));
+
+  it("gives each board its two newest photos, and the row the newest of the rest", () => {
+    expect(MENU_BOARD_PHOTOS).toBe(2);
+    const home = plan(list);
+    expect(names(home.drinks)).toEqual(["spritz", "margarita"]);
+    expect(names(home.food)).toEqual(["burger", "fries"]);
+    expect(names(home.row)).toEqual([
+      "room",
+      "terrace",
+      "decks",
+      "canal",
+      "gate",
+      "stools",
+    ]);
+  });
+
+  it("never shows a photo twice", () => {
+    const home = plan(list);
+    const shown = [...home.drinks, ...home.food, ...home.row].map(
+      (photo) => photo.image.src,
+    );
+    expect(new Set(shown).size).toBe(shown.length);
+  });
+
+  it("puts a newly added drinks photo on the Drinks board", () => {
+    const added = addPhoto(list, {
+      file: "gallery/negroni.webp",
+      alt: "A negroni on the bar",
+      menu: "drinks",
+    });
+    files["gallery/negroni.webp"] = {
+      src: "/gallery/negroni.webp",
+      width: 1200,
+      height: 1500,
+    };
+    const home = plan(added);
+    expect(names(home.drinks)).toEqual(["negroni", "spritz"]);
+    // The margarita it takes the place of goes back to the row
+    expect(names(home.row)).toContain("margarita");
+  });
+
+  it("fills the rows when there are enough, and counts the rest for /photos", () => {
+    const extra = ["bar", "bench", "sign", "boat"].map((name) => entry(name));
+    for (const { file } of extra) {
+      files[file] = { src: `/${file}`, width: 1200, height: 1500 };
+    }
+    const all = [...list, ...extra];
+    const home = plan(all);
+    expect(home.row).toHaveLength(HOME_PHOTOS);
+    expect(home.more).toBe(all.length - HOME_PHOTOS);
+  });
+
+  it("shows what there is when the boards leave fewer than the rows hold", () => {
+    // Ten photos, four on the boards: six for the rows, not eight
+    const home = plan(list);
+    expect(home.row).toHaveLength(6);
+    expect(home.more).toBe(list.length - 6);
+  });
+
+  it("leaves a board without a photo when none is marked for it", () => {
+    const home = plan(list.map(({ menu, ...rest }) => rest));
+    expect(home.drinks).toEqual([]);
+    expect(home.food).toEqual([]);
+    expect(names(home.row)).toEqual(
+      names(listPhotos(list, files)).slice(0, HOME_PHOTOS),
+    );
+  });
 });
 
 describe("homePhotos", () => {
-  const twelve = Array.from({ length: 12 }, (_, i) => i);
+  const photo = (name) => ({
+    file: `gallery/${name}.webp`,
+    image: image(9, 9),
+  });
+  const twelve = Array.from({ length: 12 }, (_, i) => ({
+    file: `gallery/${i}.webp`,
+    image: { src: `/x-${i}.webp`, width: 9, height: 9 },
+  }));
 
-  it("shows the first few and counts the rest", () => {
+  it("is two rows of four on a desk", () => {
+    expect(HOME_PHOTOS).toBe(8);
+  });
+
+  it("shows the newest few and counts the rest", () => {
     const home = homePhotos(twelve);
     expect(home.photos).toEqual(twelve.slice(0, HOME_PHOTOS));
     expect(home.more).toBe(12 - HOME_PHOTOS);
   });
 
   it("has nothing more when they all fit", () => {
-    expect(homePhotos([1, 2, 3])).toEqual({ photos: [1, 2, 3], more: 0 });
+    const three = ["a", "b", "c"].map(photo);
+    expect(homePhotos(three)).toEqual({ photos: three, more: 0 });
+  });
+
+  it("leaves out a photo home already shows, and takes the next one", () => {
+    const home = homePhotos(twelve, { shownElsewhere: ["/x-2.webp"] });
+    expect(home.photos.map((p) => p.file)).toEqual([
+      "gallery/0.webp",
+      "gallery/1.webp",
+      "gallery/3.webp",
+      "gallery/4.webp",
+      "gallery/5.webp",
+      "gallery/6.webp",
+      "gallery/7.webp",
+      "gallery/8.webp",
+    ]);
+    // It is still on /photos: one more there than home shows
+    expect(home.more).toBe(4);
+  });
+
+  it("takes how many to show", () => {
+    expect(homePhotos(twelve, { limit: 2 }).photos).toHaveLength(2);
   });
 });
 
@@ -120,6 +296,18 @@ describe("addPhoto", () => {
     expect(first.link).toBe("https://www.instagram.com/p/abc/");
   });
 
+  it("marks a photo for a menu board, and refuses a board there isn't", () => {
+    const [first] = addPhoto(list, {
+      file: "gallery/c.webp",
+      alt: "C",
+      menu: "drinks",
+    });
+    expect(first).toEqual({ file: "gallery/c.webp", alt: "C", menu: "drinks" });
+    expect(() =>
+      addPhoto(list, { file: "gallery/c.webp", alt: "C", menu: "wine" }),
+    ).toThrow(/drinks or food/);
+  });
+
   it("refuses a photo with no words for what it shows", () => {
     expect(() => addPhoto(list, { file: "gallery/c.webp", alt: " " })).toThrow(
       /what it shows/,
@@ -141,5 +329,17 @@ describe("src/data/photos.json", () => {
       expect(entry.alt?.trim().length, entry.file).toBeGreaterThan(10);
     }
     expect(new Set(list.map((entry) => entry.file)).size).toBe(list.length);
+  });
+
+  it("gives each menu board photos of its own, each for a board there is", () => {
+    for (const entry of list.filter((item) => "menu" in item)) {
+      expect(PHOTO_MENUS, entry.file).toContain(entry.menu);
+    }
+    for (const menu of PHOTO_MENUS) {
+      expect(
+        list.filter((entry) => entry.menu === menu).length,
+        menu,
+      ).toBeGreaterThan(0);
+    }
   });
 });

@@ -5,6 +5,8 @@ export const FORM_VERIFY_PATH = "/contact/verify";
 export const FORM_EDIT_PATH = "/contact/edit";
 /** Play form slug — drives turntable layout. */
 export const PLAY_FORM_SLUG = "play";
+/** Party enquiry form slug: "Book your party". */
+export const PARTY_FORM_SLUG = "party";
 
 const RESERVED_SLUGS = new Set(["verify", "edit"]);
 

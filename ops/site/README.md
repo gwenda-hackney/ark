@@ -52,6 +52,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/sections` | Guest menu sections |
 | `/web` | The website and its preview: what is waiting, health, publish |
 | `/forms` | People who submitted a site form |
+| `/venue` | Venue details: the opening hours and the party facts (how many fit, what's included, how soon we reply), which go on the website when saved |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow config database) |
 
@@ -133,7 +134,7 @@ Either is read within a minute. While it's off nothing is sent, a waiting draft 
 
 **Turning it on in production.**
 
-1. The key and the table arrive with the deploy: `MAILCHIMP_API_KEY` is in `APP_SECRETS.ops`, so the production ops deploy ([Apps](../../.github/workflows/apps.yml), app `ops`, target production, from `release`) puts it on gwenda-ops and applies `db/ops/migrations/0009_weekly_email.sql`. To push the secret without a deploy: `gh workflow run ops-secrets.yml --ref release`, then redeploy. The value is the existing `MAILCHIMP_API_KEY__PRODUCTION`; nothing new to create.
+1. The key and the table arrive with the deploy: `MAILCHIMP_API_KEY` is in `APP_SECRETS.ops`, so the production ops deploy ([Apps](../../.github/workflows/apps.yml), app `ops`, target production, from `release`) puts it on gwenda-ops and applies `db/ops/migrations/0012_weekly_email.sql`. To push the secret without a deploy: `gh workflow run ops-secrets.yml --ref release`, then redeploy. The value is the existing `MAILCHIMP_API_KEY__PRODUCTION`; nothing new to create.
 2. On production ops, open Weekly email. Status should say "Switched off", not "Preview only" (which means the key hasn't arrived).
 3. Send yourself a test and read it in your inbox.
 4. Choose how (below), the day and time, then switch it on and Save. It asks once to confirm.

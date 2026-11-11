@@ -6,7 +6,8 @@
  * its own shape, uncropped; a night with no photo gets the logo. The
  * pictures in a row are one height, and each card is as wide as its picture
  * (frameRatio). `shown` caps how many show (home shows a few; What's on the
- * lot); `weeks` puts them under a heading for each week (What's on). One
+ * lot), and `thisWeek` keeps to this week (home's; homeWeek); `weeks`
+ * puts them under a heading for each week (What's on). One
  * event over several days in a row is one card, with the days on its sticker
  * (nightRuns: a series that doesn't repeat, so `series` says which). A few
  * more are rendered than show, so the browser can drop the ones that have
@@ -16,15 +17,22 @@ import { Image } from "astro:assets";
 import "../../styles/chart-nights.css";
 import { chartFlag } from "../../lib/chart-assets";
 import { formatEventSpan } from "../../data/events";
-import { sizedImageUrl, tinyImageUrl } from "../../lib/event-card.js";
-import { isWholeFit } from "../../../functions/_lib/sanity-image-url.js";
+import {
+  imageSrcset,
+  isWholeFit,
+  sizedImageUrl,
+  tinyImageUrl,
+} from "../../../functions/_lib/sanity-image-url.js";
 import { londonToday } from "../../lib/london-day.js";
 import { weekStart } from "../../lib/london-day.js";
 import {
+  LEAD_NIGHT_SIZES,
   frameRatio,
   nightLabel,
   nightRuns,
+  nightSizes,
   nightsToShow,
+  homeWeek,
   runDay,
   runTimes,
   weekLabel,
@@ -39,9 +47,25 @@ interface Props {
   shown?: number;
   /** Under a heading for each week: This week, Next week, Week of 23 Nov. */
   weeks?: boolean;
+  /**
+   * Only this week's (home's; homeWeek: to Sunday, and next week too at the
+   * weekend). The browser works it out again on the visitor's day
+   * (data-this-week), so the spare cards from next week come in on the
+   * Saturday before, not sooner.
+   */
+  thisWeek?: boolean;
+  /** The line when there's nothing to show. */
+  empty?: string;
 }
 
-const { nights, series = [], shown, weeks = false } = Astro.props;
+const {
+  nights,
+  series = [],
+  shown,
+  weeks = false,
+  thisWeek = false,
+  empty = "Nothing in the diary just now. Get on the list and we’ll tell you first.",
+} = Astro.props;
 const today = londonToday();
 
 /** Rendered beyond the ones that show, for the nights that pass before the next build. */
@@ -75,12 +99,13 @@ const cards = nightRuns(dated, series)
       note: night.shortDescription || night.artist || "",
       offer: night.offer || "",
       photo: sizedImageUrl(photo, 640),
+      /** The same picture at each size: the browser takes the one that fits. */
+      photoSizes: imageSrcset(photo),
       /** Ops says show the whole image (#27): a flyer, never cropped. */
       whole: isWholeFit(photo),
       /** A flyer shown whole gets a frame its own shape: no strips, no crop. */
       ratio: frameRatio(photo, isWholeFit(photo)),
       placeholder: tinyImageUrl(photo),
-      photoLarge: sizedImageUrl(photo, 1280),
       photoPosition: night.seriesHeroObjectPosition || "",
       href: night.seriesId
         ? `/whats-on/${encodeURIComponent(night.seriesId)}`
@@ -93,6 +118,7 @@ const showing = nightsToShow(
   today,
   shown,
   cards.map((card) => card.end),
+  thisWeek ? homeWeek(today).days : undefined,
 );
 
 /**
@@ -109,7 +135,12 @@ const lists = weeks
   : [{ start: "", label: "", cards: numbered }];
 ---
 
-<div class="ch-nights" data-night-cards data-shown={shown}>
+<div
+  class="ch-nights"
+  data-night-cards
+  data-shown={shown}
+  data-this-week={thisWeek || undefined}
+>
   {
     lists.map((list) => {
       const items = (
@@ -146,8 +177,17 @@ const lists = weeks
                     {night.photo && (
                       <img
                         src={night.photo}
-                        srcset={`${night.photo} 640w, ${night.photoLarge} 1280w`}
-                        sizes="(min-width: 64rem) 26rem, (min-width: 40rem) 33vw, 100vw"
+                        srcset={night.photoSizes || undefined}
+                        sizes={
+                          night.photoSizes
+                            ? place === 0
+                              ? LEAD_NIGHT_SIZES
+                              : nightSizes(night.ratio)
+                            : undefined
+                        }
+                        data-row-sizes={
+                          night.photoSizes ? nightSizes(night.ratio) : undefined
+                        }
                         alt=""
                         loading={index === 0 ? "eager" : "lazy"}
                         style={
@@ -214,7 +254,7 @@ const lists = weeks
     })
   }
   <p class="ch-night-empty" data-night-cards-empty hidden={showing.length > 0}>
-    Nothing in the diary just now. Get on the list and we’ll tell you first.
+    {empty}
   </p>
 </div>
 

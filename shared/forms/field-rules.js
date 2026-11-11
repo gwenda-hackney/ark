@@ -1,4 +1,8 @@
-/** Shared field format rules for Play / contact forms (client + server). */
+/**
+ * Field format rules for the contact forms. The website's form script and the
+ * submit function both use these, so a field is checked the same in the
+ * browser and on the server.
+ */
 
 /** Loose shape check; tighter rules live in isValidEmail. */
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
@@ -90,8 +94,86 @@ export function isValidInstagramOrLink(value) {
   return /^[A-Za-z0-9._]{1,30}$/.test(handle);
 }
 
+/** The furthest ahead a date field takes: two years, which keeps typos (2062) out. */
+export const DATE_FIELD_MAX_DAYS = 730;
+/** A number field is a whole number in this range (a head count, say). */
+export const NUMBER_FIELD_MIN = 1;
+export const NUMBER_FIELD_MAX = 1000;
+
+/** Today at the bar (Europe/London), as YYYY-MM-DD. */
+export function londonToday(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const part = (type) => parts.find((row) => row.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+/** A real calendar day written YYYY-MM-DD, as UTC milliseconds; else NaN. */
+function isoDayTime(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value ?? "").trim());
+  if (!match) return NaN;
+  const [year, month, day] = match.slice(1).map(Number);
+  const time = Date.UTC(year, month - 1, day);
+  const date = new Date(time);
+  return date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+    ? time
+    : NaN;
+}
+
 /**
- * @param {{ key?: string | null, type?: string | null, label?: string | null, value: string }} field
+ * A date field's answer: a real day, today or later, within two years.
+ * @param {string} value YYYY-MM-DD, as a date input sends it
+ * @param {{ label?: string, today?: string }} [options] `today` is the bar's day
+ * @returns {string} error message, or empty string if ok
+ */
+export function dateFieldError(value, { label = "This date", today = londonToday() } = {}) {
+  const time = isoDayTime(value);
+  if (Number.isNaN(time)) return `${label}: pick a date.`;
+  const start = isoDayTime(today);
+  if (time < start) return `${label}: that day has gone. Pick today or later.`;
+  if (time > start + DATE_FIELD_MAX_DAYS * 86400000) {
+    return `${label}: pick a date in the next two years.`;
+  }
+  return "";
+}
+
+/** "2026-12-12" as "Saturday 12 December 2026"; anything else unchanged. */
+export function formatDateAnswer(value) {
+  const time = isoDayTime(value);
+  if (Number.isNaN(time)) return String(value ?? "").trim();
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+    .format(new Date(time))
+    .replace(",", "");
+}
+
+/**
+ * A number field's answer: a whole number from 1 to 1000.
+ * @returns {string} error message, or empty string if ok
+ */
+export function numberFieldError(value, { label = "This" } = {}) {
+  const raw = String(value ?? "").trim();
+  const number = /^\d{1,6}$/.test(raw) ? Number(raw) : NaN;
+  if (Number.isNaN(number) || number < NUMBER_FIELD_MIN || number > NUMBER_FIELD_MAX) {
+    return `${label}: enter a whole number from ${NUMBER_FIELD_MIN} to ${NUMBER_FIELD_MAX}.`;
+  }
+  return "";
+}
+
+/**
+ * @param {{ key?: string | null, type?: string | null, label?: string | null, value: string, today?: string }} field
+ *   `today` (YYYY-MM-DD at the bar) is for date fields; now unless given
  * @returns {string} error message, or empty string if ok
  */
 export function formatErrorForFieldValue(field) {
@@ -123,6 +205,14 @@ export function formatErrorForFieldValue(field) {
     if (!isValidUrl(value)) {
       return `Enter a full link for ${label} (https://…).`;
     }
+  }
+
+  if (type === "date") {
+    return dateFieldError(value, { label, today: field.today || londonToday() });
+  }
+
+  if (type === "number") {
+    return numberFieldError(value, { label });
   }
 
   return "";

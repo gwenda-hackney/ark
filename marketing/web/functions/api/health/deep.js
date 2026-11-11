@@ -19,8 +19,9 @@ function sameSecret(a, b) {
 }
 
 /**
- * POST /api/health/deep  { sendEmail?: boolean, formTest?: boolean, label?: string }
- * formTest submits the play form end to end (emails to alerts@, row deleted).
+ * POST /api/health/deep  { sendEmail?: boolean, formTest?: boolean, forms?: string[], label?: string }
+ * formTest submits every form in SMOKE_FORMS end to end (emails to alerts@,
+ * rows deleted), or only `forms` (web addresses), which must then all exist.
  * Bearer DEPLOY_WEBHOOK_SECRET. 200 when every dependency answers, 503 if not.
  */
 export async function onRequestPost(context) {
@@ -34,6 +35,9 @@ export async function onRequestPost(context) {
   const result = await runDeepHealth(env, {
     sendEmail: body?.sendEmail === true,
     formTest: body?.formTest === true,
+    forms: Array.isArray(body?.forms)
+      ? body.forms.map((slug) => String(slug).trim()).filter(Boolean)
+      : undefined,
     requestUrl: context.request.url,
     label: String(body?.label || "").slice(0, 120),
   });
