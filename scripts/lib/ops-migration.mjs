@@ -2,12 +2,22 @@
  * The menu and the events, for a deploy migration (migrations/*.mjs): their
  * repositories on this environment's D1, or for a dry run on a rehearsal
  * copy (d1-rehearsal.mjs), so the migration runs the real use cases either
- * way. Every write is logged as what changed.
+ * way. Every write is logged as what changed. A migration that changes an
+ * event the owner wants on the website now puts it there with
+ * putEventOnWebsiteNow.
  */
 import {
   EVENT_D1_TABLES,
   d1EventRepository,
 } from "../../ops/site/src/events/server/adapters/d1-events.js";
+import { putEventOnWebsite } from "../../ops/site/src/events/server/event-publish.js";
+import {
+  droppedNights,
+  getEvent,
+  liveNightsBehind,
+  previewBehind,
+} from "../../ops/site/src/events/server/event-store.js";
+import { runWebsiteJob } from "../../ops/site/src/events/server/website-jobs.js";
 import {
   MENU_D1_TABLES,
   d1MenuRepository,
@@ -80,6 +90,39 @@ export function loggingEventRepository(repo, say) {
       return record;
     },
   };
+}
+
+/**
+ * The website shows the event as ops has it: its preview and the website are
+ * in step, and no night dropped from its schedule is still there.
+ */
+export function eventInStepWithWebsite(event) {
+  return !droppedNights(event).length && !previewBehind(event) && !liveNightsBehind(event);
+}
+
+/**
+ * Put one event on the website now, the way ops' website job does after a
+ * save (website-jobs.js: calendar entries, then the preview, then the
+ * website), and with Update website for it (putEventOnWebsite) when the
+ * setting website.auto_update is off: the owner asked for the change. Built
+ * pages follow with the next automatic website update. Not for a dry run.
+ * Throws, saying what to do, when it does not get there.
+ * @returns {Promise<object>} the event, in step with the website
+ */
+export async function putEventOnWebsiteNow(env, id) {
+  for (let step = 0; step < 80; step += 1) {
+    const result = await runWebsiteJob(env, { eventId: id, retry: true });
+    if (result.failed) throw new Error(`Event ${id} did not reach the website: ${result.failed}. Run again.`);
+    if (result.done) break;
+  }
+  if (!eventInStepWithWebsite(await getEvent(env, id))) await putEventOnWebsite(env, id);
+  const event = await getEvent(env, id);
+  if (!eventInStepWithWebsite(event)) {
+    throw new Error(
+      `"${event.name}" (event ${id}) is saved in ops, but the website is not in step with it yet. Run again, or press Update website for it in ops.`,
+    );
+  }
+  return event;
 }
 
 /**
