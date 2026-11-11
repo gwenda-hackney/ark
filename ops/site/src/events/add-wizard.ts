@@ -32,6 +32,21 @@ export function wizardType(kind: NewEventKind, category: string, picked: boolean
 	return picked ? categoryOf({ category }) : "";
 }
 
+/** Step one is answered: a type, and for a special night the series it's in. */
+export function typeAnswered(type: WizardType | "", seriesId: string): boolean {
+	return Boolean(type) && (type !== "night" || Boolean(seriesId));
+}
+
+/**
+ * Tapping a card on step one. A different type changes what's asked (and
+ * once or repeats); the same one, after Back, keeps everything. Either way
+ * it moves straight on, unless it's a special night still waiting for its
+ * series (picking the series then moves on).
+ */
+export function pickType(current: WizardType | "", next: WizardType, seriesId: string): { change: boolean; advance: boolean } {
+	return { change: next !== current, advance: typeAnswered(next, seriesId) };
+}
+
 /** Once or repeats, until they say otherwise on When: a deal repeats, the rest are once. */
 export function kindForType(type: WizardType): NewEventKind {
 	if (type === "night") return "night";

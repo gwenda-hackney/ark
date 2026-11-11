@@ -5,10 +5,12 @@ import {
 	categoryFor,
 	howOftenId,
 	kindForType,
+	pickType,
 	readyToSave,
 	stepErrors,
 	stepOfField,
 	stepTitle,
+	typeAnswered,
 	whenSentence,
 	wizardErrors,
 	wizardSteps,
@@ -46,6 +48,22 @@ describe("Add wizard (#245)", () => {
 		expect(wizardType("night", "event", false)).toBe("night");
 		expect(wizardErrors(happyHour, "series", "", { noEnd: true })).toEqual({ "wizard-type": "Pick one." });
 		expect(stepErrors({ "wizard-type": "Pick one." }, "type")).toEqual({ "wizard-type": "Pick one." });
+	});
+
+	it("moves straight on when a type is picked; a special night waits for its series", () => {
+		expect(pickType("", "event", "")).toEqual({ change: true, advance: true });
+		expect(pickType("event", "promotion", "")).toEqual({ change: true, advance: true });
+		expect(pickType("promotion", "popup", "")).toEqual({ change: true, advance: true });
+		expect(pickType("popup", "night", "")).toEqual({ change: true, advance: false });
+		expect(typeAnswered("night", "")).toBe(false);
+		expect(typeAnswered("night", "ev2"), "the series picked: on to When").toBe(true);
+		expect(typeAnswered("", "")).toBe(false);
+	});
+
+	it("picking the same type again after Back keeps what's set, once or repeats too, and moves on", () => {
+		expect(pickType("event", "event", "")).toEqual({ change: false, advance: true });
+		expect(pickType("night", "night", "ev2")).toEqual({ change: false, advance: true });
+		expect(pickType("night", "night", "")).toEqual({ change: false, advance: false });
 	});
 
 	it("starts a deal as repeating, a night or a pop-up kitchen as once", () => {

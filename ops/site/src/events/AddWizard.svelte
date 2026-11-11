@@ -26,9 +26,11 @@
 		categoryFor,
 		howOftenId,
 		kindForType,
+		pickType,
 		readyToSave,
 		stepErrors,
 		stepTitle,
+		typeAnswered,
 		whenSentence,
 		wizardErrors,
 		wizardSteps,
@@ -50,10 +52,13 @@
 	const steps = $derived(wizardSteps(kind, category));
 	let index = $state(0);
 	// Add night on a series picks the series as the page opens: start at the
-	// date. Not when someone picks one here (`touched`).
+	// date, once, so Back still reaches step one. Not when someone picks here.
 	let touched = false;
 	$effect(() => {
-		if (!touched && index === 0 && editor.creatingNight && editor.attachSeriesId) index = 1;
+		if (!touched && index === 0 && editor.creatingNight && editor.attachSeriesId) {
+			touched = true;
+			index = 1;
+		}
 	});
 	const step = $derived(steps[Math.min(index, steps.length - 1)]);
 	const last = $derived(index >= steps.length - 1);
@@ -68,7 +73,10 @@
 
 	async function focusFirst() {
 		await tick();
-		const el = document.querySelector<HTMLElement>(".wizard-body input:not(.sr-only), .wizard-body textarea, .wizard-body [contenteditable='true']");
+		// Step one (after Back): the card picked. Elsewhere: the first field.
+		const el = document.querySelector<HTMLElement>(
+			".wizard-body .kind[aria-pressed='true'], .wizard-body input:not(.sr-only), .wizard-body textarea, .wizard-body [contenteditable='true']",
+		);
 		el?.focus({ preventScroll: true });
 	}
 
@@ -97,12 +105,32 @@
 		}
 	});
 
-	/** Step one: the type sets the fields, and once or repeats until they say otherwise. */
-	function chooseType(id: WizardType) {
+	/**
+	 * Step one: the type sets the fields, and once or repeats until they say
+	 * otherwise, then it's straight on to the next step (pickType). A special
+	 * night asks which series first.
+	 */
+	async function chooseType(id: WizardType) {
+		if (busy) return;
 		touched = true;
+		const { change, advance } = pickType(type, id, editor.attachSeriesId);
 		picked = true;
-		if (id !== "night") form.category = id;
-		editor.setNewKind(kindForType(id));
+		if (change) {
+			if (id !== "night") form.category = id;
+			editor.setNewKind(kindForType(id));
+		}
+		if (advance) {
+			go(index + 1);
+			return;
+		}
+		await tick();
+		document.getElementById("event-series")?.focus();
+	}
+
+	/** A special night's series picked: straight on to its date. */
+	function chooseSeries(seriesId: string) {
+		touched = true;
+		if (typeAnswered(type, seriesId)) go(index + 1);
 	}
 
 	/** Top of When: switching keeps what's typed (setNewKind). */
@@ -257,23 +285,23 @@
 
 	<div class="wizard-body">
 		{#if step === "type"}
-			<div class="kinds" id="wizard-type" role="radiogroup" aria-label="What are you adding?">
+			<!-- Buttons, not radios: a tap, Enter or Space picks and moves on; arrow keys don't. -->
+			<div class="kinds" id="wizard-type" role="group" aria-label="What are you adding?">
 				{#each WIZARD_TYPES as option (option.id)}
-					<label class="kind" class:on={type === option.id}>
-						<input
-							class="sr-only"
-							type="radio"
-							name="wizard-type"
-							value={option.id}
-							checked={type === option.id}
-							onchange={() => chooseType(option.id)}
-						/>
+					<button
+						type="button"
+						class="kind"
+						class:on={type === option.id}
+						aria-pressed={type === option.id}
+						disabled={busy}
+						onclick={() => void chooseType(option.id)}
+					>
 						<span class="kind-icon" aria-hidden="true"><Icon name={option.icon} size={18} /></span>
 						<span class="kind-text">
 							<span class="kind-title">{option.title}</span>
 							<span class="kind-blurb">{option.blurb}</span>
 						</span>
-					</label>
+					</button>
 				{/each}
 			</div>
 			{#if kind !== "night"}
@@ -284,7 +312,7 @@
 				<Field label="Which series?" for="event-series" required reserve error={shown["event-series"]}>
 					<NativeSelect
 						id="event-series"
-						onchange={() => (touched = true)}
+						onchange={(e) => chooseSeries(e.currentTarget.value)}
 						bind:value={editor.attachSeriesId}
 						options={[{ value: "", label: "Choose a series…" }, ...editor.seriesOptions]}
 					/>
@@ -500,13 +528,18 @@
 		display: flex;
 		align-items: flex-start;
 		gap: var(--space-3);
+		width: 100%;
 		padding: var(--space-3) var(--space-4);
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		text-align: left;
 		cursor: pointer;
 	}
 
-	.kind:hover {
+	.kind:hover:not(:disabled) {
 		background: var(--surface-3);
 	}
 
@@ -515,7 +548,7 @@
 		background: var(--primary-wash);
 	}
 
-	.kind:has(input:focus-visible) {
+	.kind:focus-visible {
 		outline: 2px solid var(--ring);
 		outline-offset: 2px;
 	}
