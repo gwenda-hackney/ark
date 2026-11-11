@@ -212,7 +212,7 @@ export function nightStatus(
 	const job = jobs?.find((row) => row.eventId === night.eventId);
 	// Short badge words; the sentence is the tooltip.
 	if (job?.state === "failed") return { label: "Failed", tone: "danger", title: "Not ready for the website" };
-	if (job?.state === "waiting") return { label: "Updating", tone: "muted", title: "Getting it ready for the website" };
+	if (job?.state === "waiting") return { label: "Updating", tone: "muted", title: "Saved. Website updating…" };
 	if (night.live === "current") return { label: "Live", tone: "success", title: "On the website" };
 	if (night.live === "unpublished") return { label: "Not live", tone: "warning", title: "Not on the website yet" };
 	return { label: "Changed", tone: "warning", title: "Waiting for Update website" };

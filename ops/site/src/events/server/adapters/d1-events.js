@@ -18,6 +18,7 @@ import { parseNightSchedule } from "../night-schedule.js";
 import {
   REPEAT_UNITS,
   clockTime,
+  eventCategory,
   isoDate,
   linksFrom,
   parseHeroCrops,
@@ -55,6 +56,7 @@ const events = d1Table({
     formerSlugs: "json",
     deletedAt: "date",
     takingApplications: "bool",
+    category: "text",
     replacesSeries: "text",
     driveFolderId: "text",
     mainImageAsset: "text",
@@ -80,6 +82,9 @@ const nights = d1Table({
   },
   orderBy: "id",
 });
+
+/** The tables events live in, parents first: what a copy of them takes (scripts/lib/d1-rehearsal.mjs). */
+export const EVENT_D1_TABLES = [events.table, nights.table];
 
 function notFound(message = "Event not found.") {
   const error = new Error(message);
@@ -118,6 +123,7 @@ const EVENT_FIELDS = {
   formerSlugs: slugList,
   deletedAt: text,
   takingApplications: (value) => value === true,
+  category: eventCategory,
   replacesSeries: text,
   driveFolderId: text,
   heroCrops: parseHeroCrops,

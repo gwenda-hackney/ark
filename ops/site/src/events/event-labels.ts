@@ -40,7 +40,8 @@ export function repeatLabel(event: {
 
 /**
  * Where a series or night stands with the website, as the lists show it.
- * Saved changes the website has not picked up wait for "Update website".
+ * Saved changes go on the website by themselves; ones it has not picked up
+ * (it failed, or that is turned off) wait for "Update website".
  */
 export function statusLabel(event: OpsEvent): string {
 	if (event.publish.live === "current") return "Live";
@@ -176,15 +177,25 @@ export function deleteEventCopy({
 }
 
 /**
- * The social post line in the editor's Tasks section. Update website makes
- * one ClickUp task per night, due two weeks before it.
+ * Under "Which nights should be deleted?", for a series that is on the
+ * website. One line that is true whichever choice is pressed: deleted nights
+ * come off by themselves, but a choice that leaves no nights deletes the
+ * whole event (all future nights of a series that hasn't started; the last
+ * night left), and a deleted event waits for Update website, with Restore.
+ */
+export const DELETE_NIGHTS_WEBSITE_NOTE =
+	"Deleted nights come off the website a minute or two after. If that leaves the event with no nights, the whole event is deleted: it stays on the website until you press Update website on the Website page, and until then you can restore it there.";
+
+/**
+ * The social post line in the editor's Tasks section. Saving makes one
+ * ClickUp task per night, in the background, due two weeks before it.
  */
 export function socialTaskNote(
 	event: OpsEvent | null,
 	occurrenceDate = "",
 	today = new Date().toISOString().slice(0, 10),
 ): string {
-	const later = "Update website adds one to ClickUp, due two weeks before the night.";
+	const later = "Saving adds one to ClickUp a minute or two later, due two weeks before the night.";
 	if (!event) return `No social post task yet. ${later}`;
 	if (occurrenceDate) {
 		const night = event.dates.find((row) => row.date === occurrenceDate);

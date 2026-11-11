@@ -17,7 +17,7 @@ describe("eventHeaderFlag", () => {
     const publish = { preview: "stale", live: "current" };
     const waiting = eventHeaderFlag(publish, false, { job: "waiting" });
     assert.equal(waiting.label, "Updating");
-    assert.equal(waiting.title, "Saved. Getting it ready for the website…");
+    assert.equal(waiting.title, "Saved. Website updating…");
     const failed = eventHeaderFlag(publish, false, { job: "failed" });
     assert.equal(failed.label, "Failed");
     assert.equal(failed.tone, "danger");
@@ -38,7 +38,7 @@ describe("eventHeaderFlag", () => {
     assert.match(changed.title, /^Changes not on the website yet/);
     assert.deepEqual(eventHeaderFlag({ preview: "current", live: "current" }, false), {
       label: "Live",
-      title: "On the website",
+      title: "Website up to date",
       tone: "success",
       live: true,
     });

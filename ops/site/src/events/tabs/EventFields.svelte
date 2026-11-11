@@ -17,6 +17,7 @@
 		FormSection,
 		NativeSelect,
 		PhotoActions,
+		Segmented,
 		Switch,
 		TextArea,
 		TextField,
@@ -40,6 +41,7 @@
 		type SeriesTextKey,
 	} from "../event-form.svelte";
 	import type { NewEventKind } from "../event-editor.svelte";
+	import { CATEGORY_CHOICES } from "../event-category";
 
 	let {
 		part,
@@ -294,6 +296,21 @@
 							/>
 						{/if}
 					</Field>
+					{#if !inherits}
+						<Field
+							label="What is it?"
+							for="event-category"
+							hint="A promotion is a standing deal, like Happy Hour. A pop-up kitchen is a guest chef. What's on shows nights."
+						>
+							<Segmented
+								bind:value={form.category}
+								items={CATEGORY_CHOICES}
+								tone="soft"
+								size="sm"
+								ariaLabel="What is it?"
+							/>
+						</Field>
+					{/if}
 					{#if !isSeries}
 					<Field
 						class="span-4"
@@ -401,7 +418,7 @@
 							optional
 							help="Page address"
 							hint={webAddressChanged
-								? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes when you press Update website; old links still work.`
+								? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes a minute or two after you save; old links still work.`
 								: undefined}
 						>
 							<TextField
@@ -421,7 +438,7 @@
 							label="Play at Gwenda form"
 							for="event-taking-applications"
 							help="Taking applications"
-							hint="Artists applying to play can pick this series. Changes when you press Update website."
+							hint="Artists applying to play can pick this series. Changes a minute or two after you save."
 						>
 							<Switch
 								id="event-taking-applications"

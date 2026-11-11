@@ -64,6 +64,7 @@ export function getMenu() {
     request<{
       sections: import("../menu/types").MenuSection[];
       posMenus?: import("../menu/types").PosMenu[];
+      popups?: import("../menu/types").MenuPopup[];
     }>("/api/menu"),
   );
 }
@@ -804,6 +805,8 @@ export type OpsEvent = {
   offer: string;
   /** Listed on the website's Play at Gwenda form (#41). */
   takingApplications?: boolean;
+  /** What the series is: a night (or run of nights), a promotion, or a pop-up kitchen. */
+  category?: import("../events/event-category").EventCategory;
   pageUrl: string;
   description: string;
   shortDescription: string;
@@ -949,7 +952,7 @@ export function restageEvent(id: string) {
   });
 }
 
-/** A saved event still being got ready for the website (calendar + preview copy). */
+/** A saved event still on its way to the website (calendar, preview copy, then the website). */
 export type WebsiteJob = {
   eventId: string;
   name: string;

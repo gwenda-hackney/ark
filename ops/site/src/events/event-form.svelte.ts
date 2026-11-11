@@ -1,5 +1,6 @@
 import type { OpsEvent, OpsEventOccurrence, OpsNightScheduleSlot } from "../app/api";
 import { itemSlug } from "../app/nav";
+import { categoryOf } from "./event-category";
 import { formatClock, formatDate } from "./event-labels";
 import { expandSeriesOccurrenceDates } from "./event-recurrence.js";
 import { hasMeaningfulFraming, normalizeHeroFraming, type HeroFraming } from "./hero-crops";
@@ -102,6 +103,7 @@ export function fieldSnapshot(row: {
 	monthDay?: number | string;
 	endsOn?: string;
 	takingApplications?: boolean;
+	category?: string;
 }) {
 	return JSON.stringify({
 		name: String(row.name || "").trim(),
@@ -129,6 +131,7 @@ export function fieldSnapshot(row: {
 		monthDay: Number(row.monthDay) || 0,
 		endsOn: row.endsOn || "",
 		takingApplications: row.takingApplications === true,
+		category: categoryOf(row),
 	});
 }
 
@@ -202,6 +205,8 @@ export class EventForm {
 	replacesSeries = $state("");
 	/** A series listed on the website's Play at Gwenda form (#41). */
 	takingApplications = $state(false);
+	/** What it is: a night, a promotion or a pop-up kitchen (event-category.ts). */
+	category = $state<string>("event");
 	heroCrops = $state<HeroFraming | null>(null);
 
 	/** Any field overridden. Setting it overrides every field, or none. */
@@ -282,6 +287,7 @@ export class EventForm {
 		this.endsOn = event.endsOn || "";
 		this.replacesSeries = event.replacesSeries || "";
 		this.takingApplications = event.takingApplications === true;
+		this.category = categoryOf(event);
 		this.syncHeroCrops(event, occurrenceDate);
 		this.overridden = nightOverriddenKeys(event, occurrence);
 		this.ownPhoto = Boolean(occurrence?.overrides?.image?.url);
@@ -322,6 +328,7 @@ export class EventForm {
 		this.endsOn = "";
 		this.replacesSeries = "";
 		this.takingApplications = false;
+		this.category = "event";
 		this.heroCrops = null;
 		this.overridden = [];
 		this.ownPhoto = false;
@@ -428,6 +435,7 @@ export class EventForm {
 			monthDay: this.monthDay,
 			endsOn: this.endsOn,
 			takingApplications: this.takingApplications,
+			category: this.category,
 		});
 		if (!current) {
 			return draft !== fieldSnapshot({ repeatUnit: options.creatingOnce ? "once" : "none" });
@@ -471,6 +479,7 @@ export class EventForm {
 			endsOn: this.endsOn,
 			...(this.repeatUnit === "once" ? { replacesSeries: this.replacesSeries } : {}),
 			...(this.repeatUnit === "once" ? {} : { takingApplications: this.takingApplications }),
+			category: categoryOf({ category: this.category }),
 			...(this.webAddressChanged(current) ? { slug: this.webAddress.trim() } : {}),
 			heroCrops: this.heroCrops || null,
 		};

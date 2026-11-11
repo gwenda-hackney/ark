@@ -83,6 +83,10 @@ export const SETTINGS = {
   "google.drive_events_folder_id": { service: "ops", about: "Drive folder for event photos" },
   "tasks.role.social": { service: "ops", about: "Who gets social-post tasks" },
   "clickup.events_list_id": { service: "ops", about: "ClickUp list for event tasks" },
+  "website.auto_update": {
+    service: "ops",
+    about: 'Saved events go on the website by themselves; "off" makes them wait for Update website',
+  },
   "ops.admin_emails": { service: "ops", about: "Who sees ops developer tools" },
   "lightspeed.archive_skus": { service: "ops", about: "POS SKUs ops treats as archived" },
   "pour_target.cocktail": { service: "ops", about: "Pour-cost target, cocktails (%)" },

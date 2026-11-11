@@ -36,6 +36,7 @@ function seriesFields(overrides = {}) {
         offer: "Two for one",
         pageUrl: "https://example.com/chess",
         takingApplications: true,
+        category: "promotion",
         shortDescription: "Chess and Negronis",
         description: "Bring a board.",
         operationsNotes: "Tables by the window",
@@ -105,6 +106,22 @@ for (const [name, make] of Object.entries(ADAPTERS)) {
       assert.ok(created.id);
       const { id: _id, ...stored } = await repo.get(created.id);
       assert.deepEqual(stored, { ...fields, formerSlugs: [], deletedAt: "", gallery: [] });
+    });
+
+    it("a series is a night unless it is made a promotion or a pop-up kitchen", async () => {
+      const promotion = await repo.create(seriesFields());
+      assert.equal((await repo.get(promotion.id)).category, "promotion");
+      const night = await repo.create({ name: "Jazz Night" });
+      assert.equal((await repo.get(night.id)).category, "event", "what everything was before categories");
+      const popup = await repo.update(night.id, { category: "popup" });
+      assert.equal(popup.category, "popup");
+      assert.equal(popup.name, "Jazz Night", "only the category changed");
+      assert.deepEqual(
+        (await repo.listEvents()).map((event) => event.category).sort(),
+        ["popup", "promotion"],
+      );
+      const { events } = await repo.exportAll();
+      assert.deepEqual(events.map((event) => event.category).sort(), ["popup", "promotion"], "a copy carries it");
     });
 
     it("a gallery: empty, then photos newest first, each asset once", async () => {

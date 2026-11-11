@@ -396,7 +396,7 @@
 											<Badge
 												tone={job.state === "failed" ? "danger" : "neutral"}
 												label={job.state === "failed" ? "Failed" : "Updating"}
-												title={job.state === "failed" ? "It didn't finish. Try again." : "Getting it ready…"}
+												title={job.state === "failed" ? "The website did not update. Try again." : "Website updating…"}
 											/>
 										</span>
 										<span class="name">

@@ -24,7 +24,7 @@ export function savingPill({
 }): SavingPill {
 	if (stuck) return { tone: "stuck", label: stuck === 1 ? "1 needs a look" : `${stuck} need a look` };
 	if (busy || running) {
-		return { tone: "busy", label: busy > 1 ? `Getting ${busy} ready…` : "Getting it ready…" };
+		return { tone: "busy", label: busy > 1 ? `Website updating (${busy})…` : "Website updating…" };
 	}
 	if (recentlyDone) return dirty ? { tone: "unsaved", label: "Unsaved changes" } : { tone: "done", label: "All saved" };
 	return { tone: "", label: "All saved" };
