@@ -150,6 +150,28 @@
   color: var(--ch-cream);
 }
 
+/* How to reach us, under the address: phone and the general email */
+.ch-find-reach {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  font-size: 1.0625rem;
+}
+
+.ch-find-reach li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
+.ch-find-reach .ch-caps {
+  min-width: 3.75rem;
+  color: var(--ch-mustard);
+}
+
 .ch-find-intro {
   margin: 0 0 1.25rem;
   font-size: 1.0625rem;

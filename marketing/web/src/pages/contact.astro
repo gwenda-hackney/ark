@@ -16,6 +16,7 @@ import { siteConfig } from "../config/site";
 import { directions } from "../data/directions";
 import { contactDrinksPhoto, homeDecksPhoto } from "../lib/chart-assets";
 import { fetchOpeningHours } from "../lib/sanity/opening-hours";
+import { phoneHref, phoneText } from "../lib/chart-footer.js";
 import {
   formPublicPath,
   PARTY_FORM_SLUG,
@@ -23,7 +24,7 @@ import {
 } from "../lib/form-paths";
 
 const { contactPage } = siteConfig.copy;
-const { social, location } = siteConfig;
+const { social, location, contact } = siteConfig;
 const week = await fetchOpeningHours();
 
 /** The four ways in, as cards at the top: each goes straight to its place */
@@ -94,6 +95,20 @@ const cards = [
             {location.streetAddress}<br />{location.addressLocality}
             {location.postalCode}
           </p>
+          <ul class="ch-find-reach">
+            <li>
+              <span class="ch-caps">Phone</span>
+              <a href={phoneHref(contact.telephone)} class="ch-link"
+                >{phoneText(contact.telephone)}</a
+              >
+            </li>
+            <li>
+              <span class="ch-caps">Email</span>
+              <a href={`mailto:${contact.email}`} class="ch-link"
+                >{contact.email}</a
+              >
+            </li>
+          </ul>
           <p class="ch-find-intro">{directions.intro}</p>
           <a
             href={directions.mapsUrl}
