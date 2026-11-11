@@ -1,7 +1,7 @@
 <script lang="ts">
 	/** Send me a test: this week's email to your own address, nobody else's. */
 	import { Icon } from "../app/shell";
-	import { Button } from "../ui";
+	import { Button, Card } from "../ui";
 	import { sendWeeklyEmailTest, type WeeklyEmailStatus } from "./email-api";
 	import { testBlockedReason } from "./email-view";
 
@@ -27,11 +27,10 @@
 	}
 </script>
 
-<section class="card" aria-labelledby="email-test-title">
-	<h2 id="email-test-title">Send me a test</h2>
-	<p class="muted">
-		This week's email, to {status?.me.email || "your own address"} only. The mailing list gets nothing.
-	</p>
+<Card
+	title="Send me a test"
+	subtitle={`This week's email, to ${status?.me.email || "your own address"} only. The mailing list gets nothing.`}
+>
 	<div class="row">
 		<Button variant="outline" size="sm" {busy} disabled={Boolean(blocked) || busy} reason={blocked} onclick={() => void send()}>
 			{#snippet icon()}
@@ -43,26 +42,9 @@
 	<p class="result {result?.tone || (blocked ? 'muted-line' : '')}" role="status">
 		{result?.text || blocked || " "}
 	</p>
-</section>
+</Card>
 
 <style>
-	.card {
-		display: grid;
-		gap: var(--space-2);
-		padding: var(--space-4);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--panel-bg);
-	}
-	h2 {
-		margin: 0;
-		font-size: var(--text-base);
-	}
-	.muted {
-		margin: 0;
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-	}
 	.row {
 		display: flex;
 	}

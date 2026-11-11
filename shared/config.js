@@ -88,6 +88,20 @@ export const SETTINGS = {
     about: 'Saved events go on the website by themselves; "off" makes them wait for Update website',
   },
   "ops.admin_emails": { service: "ops", about: "Who sees ops developer tools" },
+  "weekly_email.sending": {
+    service: "ops",
+    about: 'The weekly what\'s on email goes to the mailing list only when this is "on" (production only); anything else is off',
+  },
+  "weekly_email.mode": {
+    service: "ops",
+    about: 'Weekly email: "approve" makes each one wait for an admin; otherwise it sends by itself at its time',
+  },
+  "weekly_email.day": { service: "ops", about: "Weekly email: the day it goes out (mon to sun; mon unless set)" },
+  "weekly_email.time": { service: "ops", about: "Weekly email: the time it goes out, London, HH:MM (11:00 unless set)" },
+  "weekly_email.notify_emails": {
+    service: "ops",
+    about: "Weekly email: who is told when one waits for approval or fails (the admins unless set)",
+  },
   "lightspeed.archive_skus": { service: "ops", about: "POS SKUs ops treats as archived" },
   "pour_target.cocktail": { service: "ops", about: "Pour-cost target, cocktails (%)" },
   "pour_target.pour": { service: "ops", about: "Pour-cost target, pours (%)" },

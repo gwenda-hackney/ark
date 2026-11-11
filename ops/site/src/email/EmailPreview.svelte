@@ -3,7 +3,7 @@
 	 * This week's email as it would go out: subject, preview line, and the
 	 * email itself in a locked-down frame at phone or desktop width.
 	 */
-	import { Segmented } from "../ui";
+	import { Card, Segmented } from "../ui";
 	import type { WeeklyEmailPreview } from "./email-api";
 	import { contentsLine, previewDocument, shortDay } from "./email-view";
 
@@ -17,23 +17,18 @@
 	let width = $state("phone");
 </script>
 
-<section class="card" aria-labelledby="email-preview-title">
-	<header class="head">
-		<div>
-			<h2 id="email-preview-title">This week's email</h2>
-			<p class="muted">
-				{#if email}
-					As it would go out now, for {shortDay(email.today)} to {shortDay(email.week.end)}. {contentsLine(email)}.
-				{:else if problem}
-					Couldn't be built just now.
-				{:else}
-					Building it from the website…
-				{/if}
-			</p>
-		</div>
+<Card
+	title="This week's email"
+	subtitle={email
+		? `As it would go out now, for ${shortDay(email.today)} to ${shortDay(email.week.end)}. ${contentsLine(email)}.`
+		: problem
+			? "Couldn't be built just now."
+			: "Building it from the website…"}
+>
+	{#snippet actions()}
 		<Segmented bind:value={width} items={WIDTHS} tone="soft" size="sm" ariaLabel="Preview width" />
-	</header>
-
+	{/snippet}
+	<div class="stack">
 	{#if problem}
 		<p class="note danger" role="alert">{problem}</p>
 	{/if}
@@ -70,28 +65,14 @@
 		Built from what's published on the website right now, so it matches What's on. Links go to {email?.origin ||
 			"the website"}.
 	</p>
-</section>
+	</div>
+</Card>
 
 <style>
-	.card {
+	.stack {
 		display: grid;
 		gap: var(--space-3);
-		padding: var(--space-4);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--panel-bg);
 		min-width: 0;
-	}
-	.head {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: start;
-		justify-content: space-between;
-		gap: var(--space-3);
-	}
-	h2 {
-		margin: 0;
-		font-size: var(--text-base);
 	}
 	.muted {
 		margin: 0;

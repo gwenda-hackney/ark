@@ -450,6 +450,8 @@ class FakeGoogle {
   constructor() {
     this.driveFiles = new Map([[DRIVE_EVENTS_ROOT, { id: DRIVE_EVENTS_ROOT, name: "Events", mimeType: "application/vnd.google-apps.folder", parents: [] }]]);
     this.calendarEvents = new Map();
+    /** Mail sent through Gmail: { to, subject, text, message }. */
+    this.mail = [];
   }
 
   /** Calendar events on the events calendar, for assertions. */
@@ -466,6 +468,21 @@ class FakeGoogle {
     const method = (init.method || "GET").toUpperCase();
     if (url.host === "oauth2.googleapis.com" && url.pathname === "/token") {
       return json({ access_token: `google-token-${newId()}`, expires_in: 3600, token_type: "Bearer" });
+    }
+    if (url.host === "gmail.googleapis.com" && method === "POST" && url.pathname.endsWith("/messages/send")) {
+      const raw = JSON.parse(init.body || "{}").raw || "";
+      const message = Buffer.from(raw, "base64url").toString("utf8");
+      const header = (name) => message.match(new RegExp(`^${name}: (.*)$`, "mi"))?.[1]?.trim() || "";
+      // The text part, decoded when the composer encoded it.
+      const [head, ...rest] = message.split(/\r?\n\r?\n/);
+      const body = rest.join("\n\n");
+      const text = /^Content-Transfer-Encoding: base64/im.test(head)
+        ? Buffer.from(body, "base64").toString("utf8")
+        : /^Content-Transfer-Encoding: quoted-printable/im.test(head)
+          ? body.replace(/=\r?\n/g, "").replace(/=([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+          : body;
+      this.mail.push({ to: header("To"), subject: header("Subject"), text, message });
+      return json({ id: `gmail-${newId()}` });
     }
     if (url.pathname === "/upload/drive/v3/files" && method === "POST") return this.driveUpload(init);
     if (url.pathname.startsWith("/drive/v3/files")) return this.drive(url, init, method);
