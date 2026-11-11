@@ -19,6 +19,7 @@ import { bookingUrl } from "../../config/booking";
 import { fetchSiteSettings } from "../../lib/sanity/site-settings";
 import { chartBarLogo, chartFlag } from "../../lib/chart-assets";
 import { chartSections } from "../../lib/chart-nav";
+import { drawingSvg } from "../../lib/chart-drawings.js";
 import ChartBell from "./ChartBell.astro";
 
 interface Props {
@@ -167,24 +168,8 @@ const homeHref = home ? "/#hero" : "/";
     <span class="ch-caps">{siteConfig.location.addressShort}</span>
   </a>
 
-  <svg
-    class="ch-rose"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="9.2"></circle>
-    <circle cx="12" cy="12" r="1.2"></circle>
-    <path
-      d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M12 5.6l1.8 5.2L12 18.4l-1.8-7.6z"
-    ></path>
-    <path d="M12 5.6l1.8 5.2H10.2z" fill="currentColor"></path>
-    <path d="M5.6 12l5.2-1.8 7.6 1.8-7.6 1.8z"></path>
-  </svg>
+  {/* The compass rose, the same one as on Find us's badge */}
+  <Fragment set:html={drawingSvg("compass", { className: "ch-rose" })} />
 
   <ul class="ch-chart-list">
     {

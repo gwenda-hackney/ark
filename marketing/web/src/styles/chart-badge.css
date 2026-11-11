@@ -1,0 +1,29 @@
+/*
+ * The badges' frame (#240, ChartBadge.astro): its colours, in this one
+ * place. It is the record's rim, a light line then a dark one, round a
+ * face, with the drawing on the face in the ink. They follow the record
+ * (chart-record-drawings.js): when the record is redrawn, change these four
+ * and every badge's frame follows. The record badge is the record itself.
+ */
+.ch-page {
+  --ch-badge-rim: var(--ch-cream);
+  --ch-badge-ring: var(--ch-bg);
+  --ch-badge-face: var(--ch-mustard);
+  --ch-badge-ink: var(--ch-bg);
+}
+
+.ch-badge-rim {
+  fill: var(--ch-badge-rim);
+}
+
+.ch-badge-ring {
+  fill: var(--ch-badge-ring);
+}
+
+.ch-badge-face {
+  fill: var(--ch-badge-face);
+}
+
+.ch-badge-ink {
+  color: var(--ch-badge-ink);
+}
