@@ -5,7 +5,7 @@ import {
 } from "../../../../shared/forms/field-rules.js";
 import { initThemedSelects } from "./themed-select.js";
 
-/** @typedef {{ csrfToken: string, secret: string }} FormAuth */
+/** @typedef {{ csrfToken: string }} FormAuth */
 
 /** @type {FormAuth | null} */
 let formAuth = null;
@@ -20,11 +20,11 @@ async function loadFormAuth() {
     throw new Error(data.error ?? "Something went wrong. Try again?");
   }
 
-  if (!data.csrfToken || !data.secret) {
+  if (!data.csrfToken) {
     throw new Error("Something went wrong. Try again?");
   }
 
-  formAuth = { csrfToken: data.csrfToken, secret: data.secret };
+  formAuth = { csrfToken: data.csrfToken };
 }
 
 function ensureFormAuth() {
@@ -685,7 +685,6 @@ export function initContactForm() {
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-Token": formAuth.csrfToken,
-          "X-Subscribe-Secret": formAuth.secret,
         },
         body: JSON.stringify({
           slug,
@@ -954,7 +953,6 @@ export function initContactFormSubmitted() {
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-Token": formAuth.csrfToken,
-          "X-Subscribe-Secret": formAuth.secret,
         },
         body: JSON.stringify({
           slug,

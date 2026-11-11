@@ -3,6 +3,7 @@ import {
   assertHomePageHealthy,
   collectSameOriginAssetPaths,
   assertPicturesSized,
+  assertSubscribeTokens,
   deepCheckLine,
   iconPaths,
   manifestPath,
@@ -152,5 +153,21 @@ describe("manifestPath", () => {
 
   it("is empty on a page without one", () => {
     expect(manifestPath('<link rel="icon" href="/favicon.svg">')).toBe("");
+  });
+});
+
+describe("assertSubscribeTokens", () => {
+  it("passes a CSRF token on its own", () => {
+    expect(() => assertSubscribeTokens({ csrfToken: "abc" })).not.toThrow();
+  });
+
+  it("fails without a CSRF token", () => {
+    expect(() => assertSubscribeTokens({})).toThrow(/csrfToken/);
+  });
+
+  it("fails when the response hands out a secret", () => {
+    expect(() =>
+      assertSubscribeTokens({ csrfToken: "abc", secret: "signing-key" }),
+    ).toThrow(/secret/);
   });
 });

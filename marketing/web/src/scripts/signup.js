@@ -2,7 +2,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SIGNUP_GLOW_MS = 2000;
 
-/** @type {{ csrfToken: string, secret: string } | null} */
+/** @type {{ csrfToken: string } | null} */
 let subscribeAuth = null;
 /** @type {Promise<void> | null} */
 let subscribeAuthPromise = null;
@@ -15,11 +15,11 @@ async function loadSubscribeAuth() {
     throw new Error(data.error ?? "Something went wrong. Try again?");
   }
 
-  if (!data.csrfToken || !data.secret) {
+  if (!data.csrfToken) {
     throw new Error("Something went wrong. Try again?");
   }
 
-  subscribeAuth = { csrfToken: data.csrfToken, secret: data.secret };
+  subscribeAuth = { csrfToken: data.csrfToken };
 }
 
 function ensureSubscribeAuth() {
@@ -196,7 +196,6 @@ async function postSubscribe(form, email) {
     headers: {
       "Content-Type": "application/json",
       "X-CSRF-Token": subscribeAuth.csrfToken,
-      "X-Subscribe-Secret": subscribeAuth.secret,
     },
     body: JSON.stringify({
       email,

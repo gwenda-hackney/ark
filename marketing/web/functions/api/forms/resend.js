@@ -13,7 +13,7 @@ import { reportFormError } from "../../../../../shared/forms/form-alert.js";
 import { requestFields } from "../../../../../shared/log.js";
 
 export async function onRequestPost(context) {
-  const auth = validateSubscribeRequest(context.request, context.env);
+  const auth = validateSubscribeRequest(context.request);
   if (!auth.ok) {
     return json({ error: auth.error }, auth.status);
   }
