@@ -57,7 +57,7 @@ export function gateBypassRedirectPath(url) {
   }
 
   const search = clean.searchParams.toString();
-  return clean.pathname + (search ? `?${search}` : "");
+  return safeRedirectPath(clean.pathname + (search ? `?${search}` : ""));
 }
 
 export function parseCookies(header) {
@@ -185,8 +185,26 @@ export function isPublicPath(pathname) {
   return false;
 }
 
+/** Stands in for this site's origin when reading `next` (never fetched). */
+const REDIRECT_BASE = "https://this-site.invalid";
+
+/**
+ * Where to send someone after the gate: a path on this site, or "/".
+ * `next` is read as a browser would read the Location (backslashes count as
+ * slashes, tabs and newlines vanish), so `/\evil.example` and the like can't
+ * leave the site; only the path, query and anchor are kept.
+ */
 export function safeRedirectPath(next) {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/";
-  if (next.startsWith("/gate")) return "/";
-  return next;
+  if (typeof next !== "string" || !next.startsWith("/")) return "/";
+  let url;
+  try {
+    url = new URL(next, REDIRECT_BASE);
+  } catch {
+    return "/";
+  }
+  if (url.origin !== REDIRECT_BASE) return "/";
+  // "/.//evil.example" reads as the path "//evil.example": protocol-relative.
+  if (url.pathname.startsWith("//")) return "/";
+  if (url.pathname.startsWith("/gate")) return "/";
+  return url.pathname + url.search + url.hash;
 }
