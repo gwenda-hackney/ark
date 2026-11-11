@@ -92,8 +92,8 @@ The same dev copies, run locally:
 
 | Command | What | Address |
 |---------|------|---------|
-| `npm run web:dev` | Website, preview | http://localhost:4321 |
-| `npm run web:dev:live` | Website, live | http://localhost:4322 |
+| `npm run web:dev` | Website, preview (ribbon says "Local") | http://localhost:4321 |
+| `npm run web:dev:live` | Website, live (ribbon says "Local · live") | http://localhost:4322 |
 | `npm run ops:dev` | Ops | http://localhost:5174 |
 | `npm run studio:dev` | Studio | http://localhost:3333 |
 
