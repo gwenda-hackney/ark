@@ -191,18 +191,6 @@ html.is-scrollbar-dragging {
   }
 }
 
-/* The ribbon is fixed chrome. Leave it out of the page crossfade. */
-::view-transition-group(preview-ribbon) {
-  animation: none;
-  z-index: 130;
-}
-
-::view-transition-old(preview-ribbon),
-::view-transition-new(preview-ribbon) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-
 main {
   width: 100%;
 }
@@ -212,43 +200,7 @@ main {
   color: var(--color-text);
 }
 
-.preview-ribbon {
-  --ribbon-fold: 5.5rem;
-  position: fixed;
-  top: 0;
-  /* The right-hand corner: the left is the Chart's menu button */
-  right: 0;
-  /* Above site-header / subpage-chrome (110); below preview-banner (200). */
-  z-index: 130;
-  /* Stay painted across view transitions. A fixed corner inside the root
-     snapshot is dropped on some client navigations until a full reload. */
-  view-transition-name: preview-ribbon;
-  width: var(--ribbon-fold);
-  height: var(--ribbon-fold);
-  overflow: hidden;
-  pointer-events: none;
-  transition:
-    opacity 0.3s var(--ease-out),
-    visibility 0.3s;
-}
-
-.preview-ribbon span {
-  position: absolute;
-  display: block;
-  width: 8.5rem;
-  top: 1.15rem;
-  right: -2.15rem;
-  padding: 0.3rem 0;
-  transform: rotate(45deg);
-  text-align: center;
-  font-family: var(--font-display);
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-bg);
-  background: var(--color-gold);
-}
+/* The environment ribbon (.preview-ribbon) styles itself: PreviewRibbon.astro. */
 
 .preview-banner {
   position: fixed;
@@ -1163,11 +1115,6 @@ body.site-nav-open .site-header {
   border-bottom-color: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-}
-
-body.site-nav-open .preview-ribbon {
-  opacity: 0;
-  visibility: hidden;
 }
 
 body:has(.preview-banner) .site-header-nav {
@@ -8202,28 +8149,6 @@ html.navigation-restore #rsvp-loading {
 
   .subpage-chrome-logo-img {
     height: 2.35rem;
-  }
-
-  .preview-ribbon {
-    top: auto;
-    bottom: 0.75rem;
-    left: 0.75rem;
-    right: auto;
-    width: auto;
-    height: auto;
-    overflow: visible;
-  }
-
-  .preview-ribbon span {
-    position: static;
-    width: auto;
-    transform: none;
-    padding: 0.3rem 0.55rem;
-    font-size: 0.55rem;
-    letter-spacing: 0.16em;
-    border-radius: 2px;
-    opacity: 0.65;
-    box-shadow: none;
   }
 
   @media (prefers-reduced-motion: reduce) {

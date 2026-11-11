@@ -465,7 +465,8 @@ body:has(.ch-page) {
  * (the dock), and the target itself keeps a little air above it.
  */
 :root:has(.ch-page) {
-  --ch-bar-size: 4rem;
+  /* Room round the logo, under it especially (its GWENDA is its foot) */
+  --ch-bar-size: 4.5rem;
   --ch-bar-h: 0px;
   --ch-dock-h: 0px;
   --ch-fixed-top: 0px;
