@@ -15,6 +15,7 @@
 	import WebPage from "../website/WebPage.svelte";
 	import DevToolsPage from "../website/DevToolsPage.svelte";
 	import SettingsPage from "../website/SettingsPage.svelte";
+	import WeeklyEmailPage from "../email/WeeklyEmailPage.svelte";
 	import FormsPage from "../forms/FormsPage.svelte";
 	import EventsPage from "../events/EventsPage.svelte";
 	import ArtistsPage from "../artists/ArtistsPage.svelte";
@@ -89,6 +90,8 @@
 						{:else}
 							<WebPage />
 						{/if}
+					{:else if key === "email"}
+						<WeeklyEmailPage {me} />
 					{:else if key === "forms"}
 						<FormsPage path={current} />
 					{:else if key === "events"}

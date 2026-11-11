@@ -36,7 +36,7 @@ describe("NAV_ROUTES", () => {
 		assert.equal(programme?.heading, true);
 		assert.deepEqual(
 			programme?.children?.map((row) => row.id),
-			["events", "artists", "web"],
+			["events", "artists", "web", "email"],
 		);
 		assert.deepEqual(
 			programme?.children?.find((row) => row.id === "artists")?.children?.map((row) => row.id),
@@ -89,6 +89,7 @@ describe("flattenNavRoutes", () => {
 				"artist",
 				"forms",
 				"web",
+				"email",
 				"users",
 				"config",
 				"dev-tools",

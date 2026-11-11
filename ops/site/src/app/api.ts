@@ -23,7 +23,7 @@ export async function handleAuthFailure(res: Response): Promise<boolean> {
   return false;
 }
 
-async function request<T = unknown>(
+export async function request<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {

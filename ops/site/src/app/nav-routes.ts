@@ -5,7 +5,8 @@ import type { NavRoute } from "./shell/types";
  * Lightspeed is POS reconcile and export. Events is series and schedule.
  * Artists holds the artist whose work is hanging at Gwenda and play applications
  * (the website's play form). Website shows what is waiting to appear on the
- * public site. Developer tools (admins) compare preview, code and databases.
+ * public site. Weekly email is the what's on email to the mailing list.
+ * Developer tools (admins) compare preview, code and databases.
  */
 export const NAV_ROUTES: NavRoute[] = [
 	{ id: "home", path: "/", name: "Dashboard", icon: "home" },
@@ -61,6 +62,7 @@ export const NAV_ROUTES: NavRoute[] = [
 				],
 			},
 			{ id: "web", path: "/web", name: "Website", icon: "web", badge: "website", hint: "See what's waiting and publish it" },
+			{ id: "email", path: "/email", name: "Weekly email", short: "Email", icon: "send", hint: "This week's what's on email" },
 		],
 	},
 	{
