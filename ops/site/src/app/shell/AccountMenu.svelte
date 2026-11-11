@@ -15,10 +15,12 @@
 	let trigger = $state<HTMLButtonElement | undefined>();
 	let menu = $state<HTMLDivElement | undefined>();
 
-	const account = $derived(me?.email || "Local access");
-	const mark = $derived((me?.email || "L").trim().charAt(0).toUpperCase() || "?");
+	const account = $derived(me?.email || "Account");
+	const mark = $derived((me?.email || "").trim().charAt(0).toUpperCase() || "?");
+	// npm run ops:dev signs you in by itself, so there is nothing to sign out of.
+	const local = $derived(me?.mode === "local");
 	const how = $derived(
-		me?.email ? "Signed in with Google" : me ? "Signed in with the local password" : "",
+		!me ? "" : local ? "Signed in automatically on this machine" : "Signed in with Google",
 	);
 
 	async function toggle() {
@@ -78,10 +80,23 @@
 				</p>
 			{/if}
 			<div class="sep" role="separator"></div>
-			<a class="item" role="menuitem" href="/api/auth/logout">
-				<Icon name="logout" size={16} />
-				Sign out
-			</a>
+			{#if local}
+				<span
+					class="item"
+					role="menuitem"
+					tabindex="-1"
+					aria-disabled="true"
+					title="Local sign-in is automatic"
+				>
+					<Icon name="logout" size={16} />
+					Sign out
+				</span>
+			{:else}
+				<a class="item" role="menuitem" href="/api/auth/logout">
+					<Icon name="logout" size={16} />
+					Sign out
+				</a>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -204,7 +219,12 @@
 		text-decoration: none;
 	}
 
-	.item:hover {
+	a.item:hover {
 		background: var(--surface-3);
+	}
+
+	.item[aria-disabled="true"] {
+		color: var(--fg-subtle);
+		cursor: not-allowed;
 	}
 </style>

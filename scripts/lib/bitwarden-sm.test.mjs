@@ -135,10 +135,6 @@ describe("catalog", () => {
     const all = Object.values(SECRET_OWNERS).flat();
     assert.equal(new Set(all).size, all.length);
   });
-
-  it("keeps the local admin password off Pages", () => {
-    assert.ok(APP_SECRETS.ops.pagesSkip.includes("OPS_LOCAL_ADMIN_PW"));
-  });
 });
 
 describe("Secrets Manager retries", () => {

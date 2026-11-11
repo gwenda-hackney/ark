@@ -107,8 +107,11 @@ describe("splash markup", () => {
     }
   });
 
-  it("goes straight to Google from the gate when it is the only way in", () => {
-    assert.match(gate, /location\.replace\(googleHref\)/);
+  it("goes straight on from the gate: to Google, or in when signed in locally", () => {
+    assert.match(gate, /location\.replace\(signInHref\)/);
+    assert.match(gate, /meta\.mode === "local"/);
     assert.match(gate, /id="gate-panel" hidden/);
+    // No password sign-in.
+    assert.doesNotMatch(gate, /type="password"/);
   });
 });

@@ -39,7 +39,7 @@ Store a single value by hand with `npm run secret:set` (asks for the name, then 
 ## 2. Generated secrets
 
 Make random values (`crypto.randomBytes(32).toString("base64url")`) for each env, as `NAME__DEV` and `NAME__PRODUCTION`:
-`OPS_SESSION_SECRET`, `FORMS_ADMIN_SECRET`, `SUBSCRIBE_SECRET`, `GATE_BYPASS_KEY`, `OPS_LOCAL_ADMIN_PW`, `SITE_PASSWORD`, `DEPLOY_WEBHOOK_SECRET` (`setup:site-deploy` makes both of its values if missing).
+`OPS_SESSION_SECRET`, `FORMS_ADMIN_SECRET`, `SUBSCRIBE_SECRET`, `GATE_BYPASS_KEY`, `SITE_PASSWORD`, `DEPLOY_WEBHOOK_SECRET` (`setup:site-deploy` makes both of its values if missing).
 
 One exception:
 - `SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION` is created by `npm run setup:subscribe-mailchimp-sync` if missing.

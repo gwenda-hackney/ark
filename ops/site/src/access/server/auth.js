@@ -1,8 +1,10 @@
 /**
- * Ops auth: Google OAuth (local + production) with optional local admin password.
- * Membership is Baserow Users. No Cloudflare Access.
- * OPS_LOCAL_ADMIN_PW is a local-only gate (conceptually a local admin account).
+ * Ops auth: Google OAuth on hosted ops and `npm run ops:prod`; on a
+ * developer's machine (`npm run ops:dev`) the developer is signed in as
+ * themselves (localSignInEmail). Either way the ops users list decides who
+ * gets in. No Cloudflare Access.
  */
+import { isLocalMachine } from "../../../../../shared/config.js";
 import { canonicalizePath } from "../../app/spa-path.js";
 
 export const AUTH_COOKIE_NAME = "gwenda_ops_access";
@@ -48,25 +50,6 @@ export function matchesSecret(provided, expected) {
   return diff === 0;
 }
 
-async function sha256(text) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return new Uint8Array(digest);
-}
-
-/**
- * Whether a typed password is the expected one, in constant time. Both are
- * hashed first and every byte of the hashes compared, so the time taken
- * shows neither where they differ nor how long the password is.
- */
-export async function matchesPassword(provided, expected) {
-  if (typeof provided !== "string" || typeof expected !== "string") return false;
-  if (!expected) return false;
-  const [a, b] = await Promise.all([sha256(provided), sha256(expected)]);
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
-  return diff === 0;
-}
-
 export function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -83,54 +66,69 @@ export function sessionSecret(env = {}) {
   return env.OPS_SESSION_SECRET?.trim() || "";
 }
 
-/** Local admin password gate (never deploy to Pages). Legacy alias: OPS_PASSWORD. */
-export function localAdminPassword(env = {}) {
-  return (
-    env.OPS_LOCAL_ADMIN_PW?.trim() ||
-    env.OPS_PASSWORD?.trim() ||
-    ""
-  );
+/**
+ * Who `npm run ops:dev` signs in, or "" when this runtime must not. Google's
+ * OAuth client doesn't know every local address, so plain local ops binds
+ * OPS_LOCAL_SIGN_IN to the developer's email (scripts/ops-dev.mjs) and skips
+ * Google; the ops users list still decides whether they get in.
+ *
+ * Honoured only on a developer's machine working on the dev copies: SITE_ENV
+ * exactly "local" (never production or dev, one of which every deployed ops
+ * sets) and no OPS_LOCAL_LIVE (`npm run ops:prod` keeps Google sign-in). So a
+ * deployed ops ignores the binding even if it were set there by mistake.
+ */
+export function localSignInEmail(env = {}) {
+  const email = normalizeEmail(env.OPS_LOCAL_SIGN_IN);
+  if (!email) return "";
+  const siteEnv = String(env.SITE_ENV || "").trim().toLowerCase();
+  if (siteEnv !== "local" || !isLocalMachine(env)) return "";
+  if (String(env.OPS_LOCAL_LIVE || "").trim()) return "";
+  return email;
 }
 
 /**
  * @param {Record<string, string | undefined>} env
  * @returns {{
- *   kind: "google" | "password" | "misconfigured",
- *   password?: string,
+ *   kind: "local" | "google" | "misconfigured",
+ *   email?: string,
  *   sessionSecret?: string,
  *   googleClientId?: string,
  *   googleClientSecret?: string,
  * }}
  */
 export function resolveAuth(env) {
-  const password = localAdminPassword(env);
+  const local = localSignInEmail(env);
+  if (local) return { kind: "local", email: local };
+
   const clientId = googleClientId(env);
   const clientSecret = googleClientSecret(env);
   const secret = sessionSecret(env);
-
   if (clientId && clientSecret && secret) {
     return {
       kind: "google",
       sessionSecret: secret,
       googleClientId: clientId,
       googleClientSecret: clientSecret,
-      password: password || undefined,
     };
   }
-  if (password) return { kind: "password", password };
   return { kind: "misconfigured" };
 }
 
 export function authMisconfiguredResponse() {
   return new Response(
-    "Ops site requires Google OAuth (GOOGLE_OAUTH_CLIENT_ID/SECRET + OPS_SESSION_SECRET) or OPS_LOCAL_ADMIN_PW.",
+    "Ops site requires Google OAuth (GOOGLE_OAUTH_CLIENT_ID/SECRET + OPS_SESSION_SECRET).",
     { status: 503 },
   );
 }
 
 export const NOT_OPS_USER = "not_ops_user";
 
-export function opsUserForbiddenResponse({ json = false } = {}) {
+/**
+ * 403 for someone signed in but not on the ops users list. `auth` is how they
+ * were signed in: for local sign-in the page names the email and offers no
+ * sign-out, which would only come back here.
+ */
+export function opsUserForbiddenResponse({ json = false, auth = null } = {}) {
   const message = "That Google account is not on the ops users list.";
   if (json) {
     // The SPA keys on `code` (src/app/boot.ts), not the wording.
@@ -139,7 +137,7 @@ export function opsUserForbiddenResponse({ json = false } = {}) {
       headers: { "Content-Type": "application/json" },
     });
   }
-  return new Response(forbiddenPage(), {
+  return new Response(forbiddenPage(auth?.kind === "local" ? auth.email : ""), {
     status: 403,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
@@ -148,8 +146,21 @@ export function opsUserForbiddenResponse({ json = false } = {}) {
   });
 }
 
-/** Same look as the splash in index.html and the gate. System fonts only. */
-function forbiddenPage() {
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
+/**
+ * Same look as the splash in index.html and the gate. System fonts only.
+ * `localEmail`: signed in by `npm run ops:dev`, which no sign-out changes.
+ */
+function forbiddenPage(localEmail = "") {
+  const text = localEmail
+    ? `Ops on this machine signs you in as ${escapeHtml(localEmail)}, which is not on the ops users list. Ask an admin to add it, or set FORMS_NOTIFY_EMAIL in .env to an address that is and restart npm run ops:dev.`
+    : "That Google account is not on the ops users list. Sign out and use another account, or ask an admin to add you.";
+  const action = localEmail
+    ? `<a href="/">Try again</a>`
+    : `<a href="/api/auth/logout">Sign out</a>`;
   return `<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -180,23 +191,12 @@ a:focus-visible{outline:2px solid #c9a84c;outline-offset:2px}
   <div class="mark" aria-hidden="true">G</div>
   <div class="name">Gwenda · Operations</div>
   <h1>Not on the ops users list</h1>
-  <p>That Google account is not on the ops users list. Sign out and use another account, or ask an admin to add you.</p>
-  <a href="/api/auth/logout">Sign out</a>
+  <p>${text}</p>
+  ${action}
 </main>
 </body>
 </html>
 `;
-}
-
-/** Password-gate token (HMAC of scope only). */
-export async function createPasswordToken(password) {
-  return hmacSign(password, "gwenda-ops-gate-v1");
-}
-
-export async function verifyPasswordToken(password, token) {
-  if (!token || !password) return false;
-  const expected = await createPasswordToken(password);
-  return matchesSecret(token, expected);
 }
 
 /** Signed session: email.exp.sig */
@@ -386,7 +386,9 @@ function pathOnThisSite(href) {
   return url.pathname + url.search;
 }
 
+/** The signed-in email for this request, or "" when nobody is signed in. */
 export async function resolveSessionEmail(request, auth) {
+  if (auth.kind === "local") return auth.email;
   if (auth.kind === "google" && auth.sessionSecret) {
     const cookies = parseCookies(request.headers.get("Cookie"));
     return verifySessionToken(auth.sessionSecret, cookies[AUTH_COOKIE_NAME]);
@@ -394,36 +396,7 @@ export async function resolveSessionEmail(request, auth) {
   return "";
 }
 
+/** Signed in; whether they are on the ops users list is checked separately. */
 export async function isRequestAuthed(auth, request) {
-  if (auth.kind === "misconfigured") return false;
-  if (auth.kind === "google") {
-    if (await resolveSessionEmail(request, auth)) return true;
-    if (auth.password) {
-      const cookies = parseCookies(request.headers.get("Cookie"));
-      return verifyPasswordToken(auth.password, cookies[AUTH_COOKIE_NAME]);
-    }
-    return false;
-  }
-  const cookies = parseCookies(request.headers.get("Cookie"));
-  const token = cookies[AUTH_COOKIE_NAME];
-  return verifyPasswordToken(auth.password, token);
-}
-
-/** @deprecated Use resolveAuth */
-export function resolveGate(env) {
-  const auth = resolveAuth(env);
-  if (auth.kind === "password") return { kind: "gated", password: auth.password };
-  return { kind: "misconfigured" };
-}
-
-export function gateMisconfiguredResponse() {
-  return authMisconfiguredResponse();
-}
-
-export async function createAuthToken(secret) {
-  return createPasswordToken(secret);
-}
-
-export async function verifyAuthToken(secret, token) {
-  return verifyPasswordToken(secret, token);
+  return Boolean(await resolveSessionEmail(request, auth));
 }
