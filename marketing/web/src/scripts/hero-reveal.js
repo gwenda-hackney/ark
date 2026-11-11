@@ -14,6 +14,7 @@
  */
 import { whenImageReady } from "./entrance-motion.js";
 import { ensureFontsReadyClass } from "./fonts-ready.js";
+import { isRestoredNavigation } from "./navigation-restore.js";
 
 /** @returns {Animation[]} */
 function viewTransitionAnimations() {
@@ -138,11 +139,7 @@ export function initHeroReveal() {
     "(prefers-reduced-motion: reduce)",
   ).matches;
 
-  const nav = performance.getEntriesByType("navigation")[0];
-  const restored =
-    reducedMotion ||
-    nav?.type === "back_forward" ||
-    document.documentElement.classList.contains("navigation-restore");
+  const restored = reducedMotion || isRestoredNavigation();
 
   let revealed = false;
 

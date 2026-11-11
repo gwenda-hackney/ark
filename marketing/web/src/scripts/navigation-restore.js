@@ -25,17 +25,33 @@ import { ensureFontsReadyClass } from "./fonts-ready.js";
 
 const RESTORING_SCROLL = "is-restoring-scroll";
 
-/** True when this paint should skip entrance motion (hard or soft restore). */
-export function isRestoredNavigation() {
-  if (document.documentElement.classList.contains("navigation-restore")) {
-    return true;
-  }
+/** The document's own load came by back/forward (and not from the cache). */
+function loadedByBackForward() {
   try {
     const nav = performance.getEntriesByType("navigation")[0];
     return nav?.type === "back_forward";
   } catch {
     return false;
   }
+}
+
+/**
+ * Whether the visit in view came by back/forward, once the hooks are bound
+ * (initNavigationRestore): set from the document's load, then again as each
+ * router visit starts and when the back-forward cache brings the page back.
+ * The document's navigation timing is its first visit's for good, so after a
+ * Back that loaded the page, it would call every later visit a restore.
+ *
+ * @type {boolean | null}
+ */
+let visitRestored = null;
+
+/** True when this paint should skip entrance motion (hard or soft restore). */
+export function isRestoredNavigation() {
+  if (document.documentElement.classList.contains("navigation-restore")) {
+    return true;
+  }
+  return visitRestored ?? loadedByBackForward();
 }
 
 /** The landing in progress; an older one's end leaves a newer one alone. */
@@ -170,11 +186,13 @@ export function initNavigationRestore() {
 
   if (hooksBound) return;
   hooksBound = true;
+  visitRestored = isRestoredNavigation();
 
   // BFCache restore — the browser already preserved scroll + DOM; just make
   // sure nothing is mid-animation.
   window.addEventListener("pageshow", (event) => {
     if (!event.persisted) return;
+    visitRestored = true;
     markRestore();
     settleAnimations();
     endLanding();
@@ -183,6 +201,7 @@ export function initNavigationRestore() {
   // View Transitions: browser back/forward is `traverse`, not Performance
   // `back_forward`. Remember across swap — html classes get wiped.
   document.addEventListener("astro:before-preparation", (event) => {
+    visitRestored = event.navigationType === "traverse";
     if (event.navigationType === "traverse") {
       pendingRestore = true;
       pendingScrollPin = false;

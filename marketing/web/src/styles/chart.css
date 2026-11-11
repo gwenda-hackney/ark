@@ -953,8 +953,8 @@ html[data-chart-leaving] .ch-page {
 
   html:not(.navigation-restore):not([data-chart-leaving])
     :is(.ch-hero-social, .ch-hero-line, .ch-hero-nav li) {
-    animation: ch-hero-in 0.34s cubic-bezier(0.2, 0.7, 0.2, 1)
-      var(--ch-hero-at) both;
+    animation: ch-hero-in 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) var(--ch-hero-at)
+      both;
   }
 
   .ch-hero-social {

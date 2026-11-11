@@ -47,6 +47,20 @@ describe("initSectionHash", () => {
     expect(cleanup).toBeTypeOf("function");
   });
 
+  it("leaves the new look's jumps to the router, so Back undoes them (#240)", () => {
+    document.body.innerHTML = `
+      <div class="ch-page ch-home">
+        <a href="#main" id="top">Back to top</a>
+        <main id="main"><section id="hero"></section></main>
+      </div>`;
+    initSectionHash();
+
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    document.getElementById("top")?.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it("smooth-scrolls section anchors and updates the hash", () => {
     const replaceState = vi.spyOn(window.history, "replaceState");
     const menu = document.getElementById("menu");
