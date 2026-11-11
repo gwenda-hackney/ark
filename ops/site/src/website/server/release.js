@@ -325,17 +325,34 @@ export async function publishRelease(
     );
   }
 
-  // Dropped nights (drafts marked removed), or a document deleted outside ops.
+  // Dropped nights and drinks (drafts marked removed), or a document deleted
+  // outside ops: 25 to a transaction, like the writes. Sanity refuses one that
+  // removes something still in use; then that batch goes one by one, so the
+  // rest still go and the warning names the one that stayed.
   const warnings = [];
   const deleted = [];
-  for (const id of plan.deletes) {
+  const remove = (ids) => mutate(env, ids.flatMap((id) => [{ delete: { id: draftId(id) } }, { delete: { id } }]));
+  const removeAlone = async (id) => {
     try {
-      await mutate(env, [{ delete: { id: draftId(id) } }, { delete: { id } }]);
+      await remove([id]);
       deleted.push(id);
     } catch (error) {
       warnings.push(
         `${byId.get(id)?.label || id} was not removed: ${error?.message || "still in use on the website."}`,
       );
+    }
+  };
+  for (let i = 0; i < plan.deletes.length; i += 25) {
+    const batch = plan.deletes.slice(i, i + 25);
+    if (batch.length === 1) {
+      await removeAlone(batch[0]);
+      continue;
+    }
+    try {
+      await remove(batch);
+      deleted.push(...batch);
+    } catch {
+      for (const id of batch) await removeAlone(id);
     }
   }
 

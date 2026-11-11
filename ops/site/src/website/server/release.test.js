@@ -159,6 +159,38 @@ test("a draft marked removed is a removal: publishing deletes the document and i
   assert.deepEqual(result.deleted, ["event-nights-2026-10-03"]);
 });
 
+test("removals go out together, not a call each; one still in use is named on its own", async () => {
+  // Cloudflare caps a request's outside calls (50 on the free plan).
+  const dates = Array.from({ length: 40 }, (_, i) => `2026-12-${String(i + 1).padStart(2, "0")}`);
+  const preview = [series(), ...dates.map((date) => night(date, { removed: true }))];
+  const production = [series(), ...dates.map((date) => night(date))];
+  const query = async (_env, view) => (view === "production" ? production : preview);
+  const batches = [];
+  const all = await publishRelease(
+    { SITE_ENV: "production" },
+    {},
+    { query, mutate: async (_env, batch) => batches.push(batch) },
+  );
+  assert.equal(batches.length, 2, "25 removals a call");
+  assert.deepEqual(batches.flat().slice(0, 2), [
+    { delete: { id: "drafts.event-nights-2026-12-01" } },
+    { delete: { id: "event-nights-2026-12-01" } },
+  ]);
+  assert.equal(all.deleted.length, 40);
+  assert.deepEqual(all.warnings, []);
+
+  // Sanity refuses a transaction that removes something still in use: the
+  // rest of that batch still goes, and the warning names the one that stayed.
+  const inUse = "event-nights-2026-12-07";
+  const refusing = async (_env, batch) => {
+    if (batch.some((mutation) => mutation.delete?.id === inUse)) throw new Error("still referenced");
+  };
+  const some = await publishRelease({ SITE_ENV: "production" }, {}, { query, mutate: refusing });
+  assert.equal(some.deleted.length, 39);
+  assert.ok(!some.deleted.includes(inUse));
+  assert.deepEqual(some.warnings, ["Gwenda Nights · 2026-12-07 was not removed: still referenced"]);
+});
+
 test("publishing makes draft references strong again; weak markers are not a change", () => {
   const weak = { _type: "reference", _ref: "series-nights", _weak: true, _strengthenOnPublish: { type: "eventSeries" } };
   const strong = { _type: "reference", _ref: "series-nights" };
