@@ -175,7 +175,7 @@ const prefetchInView = (item: (typeof sections)[number]) =>
     <span class="ch-caps">{siteConfig.location.addressShort}</span>
   </a>
 
-  {/* The compass rose, the same one as on Find us's badge */}
+  {/* The compass rose (lib/chart-drawings.js) */}
   <Fragment set:html={drawingSvg("compass", { className: "ch-rose" })} />
 
   {

@@ -3,15 +3,16 @@
  * opening hours and the sign-up: the places the navigation doesn't carry,
  * a map, the phone.
  */
-import { PLAY_FORM_SLUG, formPublicPath } from "./form-paths";
 
 /**
  * The foot's own places, in its line of small print: the navigation
- * (chart-nav.js CHART_SECTIONS) carries the rest.
+ * (chart-nav.js CHART_SECTIONS) carries the rest. Play here goes to
+ * Bookings' play half (BookingHalves.astro), which says what playing here
+ * is and has the way on to the form.
  */
 export const FOOT_LINKS = [
   { label: "Photos", href: "/photos" },
-  { label: "Play here", href: formPublicPath(PLAY_FORM_SLUG) },
+  { label: "Play here", href: "/bookings#play" },
   { label: "About", href: "/about" },
 ];
 

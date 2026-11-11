@@ -1,0 +1,89 @@
+---
+/**
+ * Bookings' two halves (#240, IV in the navigation): having a party here and
+ * playing here, side by side and built the same way, kept short: a
+ * heading, a line, the kinds (each read from its form's own choices) and
+ * the button to its form, where the rest is. Home's Bookings section
+ * (HomeBookings) and the Bookings page (/bookings) both show these, so the
+ * two can't drift. A table has its own button on every page, so it isn't
+ * here. The halves keep the `#party` and `#play` anchors, so links to them
+ * land: the foot's Play here goes to /bookings#play.
+ */
+import "../../styles/chart-bookings.css";
+import { siteConfig } from "../../config/site";
+import {
+  PARTY_FORM_SLUG,
+  PLAY_FORM_SLUG,
+  formPublicPath,
+} from "../../lib/form-paths";
+import { partyOccasions, playKinds } from "../../lib/party-facts.js";
+import { fetchFormBySlug } from "../../lib/sanity/forms";
+
+interface Props {
+  /**
+   * The halves' headings: 3 under home's section heading, 2 under a page's
+   * title.
+   */
+  level?: 2 | 3;
+}
+
+const { level = 3 } = Astro.props;
+const Heading = level === 2 ? "h2" : "h3";
+
+const { bookings: words, contactPage } = siteConfig.copy;
+const [partyForm, playForm] = await Promise.all([
+  fetchFormBySlug(PARTY_FORM_SLUG).catch(() => null),
+  fetchFormBySlug(PLAY_FORM_SLUG).catch(() => null),
+]);
+
+/** The two halves, in the same shape, the party first. */
+const halves = [
+  {
+    id: "party",
+    heading: words.partyHeading,
+    line: words.partyLine,
+    kindsLabel: "Kinds of party",
+    kinds: partyOccasions(partyForm),
+    href: formPublicPath(PARTY_FORM_SLUG),
+    cta: contactPage.partyCta,
+  },
+  {
+    id: "play",
+    heading: contactPage.playHeading,
+    line: words.playLine,
+    kindsLabel: "Who plays here",
+    kinds: playKinds(playForm),
+    href: formPublicPath(PLAY_FORM_SLUG),
+    cta: contactPage.playCta,
+  },
+];
+---
+
+<div class="ch-bookings">
+  {
+    halves.map((half) => (
+      <article
+        class={`ch-booking ch-booking--${half.id}`}
+        id={half.id}
+        aria-labelledby={`booking-${half.id}`}
+      >
+        <Heading class="ch-booking-head" id={`booking-${half.id}`}>
+          {half.heading}
+        </Heading>
+        <p class="ch-booking-line">{half.line}</p>
+        {half.kinds.length > 0 && (
+          <ul class="ch-booking-kinds" aria-label={half.kindsLabel}>
+            {half.kinds.map((kind) => (
+              <li>{kind}</li>
+            ))}
+          </ul>
+        )}
+        <div class="ch-booking-go">
+          <a href={half.href} class="ch-btn ch-btn--solid">
+            {half.cta}
+          </a>
+        </div>
+      </article>
+    ))
+  }
+</div>

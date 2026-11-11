@@ -38,6 +38,11 @@ export const siteConfig = {
       description:
         "Drinks and food at Gwenda, Hackney Wick: our own cocktails, the classics, cold beer, and what’s cooking.",
     },
+    bookings: {
+      title: "Bookings · Gwenda",
+      description:
+        "Have your party at Gwenda in Hackney Wick, or come and play. Tell us what you’re after and we’ll come back to you.",
+    },
     privacy: {
       title: "Privacy · Gwenda",
       description:
@@ -46,7 +51,7 @@ export const siteConfig = {
     contact: {
       title: "Contact · Gwenda",
       description:
-        "Find us, book a party, apply to play or join the list at Gwenda in Hackney Wick.",
+        "Find Gwenda in Hackney Wick: the address, the hours, the phone and email, and the list.",
     },
     artists: {
       title: "Featured artist · Gwenda",
@@ -202,8 +207,9 @@ export const siteConfig = {
     bookTableHeading: "Book a table",
     bookTableLead: "Olive trees at Schwartz Wharf. A table, when you want one.",
     /**
-     * Home's Bookings (#240, HomeBookings.astro, IV in the navigation):
-     * having a party here and playing here, side by side, each to its form.
+     * Bookings (#240, IV in the navigation), on home and on /bookings
+     * (BookingHalves.astro): having a party here and playing here, side by
+     * side, each to its form.
      */
     bookings: {
       heading: "Bookings",
@@ -238,19 +244,15 @@ export const siteConfig = {
       placesLabel: "Try instead",
     },
     contactPage: {
-      eyebrow: "Get in touch",
-      heading: "Say hello",
-      lead: "Get on the list, or tell us you want to play.",
       listEyebrow: "Stay in the loop",
       listHeading: "Get on the list",
       listLead:
         "New nights, what’s on, the odd party. Nothing boring, and you can bail whenever.",
-      listCta: "Sign me up",
       playEyebrow: "Bands, DJs, artists",
       playHeading: "Play at Gwenda",
       playLead:
         "Got records? Got a band? Got a mate who won’t shut up about their mixes? We want this place to sound like Hackney Wick, so come and play. Tell us what you’d bring.",
-      /** The lead's first words, by the way to the play form under home's What's on. */
+      /** The button to the play form, on Bookings' play half. */
       playCta: "Apply to play",
       /** The top of the play form's own page, beside the decks. */
       playIntro: {
@@ -261,12 +263,7 @@ export const siteConfig = {
       },
       /** Written on the border of the decks photo, wherever it is pinned up. */
       playPhotoNote: "Your turn.",
-      /** Having a party here: Contact's part (the button on home's Bookings too) and the form's top. */
-      partyHeading: "Having a party?",
-      partyLead:
-        "Birthday, leaving do, work thing: tell us what you’re planning and we’ll come back to you.",
-      /** The lead cut down, for Contact's card at the top. */
-      partyShort: "Birthday, leaving do, work thing",
+      /** Having a party here: the button on Bookings' party half, and the form's top. */
       partyCta: "Book your party",
       /** The top of the party form's own page, beside the photo. */
       partyIntro: {
