@@ -12,7 +12,7 @@ import { renderGallery } from "../lib/event-card.js";
 import { eventPhotos, galleryPhotos } from "../lib/photo-sources";
 import { eventPhotoGroups } from "../lib/photos.js";
 
-const photos = galleryPhotos();
+const photos = await galleryPhotos();
 const { events } = await eventPhotos();
 /** A picture already on the venue's wall isn't shown again under an event. */
 const groups = eventPhotoGroups(events, {

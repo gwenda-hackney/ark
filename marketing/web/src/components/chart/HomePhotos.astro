@@ -8,7 +8,7 @@ import { homePhotoPlan } from "../../lib/photos.js";
 import { galleryPhotos } from "../../lib/photo-sources";
 import PhotoWall from "./PhotoWall.astro";
 
-const { row: photos, more } = homePhotoPlan(galleryPhotos());
+const { row: photos, more } = homePhotoPlan(await galleryPhotos());
 ---
 
 {

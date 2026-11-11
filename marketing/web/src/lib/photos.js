@@ -1,7 +1,13 @@
 /**
  * The photo gallery (#240): which photos show, in what order, and how many
- * on home. The list is src/data/photos.json, newest first; where the files
- * themselves come from is lib/photo-sources.ts and nowhere else.
+ * on home. The venue's photos come in the order of its Gallery in ops (#291),
+ * first first; where they come from is lib/photo-sources.ts and nowhere else.
+ *
+ * listPhotos and addPhoto read and write src/data/photos.json, the list the
+ * site was built from before the Gallery. Nothing builds from it now: it stays,
+ * with its files, until the migration that moved it into the Gallery
+ * (migrations/2026-11-11-venue-gallery.mjs) has run in production, and goes
+ * with them.
  */
 
 /**

@@ -1,10 +1,12 @@
 import { defineArrayMember, defineField, defineType } from "sanity";
 
 /**
- * Venue details (#240): written by ops (Settings → Venue details), never
- * here. The opening hours, and the party facts the party page shows. Times
- * are London "HH:MM"; a close earlier than the opening is after midnight.
- * A party fact left blank in ops isn't in the document at all.
+ * Venue details (#240): written by ops (Settings → Venue details, and
+ * Gallery), never here. The opening hours, the party facts the party page
+ * shows, and the venue's own photos (#291) for home's photo strip and the top
+ * of the Photos page. Times are London "HH:MM"; a close earlier than the
+ * opening is after midnight. A party fact left blank in ops isn't in the
+ * document at all, nor is a gallery with no photos.
  */
 export const venueDetails = defineType({
   name: "venueDetails",
@@ -79,6 +81,37 @@ export const venueDetails = defineType({
           name: "replyWithin",
           title: "We reply within",
           type: "string",
+        }),
+      ],
+    }),
+    defineField({
+      name: "gallery",
+      title: "Gallery",
+      type: "array",
+      readOnly: true,
+      description:
+        "The venue's own photos, in the order the website shows them. Edited in ops: Gallery. Event photos are on each event.",
+      of: [
+        defineArrayMember({
+          type: "image",
+          fields: [
+            defineField({
+              name: "alt",
+              title: "What it shows",
+              type: "string",
+            }),
+            defineField({
+              name: "menu",
+              title: "Menu board on home",
+              type: "string",
+              options: {
+                list: [
+                  { title: "Drinks", value: "drinks" },
+                  { title: "Food", value: "food" },
+                ],
+              },
+            }),
+          ],
         }),
       ],
     }),
