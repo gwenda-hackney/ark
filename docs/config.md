@@ -133,10 +133,25 @@ Ops **Developer tools → Settings** lists every setting in its environment and 
 | `google.drive_events_folder_id` | dev, production / ops | Drive folder for event galleries (`Events-dev/` vs `Events/`) | dev row |
 | `google.calendar_id` | dev, production / ops | Calendar that receives ops nights | dev row |
 | `lightspeed.archive_skus` | per env / ops | Lightspeed SKUs archived from the ops stock view | |
+| `website.auto_update` | per env / ops | Whether a saved event goes on the website by itself. On unless the value is `off`; no row means on. See below. | dev row |
 | `ops.admin_emails` | all / ops | Who sees Developer tools (everyone in dev) | |
 | `forms.notify_email` | dev / web | Form notifications outside production: `alerts@gwenda.co.uk`. Required outside production (none means no email). Production has no row: each form's own address. | **`FORMS_NOTIFY_EMAIL`** in `.env` (your email) |
 
 Do **not** put credentials here.
+
+### `website.auto_update`: saved events go on the website by themselves
+
+On by default: after a save, ops' website job brings the event's calendar entries, its preview and then the website itself up to date, with nobody pressing Update website ([sanity.md](sanity.md)). With the value `off`, events stop at the preview and wait for **Update website**, as they did before. Deleted events always wait (Website page, with Restore). If the settings can't be read, ops treats that pass as `off` and asks again on the next one, so an outage never publishes what the switch was holding back.
+
+No ops page edits it. Set the environment's row with `config:set` (needs `bw-unlock`; ops reads the change within a minute):
+
+```bash
+npm run config:set -- --env production --key website.auto_update              # what it is now
+npm run config:set -- --env production --key website.auto_update --value off  # before a deploy that should not publish by itself
+npm run config:set -- --env production --key website.auto_update --value ""   # back on
+```
+
+**Before a deploy:** the post-deploy migrations and the website job start as soon as the new code is live. To look at the preview first, turn it `off` before merging, check the preview, press Update website on the Website page, then turn it back on. `config:set` takes any key in `SETTINGS` (`shared/config.js`) and writes the row the app itself would (that environment, the setting's Service); it refuses while an environment's settings are still on Baserow.
 
 ```bash
 npm run setup:baserow-config -- --env dev               # create/repair DB, table, fields, seed rows. Additive only.

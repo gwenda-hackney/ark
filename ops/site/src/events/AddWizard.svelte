@@ -7,7 +7,8 @@
 	 */
 	import { tick } from "svelte";
 	import { Icon } from "../app/shell";
-	import { Button, ComboBox, DateField, Dialog, Field, NativeSelect, TextArea, TextField, TimeField } from "../ui";
+	import { Button, ComboBox, DateField, Dialog, Field, NativeSelect, Segmented, TextArea, TextField, TimeField } from "../ui";
+	import { CATEGORY_CHOICES } from "./event-category";
 	import MethodEditor from "../menu/MethodEditor.svelte";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
 	import NightScheduleFields from "./tabs/NightScheduleFields.svelte";
@@ -229,6 +230,15 @@
 			<Field label="Name" for="event-name" required reserve error={shown["event-name"]}>
 				<TextField id="event-name" bind:value={form.name} placeholder={kind === "series" ? "Happy Hour" : "Halloween party"} />
 			</Field>
+			{#if kind !== "night"}
+				<Field
+					label="What is it?"
+					for="event-category"
+					hint="A promotion is a standing deal, like Happy Hour. A pop-up kitchen is a guest chef."
+				>
+					<Segmented bind:value={form.category} items={CATEGORY_CHOICES} tone="soft" size="sm" ariaLabel="What is it?" />
+				</Field>
+			{/if}
 			<Field label="Guest or artist" for="event-artist" optional>
 				<ComboBox
 					id="event-artist"

@@ -85,14 +85,52 @@ export function keptSnapshot(snapshot, keep = () => true) {
 }
 
 /**
- * Export, import, check. Throws when the target doesn't match afterwards.
- * @param {{ source: { exportAll(): Promise<Snapshot> }, target: { importAll(s: Snapshot): Promise<unknown>, exportAll(): Promise<Snapshot> },
- *   keep?: (collection: string, record: object, records: object[]) => boolean, log?: (line: string) => void }} move
- * @returns {Promise<{ counts: Record<string, number>, skipped: Record<string, number> }>}
+ * The snapshot without what `detach` says a record must leave behind:
+ * `detach(collection, record)` returns the fields to replace, or nothing.
+ * Also counts, per collection and field, the records it changed, e.g.
+ * { events: { driveFolderId: 12 } }. Values aren't reported.
  */
-export async function moveFeature({ source, target, keep, log = () => {} }) {
+export function detachedSnapshot(snapshot, detach) {
+  const detached = {};
+  const out = Object.fromEntries(
+    Object.entries(snapshot).map(([collection, records]) => [
+      collection,
+      records.map((record) => {
+        const fields = (detach && detach(collection, record)) || {};
+        const changed = Object.keys(fields).filter(
+          (key) => JSON.stringify(canonical(fields[key])) !== JSON.stringify(canonical(record[key])),
+        );
+        if (!changed.length) return record;
+        detached[collection] ||= {};
+        for (const key of changed) detached[collection][key] = (detached[collection][key] || 0) + 1;
+        return { ...record, ...fields };
+      }),
+    ]),
+  );
+  return { snapshot: out, detached };
+}
+
+/** e.g. "driveFolderId of 12 events, clickupTaskId of 140 nights"; "" for nothing. */
+export function describeDetached(detached = {}) {
+  return Object.entries(detached)
+    .flatMap(([collection, fields]) => Object.entries(fields).map(([field, n]) => `${field} of ${n} ${collection}`))
+    .join(", ");
+}
+
+const LEFT_BEHIND = "left behind, as it points at production";
+
+/**
+ * Export, import, check. Throws when the target doesn't match afterwards.
+ * `detach` (see detachedSnapshot) is applied before the import, so what it
+ * leaves behind never reaches the target; the check is against what went in.
+ * @param {{ source: { exportAll(): Promise<Snapshot> }, target: { importAll(s: Snapshot): Promise<unknown>, exportAll(): Promise<Snapshot> },
+ *   keep?: (collection: string, record: object, records: object[]) => boolean,
+ *   detach?: (collection: string, record: object) => object | null | undefined, log?: (line: string) => void }} move
+ * @returns {Promise<{ counts: Record<string, number>, skipped: Record<string, number>, detached: Record<string, Record<string, number>> }>}
+ */
+export async function moveFeature({ source, target, keep, detach, log = () => {} }) {
   const exported = await source.exportAll();
-  const snapshot = keptSnapshot(exported, keep);
+  const { snapshot, detached } = detachedSnapshot(keptSnapshot(exported, keep), detach);
   const counts = countSnapshot(snapshot);
   const all = countSnapshot(exported);
   const skipped = Object.fromEntries(
@@ -103,6 +141,9 @@ export async function moveFeature({ source, target, keep, log = () => {} }) {
   log(
     `exported: ${describeCounts(counts)}${Object.keys(skipped).length ? ` (left out: ${describeCounts(skipped)})` : ""}`,
   );
+
+  const left = describeDetached(detached);
+  if (left) log(`${LEFT_BEHIND}: ${left}`);
 
   await target.importAll(snapshot);
   log("imported");
@@ -117,11 +158,17 @@ export async function moveFeature({ source, target, keep, log = () => {} }) {
       `The copy doesn't match the source: ${differences.length} difference(s)${differences.length > 20 ? ", first 20 above" : " above"}.`,
     );
   }
-  log("checked: the target matches the source record for record");
-  return { counts, skipped };
+  log(`checked: the target matches the source record for record${left ? ", but for what was left behind" : ""}`);
+  return { counts, skipped, detached };
 }
 
 export function describeCounts(counts) {
   const parts = Object.entries(counts).map(([name, n]) => `${n} ${name}`);
   return parts.length ? parts.join(", ") : "nothing";
+}
+
+/** What a move did, for its last line. */
+export function describeMove({ counts, detached }) {
+  const left = describeDetached(detached);
+  return `${describeCounts(counts)}${left ? `; ${LEFT_BEHIND}: ${left}` : ""}`;
 }

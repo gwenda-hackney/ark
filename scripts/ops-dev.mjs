@@ -12,7 +12,8 @@
  *   npm run ops:prod    debug against PRODUCTION (see below)
  *
  * Plain `dev` works exactly like hosted ops (Save, Update website) against
- * copies: the dev Ops DB and the Gwenda Dev Sanity project (drafts and
+ * copies: the dev D1 databases (over the Cloudflare API) and the Gwenda Dev
+ * Sanity project (drafts and
  * published, like the real one). Nothing it does can reach gwenda.co.uk. Refresh
  * the copy with `npm run dev:refresh:sanity`.
  *
@@ -104,8 +105,9 @@ async function loadProductionSecrets() {
 
 /**
  * Bindings for `wrangler pages dev`: DEV_VAR_KEYS plus SITE_ENV, written to a
- * RAM env file that `.dev.vars` points at. Wrangler's own process env keeps
- * CLOUDFLARE_API_TOKEN for the remote AI binding; it is not bound for the Functions.
+ * RAM env file that `.dev.vars` points at. The Cloudflare token and account
+ * are bound too: local Functions reach D1 over the API (D1_OVER_API), since
+ * the bindings wrangler gives them here are empty local databases.
  * @returns {string} env file path
  */
 function writeBindings() {
@@ -115,6 +117,15 @@ function writeBindings() {
     if (value) bindings.set(key, value);
   }
   bindings.set("SITE_ENV", LIVE ? "production" : "local");
+  // The D1 bindings are empty local databases here: reach the environment's
+  // real ones over the API instead (shared/d1-env.js), with its own token.
+  bindings.set("D1_OVER_API", "1");
+  for (const key of ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"]) {
+    const value = process.env[key]?.trim();
+    if (!value)
+      throw new Error(`${key} is missing: local ops reaches its databases over the Cloudflare API. Run bw-unlock.`);
+    bindings.set(key, value);
+  }
   if (LIVE) bindings.set("OPS_LOCAL_LIVE", "1");
 
   const googleId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();

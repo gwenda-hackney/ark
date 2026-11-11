@@ -454,7 +454,7 @@
 										{#if editor.websiteJob?.state === "failed" && !editor.formDirty}
 											<div class="job-failed" role="alert">
 												<p>
-													Saved, but it couldn't be got ready for the website: {editor.websiteJob.error ||
+													Saved, but the website did not update: {editor.websiteJob.error ||
 														"something went wrong."}
 												</p>
 												<Button

@@ -17,7 +17,7 @@ describe("savingPill", () => {
 
 	it("puts problems and work in progress first", () => {
 		expect(savingPill({ ...idle, stuck: 2, dirty: true }).label).toBe("2 need a look");
-		expect(savingPill({ ...idle, busy: 3 }).label).toBe("Getting 3 ready…");
+		expect(savingPill({ ...idle, busy: 3 }).label).toBe("Website updating (3)…");
 		expect(savingPill({ ...idle, running: true }).tone).toBe("busy");
 	});
 

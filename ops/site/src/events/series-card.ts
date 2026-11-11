@@ -6,6 +6,7 @@ import type { OpsEvent } from "../app/api";
 import type { BadgeTone } from "../ui/badge";
 import { eventItemPath } from "../app/nav";
 import { seriesWeekdayLabel } from "./event-schedule";
+import { categoryBadge } from "./event-category";
 import {
 	repeatLabel,
 	seriesBlurb,
@@ -37,6 +38,8 @@ export type SeriesCardRow = {
 	/** The longer words, for the badge's tooltip. */
 	statusTitle: string;
 	tone: BadgeTone;
+	/** "Promotion" or "Pop-up kitchen"; "" for a night. */
+	kind: string;
 };
 
 export function seriesCardRow(event: OpsEvent): SeriesCardRow {
@@ -56,5 +59,6 @@ export function seriesCardRow(event: OpsEvent): SeriesCardRow {
 		status: statusLabel(event),
 		statusTitle: statusTitle(event),
 		tone: statusTone(event),
+		kind: categoryBadge(event),
 	};
 }

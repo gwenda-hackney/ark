@@ -13,6 +13,9 @@
  * - logs a Time Travel bookmark first, to restore with
  *   `wrangler d1 time-travel restore <db> --bookmark <bookmark>`;
  * - checks foreign keys, and records the move in _meta (moved:<feature>).
+ * A copy out of production (into dev) leaves behind what points at
+ * production's own things, such as each series' Drive folder, and says so:
+ * dev shares production's Google account and would act on the real ones.
  * Secrets come from Secrets Manager by name (bw-unlock), per environment.
  */
 import { first, run } from "../shared/d1.js";
@@ -21,8 +24,9 @@ import { D1_DATABASES } from "../shared/d1-databases.js";
 import { createTestD1 } from "../shared/testing/d1-sqlite.js";
 import { FREEZE_KEY_PREFIX } from "../shared/write-freeze.js";
 import { cloudflareFor, loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
-import { featureFor } from "./lib/data-move/features.mjs";
-import { describeCounts, moveFeature } from "./lib/data-move/index.mjs";
+import { featureFor, leavesProduction } from "./lib/data-move/features.mjs";
+import { describeMove, moveFeature } from "./lib/data-move/index.mjs";
+import { describeMissing, missingSchema, rehearsalCopy } from "./lib/d1-rehearsal.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ENVS = ["dev", "production"];
@@ -69,6 +73,30 @@ function runtimeEnv(app, env) {
   return { ...Object.fromEntries(values), SITE_ENV: env };
 }
 
+/**
+ * A D1 source as this code can read it. Production's schema is behind a
+ * branch that adds a column until the branch deploys, and the adapters name
+ * every column, so the source is read into a copy with the newest schema
+ * (d1-rehearsal.mjs: columns it lacks take their defaults). Only reads.
+ */
+async function readableD1(db, feature, log) {
+  if (!feature.tables) return db;
+  const missing = await missingSchema(db, feature.role, feature.tables);
+  if (!missing.length) return db;
+  log(`the source is missing ${describeMissing(missing)}: read through a copy with the newest schema, where they take their defaults`);
+  return (await rehearsalCopy(db, feature.role, feature.tables)).db;
+}
+
+/**
+ * The move between two sides, as main runs it. A copy out of production
+ * leaves behind what the feature says points at production's own things
+ * (features.mjs `detach`): the target's code would act on the real ones.
+ */
+export function moveBetween({ feature, from, to, source, target, log }) {
+  const detach = leavesProduction(from, to) ? feature.detach : undefined;
+  return moveFeature({ source, target, keep: feature.keep, detach, log });
+}
+
 async function bookmark({ accountId, databaseId, token }) {
   const res = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/time_travel/bookmark`,
@@ -92,7 +120,7 @@ async function main() {
     throw new Error(`${opts.feature} has no ${opts.from.kind} adapter.`);
   const source =
     opts.from.kind === "d1"
-      ? make({ db: d1For(opts.from.env, feature.role).db })
+      ? make({ db: await readableD1(d1For(opts.from.env, feature.role).db, feature, log) })
       : make({ env: runtimeEnv(feature.app, opts.from.env) });
 
   let target;
@@ -116,12 +144,8 @@ async function main() {
     target = feature.adapters.d1({ db: remote.db });
   }
 
-  const { counts } = await moveFeature({
-    source,
-    target,
-    keep: feature.keep,
-    log,
-  });
+  const moved = await moveBetween({ feature, from: opts.from, to: opts.to, source, target, log });
+  const { counts } = moved;
 
   if (remote) {
     const broken =
@@ -139,12 +163,13 @@ async function main() {
           from: `${opts.from.kind}:${opts.from.env}`,
           at: new Date().toISOString(),
           counts,
+          ...(Object.keys(moved.detached).length ? { detached: moved.detached } : {}),
         }),
       ],
     );
   }
   log(
-    `done: ${describeCounts(counts)}${opts.write ? "" : ". Nothing written; add --write to import."}`,
+    `done: ${describeMove(moved)}${opts.write ? "" : ". Nothing written; add --write to import."}`,
   );
 }
 

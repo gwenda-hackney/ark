@@ -524,6 +524,22 @@ test("a series with no start date and no nights ahead waits for dates", () => {
   assert.equal("datesPending" in dated, false);
 });
 
+test("a promotion or pop-up kitchen says so on its series and night documents and in its change hash; a night says nothing", () => {
+  const base = { slug: "happy-hour", title: "Happy Hour", description: "Deals.", schedule: "repeating", nightSchedule: [] };
+  assert.equal("category" in sanitySeriesDocument(base), false);
+  assert.equal("category" in sanitySeriesDocument({ ...base, category: "event" }), false);
+  assert.equal(sanitySeriesDocument({ ...base, category: "promotion" }).category, "promotion");
+  assert.equal(sanitySeriesDocument({ ...base, category: "popup" }).category, "popup");
+  const night = { slug: "happy-hour-2026-11-11", title: "Happy Hour", date: "2026-11-11", seriesId: "happy-hour" };
+  assert.equal("category" in sanityEventDocument(night), false);
+  assert.equal(sanityEventDocument({ ...night, category: "promotion" }).category, "promotion");
+  const event = { name: "Happy Hour", slug: "happy-hour", repeatUnit: "week", dates: [{ date: "2026-11-11", overrides: {} }] };
+  const plain = JSON.stringify(occurrencePayload(event, "2026-11-11"));
+  assert.equal(JSON.stringify(occurrencePayload({ ...event, category: "event" }, "2026-11-11")), plain);
+  assert.ok(!plain.includes("seriesCategory"));
+  assert.equal(occurrencePayload({ ...event, category: "promotion" }, "2026-11-11").seriesCategory, "promotion");
+});
+
 test("a series taking applications says so on its Sanity document and in its change hash (#41)", () => {
   const base = { slug: "jazz", title: "The Jazz Room", description: "Jazz.", schedule: "repeating", nightSchedule: [] };
   assert.equal(sanitySeriesDocument(base).takingApplications, undefined);

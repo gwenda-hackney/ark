@@ -7,6 +7,7 @@
 	 * press, and Cancel backs out.
 	 */
 	import { Button, Dialog } from "../../ui";
+	import { DELETE_NIGHTS_WEBSITE_NOTE } from "../event-labels";
 
 	type Scope = "this" | "following" | "all";
 
@@ -24,7 +25,7 @@
 		open: boolean;
 		title: string;
 		message: string;
-		/** Say when it comes off the website (deleting a night that's live). */
+		/** Say when it comes off the website (deleting nights of a series that's live). */
 		alsoWebsite?: boolean;
 		disabled?: boolean;
 		/** Deleting: the choices say so. */
@@ -40,7 +41,7 @@
 <Dialog {open} {title} {onclose}>
 	<p class="delete-copy">{message}</p>
 	{#if alsoWebsite}
-		<p class="also-website">It comes off the website when you press Update website.</p>
+		<p class="also-website">{DELETE_NIGHTS_WEBSITE_NOTE}</p>
 	{/if}
 	<div class="scope-options" class:destructive>
 		<Button type="button" variant="outline" {disabled} onclick={() => onchoose("this")}>

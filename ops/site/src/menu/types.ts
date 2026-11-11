@@ -349,9 +349,21 @@ export type MenuSection = {
   orderRank?: number;
   parentId?: string | null;
   parentTitle?: string;
+  /** Drinks ("bar") or food ("kitchen"). A group answers with its chapter's. */
+  kind?: SectionKind;
+  /** The pop-up kitchen (an event series' id) whose chapter this is. A group answers with its chapter's. */
+  popupSeriesId?: string | null;
   items?: MenuItem[];
   subsections?: MenuSection[];
 };
+export type SectionKind = "bar" | "kitchen";
+/** Drinks or food, as the owner picks it for a chapter. */
+export const SECTION_KIND_ITEMS = [
+  { id: "bar", label: "Drinks" },
+  { id: "kitchen", label: "Food" },
+] as const;
+/** A pop-up kitchen a food chapter can belong to: an event series marked as one (Events). */
+export type MenuPopup = { id: string; name: string };
 export function normalizeDrinkType(value: unknown): DrinkType {
   const raw = String(value || "")
     .trim()

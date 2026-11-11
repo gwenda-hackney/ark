@@ -43,7 +43,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Taking applications",
-		body: "On a series: when it's on, the website's Play at Gwenda form lists this series, so artists can say which nights they'd like to play. Turn it off when a series is full or has ended. The form changes when you press Update website. Each application in Forms shows the series picked.",
+		body: "On a series: when it's on, the website's Play at Gwenda form lists this series, so artists can say which nights they'd like to play. Turn it off when a series is full or has ended. The form changes a minute or two after you save. Each application in Forms shows the series picked.",
 	},
 	{
 		title: "Card line and Description",
@@ -59,7 +59,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Page address",
-		body: "On a series, Page address is the end of its page link (letters, numbers and dashes): gwenda.co.uk/whats-on/… It starts from the name and stays the same when you rename the series. Change it here if you want a different link. The website changes when you press Update website, and old links still lead to the page. RSVPs and tickets people already have keep working.",
+		body: "On a series, Page address is the end of its page link (letters, numbers and dashes): gwenda.co.uk/whats-on/… It starts from the name and stays the same when you rename the series. Change it here if you want a different link. The website changes a minute or two after you save, and old links still lead to the page. RSVPs and tickets people already have keep working.",
 	},
 	{
 		title: "Default hero",
@@ -67,7 +67,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Gallery",
-		body: "Photos for the event's page, newest first. They go on the website with Update website, and a copy goes in the event's Drive folder (website images) for collaborators. They are not the What's on flyer: the flyer is the photo on Details.",
+		body: "Photos for the event's page, newest first. They go on the website by themselves a minute or two after you add them, and a copy goes in the event's Drive folder (website images) for collaborators. They are not the What's on flyer: the flyer is the photo on Details.",
 	},
 	{
 		title: "Ops tab",
@@ -79,6 +79,6 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "The website",
-		body: "Saving keeps your changes in ops straight away. The header says \"Getting it ready…\" for a minute while the calendar and website copy catch up. When the event is ready, press Update website to put it on gwenda.co.uk. It shows there straight away, on What's on and on the event's own page, and the header then says On the website: click it to open the page. Deleting an event or a night works the same way: it leaves the website when you press Update website. A deleted event is listed on the Website page until then, with Restore.",
+		body: "Saving keeps your changes in ops straight away, and the website follows by itself: the header says Updating for a minute or two while the calendar and gwenda.co.uk catch up, then Live. You can keep working or close ops meanwhile. It shows on What's on and on the event's own page; click Live to open the page. If the header says Failed, the event is saved but the website did not take it: it says why, and Try again or Update website sends it again. Deleting a night works the same way. Deleting a whole event is the exception: it stays on the website, listed on the Website page with Restore, until you press Update website there.",
 	},
 ];

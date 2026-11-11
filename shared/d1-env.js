@@ -6,6 +6,12 @@
  * website build in CI, astro dev) it is the REST API with this environment's
  * Cloudflare token, CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, which the
  * env wrappers already set per environment.
+ *
+ * On a developer's machine (`npm run ops:dev`) the bindings exist too, but
+ * `wrangler pages dev` makes each an empty local database. ops-dev.mjs sets
+ * D1_OVER_API there, and the binding is skipped for the REST API: local ops
+ * works on dev's databases (or, with --live, production's), as its Sanity
+ * project and secrets already do.
  */
 import { environmentOf } from "./config-model.js";
 import { d1Http } from "./d1-http.js";
@@ -19,7 +25,7 @@ import { D1_BINDINGS, D1_DATABASES } from "./d1-databases.js";
 export function databaseFor(env, role, { fetchImpl } = {}) {
   const binding = D1_BINDINGS[role];
   if (!binding) throw new Error(`Unknown D1 database role "${role}".`);
-  if (env?.[binding]) return env[binding];
+  if (env?.[binding] && !env.D1_OVER_API) return env[binding];
 
   const environment = environmentOf(env);
   const database = D1_DATABASES[environment]?.[role];

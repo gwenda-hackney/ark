@@ -170,3 +170,28 @@ test("publishing makes draft references strong again; weak markers are not a cha
   const live = { ...draft, series: strong };
   assert.deepEqual(computeReleaseDiff([draft], [live]), []);
 });
+
+test("a limit publishes that many documents, what they refer to first, and says how many are left", async () => {
+  const preview = [
+    series({ title: "Edited" }),
+    night("2026-10-03", { title: "Edited" }),
+    night("2026-10-10", { title: "Edited" }),
+    night("2026-10-17", { removed: true }),
+  ];
+  const production = [series(), night("2026-10-03"), night("2026-10-10"), night("2026-10-17")];
+  const query = async (_env, view) => (view === "production" ? production : preview);
+  const batches = [];
+  const deps = { query, mutate: async (_env, batch) => batches.push(batch) };
+  const ids = ["event-nights-2026-10-03", "event-nights-2026-10-10", "event-nights-2026-10-17", "series-nights"];
+
+  const first = await publishRelease({ SITE_ENV: "production" }, { ids, limit: 2 }, deps);
+  assert.deepEqual(first.written, ["series-nights", "event-nights-2026-10-03"], "the series its nights refer to goes first");
+  assert.deepEqual(first.deleted, []);
+  assert.equal(first.remaining, 2);
+  assert.equal(first.inSync, null);
+
+  const whole = await publishRelease({ SITE_ENV: "production" }, { ids }, deps);
+  assert.equal(whole.written.length, 3);
+  assert.deepEqual(whole.deleted, ["event-nights-2026-10-17"]);
+  assert.equal(whole.remaining, 0);
+});

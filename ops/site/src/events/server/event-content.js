@@ -347,6 +347,8 @@ export function occurrencePayload(event, occurrence) {
     seriesNightSchedule: stableNightSchedule(event?.nightSchedule),
     // Only when on, so series that never take applications keep their hash.
     ...(event?.takingApplications === true ? { seriesTakingApplications: true } : {}),
+    // Only for a promotion or a pop-up, so nights keep their hash.
+    ...(publishedCategory(event?.category) ? { seriesCategory: publishedCategory(event.category) } : {}),
     // A gallery kept in ops (#183): a change puts the series' pages behind.
     // Only when it has photos, so other series keep their hash.
     ...(Array.isArray(event?.gallery) && event.gallery.length
@@ -412,6 +414,16 @@ Open your ticket link below to view your pass, add it to Apple Wallet, or save t
 
 Need to change your reply? {modify_url}`;
 
+/**
+ * A series' category as the website gets it: "promotion" or "popup", and
+ * nothing for a night, so documents from before categories stay as they are.
+ * The website reads a missing `category` as "event".
+ */
+export function publishedCategory(category) {
+  const raw = String(category || "").trim().toLowerCase();
+  return raw === "promotion" || raw === "popup" ? raw : "";
+}
+
 export function sanitySeriesDocument({
   slug,
   title,
@@ -426,6 +438,7 @@ export function sanitySeriesDocument({
   gallery = [],
   formerSlugs = [],
   takingApplications = false,
+  category = "event",
 }) {
   const key = String(slug || "").trim();
   const doc = {
@@ -444,6 +457,8 @@ export function sanitySeriesDocument({
   if (datesPending) doc.datesPending = true;
   // Listed on the website's Play at Gwenda form (#41).
   if (takingApplications) doc.takingApplications = true;
+  // A promotion or a pop-up kitchen; left off for a night.
+  if (publishedCategory(category)) doc.category = publishedCategory(category);
   // Old web addresses the website redirects here. Left off when none.
   const former = formerSlugs.map((old) => String(old || "").trim()).filter((old) => old && old !== key);
   if (former.length) doc.formerSlugs = former;
@@ -472,6 +487,7 @@ export function sanityEventDocument({
   endTime,
   nightSchedule,
   isSpecialEdition,
+  category = "event",
 }) {
   const seriesKey = String(seriesId || "").trim();
   const doc = {
@@ -505,6 +521,8 @@ export function sanityEventDocument({
   if (seriesKey) {
     doc.series = { _type: "reference", _ref: sanitySeriesId(seriesKey) };
   }
+  // Its series' category, so the website can keep promotions and pop-ups out of What's on.
+  if (publishedCategory(category)) doc.category = publishedCategory(category);
   const artistText = String(artist || "").trim();
   if (artistText) doc.artist = artistText;
   if (heroImage) doc.heroImage = heroImage;

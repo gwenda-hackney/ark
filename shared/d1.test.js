@@ -316,6 +316,37 @@ describe("databaseFor", () => {
     );
   });
 
+  it("skips the binding on a developer's machine, where it is an empty local database", async () => {
+    const emptyLocal = createTestD1(null);
+    const calls = [];
+    const db = databaseFor(
+      {
+        OPS_DB: emptyLocal,
+        SITE_ENV: "local",
+        D1_OVER_API: "1",
+        CLOUDFLARE_API_TOKEN: "token",
+        CLOUDFLARE_ACCOUNT_ID: "account",
+      },
+      "ops",
+      {
+        fetchImpl: async (url) => {
+          calls.push(String(url));
+          return new Response(
+            JSON.stringify({
+              success: true,
+              result: [{ success: true, results: [{ ok: 1 }], meta: {} }],
+            }),
+            { status: 200 },
+          );
+        },
+      },
+    );
+    assert.notEqual(db, emptyLocal);
+    await db.prepare("SELECT 1 AS ok").all();
+    // Local means dev's database, reached over the API
+    assert.ok(calls[0].includes(D1_DATABASES.dev.ops.id), calls[0]);
+  });
+
   it("explains what's missing without a binding", () => {
     assert.throws(
       () => databaseFor({ SITE_ENV: "dev" }, "website"),
