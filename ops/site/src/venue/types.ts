@@ -23,8 +23,30 @@ export type OpeningHours = {
  */
 export type WebsiteState = "live" | "preview" | "behind" | "none" | "unknown";
 
+/** The party facts (parties-model.js): a blank capacity is null, blank text "". */
+export type PartyFacts = {
+	standing: number | null;
+	seated: number | null;
+	/** One thing a line. */
+	included: string;
+	/** "a day": the website says "We reply within a day". */
+	replyWithin: string;
+};
+
+export type PartyField = keyof PartyFacts;
+
+export type Parties = PartyFacts & {
+	updatedAt: string;
+	updatedBy: string;
+};
+
+/** The party facts as typed on the page, figures as strings. */
+export type PartyForm = Record<PartyField, string>;
+
 export type VenueDetailsResponse = {
 	openingHours: OpeningHours | null;
+	/** Null until first saved. */
+	parties: Parties | null;
 	website: WebsiteState;
 };
 
@@ -32,3 +54,5 @@ export type SaveHoursResponse = VenueDetailsResponse & {
 	published: boolean;
 	warnings: string[];
 };
+
+export type SavePartiesResponse = SaveHoursResponse;

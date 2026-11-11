@@ -1,9 +1,10 @@
 /**
  * The venue's details on the website (#240): one Sanity document,
- * `venueDetails`, that the website reads (its opening hours:
- * marketing/web/src/lib/opening-hours.js OPENING_HOURS_QUERY and readWeek),
- * and putting it there. The party facts join this document next, beside
- * `openingHours`.
+ * `venueDetails`, that the website reads with one query
+ * (marketing/web/src/lib/venue-details.js VENUE_DETAILS_QUERY and
+ * readVenueDetails: its opening hours, and the party facts beside them),
+ * and putting it there. A save of either puts the whole document there, so
+ * the two never disagree about what ops holds.
  *
  * Saving writes the draft, which the preview site shows at once; then, as
  * for a saved event, the website itself unless `website.auto_update` is
@@ -15,22 +16,48 @@
  * it (marketing/studio/schemaTypes/venueDetails.ts).
  */
 import { draftId, sanityMutate, sanityQuery } from "../../platform/sanity.js";
+import { partyFacts } from "../parties-model.js";
 import { websiteFollowsSaves } from "../../website/server/auto-update.js";
 import { publishRelease, stableStringify } from "../../website/server/release.js";
 
 export const VENUE_DOC_ID = "venueDetails";
 export const VENUE_DOC_TYPE = "venueDetails";
 
-/** @typedef {{ openingHours: import("../hours-model.js").OpeningDay[] | null }} VenueDetails */
+/**
+ * @typedef {{
+ *   openingHours: import("../hours-model.js").OpeningDay[] | null,
+ *   parties?: import("../parties-model.js").PartyFacts | null,
+ * }} VenueDetails
+ */
+
+/**
+ * The party facts as the website reads them: only the ones filled in
+ * (`standing`, `seated`: whole numbers; `included`: one thing a line;
+ * `replyWithin`: "a day"); null when none is, so the website says nothing.
+ * @param {import("../parties-model.js").PartyFacts | null | undefined} parties
+ */
+export function partiesOnWebsite(parties) {
+  if (!parties) return null;
+  const facts = partyFacts(parties);
+  const out = {
+    ...(facts.standing != null ? { standing: facts.standing } : {}),
+    ...(facts.seated != null ? { seated: facts.seated } : {}),
+    ...(facts.included ? { included: facts.included } : {}),
+    ...(facts.replyWithin ? { replyWithin: facts.replyWithin } : {}),
+  };
+  return Object.keys(out).length ? out : null;
+}
 
 /**
  * The details as the website reads them. Opening hours: seven
  * `{ day, closed, opens, closes }`, Monday first; a closed day has no
  * times; `_key` is the day, so the same hours always make the same array.
- * Hours never saved are left out, so the website says none.
+ * Hours never saved are left out, so the website says none. Party facts:
+ * partiesOnWebsite, left out when there are none.
  * @param {VenueDetails} details
  */
-export function venueDocument({ openingHours }) {
+export function venueDocument({ openingHours, parties = null }) {
+  const partyFields = partiesOnWebsite(parties);
   return {
     _id: VENUE_DOC_ID,
     _type: VENUE_DOC_TYPE,
@@ -43,6 +70,7 @@ export function venueDocument({ openingHours }) {
           ),
         }
       : {}),
+    ...(partyFields ? { parties: partyFields } : {}),
   };
 }
 

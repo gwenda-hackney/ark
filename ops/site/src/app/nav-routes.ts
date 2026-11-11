@@ -69,7 +69,7 @@ export const NAV_ROUTES: NavRoute[] = [
 		icon: "",
 		heading: true,
 		children: [
-			{ id: "venue", path: "/venue", name: "Venue details", icon: "clock", hint: "Opening hours, on the website" },
+			{ id: "venue", path: "/venue", name: "Venue details", icon: "clock", hint: "Opening hours and parties, on the website" },
 			{ id: "users", path: "/users", name: "Users", icon: "users", hint: "Who may sign in" },
 			{ id: "config", path: "/config", name: "Configuration", icon: "settings", hint: "Menu sections, pour targets, event tasks" },
 			{

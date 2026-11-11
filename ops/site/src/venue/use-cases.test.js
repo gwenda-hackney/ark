@@ -1,25 +1,26 @@
 /**
- * Use cases (#240): staff change the opening hours in ops (Venue details),
- * and the website says the new hours. Real API handlers on a test D1, with
- * Sanity and the settings faked (testing/fake-world.js); "what the website
- * says" is the website's own query and module
- * (marketing/web/src/lib/opening-hours.js) run against the documents a
- * build would read.
+ * Use cases (#240): staff change the opening hours or the party facts in
+ * ops (Venue details), and the website says the new ones. Real API handlers
+ * on a test D1, with Sanity and the settings faked (testing/fake-world.js);
+ * "what the website says" is the website's own query and modules
+ * (marketing/web/src/lib/venue-details.js, opening-hours.js,
+ * party-facts.js) run against the documents a build would read.
  */
 import assert from "node:assert/strict";
 import { evaluate, parse } from "groq-js";
 import { afterEach, beforeEach, describe, it } from "vitest";
 import {
-  OPENING_HOURS_QUERY,
   openingHoursSpecification,
-  readWeek,
   todayLine,
   weekRows,
 } from "../../../../marketing/web/src/lib/opening-hours.js";
+import { partyFactLines } from "../../../../marketing/web/src/lib/party-facts.js";
+import { VENUE_DETAILS_QUERY, readVenueDetails } from "../../../../marketing/web/src/lib/venue-details.js";
 import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { onRequestGet as getVenue } from "../../functions/api/venue/index.js";
 import { onRequestPut as putHours } from "../../functions/api/venue/hours.js";
+import { onRequestPut as putParties } from "../../functions/api/venue/parties.js";
 import { onRequestPost as updateWebsite } from "../../functions/api/web/release.js";
 
 const GWENDA = [
@@ -41,13 +42,22 @@ beforeEach(async () => {
 afterEach(() => world.restore());
 
 const save = (days) => callApi(world, putHours, { method: "PUT", path: "/api/venue/hours", body: { days } });
+const saveParties = (parties) =>
+  callApi(world, putParties, { method: "PUT", path: "/api/venue/parties", body: { parties } });
 const read = () => callApi(world, getVenue, { path: "/api/venue" });
 
-/** The week a site build reads: the live site published documents, the preview drafts over them. */
-async function websiteWeek(site = "live") {
+/** The venue's details a site build reads: the live site published documents, the preview drafts over them. */
+async function websiteDetails(site = "live") {
   const docs = world.sanity.view(site === "live" ? "published" : "previewDrafts");
-  return readWeek(await (await evaluate(parse(OPENING_HOURS_QUERY), { dataset: docs })).get());
+  return readVenueDetails(await (await evaluate(parse(VENUE_DETAILS_QUERY), { dataset: docs })).get());
 }
+
+/** The week a site build reads. */
+const websiteWeek = async (site = "live") => (await websiteDetails(site)).openingHours;
+
+/** The lines the party page shows. */
+const partyPage = async (site = "live") =>
+  partyFactLines((await websiteDetails(site)).parties).map((line) => line.text);
 
 describe("opening hours: ops to the website", () => {
   it("has no hours until they are saved, and the website says nothing", async () => {
@@ -138,5 +148,106 @@ describe("opening hours: ops to the website", () => {
     assert.equal(res.data.website, "unknown");
     assert.match(res.data.warnings[0], /^Saved in ops, but the website didn't get it/);
     assert.equal((await read()).data.openingHours.days.length, 7);
+  });
+});
+
+describe("party facts: ops to the party page", () => {
+  const FACTS = {
+    standing: "80",
+    seated: "40",
+    included: "No hire fee\nA booth held for you",
+    replyWithin: "a day",
+  };
+
+  it("has none until they are saved, and the party page says nothing", async () => {
+    const res = await read();
+    assert.equal(res.status, 200);
+    assert.equal(res.data.parties, null);
+    assert.deepEqual(await partyPage(), []);
+  });
+
+  it("saving some puts just those on the party page", async () => {
+    const res = await saveParties({ seated: "40", standing: "", included: "", replyWithin: "a day" });
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    assert.equal(res.data.published, true);
+    assert.equal(res.data.website, "live");
+    assert.deepEqual(res.data.warnings, []);
+    assert.deepEqual(res.data.parties, {
+      standing: null,
+      seated: 40,
+      included: "",
+      replyWithin: "a day",
+      updatedAt: res.data.parties.updatedAt,
+      updatedBy: res.data.parties.updatedBy,
+    });
+    assert.deepEqual(await partyPage(), ["Up to 40 seated", "We reply within a day"]);
+    assert.deepEqual(world.sanity.drafts("venueDetails"), []);
+    assert.equal((await read()).data.website, "live");
+  });
+
+  it("published as ops' own document: only the facts filled in, beside the hours", async () => {
+    await save(GWENDA);
+    await saveParties(FACTS);
+    const [doc] = world.sanity.view("published").filter((d) => d._id === "venueDetails");
+    assert.deepEqual(doc.parties, {
+      standing: 80,
+      seated: 40,
+      included: "No hire fee\nA booth held for you",
+      replyWithin: "a day",
+    });
+    assert.equal(doc.openingHours.length, 7);
+    assert.deepEqual(await partyPage(), [
+      "Up to 80 standing, 40 seated",
+      "No hire fee",
+      "A booth held for you",
+      "We reply within a day",
+    ]);
+
+    // Saving the hours again keeps the party facts there, and the other way round
+    await save(GWENDA.map((day) => (day.day === "sun" ? { ...day, closes: "22:30" } : day)));
+    assert.equal((await partyPage()).length, 4);
+    await saveParties({ ...FACTS, standing: "" });
+    assert.equal(weekRows(await websiteWeek()).at(-1).hours, "4–10:30pm");
+  });
+
+  it("saving them all blank takes them off the party page, and ops keeps who did it", async () => {
+    await save(GWENDA);
+    await saveParties(FACTS);
+    const res = await saveParties({ standing: "", seated: "", included: "", replyWithin: "" });
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    assert.equal(res.data.website, "live");
+    assert.deepEqual(await partyPage(), []);
+    const [doc] = world.sanity.view("published").filter((d) => d._id === "venueDetails");
+    assert.equal("parties" in doc, false);
+    assert.equal(weekRows(await websiteWeek()).length, 6);
+    const again = await read();
+    assert.deepEqual(
+      { ...again.data.parties, updatedAt: "" },
+      { standing: null, seated: null, included: "", replyWithin: "", updatedAt: "", updatedBy: again.data.parties.updatedBy },
+    );
+    assert.ok(again.data.parties.updatedAt);
+  });
+
+  it("facts that don't add up are refused, saying which, and nothing changes", async () => {
+    await saveParties(FACTS);
+    const res = await saveParties({ ...FACTS, standing: "0", replyWithin: "x".repeat(41) });
+    assert.equal(res.status, 400);
+    assert.match(res.data.error, /^Standing: Use a number above 0/);
+    assert.deepEqual(Object.keys(res.data.problems), ["standing", "replyWithin"]);
+    assert.equal((await read()).data.parties.standing, 80);
+    assert.equal((await partyPage())[0], "Up to 80 standing, 40 seated");
+
+    const empty = await callApi(world, putParties, { method: "PUT", path: "/api/venue/parties", body: {} });
+    assert.equal(empty.status, 400);
+  });
+
+  it("with website.auto_update off, they wait on the preview for Update website", async () => {
+    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    const res = await saveParties(FACTS);
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    assert.equal(res.data.published, false);
+    assert.equal(res.data.website, "preview");
+    assert.deepEqual(await partyPage("live"), []);
+    assert.equal((await partyPage("preview")).length, 4);
   });
 });

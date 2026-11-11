@@ -8,6 +8,7 @@ import { it } from "vitest";
 import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
 import { repositoryContract } from "../../../../../shared/testing/repository-contract.js";
 import { assertValidWeek } from "../hours-model.js";
+import { assertValidParties } from "../parties-model.js";
 import { d1VenueRepository } from "./adapters/d1-venue.js";
 import { memoryVenueRepository } from "./adapters/memory-venue.js";
 import { venueRepository } from "./venue-repository.js";
@@ -34,10 +35,24 @@ const week = (overrides = {}) => ({
   ...overrides,
 });
 
+const parties = (facts = {}, overrides = {}) => ({
+  ...assertValidParties({
+    standing: 80,
+    seated: 40,
+    included: "No hire fee\nA booth held for you",
+    replyWithin: "a day",
+    ...facts,
+  }),
+  updatedAt: "2026-11-11T10:00:00.000Z",
+  updatedBy: "owner@gwenda.co.uk",
+  ...overrides,
+});
+
 repositoryContract("VenueRepository", {
   adapters: ADAPTERS,
   seed: async (repo) => {
     await repo.saveOpeningHours(week());
+    await repo.saveParties(parties());
   },
   cases: {
     "has no opening hours until they are saved": async (repo) => {
@@ -68,6 +83,45 @@ repositoryContract("VenueRepository", {
       const saved = await repo.saveOpeningHours(week({ days }));
       assert.deepEqual(saved.days[1], { day: "tue", closed: true, opens: "", closes: "" });
     },
+    "has no party facts until they are saved": async (repo) => {
+      assert.equal(await repo.getParties(), null);
+    },
+    "saves the party facts and reads them back, lines and all": async (repo) => {
+      assert.deepEqual(await repo.saveParties(parties()), parties());
+      const read = await repo.getParties();
+      assert.deepEqual(read, parties());
+      assert.equal(read.standing, 80);
+      assert.equal(read.included, "No hire fee\nA booth held for you");
+    },
+    "a save replaces every fact, blanks included, with who and when": async (repo) => {
+      await repo.saveParties(parties());
+      const next = parties(
+        { standing: "", included: "", replyWithin: "" },
+        { updatedAt: "2026-11-12T10:00:00.000Z", updatedBy: "staff@gwenda.co.uk" },
+      );
+      assert.deepEqual(next, {
+        standing: null,
+        seated: 40,
+        included: "",
+        replyWithin: "",
+        updatedAt: "2026-11-12T10:00:00.000Z",
+        updatedBy: "staff@gwenda.co.uk",
+      });
+      assert.deepEqual(await repo.saveParties(next), next);
+      assert.deepEqual(await repo.getParties(), next);
+    },
+    "saved all blank is saved, not never saved": async (repo) => {
+      const blank = parties({ standing: "", seated: "", included: "", replyWithin: "" });
+      assert.deepEqual(await repo.saveParties(blank), blank);
+      assert.deepEqual(await repo.getParties(), blank);
+    },
+    "the hours and the party facts don't touch each other": async (repo) => {
+      await repo.saveOpeningHours(week());
+      await repo.saveParties(parties());
+      assert.deepEqual(await repo.getOpeningHours(), week());
+      await repo.saveOpeningHours(week({ updatedBy: "staff@gwenda.co.uk" }));
+      assert.deepEqual(await repo.getParties(), parties());
+    },
   },
 });
 
@@ -77,4 +131,6 @@ it("is the D1 adapter unless one is handed in", async () => {
   const db = createTestD1("ops");
   await venueRepository({ OPS_DB: db, SITE_ENV: "dev" }).saveOpeningHours(week());
   assert.deepEqual(await d1VenueRepository(db).getOpeningHours(), week());
+  await venueRepository({ OPS_DB: db, SITE_ENV: "dev" }).saveParties(parties());
+  assert.deepEqual(await d1VenueRepository(db).getParties(), parties());
 });

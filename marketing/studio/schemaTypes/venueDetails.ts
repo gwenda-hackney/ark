@@ -2,8 +2,9 @@ import { defineArrayMember, defineField, defineType } from "sanity";
 
 /**
  * Venue details (#240): written by ops (Settings → Venue details), never
- * here. Opening hours now; the party facts join it next. Times are London
- * "HH:MM"; a close earlier than the opening is after midnight.
+ * here. The opening hours, and the party facts the party page shows. Times
+ * are London "HH:MM"; a close earlier than the opening is after midnight.
+ * A party fact left blank in ops isn't in the document at all.
  */
 export const venueDetails = defineType({
   name: "venueDetails",
@@ -56,6 +57,28 @@ export const venueDetails = defineType({
               };
             },
           },
+        }),
+      ],
+    }),
+    defineField({
+      name: "parties",
+      title: "Parties",
+      type: "object",
+      description:
+        "Edited in ops: Settings → Venue details. The party page shows the ones filled in.",
+      fields: [
+        defineField({ name: "standing", title: "Standing", type: "number" }),
+        defineField({ name: "seated", title: "Seated", type: "number" }),
+        defineField({
+          name: "included",
+          title: "What's included",
+          type: "text",
+          description: "One thing a line.",
+        }),
+        defineField({
+          name: "replyWithin",
+          title: "We reply within",
+          type: "string",
         }),
       ],
     }),

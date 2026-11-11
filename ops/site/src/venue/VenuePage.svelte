@@ -1,10 +1,11 @@
 <script lang="ts">
 	/**
 	 * Settings → Venue details (#240): what the website says about the place.
-	 * Opening hours now; the party facts join as their own card. A day opens
-	 * the same editor everywhere: a dialog on desktop, a sheet on phones.
-	 * Saving puts the week on the website by itself, as saving an event does
-	 * (venue/server/venue-website.js).
+	 * Two cards: the opening hours, and the party facts the party page shows
+	 * (how many fit, what's included, how soon we reply; any of them blank).
+	 * A day opens the same editor everywhere: a dialog on desktop, a sheet on
+	 * phones. Saving either card puts the venue's details on the website by
+	 * itself, as saving an event does (venue/server/venue-website.js).
 	 */
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
@@ -19,20 +20,24 @@
 		Dialog,
 		EmptyState,
 		Field,
+		NumberField,
 		PageHeader,
 		RowAction,
 		Skeleton,
 		Switch,
+		TextArea,
+		TextField,
 		TimeField,
 	} from "../ui";
 	import { ROW_ACTION_COLUMN, svelteCell } from "../ui/grid";
-	import { getVenueDetails, saveOpeningHours } from "../app/api";
+	import { getVenueDetails, saveOpeningHours, saveParties as putParties } from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { DAY_NAMES, DAYS, closesAfterMidnight, dayHoursLabel, dayProblem, validateWeek } from "./hours-model.js";
-	import { blankWeek, savedMessage, websiteBadge, withDay } from "./venue-page";
-	import type { DayKey, OpeningDay, OpeningHours, WebsiteState } from "./types";
+	import { INCLUDED_MAX_LINES, partyFacts, validateParties } from "./parties-model.js";
+	import { blankWeek, partiesChanged, partyForm, savedMessage, websiteBadge, withDay } from "./venue-page";
+	import type { DayKey, OpeningDay, OpeningHours, Parties, PartyField, PartyForm, WebsiteState } from "./types";
 
 	type DayRow = OpeningDay & { name: string; label: string };
 
@@ -52,7 +57,20 @@
 	let dialogError = $state("");
 	let saving = $state(false);
 
+	/** The party facts as saved (null: never), and as typed. */
+	let parties = $state<Parties | null>(null);
+	let partyFields = $state<PartyForm>(partyForm(null));
+	let partyErrors = $state<Partial<Record<PartyField, string>>>({});
+	let partySaveError = $state("");
+	let savingParties = $state(false);
+
 	const badge = $derived(websiteBadge(website));
+	const partiesBadge = $derived(websiteBadge(website, "party details"));
+	const partiesDirty = $derived(partiesChanged(partyFields, parties));
+	const replyHint = $derived.by(() => {
+		const reply = partyFacts(partyFields).replyWithin;
+		return reply ? `The party page says “We reply within ${reply}”.` : "A few words, like “a day”.";
+	});
 	const rows = $derived<DayRow[]>(
 		days.map((day) => ({
 			...day,
@@ -65,16 +83,18 @@
 	);
 	const lateClose = $derived(Boolean(draft && closesAfterMidnight(draft)));
 	const nextDayName = $derived(editing ? DAY_NAMES[DAYS[(DAYS.indexOf(editing) + 1) % 7] as DayKey] : "");
-	const changedLine = $derived.by(() => {
-		if (!hours?.updatedAt) return "";
-		const when = new Date(hours.updatedAt).toLocaleString("en-GB", {
+	function lastChanged(saved: { updatedAt: string; updatedBy: string } | null): string {
+		if (!saved?.updatedAt) return "";
+		const when = new Date(saved.updatedAt).toLocaleString("en-GB", {
 			day: "numeric",
 			month: "short",
 			hour: "numeric",
 			minute: "2-digit",
 		});
-		return hours.updatedBy ? `Last changed ${when} by ${hours.updatedBy}` : `Last changed ${when}`;
-	});
+		return saved.updatedBy ? `Last changed ${when} by ${saved.updatedBy}` : `Last changed ${when}`;
+	}
+	const changedLine = $derived(lastChanged(hours));
+	const partiesChangedLine = $derived(lastChanged(parties));
 
 	async function load() {
 		loading = true;
@@ -84,6 +104,9 @@
 			hours = data.openingHours;
 			website = data.website;
 			days = data.openingHours?.days ?? blankWeek();
+			parties = data.parties;
+			partyFields = partyForm(data.parties);
+			partyErrors = {};
 		} catch (err) {
 			loadError = err instanceof Error ? err.message : "Could not load the venue details.";
 		} finally {
@@ -144,6 +167,36 @@
 		await send(week);
 	}
 
+	function editParty(field: PartyField) {
+		if (partyErrors[field]) partyErrors = { ...partyErrors, [field]: "" };
+		partySaveError = "";
+	}
+
+	async function sendParties(event: Event) {
+		event.preventDefault();
+		const { problems } = validateParties(partyFields);
+		partyErrors = problems;
+		partySaveError = "";
+		const first = (["standing", "seated", "included", "replyWithin"] as const).find((field) => problems[field]);
+		if (first) {
+			document.getElementById(`party-${first}`)?.focus();
+			return;
+		}
+		savingParties = true;
+		try {
+			const result = await putParties(partyFields);
+			parties = result.parties;
+			website = result.website;
+			partyFields = partyForm(result.parties);
+			toast.ok(savedMessage(result, "party details"));
+			for (const warning of result.warnings || []) toast.error(warning);
+		} catch (err) {
+			partySaveError = err instanceof Error ? err.message : "Could not save the party details.";
+		} finally {
+			savingParties = false;
+		}
+	}
+
 	const columnDefs: ColDef<DayRow>[] = [
 		{ headerName: "Day", field: "name", flex: 1, minWidth: 140, sortable: false },
 		{
@@ -176,8 +229,8 @@
 				<Button variant="outline" size="sm" onclick={() => void load()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
 			{/snippet}
 		</EmptyState>
-	{:else if loading && !hours}
-		<Skeleton rows={7} lines={1} label="Loading opening hours…" />
+	{:else if loading && !hours && !parties}
+		<Skeleton rows={7} lines={1} label="Loading venue details…" />
 	{:else}
 		<div class="cards" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
 			<Card title="Opening hours" subtitle="London time. A late close past midnight is fine: Saturday 4pm to 1am.">
@@ -209,6 +262,82 @@
 				{/if}
 				{#snippet footer()}
 					<p class="meta">{hours ? changedLine : "Not saved yet: set every day and the website shows them."}</p>
+				{/snippet}
+			</Card>
+
+			<Card
+				title="Parties"
+				subtitle="What the party page tells people before they ask. Leave anything blank and the website leaves it out."
+			>
+				{#snippet actions()}
+					<Badge tone={partiesBadge.tone} label={partiesBadge.label} title={partiesBadge.hint} />
+				{/snippet}
+				<form id="parties-form" class="parties-form" novalidate onsubmit={sendParties}>
+					<div class="capacity">
+						<Field label="Standing" for="party-standing" width="sm" error={partyErrors.standing}>
+							<NumberField
+								id="party-standing"
+								bind:value={partyFields.standing}
+								integer
+								min={1}
+								unit="people"
+								noun="a number of people"
+								example="80"
+								oninput={() => editParty("standing")}
+							/>
+						</Field>
+						<Field label="Seated" for="party-seated" width="sm" error={partyErrors.seated}>
+							<NumberField
+								id="party-seated"
+								bind:value={partyFields.seated}
+								integer
+								min={1}
+								unit="people"
+								noun="a number of people"
+								example="40"
+								oninput={() => editParty("seated")}
+							/>
+						</Field>
+					</div>
+					<Field
+						label="What's included"
+						for="party-included"
+						error={partyErrors.included}
+						hint={`One thing a line, up to ${INCLUDED_MAX_LINES}: no hire fee, a booth held for you, a round on us for big groups.`}
+					>
+						<TextArea
+							id="party-included"
+							bind:value={partyFields.included}
+							rows={4}
+							placeholder={"No hire fee\nA booth held for you"}
+							oninput={() => editParty("included")}
+						/>
+					</Field>
+					<Field label="We reply within" for="party-replyWithin" width="md" error={partyErrors.replyWithin} hint={replyHint}>
+						<TextField
+							id="party-replyWithin"
+							bind:value={partyFields.replyWithin}
+							placeholder="a day"
+							oninput={() => editParty("replyWithin")}
+						/>
+					</Field>
+					{#if partySaveError}<p class="error" role="alert">{partySaveError}</p>{/if}
+				</form>
+				{#snippet footer()}
+					<p class="meta grow">
+						{parties ? partiesChangedLine : "Not saved yet: all blank, so the party page leaves them out."}
+					</p>
+					<Button
+						variant="primary"
+						size="sm"
+						type="submit"
+						form="parties-form"
+						busy={savingParties}
+						disabled={!partiesDirty || savingParties}
+					>
+						{#snippet icon()}<Icon name="save" size={14} />{/snippet}
+						Save
+					</Button>
 				{/snippet}
 			</Card>
 		</div>
@@ -286,6 +415,22 @@
 		margin: 0;
 		font-size: var(--text-sm);
 		color: var(--muted-foreground);
+	}
+
+	.meta.grow {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.parties-form {
+		display: grid;
+		gap: var(--space-4);
+	}
+
+	.capacity {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 10rem));
+		gap: var(--space-4);
 	}
 
 	.days {

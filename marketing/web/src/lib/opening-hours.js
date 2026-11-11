@@ -9,17 +9,11 @@
  * (scripts/opening-hours.js), always by the clock in London.
  *
  * No week, or one that doesn't add up, means nothing is said: never
- * invented hours.
+ * invented hours. The document is read with the rest of the venue's
+ * details (venue-details.js VENUE_DETAILS_QUERY); readWeek takes its week.
  */
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-
-/**
- * The week ops publishes, in the venue's details: one document kept by ops
- * alone (ops/site/src/venue/server/venue-website.js, whose contract test
- * runs this query and readWeek on what ops writes).
- */
-export const OPENING_HOURS_QUERY = `*[_id == "venueDetails"][0].openingHours[]{ day, closed, opens, closes }`;
 
 const DAY_NAMES = {
   mon: "Monday",

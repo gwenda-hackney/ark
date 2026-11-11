@@ -69,7 +69,9 @@ export async function up({ env, d1, processEnv = {}, log = console.log, dryRun =
     log(
       `left alone: ops already has opening hours (last changed ${existing.updatedAt || "at an unknown time"}${existing.updatedBy ? ` by ${existing.updatedBy}` : ""}): ${words(existing.days)}`,
     );
-    const state = await venueOnWebsite(opsEnv, { openingHours: existing.days });
+    // The whole document: the party facts (#240) go with the hours, so putting one there never drops the other.
+    const details = { openingHours: existing.days, parties: await opsEnv.venueRepository.getParties() };
+    const state = await venueOnWebsite(opsEnv, details);
     if (state === "live" || state === "preview") {
       log(`on the website: ${STATES[state]}; nothing to do`);
       return { saved: false, published: false };
@@ -78,7 +80,7 @@ export async function up({ env, d1, processEnv = {}, log = console.log, dryRun =
       say(`put them on the website (now ${STATES[state]})`);
       return { saved: false, published: false };
     }
-    const { published } = await putVenueOnWebsite(opsEnv, { openingHours: existing.days });
+    const { published } = await putVenueOnWebsite(opsEnv, details);
     log(published ? "put them on the website" : "put them on the preview; Update website puts them live");
     return { saved: false, published };
   }

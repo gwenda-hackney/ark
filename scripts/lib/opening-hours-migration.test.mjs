@@ -7,7 +7,8 @@
 import assert from "node:assert/strict";
 import { evaluate, parse } from "groq-js";
 import { afterEach, beforeEach, describe, it } from "vitest";
-import { OPENING_HOURS_QUERY, readWeek, weekRows } from "../../marketing/web/src/lib/opening-hours.js";
+import { weekRows } from "../../marketing/web/src/lib/opening-hours.js";
+import { VENUE_DETAILS_QUERY, readVenueDetails } from "../../marketing/web/src/lib/venue-details.js";
 import { d1VenueRepository } from "../../ops/site/src/venue/server/adapters/d1-venue.js";
 import { saveOpeningHours } from "../../ops/site/src/venue/server/venue-details.js";
 import { createFakeWorld } from "../../ops/site/src/testing/fake-world.js";
@@ -30,7 +31,7 @@ describe("2026-11-11-opening-hours", () => {
 
   async function websiteRows() {
     const docs = world.sanity.view("published");
-    const week = readWeek(await (await evaluate(parse(OPENING_HOURS_QUERY), { dataset: docs })).get());
+    const week = readVenueDetails(await (await evaluate(parse(VENUE_DETAILS_QUERY), { dataset: docs })).get()).openingHours;
     return weekRows(week).map((row) => `${row.days} ${row.hours}`);
   }
 
@@ -80,6 +81,20 @@ describe("2026-11-11-opening-hours", () => {
     // The fake Sanity takes any token; a real one would be the env's.
     const { result } = await run(db);
     assert.deepEqual(result, { saved: false, published: true });
+    assert.deepEqual(await websiteRows(), GWENDA_ROWS);
+  });
+
+  it("putting the hours there keeps the party facts saved beside them", async () => {
+    const db = createTestD1("ops");
+    world.env.SANITY_API_TOKEN = "";
+    await assert.rejects(() => run(db), /saved in ops but not on the website/);
+    await d1VenueRepository(db).saveParties({ standing: 80, seated: null, included: "", replyWithin: "a day" });
+    world.env.SANITY_API_TOKEN = "sanity-token";
+    const { result } = await run(db);
+    assert.deepEqual(result, { saved: false, published: true });
+    const docs = world.sanity.view("published");
+    const details = readVenueDetails(await (await evaluate(parse(VENUE_DETAILS_QUERY), { dataset: docs })).get());
+    assert.deepEqual(details.parties, { standing: 80, seated: null, included: [], replyWithin: "a day" });
     assert.deepEqual(await websiteRows(), GWENDA_ROWS);
   });
 
