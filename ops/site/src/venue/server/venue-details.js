@@ -3,7 +3,8 @@
  * hours or the party facts, which also puts the venue's details on the
  * website (venue-website.js). The rules for a valid week are
  * hours-model.js's, for the party facts parties-model.js's; where they are
- * kept, venue-repository.js's.
+ * kept, venue-repository.js's. The gallery's use cases (#291) are
+ * venue-gallery.js's, and go on the website the same way (putDetailsOnWebsite).
  */
 import { assertValidWeek } from "../hours-model.js";
 import { assertValidParties } from "../parties-model.js";
@@ -12,7 +13,7 @@ import { putVenueOnWebsite, venueOnWebsite } from "./venue-website.js";
 
 /** @typedef {"live" | "preview" | "behind" | "none" | "unknown"} WebsiteState */
 
-async function websiteState(env, details, onWebsite) {
+export async function websiteState(env, details, onWebsite = venueOnWebsite) {
   try {
     return await onWebsite(env, details);
   } catch {
@@ -20,10 +21,23 @@ async function websiteState(env, details, onWebsite) {
   }
 }
 
-/** Everything the website shows of the venue, from ops. */
-async function currentDetails(repository) {
-  const [hours, parties] = await Promise.all([repository.getOpeningHours(), repository.getParties()]);
-  return { hours, parties, details: { openingHours: hours?.days ?? null, parties } };
+/**
+ * Everything the website shows of the venue, from ops: `details` is what
+ * venue-website.js puts there (venueDocument), all of it, so putting it
+ * there never drops a part. Migrations put the details there with this too.
+ */
+export async function venueDetailsNow(repository) {
+  const [hours, parties, gallery] = await Promise.all([
+    repository.getOpeningHours(),
+    repository.getParties(),
+    repository.listGallery(),
+  ]);
+  return { hours, parties, gallery, details: { openingHours: hours?.days ?? null, parties, gallery } };
+}
+
+/** True when ops holds anything the website shows. */
+export function hasVenueDetails({ hours, parties, gallery }) {
+  return Boolean(hours || parties || gallery?.length);
 }
 
 /**
@@ -32,29 +46,33 @@ async function currentDetails(repository) {
  * `parties` is null until first saved (blank until the venue fills them in).
  */
 export async function getVenueDetails(env, { onWebsite = venueOnWebsite } = {}) {
-  const { hours, parties, details } = await currentDetails(venueRepository(env));
+  const now = await venueDetailsNow(venueRepository(env));
   return {
-    openingHours: hours,
-    parties,
-    website: hours || parties ? await websiteState(env, details, onWebsite) : "none",
+    openingHours: now.hours,
+    parties: now.parties,
+    website: hasVenueDetails(now) ? await websiteState(env, now.details, onWebsite) : "none",
   };
 }
 
 /**
- * Put what ops now holds on the website, after a save. A website that can't
- * be reached doesn't undo the save: the warning says so, and saving again
- * tries again.
+ * Put what ops now holds on the website, after a save: the whole document
+ * (venueDetailsNow). A website that can't be reached doesn't undo the save:
+ * the warning says so, and saving again tries again. `now` is what was put
+ * there.
  */
-async function publishDetails(env, repository, { putOnWebsite, onWebsite }) {
-  const { hours, parties, details } = await currentDetails(repository);
-  const saved = { openingHours: hours, parties };
+export async function putDetailsOnWebsite(
+  env,
+  repository,
+  { putOnWebsite = putVenueOnWebsite, onWebsite = venueOnWebsite } = {},
+) {
+  const now = await venueDetailsNow(repository);
   try {
-    const { published, warnings } = await putOnWebsite(env, details);
-    return { ...saved, website: published ? "live" : "preview", published, warnings };
+    const { published, warnings } = await putOnWebsite(env, now.details);
+    return { now, website: published ? "live" : "preview", published, warnings };
   } catch (error) {
     return {
-      ...saved,
-      website: await websiteState(env, details, onWebsite),
+      now,
+      website: await websiteState(env, now.details, onWebsite),
       published: false,
       warnings: [
         `Saved in ops, but the website didn't get it: ${error?.message || "unknown error"}. Save again to try again.`,
@@ -63,7 +81,13 @@ async function publishDetails(env, repository, { putOnWebsite, onWebsite }) {
   }
 }
 
-const byWhom = (by) =>
+/** After a save of the hours or the party facts: both, and where they stand. */
+async function publishDetails(env, repository, deps) {
+  const { now, ...result } = await putDetailsOnWebsite(env, repository, deps);
+  return { openingHours: now.hours, parties: now.parties, ...result };
+}
+
+export const byWhom = (by) =>
   String(by || "")
     .trim()
     .toLowerCase();

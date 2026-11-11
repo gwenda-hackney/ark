@@ -1,6 +1,6 @@
 import { jsonResponse, withApiHandler } from "../../../../src/platform/http.js";
 import { clearArtistImage, setArtistImage } from "../../../../src/artists/server/artist-store.js";
-import { readImageUpload } from "../../../../src/events/server/event-images.js";
+import { readImageUpload } from "../../../../src/platform/image-upload.js";
 
 function artistId(context) {
   return decodeURIComponent(context.params?.id || "");

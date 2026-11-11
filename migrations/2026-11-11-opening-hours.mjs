@@ -23,7 +23,7 @@
  */
 import { DAY_NAMES, assertValidWeek, dayHoursLabel } from "../ops/site/src/venue/hours-model.js";
 import { VENUE_D1_TABLES, d1VenueRepository } from "../ops/site/src/venue/server/adapters/d1-venue.js";
-import { saveOpeningHours } from "../ops/site/src/venue/server/venue-details.js";
+import { saveOpeningHours, venueDetailsNow } from "../ops/site/src/venue/server/venue-details.js";
 import { putVenueOnWebsite, venueOnWebsite } from "../ops/site/src/venue/server/venue-website.js";
 import { DEV_SANITY_PROJECT_ID, REAL_SANITY_PROJECT_ID } from "../shared/sanity-projects.js";
 import { databaseForMigration } from "../scripts/lib/d1-rehearsal.mjs";
@@ -70,8 +70,8 @@ export async function up({ env, d1, processEnv = {}, log = console.log, dryRun =
     log(
       `left alone: ops already has opening hours (last changed ${existing.updatedAt || "at an unknown time"}${existing.updatedBy ? ` by ${existing.updatedBy}` : ""}): ${words(existing.days)}`,
     );
-    // The whole document: the party facts (#240) go with the hours, so putting one there never drops the other.
-    const details = { openingHours: existing.days, parties: await opsEnv.venueRepository.getParties() };
+    // The whole document: the party facts (#240) and the gallery (#291) go with the hours, so putting one there never drops another.
+    const { details } = await venueDetailsNow(opsEnv.venueRepository);
     const state = await venueOnWebsite(opsEnv, details);
     if (state === "live" || state === "preview") {
       log(`on the website: ${STATES[state]}; nothing to do`);

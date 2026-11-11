@@ -392,7 +392,15 @@ class FakeSanity {
       const id = `image-${sha1}-800x600-jpg`;
       if (this.docs.has(id)) return json({ document: this.docs.get(id) });
       const filename = url.searchParams.get("filename") || "upload.jpg";
-      const doc = { _id: id, _type: "sanity.imageAsset", originalFilename: filename, url: `https://cdn.sanity.test/${id}.jpg` };
+      // Its size in the metadata too, as Sanity has it: the website reads it there.
+      const doc = {
+        _id: id,
+        _type: "sanity.imageAsset",
+        _createdAt: new Date().toISOString(),
+        originalFilename: filename,
+        url: `https://cdn.sanity.test/${id}.jpg`,
+        metadata: { dimensions: { width: 800, height: 600, aspectRatio: 800 / 600 } },
+      };
       this.docs.set(id, doc);
       return json({ document: doc });
     }

@@ -3,7 +3,7 @@ import {
   clearOccurrenceImage,
   setOccurrenceImage,
 } from "../../../../../../src/events/server/event-store.js";
-import { readImageUpload } from "../../../../../../src/events/server/event-images.js";
+import { readImageUpload } from "../../../../../../src/platform/image-upload.js";
 
 function params(context) {
   return {
