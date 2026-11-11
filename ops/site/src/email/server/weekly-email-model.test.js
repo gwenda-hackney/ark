@@ -14,9 +14,9 @@ import {
 } from "./weekly-email-model.js";
 
 describe("weekly email settings", () => {
-  it("with nothing set: off; Monday 11:00; sends by itself once switched on", () => {
-    assert.deepEqual(settingsFromValues({}), { sending: false, mode: "auto", day: "mon", time: "11:00", notify: [] });
-    assert.deepEqual(DEFAULT_SEND, { day: "mon", time: "11:00" });
+  it("with nothing set: off; Tuesday 11:00; sends by itself once switched on", () => {
+    assert.deepEqual(settingsFromValues({}), { sending: false, mode: "auto", day: "tue", time: "11:00", notify: [] });
+    assert.deepEqual(DEFAULT_SEND, { day: "tue", time: "11:00" });
     assert.equal(DEFAULT_SETTINGS.day, DEFAULT_SEND.day);
     assert.equal(DEFAULT_SETTINGS.time, DEFAULT_SEND.time);
   });
@@ -39,14 +39,14 @@ describe("weekly email settings", () => {
       { sending: false, mode: "approve", day: "thu", time: "09:30", notify: ["a@example.com", "b@example.com"] },
     );
     const odd = settingsFromValues({ [SETTING_KEYS.mode]: "whenever", [SETTING_KEYS.day]: "someday", [SETTING_KEYS.time]: "25:00" });
-    assert.deepEqual([odd.mode, odd.day, odd.time], ["auto", "mon", "11:00"]);
+    assert.deepEqual([odd.mode, odd.day, odd.time], ["auto", "tue", "11:00"]);
   });
 
   it("checks a change before it's stored", () => {
-    assert.deepEqual(settingsChange({ sending: true, mode: "approve", day: "tue", time: "10:15", notify: "A@example.com b@example.com" }), {
+    assert.deepEqual(settingsChange({ sending: true, mode: "approve", day: "wed", time: "10:15", notify: "A@example.com b@example.com" }), {
       [SETTING_KEYS.sending]: "on",
       [SETTING_KEYS.mode]: "approve",
-      [SETTING_KEYS.day]: "tue",
+      [SETTING_KEYS.day]: "wed",
       [SETTING_KEYS.time]: "10:15",
       [SETTING_KEYS.notify]: "a@example.com, b@example.com",
     });
@@ -59,7 +59,35 @@ describe("weekly email settings", () => {
 });
 
 describe("weekly email schedule: 11:00 means 11:00 on the clock in London", () => {
-  const monday11 = { ...DEFAULT_SETTINGS };
+  const monday11 = { ...DEFAULT_SETTINGS, day: "mon", time: "11:00" };
+  const byDefault = { ...DEFAULT_SETTINGS };
+
+  it("by default it's due on Tuesday at 11:00, in the week that began on Monday", () => {
+    const at = (iso) => scheduleAt(byDefault, new Date(iso));
+    assert.deepEqual(at("2026-11-09T11:00:00Z"), {
+      week: "2026-11-09",
+      state: "before",
+      scheduled: { date: "2026-11-10", time: "11:00" },
+      next: { date: "2026-11-10", time: "11:00" },
+    });
+    assert.equal(at("2026-11-10T10:59:00Z").state, "before");
+    assert.equal(at("2026-11-10T11:00:00Z").state, "due");
+    assert.equal(at("2026-11-10T17:00:00Z").state, "due");
+    assert.deepEqual(at("2026-11-10T17:01:00Z").next, { date: "2026-11-17", time: "11:00" });
+    assert.equal(at("2026-11-10T17:01:00Z").state, "missed");
+  });
+
+  it("the default Tuesday 11:00 across both clock changes", () => {
+    const at = (iso) => scheduleAt(byDefault, new Date(iso)).state;
+    // Tuesday 31 March 2026, summer time: 11:00 is 10:00 UTC.
+    assert.deepEqual([at("2026-03-31T09:59:00Z"), at("2026-03-31T10:00:00Z")], ["before", "due"]);
+    // Tuesday 24 March, still winter: 11:00 UTC.
+    assert.deepEqual([at("2026-03-24T10:59:00Z"), at("2026-03-24T11:00:00Z")], ["before", "due"]);
+    // Tuesday 27 October 2026, winter again: 11:00 UTC.
+    assert.deepEqual([at("2026-10-27T10:59:00Z"), at("2026-10-27T11:00:00Z")], ["before", "due"]);
+    // Tuesday 20 October, still summer: 10:00 UTC.
+    assert.deepEqual([at("2026-10-20T09:59:00Z"), at("2026-10-20T10:00:00Z")], ["before", "due"]);
+  });
 
   it("knows the London wall clock, winter and summer", () => {
     assert.deepEqual(londonNow(new Date("2026-11-09T11:02:00Z")), { date: "2026-11-09", time: "11:02" });
@@ -67,7 +95,7 @@ describe("weekly email schedule: 11:00 means 11:00 on the clock in London", () =
     assert.deepEqual(londonNow(new Date("2026-07-05T23:30:00Z")), { date: "2026-07-06", time: "00:30" });
   });
 
-  it("is before, then due for six hours, then missed", () => {
+  it("a Monday 11:00 send: before, then due for six hours, then missed", () => {
     const at = (iso) => scheduleAt(monday11, new Date(iso));
     assert.deepEqual(at("2026-11-09T10:59:00Z"), {
       week: "2026-11-09",
@@ -95,7 +123,7 @@ describe("weekly email schedule: 11:00 means 11:00 on the clock in London", () =
     assert.equal(scheduleAt(thursday, new Date("2026-11-12T16:30:00Z")).state, "due");
   });
 
-  it("after the clocks go forward (29 March 2026), Monday 11:00 is 10:00 UTC", () => {
+  it("set to Mondays: after the clocks go forward (29 March 2026), 11:00 is 10:00 UTC", () => {
     assert.equal(scheduleAt(monday11, new Date("2026-03-30T09:59:00Z")).state, "before");
     assert.equal(scheduleAt(monday11, new Date("2026-03-30T10:00:00Z")).state, "due");
     // The Monday before, still winter time: 11:00 UTC.
@@ -103,7 +131,7 @@ describe("weekly email schedule: 11:00 means 11:00 on the clock in London", () =
     assert.equal(scheduleAt(monday11, new Date("2026-03-23T11:00:00Z")).state, "due");
   });
 
-  it("after the clocks go back (25 October 2026), Monday 11:00 is 11:00 UTC", () => {
+  it("set to Mondays: after the clocks go back (25 October 2026), 11:00 is 11:00 UTC", () => {
     assert.equal(scheduleAt(monday11, new Date("2026-10-26T10:59:00Z")).state, "before");
     assert.equal(scheduleAt(monday11, new Date("2026-10-26T11:00:00Z")).state, "due");
     // The Monday before, still summer time: 10:00 UTC.

@@ -23,12 +23,13 @@ export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 export const MODES = ["approve", "auto"];
 
 /** When the email goes out unless the settings say otherwise: the one place this default lives. */
-export const DEFAULT_SEND = Object.freeze({ day: "mon", time: "11:00" });
+export const DEFAULT_SEND = Object.freeze({ day: "tue", time: "11:00" });
 
 /**
  * With nothing set: off. Once an admin switches it on, it sends by itself at
- * its time, Monday late morning (the week it describes starts that day),
- * unless an admin has asked to approve each one first.
+ * its time, Tuesday late morning (the venue is shut on Mondays, so the week's
+ * first night is still ahead), unless an admin has asked to approve each one
+ * first. The email covers Monday to Sunday of the week it's sent in.
  */
 export const DEFAULT_SETTINGS = Object.freeze({
   sending: false,

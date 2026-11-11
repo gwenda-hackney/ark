@@ -6,7 +6,9 @@
 
 /** Tuesday 10 November 2026, 10:05 in London. */
 export const TUESDAY_MORNING = new Date("2026-11-10T10:05:00Z");
-/** Monday 9 November 2026, 11:02 in London: just after the default send time. */
+/** Tuesday 10 November 2026, 11:02 in London: just after the default send time. */
+export const TUESDAY_SEND = new Date("2026-11-10T11:02:00Z");
+/** Monday 9 November 2026, 11:02 in London: for a send set to Mondays. */
 export const MONDAY_SEND = new Date("2026-11-09T11:02:00Z");
 /** The Monday that week starts on. */
 export const WEEK = "2026-11-09";

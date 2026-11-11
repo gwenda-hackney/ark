@@ -96,7 +96,7 @@ export const SETTINGS = {
     service: "ops",
     about: 'Weekly email: "approve" makes each one wait for an admin; otherwise it sends by itself at its time',
   },
-  "weekly_email.day": { service: "ops", about: "Weekly email: the day it goes out (mon to sun; mon unless set)" },
+  "weekly_email.day": { service: "ops", about: "Weekly email: the day it goes out (mon to sun; tue unless set)" },
   "weekly_email.time": { service: "ops", about: "Weekly email: the time it goes out, London, HH:MM (11:00 unless set)" },
   "weekly_email.notify_emails": {
     service: "ops",

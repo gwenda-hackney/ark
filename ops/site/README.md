@@ -138,7 +138,7 @@ Either is read within a minute. While it's off nothing is sent, a waiting draft 
 3. Send yourself a test and read it in your inbox.
 4. Choose how (below), the day and time, then switch it on and Save. It asks once to confirm.
 
-**What happens each week** (Monday 11:00 London unless the settings say otherwise; the default is `DEFAULT_SEND` in `weekly-email-model.js`):
+**What happens each week** (Tuesday 11:00 London unless the settings say otherwise; the default is `DEFAULT_SEND` in `weekly-email-model.js`):
 
 - The five-minute tick (`/api/web/tick?step=email`) sees the time has come and claims the week: one row per week in `weekly_emails`. Whoever inserts the row has the week, so a second tick, or the cron firing twice, does nothing.
 - It builds the email from the published website. **No nights that week: it isn't sent**, and Status says why. If it can't be built, or Mailchimp refuses, it's marked "Didn't send" with the reason and the admins are emailed. It is not retried by itself.

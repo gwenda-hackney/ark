@@ -15,7 +15,7 @@
 
 	let sending = $state(false);
 	let mode = $state("auto");
-	let day = $state("mon");
+	let day = $state("tue");
 	let time = $state("11:00");
 	let notify = $state("");
 	let saving = $state(false);
