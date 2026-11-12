@@ -65,6 +65,10 @@ export type EventSeries = {
     lqip?: string | null;
     color?: string | null;
   }>;
+  /** The series' own link from ops: a pop-up kitchen's Instagram or website. */
+  pageUrl?: string;
+  /** A pop-up kitchen's logo from ops (#296); null when it has none. */
+  logo?: { url: string; width: number; height: number } | null;
   offer?: string;
   nightSchedule?: Array<{
     label: string;

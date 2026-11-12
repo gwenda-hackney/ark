@@ -1,6 +1,6 @@
 import { jsonResponse, withApiHandler } from "../../../../src/platform/http.js";
 import { addGalleryImage } from "../../../../src/events/server/event-store.js";
-import { readImageUpload } from "../../../../src/events/server/event-images.js";
+import { readImageUpload } from "../../../../src/platform/image-upload.js";
 
 /** Add a photo to the series' gallery; `?date=2026-10-02` to one night's (#183). */
 export const onRequestPost = withApiHandler(async (context) => {

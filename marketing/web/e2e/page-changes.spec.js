@@ -84,10 +84,16 @@ test.describe("after a Back that loads the page again", () => {
     ).toBe("back_forward");
     await arrived(page);
 
-    // On through the foot, by the router
+    // On through the foot to Bookings' play half, then its form, by the router
     await page
       .locator(".ch-footer")
       .getByRole("link", { name: "Play here" })
+      .click();
+    await expect(page).toHaveURL(/\/bookings#play$/);
+    await arrived(page);
+    await page
+      .locator("#play")
+      .getByRole("link", { name: "Apply to play" })
       .click();
     await expect(page).toHaveURL(/\/contact\/play$/);
     await arrived(page);

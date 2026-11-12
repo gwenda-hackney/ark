@@ -1,8 +1,6 @@
 import { deleteGalleryPhoto, uploadGalleryPhoto, type OpsEvent, type OpsGalleryPhoto } from "../app/api";
 import { toast } from "../ui/toast.svelte";
-
-/** One photo as the Images tab shows it. */
-export type GalleryTile = { key: string; name: string; thumb: string; full: string };
+import { galleryTiles, uploadedMessage, type GalleryTile } from "./gallery-photos";
 
 /**
  * An event's gallery, or one night's (`date`). The photos come with the event
@@ -21,14 +19,7 @@ export class EventGallery {
 	/** Called with the event after a photo is added or removed. */
 	constructor(private readonly onChange: (event: OpsEvent) => void = () => {}) {}
 
-	tiles = $derived<GalleryTile[]>(
-		this.photos.map((photo) => ({
-			key: photo.key,
-			name: photo.date ? `Photo from ${photo.date}` : "Photo",
-			thumb: `${photo.url}?w=400&h=400&fit=crop&auto=format`,
-			full: photo.url,
-		})),
-	);
+	tiles = $derived<GalleryTile[]>(galleryTiles(this.photos));
 
 	/** Shows an event's photos. */
 	show(photos: OpsGalleryPhoto[], driveUrl = "", date = "") {
@@ -48,6 +39,7 @@ export class EventGallery {
 		}
 		this.uploading = true;
 		this.error = "";
+		const before = new Set(this.photos.map((photo) => photo.key));
 		try {
 			let event: OpsEvent | null = null;
 			for (const file of files) {
@@ -55,7 +47,7 @@ export class EventGallery {
 				this.photos = event.gallery || [];
 			}
 			if (event) this.onChange(event);
-			toast.ok(files.length === 1 ? "Image uploaded." : `${files.length} images uploaded.`);
+			toast.ok(uploadedMessage(files.length, this.photos.filter((photo) => !before.has(photo.key))));
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not upload the gallery image.";
 			this.error = message;

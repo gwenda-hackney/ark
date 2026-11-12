@@ -48,13 +48,94 @@ const parties = (facts = {}, overrides = {}) => ({
   ...overrides,
 });
 
+/** A gallery photo as the use cases hand one in: its asset is a Sanity image id. */
+const photo = (n, overrides = {}) => ({
+  key: `photo${n}`,
+  asset: `image-${String(n).repeat(40).slice(0, 40)}-1600x1067-webp`,
+  description: `Photo ${n}`,
+  menu: "",
+  added: `2026-11-1${n % 10}T10:00:00.000Z`,
+  addedBy: "owner@gwenda.co.uk",
+  ...overrides,
+});
+
+const keys = (photos) => photos.map((p) => p.key);
+
 repositoryContract("VenueRepository", {
   adapters: ADAPTERS,
   seed: async (repo) => {
     await repo.saveOpeningHours(week());
     await repo.saveParties(parties());
+    await repo.addGalleryPhotos([photo(1), photo(2, { menu: "drinks" })]);
+    await repo.addGalleryPhotos([photo(3)]);
+    await repo.orderGallery(["photo2", "photo3", "photo1"]);
   },
   cases: {
+    "has no photos until some are added": async (repo) => {
+      assert.deepEqual(await repo.listGallery(), []);
+    },
+    "adds photos first, in the order given, and reads them back as added": async (repo) => {
+      assert.deepEqual(await repo.addGalleryPhotos([photo(1), photo(2, { menu: "drinks" })]), [
+        photo(1),
+        photo(2, { menu: "drinks" }),
+      ]);
+      const after = await repo.addGalleryPhotos([photo(3)]);
+      assert.deepEqual(keys(after), ["photo3", "photo1", "photo2"]);
+      assert.deepEqual(await repo.listGallery(), after);
+      assert.deepEqual(after[2], photo(2, { menu: "drinks" }));
+    },
+    "a photo already in the gallery isn't added again, under any key": async (repo) => {
+      await repo.addGalleryPhotos([photo(1)]);
+      const after = await repo.addGalleryPhotos([photo(1, { key: "again" }), photo(4), photo(4, { key: "twice" })]);
+      assert.deepEqual(keys(after), ["photo4", "photo1"]);
+    },
+    "describes a photo: its line, its board, or both, and nothing else changes": async (repo) => {
+      await repo.addGalleryPhotos([photo(1), photo(2)]);
+      assert.deepEqual(
+        await repo.updateGalleryPhoto("photo2", { description: "The terrace at dusk" }),
+        photo(2, { description: "The terrace at dusk" }),
+      );
+      assert.deepEqual(
+        await repo.updateGalleryPhoto("photo2", { menu: "food" }),
+        photo(2, { description: "The terrace at dusk", menu: "food" }),
+      );
+      await repo.updateGalleryPhoto("photo2", { description: "", menu: "" });
+      assert.deepEqual(await repo.listGallery(), [photo(1), photo(2, { description: "", menu: "" })]);
+    },
+    "describing a photo it hasn't got is null, and changes nothing": async (repo) => {
+      await repo.addGalleryPhotos([photo(1)]);
+      assert.equal(await repo.updateGalleryPhoto("nope", { description: "x" }), null);
+      assert.deepEqual(await repo.listGallery(), [photo(1)]);
+    },
+    "puts the gallery in a new order, and new photos still go first": async (repo) => {
+      await repo.addGalleryPhotos([photo(1), photo(2), photo(3)]);
+      assert.deepEqual(keys(await repo.orderGallery(["photo3", "photo1", "photo2"])), ["photo3", "photo1", "photo2"]);
+      assert.deepEqual(keys(await repo.addGalleryPhotos([photo(4)])), ["photo4", "photo3", "photo1", "photo2"]);
+      assert.deepEqual(keys(await repo.orderGallery(["photo2", "photo4", "photo3", "photo1"])), [
+        "photo2",
+        "photo4",
+        "photo3",
+        "photo1",
+      ]);
+    },
+    "removes a photo; one it hasn't got is no change": async (repo) => {
+      await repo.addGalleryPhotos([photo(1), photo(2), photo(3)]);
+      assert.deepEqual(keys(await repo.removeGalleryPhoto("photo2")), ["photo1", "photo3"]);
+      assert.deepEqual(keys(await repo.removeGalleryPhoto("photo2")), ["photo1", "photo3"]);
+      // Once it's gone the same picture may come back
+      assert.deepEqual(keys(await repo.addGalleryPhotos([photo(2, { key: "back" })])), ["back", "photo1", "photo3"]);
+    },
+    "the gallery and the rest of the details don't touch each other": async (repo) => {
+      await repo.saveOpeningHours(week());
+      await repo.saveParties(parties());
+      await repo.addGalleryPhotos([photo(1)]);
+      await repo.removeGalleryPhoto("photo1");
+      assert.deepEqual(await repo.getOpeningHours(), week());
+      assert.deepEqual(await repo.getParties(), parties());
+      await repo.addGalleryPhotos([photo(2)]);
+      await repo.saveParties(parties({ standing: "" }));
+      assert.deepEqual(await repo.listGallery(), [photo(2)]);
+    },
     "has no opening hours until they are saved": async (repo) => {
       assert.equal(await repo.getOpeningHours(), null);
     },
@@ -133,4 +214,6 @@ it("is the D1 adapter unless one is handed in", async () => {
   assert.deepEqual(await d1VenueRepository(db).getOpeningHours(), week());
   await venueRepository({ OPS_DB: db, SITE_ENV: "dev" }).saveParties(parties());
   assert.deepEqual(await d1VenueRepository(db).getParties(), parties());
+  await venueRepository({ OPS_DB: db, SITE_ENV: "dev" }).addGalleryPhotos([photo(1)]);
+  assert.deepEqual(await d1VenueRepository(db).listGallery(), [photo(1)]);
 });

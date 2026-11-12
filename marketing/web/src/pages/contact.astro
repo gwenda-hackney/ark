@@ -1,51 +1,32 @@
 ---
 /**
  * Contact (#240): the one page for reaching us. How to find us (the map
- * and the walk from the station), having a party here, playing here, and
- * getting on the list.
+ * and the walk from the station), the phone and the email, the hours, and
+ * getting on the list. Having a party and playing here are Bookings'
+ * (/bookings).
  */
-import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
 import ChartMap from "../components/chart/ChartMap.astro";
-import ChartBadge from "../components/chart/ChartBadge.astro";
 import EmailSignup from "../components/EmailSignup.astro";
 import OpeningHours from "../components/chart/OpeningHours.astro";
 import "../styles/chart-contact.css";
 import { siteConfig } from "../config/site";
 import { directions } from "../data/directions";
-import { contactDrinksPhoto, homeDecksPhoto } from "../lib/chart-assets";
 import { fetchOpeningHours } from "../lib/sanity/opening-hours";
 import { phoneHref, phoneText } from "../lib/chart-footer.js";
-import {
-  formPublicPath,
-  PARTY_FORM_SLUG,
-  PLAY_FORM_SLUG,
-} from "../lib/form-paths";
 
 const { contactPage } = siteConfig.copy;
 const { social, location, contact } = siteConfig;
 const week = await fetchOpeningHours();
 
-/** The four ways in, as cards at the top: each goes straight to its place */
+/** The two ways in, as cards at the top: each goes straight to its place */
 const cards = [
   {
     title: "Find us",
     line: location.addressShort,
     href: "#find-us",
     arrow: "↓",
-  },
-  {
-    title: "Have a party",
-    line: contactPage.partyShort,
-    href: formPublicPath(PARTY_FORM_SLUG),
-    arrow: "→",
-  },
-  {
-    title: "Play here",
-    line: contactPage.playEyebrow,
-    href: formPublicPath(PLAY_FORM_SLUG),
-    arrow: "→",
   },
   {
     title: "Get on the list",
@@ -64,7 +45,7 @@ const cards = [
   <ChartPage
     class="ch-find-page ch-contact-page"
     title="Contact"
-    lead="Where we are, having a party, playing here, and how to hear what’s on."
+    lead="Where we are, how to reach us, and how to hear what’s on."
   >
     <nav class="ch-contact-cards" aria-label="Contact">
       {
@@ -136,50 +117,6 @@ const cards = [
           <p>{directions.fromTowpath.text}</p>
         </section>
       </div>
-    </section>
-
-    <!--
-      Having a party and playing here: each a stop on the trail, its badge
-      where the trail over it starts (ChartBadge); the buttons plain words.
-    -->
-    <section class="ch-contact-part ch-contact-play ch-waypoint" id="party">
-      <ChartBadge kind="bottle" />
-      <div>
-        <h2 class="ch-sheet-head">{contactPage.partyHeading}</h2>
-        <p>{contactPage.partyLead}</p>
-        <a href={formPublicPath(PARTY_FORM_SLUG)} class="ch-btn ch-btn--solid"
-          >{contactPage.partyCta}</a
-        >
-      </div>
-      <a
-        href={formPublicPath(PARTY_FORM_SLUG)}
-        class="ch-contact-photo ch-print"
-        tabindex="-1"
-        aria-hidden="true"
-      >
-        <Image {...contactDrinksPhoto} alt="" loading="lazy" />
-        <span class="ch-print-note">{contactPage.partyPhotoNote}</span>
-      </a>
-    </section>
-
-    <section class="ch-contact-part ch-contact-play ch-waypoint" id="play">
-      <ChartBadge kind="record" />
-      <div>
-        <h2 class="ch-sheet-head">{contactPage.playHeading}</h2>
-        <p>{contactPage.playLead}</p>
-        <a href={formPublicPath(PLAY_FORM_SLUG)} class="ch-btn ch-btn--solid"
-          >{contactPage.playCta}</a
-        >
-      </div>
-      <a
-        href={formPublicPath(PLAY_FORM_SLUG)}
-        class="ch-contact-photo ch-print"
-        tabindex="-1"
-        aria-hidden="true"
-      >
-        <Image {...homeDecksPhoto} alt="" loading="lazy" />
-        <span class="ch-print-note">{contactPage.playPhotoNote}</span>
-      </a>
     </section>
 
     <section class="ch-contact-part" id="list" data-focus-on-arrival="anchor">

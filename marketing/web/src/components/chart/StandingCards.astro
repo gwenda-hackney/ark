@@ -5,7 +5,8 @@
  * frame with a tag stuck on its corner where a night has its date ("Deal",
  * "Pop-up kitchen"), the name, when it runs, a line. The whole card leads
  * to its own page on What's on, deal and pop-up alike; a pop-up's small
- * links go on to its menu and to the cooks themselves. A
+ * links go on to its menu and to the cooks themselves (their Instagram),
+ * and its logo from ops stands in for its photo (#296). A
  * promotion or a pop-up kitchen is a series ops marks as one
  * (lib/promotions.js, lib/popup-kitchen.js); What's on leaves their nights
  * out. A section with nothing in it isn't there at all. On home the two
@@ -13,11 +14,8 @@
  * most, small and one under another when there's more than one, and a line
  * to the rest (lib/home-stands.js).
  */
-import { Image } from "astro:assets";
 import "../../styles/chart-nights.css";
 import ChartRecord from "./ChartRecord.astro";
-import { siteConfig } from "../../config/site";
-import { guestChefLogo } from "../../lib/chart-assets";
 import { formatEventSpan } from "../../data/events";
 import {
   imageSrcset,
@@ -102,22 +100,26 @@ function picture(photo: string, photoPosition: string) {
   };
 }
 
+/** A pop-up's logo in its frame: 340px across, sharp at 2x. */
+const LOGO_WIDTH = 340;
+
 /**
- * Until ops holds a pop-up's line and link, the guest chef named in the
- * site's settings fills them in (config/site.ts), for that chef only. Their
- * mark is our own sharp copy, ahead of the series' picture.
+ * A pop-up's logo from ops (#296), whole on its white, in place of its
+ * photo; none in ops, and its photo shows.
  */
-function guestFallback(title: string) {
-  const { guestChef } = siteConfig;
-  const same =
-    title.trim().toLowerCase() === guestChef.name.trim().toLowerCase();
-  return same ? { ...guestChef, logo: guestChefLogo } : null;
+function logoImage(logo: { url: string } | null) {
+  if (!logo) return null;
+  const src = sizedImageUrl(logo.url, LOGO_WIDTH);
+  return {
+    src,
+    srcset: `${src} 1x, ${sizedImageUrl(logo.url, LOGO_WIDTH * 2)} 2x`,
+  };
 }
 
 const kitchens = popupKitchens(series, occurrences, chapters, today).map(
   (kitchen) => {
-    const fallback = guestFallback(kitchen.title);
-    const page = kitchen.pageUrl || fallback?.instagram || "";
+    const page = kitchen.pageUrl;
+    const logo = logoImage(kitchen.logo);
     return {
       kind: "popup",
       tag: "Pop-up kitchen",
@@ -125,11 +127,11 @@ const kitchens = popupKitchens(series, occurrences, chapters, today).map(
       title: kitchen.title,
       when: whenLine(kitchen.when, kitchen),
       turnover: turnover("popup", kitchen.id),
-      note: kitchen.note || fallback?.line || "",
+      note: kitchen.note,
       offer: "",
       href: kitchen.href,
-      ...picture(fallback ? "" : kitchen.photo, kitchen.photoPosition),
-      logo: fallback?.logo ?? null,
+      ...picture(logo ? "" : kitchen.photo, kitchen.photoPosition),
+      logo,
       links: [
         { href: kitchen.menuHref, text: "See the menu →", external: false },
         ...(page
@@ -254,7 +256,16 @@ const alone = (section: { cards: unknown[] }) =>
                   />
                 )}
                 {!card.photo && card.logo && (
-                  <Image {...card.logo} width={340} alt="" />
+                  <img
+                    src={card.logo.src}
+                    srcset={card.logo.srcset}
+                    alt=""
+                    loading={
+                      top && sectionIndex === 0 && cardIndex === 0
+                        ? "eager"
+                        : "lazy"
+                    }
+                  />
                 )}
                 {!card.photo && !card.logo && (
                   <ChartRecord size="large" class="ch-night-mark" />

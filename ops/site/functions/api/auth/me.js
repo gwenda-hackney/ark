@@ -1,5 +1,4 @@
 import {
-  isRequestAuthed,
   opsUserForbiddenResponse,
   resolveAuth,
   resolveSessionEmail,
@@ -22,21 +21,19 @@ export async function onRequestGet(context) {
       headers: { "Content-Type": "application/json" },
     });
   }
-  if (!(await isRequestAuthed(auth, context.request))) {
-    return signInRequiredResponse();
-  }
-
   const email = await resolveSessionEmail(context.request, auth);
+  if (!email) return signInRequiredResponse();
   // /api/auth is open in the middleware, so check the users list here too:
   // someone taken off it mid-session gets a 403, not their profile (#151).
-  if (auth.kind === "google" && email && !(await isOpsUser(env, email))) {
+  if (!(await isOpsUser(env, email))) {
     return opsUserForbiddenResponse({ json: true });
   }
   const resolved = await resolveOpsTableIds(env).catch(() => null);
   const connection = opsConnectionInfo(env, resolved?.databaseId);
   return new Response(
     JSON.stringify({
-      email: email || null,
+      email,
+      // "google", or "local": signed in automatically by npm run ops:dev.
       mode: auth.kind,
       siteEnv: connection.siteEnv,
       envLabel: connection.envLabel,

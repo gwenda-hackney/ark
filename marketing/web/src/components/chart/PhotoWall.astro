@@ -3,14 +3,25 @@
  * A wall of photos (#240): each at its own shape, in columns; a tapped one
  * opens large with arrows, swipe and Escape. The markup is the event
  * gallery's (#30, renderGallery in lib/event-card.js), so the same
- * scripts/gallery.js lays it out and opens the photos.
+ * scripts/gallery.js lays it out and opens the photos. The photos are the
+ * venue's Gallery in ops (on home, with a couple from events' galleries),
+ * on Sanity's CDN (lib/photo-sources.ts), sized as an event gallery's are
+ * (functions/_lib/sanity-image-url.js).
  */
-import { getImage } from "astro:assets";
 import "../../styles/chart-photos.css";
-import type { GalleryPhoto } from "../../lib/photo-sources";
+import {
+  IMAGE_LARGEST,
+  imageSrcset,
+  sizedImageUrl,
+} from "../../../functions/_lib/sanity-image-url.js";
+import type { EventPhoto } from "../../lib/photo-sources";
 
 interface Props {
-  photos: GalleryPhoto[];
+  /**
+   * The venue's photos; on home a couple from events too, each saying which
+   * (lib/photos.js homePhotoPlan).
+   */
+  photos: Array<EventPhoto & { event?: { title: string } }>;
   /**
    * Home's few, in even rows of squares, each photo cropped to its tile:
    * laid out by the page's CSS (chart-photos.css), not in columns.
@@ -22,15 +33,10 @@ const { photos, row = false } = Astro.props;
 
 /**
  * Three columns of a 72rem page (about 365px each), or two when three would
- * end uneven (about 560px each, as on home), two on a phone; at up to 2x.
- * Never above the file's own size.
- */
-const THUMB_WIDTHS = [240, 400, 600, 800];
-const THUMB_MAX = 1000;
-/**
- * "auto" sizes each photo from the tile it is laid out in (they are all
- * lazy), so a two-column wall gets a sharper file than a three-column one.
- * Browsers without it read the rest: the three-column widths.
+ * end uneven (about 560px each, as on home), two on a phone. "auto" sizes
+ * each photo from the tile it is laid out in (they are all lazy), so a
+ * two-column wall gets a sharper file than a three-column one. Browsers
+ * without it read the rest: the three-column widths.
  */
 const SIZES = "auto, (max-width: 600px) 50vw, (max-width: 1280px) 31vw, 380px";
 /**
@@ -39,46 +45,40 @@ const SIZES = "auto, (max-width: 600px) 50vw, (max-width: 1280px) 31vw, 380px";
  * its tile, so this is the cropped photo's width, not the tile's.
  */
 const ROW_SIZES = "(max-width: 640px) 60vw, (max-width: 1024px) 40vw, 380px";
-const FULL_WIDTH = 1800;
+/** The first few show their blurred copy while they load; the rest their main colour. */
+const BLURRED = 12;
 
-const tiles = await Promise.all(
-  photos.map(async (photo) => {
-    const widths = THUMB_WIDTHS.filter((width) => width < photo.image.width);
-    const thumb = await getImage({
-      src: photo.image,
-      widths: [...widths, Math.min(photo.image.width, THUMB_MAX)],
-      format: "webp",
-      quality: 72,
-    });
-    const full = await getImage({
-      src: photo.image,
-      width: Math.min(photo.image.width, FULL_WIDTH),
-      format: "webp",
-      quality: 80,
-    });
-    return { photo, thumb, full };
-  }),
-);
+const tiles = photos.map((photo, index) => ({
+  photo,
+  src: sizedImageUrl(photo.url, 640),
+  srcset: imageSrcset(photo.url),
+  full: sizedImageUrl(photo.url, IMAGE_LARGEST),
+  style: [
+    `--ratio: ${photo.ratio}`,
+    photo.color && `--photo-color: ${photo.color}`,
+    index < BLURRED && photo.lqip && `--lqip: url("${photo.lqip}")`,
+  ]
+    .filter(Boolean)
+    .join("; "),
+}));
 ---
 
 <div class:list={["series-gallery", row && "ch-photo-row"]}>
   <ul class="series-gallery-list" data-gallery-row={row || undefined}>
     {
-      tiles.map(({ photo, thumb, full }) => (
-        <li class="series-gallery-item" style={`--ratio: ${photo.ratio}`}>
-          <a
-            href={full.src}
-            data-full={full.src}
-            target="_blank"
-            rel="noopener"
-          >
+      tiles.map(({ photo, src, srcset, full, style }) => (
+        <li class="series-gallery-item" style={style}>
+          <a href={full} data-full={full} target="_blank" rel="noopener">
             <img
-              src={thumb.src}
-              srcset={thumb.srcSet.attribute}
-              sizes={row ? ROW_SIZES : SIZES}
-              alt={photo.alt}
-              width={photo.image.width}
-              height={photo.image.height}
+              src={src}
+              srcset={srcset || undefined}
+              sizes={srcset ? (row ? ROW_SIZES : SIZES) : undefined}
+              alt={
+                photo.alt ||
+                (photo.event ? `A photo from ${photo.event.title}` : "")
+              }
+              width={photo.width}
+              height={photo.height}
               loading="lazy"
               decoding="async"
             />

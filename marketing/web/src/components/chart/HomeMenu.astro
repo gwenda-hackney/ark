@@ -7,9 +7,10 @@
  * its foot, in the same order on both. Every one of
  * those is a link to its own section of that menu's page; where that is
  * comes from the menu itself (lib/menu-anchors.js), never from a list here.
- * A side with nothing on it yet keeps its line.
+ * A side with nothing on it yet keeps its line. While a pop-up kitchen is
+ * booked or on, the Food side opens with who's cooking: its logo and name
+ * from ops, and the way to its page (#296).
  */
-import { Image } from "astro:assets";
 import { menuChapters } from "../../data/menu";
 import { sizedImageUrl } from "../../../functions/_lib/sanity-image-url.js";
 import { menuTaste } from "../../lib/home-menu.js";
@@ -18,8 +19,9 @@ import { menuPage } from "../../lib/menu-anchors.js";
 import { eventPhotos, galleryPhotos } from "../../lib/photo-sources";
 import { homePhotoPlan } from "../../lib/photos.js";
 import {
+  foodBoardLine,
   kitchenChaptersOn,
-  kitchenLine,
+  kitchenHeader,
   kitchenNow,
 } from "../../lib/popup-kitchen.js";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
@@ -43,17 +45,25 @@ const kitchenChapters = kitchenChaptersOn(
   occurrences,
   today,
 );
-/** Over the Food side's menu, or in place of one (lib/popup-kitchen.js). */
-const foodLine = kitchenLine(popup, kitchenChapters);
+/**
+ * The top of the Food side while the pop-up is booked or on: its logo, who
+ * and when, the way to its page; null otherwise (lib/popup-kitchen.js).
+ */
+const kitchenTop = kitchenHeader(popup);
+/** In place of the Food side's menu, when it has none (lib/popup-kitchen.js). */
+const foodLine = foodBoardLine(popup, kitchenChapters);
+/** The pop-up's logo at the top of the Food side: 4.5rem (72px), sharp at 2x. */
+const LOGO_WIDTH = 72;
 
 /**
- * The prints taped up on each board: the newest gallery photos marked for
- * it (src/data/photos.json `menu`); from when a pop-up is booked through
- * its last night, the Food board's are from its own gallery in ops. Which photo goes where on home is
- * lib/photos.js homePhotoPlan, for the boards and the photo row alike.
+ * The prints taped up on each board: the first of the venue's photos marked
+ * for it (its menu board in ops' Gallery); from when a pop-up is booked
+ * through its last night, the Food board's are from its own gallery in ops.
+ * Which photo goes where on home is lib/photos.js homePhotoPlan, for the
+ * boards and the photo row alike.
  */
 const { kitchen: kitchenPhotos } = await eventPhotos(today);
-const photoPlan = homePhotoPlan(galleryPhotos(), {
+const photoPlan = homePhotoPlan(await galleryPhotos(), {
   kitchen: kitchenPhotos?.photos || [],
 });
 /** A print's photo, 12rem across at most (192px), sharp at 2x. */
@@ -82,7 +92,7 @@ const sides = [
     key: "food",
     title: "Food",
     link: "All the food",
-    /** Not who's cooking or what: the pop-up kitchen's card says that. */
+    /** What the food is; who's cooking goes at the top, while a pop-up's on. */
     line: "Proper food to go with a drink.",
     photos: photoPlan.food,
     ...menuOf("kitchen"),
@@ -110,13 +120,22 @@ const sides = [
             <p>{side.line}</p>
           </header>
 
-          {side.key === "food" && side.taste && (
-            <KitchenLine
-              line={foodLine}
-              popup={popup}
-              soon=""
-              class="ch-menu-ahead"
-            />
+          {side.key === "food" && kitchenTop && (
+            <a href={kitchenTop.href} class="ch-menu-kitchen">
+              {kitchenTop.logo && (
+                <img
+                  class="ch-menu-kitchen-logo"
+                  src={sizedImageUrl(kitchenTop.logo.url, LOGO_WIDTH)}
+                  srcset={`${sizedImageUrl(kitchenTop.logo.url, LOGO_WIDTH)} 1x, ${sizedImageUrl(kitchenTop.logo.url, LOGO_WIDTH * 2)} 2x`}
+                  alt=""
+                  width={LOGO_WIDTH}
+                  height={LOGO_WIDTH}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              <span class="ch-menu-kitchen-line">{kitchenTop.line}</span>
+            </a>
           )}
 
           {side.taste ? (
@@ -172,28 +191,20 @@ const sides = [
               {/* The newest goes up last, on top */}
               {[...side.photos].reverse().map((photo) => (
                 <figure class="ch-menu-photo ch-print">
-                  {photo.image ? (
-                    <Image
-                      src={photo.image}
-                      alt={photo.alt}
-                      width={PHOTO_WIDTH}
-                      densities={[1, 2]}
-                      format="webp"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <img
-                      src={sizedImageUrl(photo.url, PHOTO_WIDTH)}
-                      srcset={`${sizedImageUrl(photo.url, PHOTO_WIDTH)} 1x, ${sizedImageUrl(photo.url, PHOTO_WIDTH * 2)} 2x`}
-                      alt={photo.alt || `Food from ${kitchenPhotos?.title}`}
-                      width={PHOTO_WIDTH}
-                      height={Math.round(
-                        (PHOTO_WIDTH * photo.height) / photo.width,
-                      )}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  )}
+                  <img
+                    src={sizedImageUrl(photo.url, PHOTO_WIDTH)}
+                    srcset={`${sizedImageUrl(photo.url, PHOTO_WIDTH)} 1x, ${sizedImageUrl(photo.url, PHOTO_WIDTH * 2)} 2x`}
+                    alt={
+                      photo.alt ||
+                      (kitchenPhotos ? `Food from ${kitchenPhotos.title}` : "")
+                    }
+                    width={PHOTO_WIDTH}
+                    height={Math.round(
+                      (PHOTO_WIDTH * photo.height) / photo.width,
+                    )}
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </figure>
               ))}
             </div>

@@ -59,6 +59,7 @@ function seriesFields(overrides = {}) {
     ),
     driveFolderId: "folder-1",
     mainImage: { asset: ASSET },
+    logo: { asset: OTHER_ASSET },
     ...overrides,
   };
 }
@@ -163,6 +164,19 @@ for (const [name, make] of Object.entries(ADAPTERS)) {
       assert.equal((await repo.get(id)).heroCrops, null);
       await repo.update(id, { mainImage: null });
       assert.equal((await repo.get(id)).mainImage, null);
+    });
+
+    it("a pop-up kitchen's logo can change or go, and leaves the main image alone (#296)", async () => {
+      const { id } = await repo.create(seriesFields({ category: "popup", logo: null }));
+      assert.equal((await repo.get(id)).logo, null, "none until one is added");
+      await repo.update(id, { logo: { asset: OTHER_ASSET } });
+      assert.deepEqual((await repo.get(id)).logo, { asset: OTHER_ASSET });
+      assert.deepEqual((await repo.get(id)).mainImage, { asset: ASSET });
+      await repo.update(id, { offer: "" });
+      assert.deepEqual((await repo.get(id)).logo, { asset: OTHER_ASSET }, "kept unless given");
+      await repo.update(id, { logo: null });
+      assert.equal((await repo.get(id)).logo, null);
+      assert.deepEqual((await repo.get(id)).mainImage, { asset: ASSET });
     });
 
     it("a missing series is a 404", async () => {

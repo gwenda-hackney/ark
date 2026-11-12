@@ -354,6 +354,8 @@ export function occurrencePayload(event, occurrence) {
     ...(Array.isArray(event?.gallery) && event.gallery.length
       ? { seriesGallery: stableGallery(event.gallery) }
       : {}),
+    // A pop-up kitchen's logo (#296), only when it has one on the website.
+    ...(publishedLogo(event) ? { seriesLogo: stableImageRef({ asset: publishedLogo(event) }) } : {}),
     isSpecialEdition: content.isSpecialEdition,
     seriesId: String(event?.slug || "").trim(),
     seriesTitle: String(event?.name || "").trim(),
@@ -424,6 +426,17 @@ export function publishedCategory(category) {
   return raw === "promotion" || raw === "popup" ? raw : "";
 }
 
+/**
+ * The logo the website shows for a series (#296): a pop-up kitchen's own,
+ * as its Sanity asset id; "" for any other series, or one with none. A
+ * series that stops being a pop-up kitchen keeps its logo in ops, off the
+ * website.
+ */
+export function publishedLogo(event) {
+  if (publishedCategory(event?.category) !== "popup") return "";
+  return String(event?.logo?.asset || "").trim();
+}
+
 export function sanitySeriesDocument({
   slug,
   title,
@@ -440,6 +453,7 @@ export function sanitySeriesDocument({
   takingApplications = false,
   category = "event",
   pageUrl = "",
+  logo = "",
 }) {
   const key = String(slug || "").trim();
   const doc = {
@@ -470,6 +484,12 @@ export function sanitySeriesDocument({
   // Left off when empty, so series without photos stay unchanged.
   if (gallery.length) doc.gallery = gallery;
   if (heroImage) doc.heroImage = heroImage;
+  // A pop-up kitchen's logo (#296): home's Food board, its card and its page.
+  // Only a pop-up kitchen's, and left off when it has none.
+  const logoAsset = publishedCategory(category) === "popup" ? String(logo || "").trim() : "";
+  if (logoAsset) {
+    doc.logo = { _type: "image", alt: doc.title, asset: { _type: "reference", _ref: logoAsset } };
+  }
   return doc;
 }
 

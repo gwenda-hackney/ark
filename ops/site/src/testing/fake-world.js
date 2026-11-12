@@ -389,10 +389,21 @@ class FakeSanity {
       // Like Sanity: the id is a hash of the bytes, so the same photo is one asset.
       const bytes = init.body == null ? new Uint8Array() : new Uint8Array(await new Response(init.body).arrayBuffer());
       const sha1 = Buffer.from(await crypto.subtle.digest("SHA-1", bytes)).toString("hex");
-      const id = `image-${sha1}-800x600-jpg`;
-      if (this.docs.has(id)) return json({ document: this.docs.get(id) });
       const filename = url.searchParams.get("filename") || "upload.jpg";
-      const doc = { _id: id, _type: "sanity.imageAsset", originalFilename: filename, url: `https://cdn.sanity.test/${id}.jpg` };
+      // 800 × 600, or the size a test names at the end of the file's name ("chez-240x240.jpg").
+      const named = /-(\d+)x(\d+)\.[a-z]+$/i.exec(filename);
+      const [width, height] = named ? [Number(named[1]), Number(named[2])] : [800, 600];
+      const id = `image-${sha1}-${width}x${height}-jpg`;
+      if (this.docs.has(id)) return json({ document: this.docs.get(id) });
+      // Its size in the metadata too, as Sanity has it: the website reads it there.
+      const doc = {
+        _id: id,
+        _type: "sanity.imageAsset",
+        _createdAt: new Date().toISOString(),
+        originalFilename: filename,
+        url: `https://cdn.sanity.test/${id}.jpg`,
+        metadata: { dimensions: { width, height, aspectRatio: width / height } },
+      };
       this.docs.set(id, doc);
       return json({ document: doc });
     }

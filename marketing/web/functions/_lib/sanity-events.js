@@ -56,6 +56,11 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   recurrence,
   replacesSeriesId,
   pageUrl,
+  "logo": logo{
+    "url": asset->url,
+    "width": asset->metadata.dimensions.width,
+    "height": asset->metadata.dimensions.height
+  },
   shortDescription,
   nightSchedule[]{ label, startTime, endTime },
   description,
@@ -129,6 +134,14 @@ export async function fetchPublishedSeries(env) {
       replacesSeriesId: String(row.replacesSeriesId || "").trim(),
       // The series' own link from ops: its page elsewhere, or one of our forms.
       pageUrl: String(row.pageUrl || "").trim(),
+      // A pop-up kitchen's logo from ops (#296), or null.
+      logo: row.logo?.url
+        ? {
+            url: row.logo.url,
+            width: Number(row.logo.width) || 0,
+            height: Number(row.logo.height) || 0,
+          }
+        : null,
       datesPending: row.datesPending === true,
       gallery: Array.isArray(row.gallery) ? row.gallery : [],
       recurrence: row.recurrence || "",

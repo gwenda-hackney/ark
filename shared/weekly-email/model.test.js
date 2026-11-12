@@ -103,6 +103,21 @@ describe("weeklyEmailModel: what each entry says", () => {
     expect(names(model).join()).not.toContain("Cocktail Hour");
   });
 
+  it("links the pop-up kitchen's Instagram from its series in ops, and says nothing ops hasn't (#296)", () => {
+    const catalog = testCatalog();
+    const bare = weeklyEmailModel(catalog, { today: "2026-11-10" }).kitchens[0];
+    expect(bare.note).toBe("");
+    expect(bare.links).toEqual([{ href: "https://gwenda.co.uk/kitchen", text: "See the menu" }]);
+    catalog.series = catalog.series.map((row) =>
+      row.seriesId === "chez-pickle"
+        ? { ...row, pageUrl: "https://www.instagram.com/chezpickle", shortDescription: "Smashed burgers." }
+        : row,
+    );
+    const kitchen = weeklyEmailModel(catalog, { today: "2026-11-10" }).kitchens[0];
+    expect(kitchen.note).toBe("Smashed burgers.");
+    expect(kitchen.links[1]).toEqual({ href: "https://www.instagram.com/chezpickle", text: "Instagram" });
+  });
+
   it("shows the pop-up kitchen once, with the way to its menu", () => {
     expect(model.kitchens).toHaveLength(1);
     expect(model.kitchens[0]).toMatchObject({

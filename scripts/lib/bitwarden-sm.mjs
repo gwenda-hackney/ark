@@ -134,7 +134,6 @@ export const SECRET_OWNERS = {
     "GOOGLE_SERVICE_ACCOUNT_JSON",
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "OPS_SESSION_SECRET",
-    "OPS_LOCAL_ADMIN_PW",
     // Bearer for GET /status on the site-health Worker, which holds the same
     // value as its HEALTH_STATUS_TOKEN secret (#151).
     "SITE_HEALTH_STATUS_TOKEN",
@@ -197,7 +196,6 @@ export const APP_SECRETS = {
       "GOOGLE_OAUTH_CLIENT_SECRET",
       "GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON",
       "OPS_SESSION_SECRET",
-      "OPS_LOCAL_ADMIN_PW",
       "SANITY_API_TOKEN",
       "DEPLOY_WEBHOOK_SECRET",
       "FORMS_ADMIN_SECRET",
@@ -218,7 +216,7 @@ export const APP_SECRETS = {
       GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
       GMAIL_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
     },
-    pagesSkip: ["OPS_LOCAL_ADMIN_PW"],
+    pagesSkip: [],
   },
   web: {
     keys: [

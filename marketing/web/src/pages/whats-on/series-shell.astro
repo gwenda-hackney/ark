@@ -5,11 +5,10 @@
  * <series-…> tags are replaced there, with the page lib/event-page.js draws.
  *
  * A <series-part> holds what only the build knows (Book a table's words when
- * bookings are on, the guest chef's mark, where a pop-up's menu
- * is, each contact form's button). The fill cuts
- * them all out and places the ones the event needs.
+ * bookings are on, where a pop-up's menu is, each contact form's button).
+ * The fill cuts them all out and places the ones the event needs. A pop-up
+ * kitchen's logo and Instagram are its series' in ops (#296), read with it.
  */
-import { Image } from "astro:assets";
 import "../../styles/chart.css";
 import "../../styles/chart-nights.css";
 import "../../styles/chart-photos.css";
@@ -19,7 +18,6 @@ import ChartFooter from "../../components/chart/ChartFooter.astro";
 import ChartNav from "../../components/chart/ChartNav.astro";
 import { siteConfig } from "../../config/site";
 import { menuChapters } from "../../data/menu";
-import { guestChefLogo } from "../../lib/chart-assets";
 import { followUpdatesLink } from "../../lib/follow-updates.js";
 import { popupMenuHref } from "../../lib/popup-kitchen.js";
 import { fetchFormButtons } from "../../lib/sanity/forms";
@@ -36,8 +34,6 @@ const popupMenus = [
 ].map((seriesId) => ({ seriesId, href: popupMenuHref(seriesId, chapters) }));
 /** Each contact form's button, for an event whose link in ops is that form. */
 const formButtons = await fetchFormButtons().catch(() => []);
-const { guestChef } = siteConfig;
-const guestKey = guestChef.name.trim().toLowerCase();
 const follow = followUpdatesLink();
 ---
 
@@ -60,11 +56,6 @@ const follow = followUpdatesLink();
           <series-part name="book">{siteConfig.copy.bookingCta}</series-part>
         )
       }
-      <series-part name={`logo:${guestKey}`}>
-        <Image {...guestChefLogo} width={416} alt={guestChef.name} />
-      </series-part>
-      <series-part name={`line:${guestKey}`}>{guestChef.line}</series-part>
-      <series-part name={`page:${guestKey}`}>{guestChef.instagram}</series-part>
       {
         popupMenus.map((popup) => (
           <series-part name={`menu:${popup.seriesId}`}>

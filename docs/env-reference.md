@@ -47,7 +47,7 @@ Production values (`NAME__PRODUCTION`) for shared infrastructure: the Cloudflare
 
 ### `ark/ops`
 
-Production values for ops: its Baserow token, session secret and local admin password.
+Production values for ops: its Baserow token and session secret.
 
 - **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token).
 - **Open:** [ark/ops in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/4d70b6fc-00e8-407a-ab30-b4d600c9879b/secrets)
@@ -68,7 +68,7 @@ Dev values (`NAME__DEV`) and shared values (plain `NAME`, one value for both env
 
 ### `ark/ops-dev`
 
-Dev and shared values for ops: its dev Baserow token, session secret and local admin password, the Baserow login, the Google service account and OAuth secret.
+Dev and shared values for ops: its dev Baserow token and session secret, the Baserow login, the Google service account and OAuth secret.
 
 - **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token), [`ark-ci-dev`](#ark_ci_dev_token).
 - **Open:** [ark/ops-dev in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/c0696997-f778-4d42-8948-b4d7007a068c/secrets)
@@ -266,16 +266,6 @@ After sign-in, ops keeps you signed in with a cookie. Signing that cookie means 
 - **Gets there by:** Pages secret, synced by the ops deploy.
 - **Expires:** never.
 - **Changing it:** logs everyone out of that ops once. Pick a quiet time, store the new value, then run the ops deploy (`ops-secrets.yml` for production).
-
-### `OPS_LOCAL_ADMIN_PW`
-
-Google sign-in only works on the registered ops addresses, not on localhost. This password lets a developer sign in to ops running on their own machine.
-
-- **Owner:** Gwenda: a random value we generate.
-- **SM:** `OPS_LOCAL_ADMIN_PW__DEV` ([`ark/ops-dev`](#arkops-dev)), `OPS_LOCAL_ADMIN_PW__PRODUCTION` ([`ark/ops`](#arkops)).
-- **What:** the password for the local admin sign-in at `/gate/` when ops runs on your machine (`npm run ops:dev`), where Google sign-in isn't set up.
-- **Used by:** local ops only. It is never pushed to Cloudflare Pages (`pagesSkip`).
-- **Expires:** never.
 
 ### `SENTRY_READ_TOKEN`
 
@@ -525,7 +515,7 @@ Optional, not secret, and unset by default.
 
 Personal settings for local work, so test email reaches you and nothing else.
 
-- `FORMS_NOTIFY_EMAIL`: the safe inbox outside production. Defaults to your git email; override it in `.env`.
+- `FORMS_NOTIFY_EMAIL`: the safe inbox outside production. Defaults to your git email; override it in `.env`. `npm run ops:dev` also signs you in as it (`OPS_LOCAL_SIGN_IN`, honoured only with `SITE_ENV=local` and no `OPS_LOCAL_LIVE`), if it is on the ops users list.
 - `.env` is optional and holds personal overrides only. Never secrets, never `ARK_LOCAL_BW_TOKEN` or `BWS_ACCESS_TOKEN`.
 
 ---
@@ -548,7 +538,6 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google Cloud `gwenda-ops` | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Google Cloud `682046070260` | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
 | `OPS_SESSION_SECRET` | Gwenda | own values | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |
-| `OPS_LOCAL_ADMIN_PW` | Gwenda | own values | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |
 | `SUBSCRIBE_SECRET` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `FORMS_ADMIN_SECRET` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `SITE_PASSWORD` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |

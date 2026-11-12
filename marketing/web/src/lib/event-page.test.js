@@ -339,23 +339,24 @@ describe("a promotion", () => {
 });
 
 describe("a pop-up kitchen", () => {
+  const LOGO = "https://cdn.sanity.io/images/p/d/logo123-900x900.png";
+  /** Its series as ops publishes it (#296): its logo and its Instagram. */
   const kitchen = {
     seriesId: "chez-pickle",
     title: "Chez Pickle",
     schedule: "once",
     heroImageUrl: FLYER,
-    fullDescription: "",
+    fullDescription: "Smashed burgers and fries.",
+    pageUrl: "https://www.instagram.com/chezpickle",
+    logo: { url: LOGO, width: 900, height: 900 },
     nights: [night("2099-01-08", { title: "Chez Pickle", artist: "POP UP" })],
   };
   const parts = new Map([
-    ["logo:chez pickle", '<img src="/chez-pickle.webp" alt="Chez Pickle">'],
-    ["line:chez pickle", "Smashed burgers and fries."],
-    ["page:chez pickle", "https://www.instagram.com/chezpickle"],
     ["menu:chez-pickle", "/kitchen#chez-pickle"],
     BOOKINGS_ON,
   ]);
 
-  it("shows when they're in, their mark, their menu and their page", () => {
+  it("shows when they're in, their logo from ops, their menu and their Instagram", () => {
     const { html } = page(kitchen, {
       category: "popup",
       nights: kitchen.nights,
@@ -363,7 +364,11 @@ describe("a pop-up kitchen", () => {
     });
     expect(html).toContain('<span class="ch-stand-tag">Pop-up kitchen</span>');
     expect(html).toContain("ch-stand-photo--logo");
-    expect(html).toContain('src="/chez-pickle.webp"');
+    const img = /<img\b[^>]*>/.exec(html.split("ch-stand-photo--logo")[1])?.[0];
+    expect(img).toContain(`src="${LOGO}?w=416&amp;q=86&amp;auto=format"`);
+    expect(img).toContain(`${LOGO}?w=832&amp;q=86&amp;auto=format 2x`);
+    expect(img).toContain('alt="Chez Pickle"');
+    expect(html).not.toContain(FLYER.replace(/[?#].*$/, ""));
     expect(html).toContain('<p class="ch-night-time">Thu 8 Jan, 7–10pm</p>');
     expect(html).toContain("Smashed burgers and fries.");
     expect(html).toContain(
@@ -371,6 +376,30 @@ describe("a pop-up kitchen", () => {
     );
     expect(html).toContain('href="https://www.instagram.com/chezpickle"');
     expect(html).not.toContain("With POP UP");
+    expect(oversizedPictures(html)).toEqual([]);
+  });
+
+  it("shows its flyer when ops has no logo for it, and nothing the site's code holds", () => {
+    const { html } = page(
+      { ...kitchen, logo: null, pageUrl: "" },
+      {
+        category: "popup",
+        nights: kitchen.nights,
+        // What the built shell carried before #296: never used now
+        parts: new Map([
+          ...parts,
+          [
+            "logo:chez pickle",
+            '<img src="/chez-pickle.webp" alt="Chez Pickle">',
+          ],
+          ["page:chez pickle", "https://www.instagram.com/chezpickle"],
+        ]),
+      },
+    );
+    expect(html).not.toContain("ch-stand-photo--logo");
+    expect(html).not.toContain("/chez-pickle.webp");
+    expect(html).toContain(FLYER.replace(/[?#].*$/, ""));
+    expect(html).not.toContain("instagram.com/chezpickle");
   });
 
   it("books a table for the next night they're in", () => {

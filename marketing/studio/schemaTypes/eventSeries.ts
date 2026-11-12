@@ -100,6 +100,17 @@ export const eventSeries = defineType({
       readOnly: true,
     }),
     defineField({
+      name: "logo",
+      title: "Logo",
+      type: "image",
+      readOnly: true,
+      description:
+        "From ops: a pop-up kitchen's logo (its Images tab). Shown at the top of home's Food board while it's on, on its card in What's on and on its page. Its Instagram is the Link above.",
+      fields: [
+        defineField({ name: "alt", type: "string", title: "Alternative text" }),
+      ],
+    }),
+    defineField({
       name: "shortDescription",
       title: "Short description",
       type: "text",

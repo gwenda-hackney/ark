@@ -31,8 +31,8 @@ const {
 } = Astro.props;
 /**
  * The ring beside the title: the number of the place in the navigation this
- * page is, or is a part of (the play form is a part of Contact). None on a
- * page outside the five, such as Photos.
+ * page is, or is a part of (the party and play forms are Bookings'). None
+ * on a page outside the five, such as Photos.
  */
 const numeral = chartSections(pathname).find((item) => item.current)?.numeral;
 ---

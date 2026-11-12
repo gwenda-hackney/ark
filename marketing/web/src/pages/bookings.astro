@@ -1,0 +1,21 @@
+---
+/**
+ * Bookings (#240), IV in the navigation: the same two halves as home's
+ * Bookings section, a party and playing here, under the page's title. A
+ * table is booked from the button on every page.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import BookingHalves from "../components/chart/BookingHalves.astro";
+import { siteConfig } from "../config/site";
+
+const { title: pageTitle, description: pageDescription } =
+  siteConfig.seo.bookings;
+const words = siteConfig.copy.bookings;
+---
+
+<BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
+  <ChartPage class="ch-bookings-page" title={words.heading} lead={words.note}>
+    <BookingHalves level={2} />
+  </ChartPage>
+</BaseLayout>

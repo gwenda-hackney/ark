@@ -9,7 +9,7 @@ import { partyFacts } from "./parties-model.js";
 import type { DayKey, OpeningDay, Parties, PartyForm, SaveHoursResponse, WebsiteState } from "./types";
 
 /** What a card's badge and messages call what it holds. */
-export type VenueNoun = "hours" | "party details";
+export type VenueNoun = "hours" | "party details" | "photos";
 
 /** Where the details stand on the website, in a badge. */
 export function websiteBadge(
@@ -27,7 +27,7 @@ export function websiteBadge(
 			};
 		case "behind":
 			return {
-				label: `Website shows other ${noun === "hours" ? "hours" : "details"}`,
+				label: `Website shows other ${noun === "party details" ? "details" : noun}`,
 				tone: "warning",
 				hint: `Save again to put these ${noun} on the website.`,
 			};

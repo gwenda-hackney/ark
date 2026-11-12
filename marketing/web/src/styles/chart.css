@@ -2223,34 +2223,17 @@ html[data-chart-leaving] .ch-page {
   transform: rotate(-3deg);
 }
 
-/* Contact: finding us, playing here and the list, one under the other,
-   a trail between them (chart-rules.css) */
+/* Contact: finding us and the list, one under the other, a trail between
+   them (chart-rules.css) */
 .ch-contact-part {
   padding: 2.5rem 0;
 }
 
-/* A part with its badge on the trail over it (ChartBadge): the heading
-   close under the badge, so the badge and the trail lead into it */
-.ch-contact-part.ch-waypoint {
-  padding-top: 2rem;
-}
-
-.ch-contact-part > p,
-.ch-contact-play p {
+.ch-contact-part > p {
   max-width: 40rem;
   margin: 0 0 1.25rem;
   font-size: 1.1875rem;
   color: var(--ch-ink-2);
-}
-
-/* Having a party, playing here: the words at the top beside the photo, so
-   the heading follows straight on from the badge and the trail over it
-   (ChartBadge, a waypoint in chart-rules.css) */
-.ch-contact-play {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 2.5rem;
-  align-items: start;
 }
 
 /*
@@ -2258,8 +2241,8 @@ html[data-chart-leaving] .ch-page {
  * deeper at the foot where a note can be written, taped up at a small
  * tilt (--tilt). The paper is the ::before, its edge cut a little uneven
  * (#ch-cut), so the photo itself stays sharp; the tape is the ::after.
- * The decks on the play form, on Contact and on home. Not for the photo
- * wall or flyers.
+ * The photos at the top of the play and party forms, and on home's menu.
+ * Not for the photo wall or flyers.
  */
 .ch-print {
   --tilt: 1.5deg;
@@ -2339,12 +2322,6 @@ html[data-chart-leaving] .ch-page {
 }
 
 @media (max-width: 48rem) {
-  /* Room under the button for the print's tilt and its tape */
-  .ch-contact-play {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2.25rem;
-  }
-
   /* The last part ends where the page's own foot room begins */
   .ch-contact-part:last-child {
     padding-bottom: 0;

@@ -2,32 +2,30 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import {
   createOauthStateToken,
-  createPasswordToken,
   createSessionToken,
   gateRedirectPath,
   isProtectedApiPath,
   isRequestAuthed,
-  matchesPassword,
+  localSignInEmail,
   opsUserForbiddenResponse,
   requestOrigin,
   resolveAuth,
   resolveSessionEmail,
   safeRedirectPath,
   verifyOauthStateToken,
-  verifyPasswordToken,
   verifySessionToken,
 } from "./auth.js";
 
+const GOOGLE = {
+  GOOGLE_OAUTH_CLIENT_ID: "id",
+  GOOGLE_OAUTH_CLIENT_SECRET: "sec",
+  OPS_SESSION_SECRET: "sess",
+};
+
 describe("ops auth", () => {
   it("resolves Google when OAuth + session secret are set", () => {
-    const auth = resolveAuth({
-      GOOGLE_OAUTH_CLIENT_ID: "id",
-      GOOGLE_OAUTH_CLIENT_SECRET: "sec",
-      OPS_SESSION_SECRET: "sess",
-      OPS_LOCAL_ADMIN_PW: "copper",
-    });
+    const auth = resolveAuth({ ...GOOGLE, SITE_ENV: "production" });
     assert.equal(auth.kind, "google");
-    assert.equal(auth.password, "copper");
   });
 
   it("ignores leftover CF_ACCESS_GOOGLE_* keys", () => {
@@ -39,22 +37,10 @@ describe("ops auth", () => {
     assert.equal(auth.kind, "misconfigured");
   });
 
-  it("uses the local admin password gate when Google is not configured", () => {
-    const auth = resolveAuth({ OPS_LOCAL_ADMIN_PW: "copper" });
-    assert.equal(auth.kind, "password");
-    assert.equal(auth.password, "copper");
-  });
-
-  it("accepts legacy OPS_PASSWORD as the local admin password", () => {
-    const auth = resolveAuth({ OPS_PASSWORD: "legacy" });
-    assert.equal(auth.kind, "password");
-    assert.equal(auth.password, "legacy");
-  });
-
-  it("round-trips password tokens", async () => {
-    const token = await createPasswordToken("secret");
-    assert.equal(await verifyPasswordToken("secret", token), true);
-    assert.equal(await verifyPasswordToken("nope", token), false);
+  it("has no password sign-in", () => {
+    for (const env of [{ OPS_LOCAL_ADMIN_PW: "copper" }, { OPS_PASSWORD: "legacy" }]) {
+      assert.equal(resolveAuth({ SITE_ENV: "local", ...env }).kind, "misconfigured");
+    }
   });
 
   it("round-trips Google session tokens", async () => {
@@ -93,13 +79,38 @@ describe("ops auth", () => {
     );
   });
 
-  it("authenticates local password cookies", async () => {
-    const auth = resolveAuth({ OPS_LOCAL_ADMIN_PW: "copper" });
-    const token = await createPasswordToken("copper");
-    const req = new Request("http://localhost:5174/menu", {
-      headers: { Cookie: `gwenda_ops_access=${token}` },
-    });
+  it("signs a developer's machine in as OPS_LOCAL_SIGN_IN, without a cookie", async () => {
+    const auth = resolveAuth({ ...GOOGLE, SITE_ENV: "local", OPS_LOCAL_SIGN_IN: " Developer@Gwenda.co.uk " });
+    assert.deepEqual(auth, { kind: "local", email: "developer@gwenda.co.uk" });
+    const req = new Request("http://localhost:5174/menu");
+    assert.equal(await resolveSessionEmail(req, auth), "developer@gwenda.co.uk");
     assert.equal(await isRequestAuthed(auth, req), true);
+  });
+
+  it("needs no Google secrets on a developer's machine", () => {
+    const auth = resolveAuth({ SITE_ENV: "local", OPS_LOCAL_SIGN_IN: "developer@gwenda.co.uk" });
+    assert.equal(auth.kind, "local");
+  });
+
+  it.each([
+    ["hosted production", { SITE_ENV: "production" }],
+    ["hosted dev", { SITE_ENV: "dev" }],
+    ["production by its short name", { SITE_ENV: "prod" }],
+    ["no SITE_ENV", {}],
+    ["a SITE_ENV only isLocalMachine knows", { SITE_ENV: "development" }],
+    ["ops:prod", { SITE_ENV: "production", OPS_LOCAL_LIVE: "1" }],
+    ["a local machine flagged live", { SITE_ENV: "local", OPS_LOCAL_LIVE: "1" }],
+  ])("ignores OPS_LOCAL_SIGN_IN on %s", (_where, env) => {
+    const withBinding = { ...env, OPS_LOCAL_SIGN_IN: "developer@gwenda.co.uk" };
+    assert.equal(localSignInEmail(withBinding), "");
+    assert.equal(resolveAuth({ ...GOOGLE, ...withBinding }).kind, "google");
+    assert.equal(resolveAuth(withBinding).kind, "misconfigured");
+  });
+
+  it("is not local sign-in without the binding", () => {
+    assert.equal(localSignInEmail({ SITE_ENV: "local" }), "");
+    assert.equal(localSignInEmail({ SITE_ENV: "local", OPS_LOCAL_SIGN_IN: "  " }), "");
+    assert.equal(resolveAuth({ ...GOOGLE, SITE_ENV: "local" }).kind, "google");
   });
 
   it("uses X-Forwarded-Host as the browser origin", () => {
@@ -124,21 +135,9 @@ describe("ops auth", () => {
     assert.equal(safeRedirectPath("/api/inventory/lightspeed"), "/lightspeed");
     assert.equal(safeRedirectPath("/api/inventory"), "/inventory");
     assert.equal(safeRedirectPath("/api/suppliers"), "/suppliers");
+    assert.equal(safeRedirectPath("/api/venue"), "/venue");
+    assert.equal(safeRedirectPath("/api/venue/gallery/abc"), "/venue/gallery");
     assert.equal(gateRedirectPath("/stock/"), "/gate/?next=%2Fstock");
-  });
-
-  it("matches a password only when it is the same one", async () => {
-    assert.equal(await matchesPassword("canal-side", "canal-side"), true);
-    assert.equal(await matchesPassword("canal-sidf", "canal-side"), false);
-    assert.equal(await matchesPassword("canal", "canal-side"), false);
-    assert.equal(await matchesPassword("canal-side!", "canal-side"), false);
-  });
-
-  it("matches nothing that isn't a password, or with none set", async () => {
-    assert.equal(await matchesPassword(undefined, "canal-side"), false);
-    assert.equal(await matchesPassword(["canal-side"], "canal-side"), false);
-    assert.equal(await matchesPassword("", ""), false);
-    assert.equal(await matchesPassword("canal-side", undefined), false);
   });
 
   it("returns 403 when the email is not a user", async () => {

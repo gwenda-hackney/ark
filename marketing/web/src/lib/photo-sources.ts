@@ -1,70 +1,28 @@
 /**
  * Where the gallery's photos come from. The only module that knows.
  *
- * - The venue's own: files in src/assets/images/, listed in
- *   src/data/photos.json (add one with `npm run gallery:add`).
+ * - The venue's own: the Gallery in ops (#291), published to Sanity with the
+ *   venue's details (the `venueDetails` document, lib/venue-details.js) and
+ *   read here when the site is built, in the Gallery's order. Each photo's
+ *   size is its Sanity asset's.
  * - Each event's: its gallery in ops (the event's Images tab), published to
- *   Sanity with the series and read here when the site is built. A change in
- *   ops starts a build of its own once edits go quiet (ops site-pending.js).
+ *   Sanity with the series and read here when the site is built.
+ *
+ * Either way a change in ops starts a build of its own once edits go quiet
+ * (ops site-pending.js).
  */
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import type { ImageMetadata } from "astro";
-import list from "../data/photos.json";
-import { listPhotos } from "./photos.js";
 import { londonToday } from "./london-day.js";
+import { PHOTO_MENUS } from "./photos.js";
 import { kitchenNow } from "./popup-kitchen.js";
 import { upcomingNights } from "./promotions.js";
 import { fetchWhatsOnCatalog } from "./sanity/events";
+import {
+  fetchVenueDetails,
+  type VenueGalleryEntry,
+} from "./sanity/venue-details";
 import type { EventSeries } from "../types/events";
 
-const modules = import.meta.glob<{ default: ImageMetadata }>(
-  "../assets/images/**/*.{jpg,jpeg,png,webp}",
-  { eager: true },
-);
-
-const files: Record<string, ImageMetadata> = Object.fromEntries(
-  Object.entries(modules).map(([path, module]) => [
-    path.replace("../assets/images/", ""),
-    module.default,
-  ]),
-);
-
-/**
- * The SHA-1 of a venue photo's bytes. Sanity names an upload by the same
- * hash, so the same picture added to an event in ops is known for the same
- * one and shown once. The build runs in marketing/web.
- */
-function fileHash(file: string): string {
-  try {
-    return createHash("sha1")
-      .update(readFileSync(resolve("src/assets/images", file)))
-      .digest("hex");
-  } catch {
-    return "";
-  }
-}
-
-export type GalleryPhoto = {
-  file: string;
-  alt: string;
-  link: string;
-  /** The menu board on home it can be pinned up on: "drinks", "food" or "". */
-  menu: string;
-  image: ImageMetadata;
-  ratio: number;
-  hash: string;
-};
-
-/** Every venue photo, newest first. */
-export function galleryPhotos(): GalleryPhoto[] {
-  return (listPhotos(list, files) as Omit<GalleryPhoto, "hash">[]).map(
-    (photo) => ({ ...photo, hash: fileHash(photo.file) }),
-  );
-}
-
-/** A photo from an event's gallery in ops, on Sanity's CDN. */
+/** A photo from a gallery in ops, on Sanity's CDN. */
 export type EventPhoto = {
   url: string;
   width: number;
@@ -76,6 +34,14 @@ export type EventPhoto = {
   lqip: string;
   color: string;
   hash: string;
+  /** Width over height, to three places: the wall lays photos out by it. */
+  ratio: number;
+};
+
+/** A photo of the venue's own, from its Gallery in ops. */
+export type GalleryPhoto = EventPhoto & {
+  /** The menu board on home it can be pinned up on: "drinks", "food" or "". */
+  menu: string;
 };
 
 /** An event and its photos, newest first; `href` while it has a page. */
@@ -91,14 +57,19 @@ type GalleryEntry = NonNullable<EventSeries["gallery"]>[number];
 /** Sanity's address for an upload ends in the hash of its bytes. */
 const SANITY_HASH = /\/([0-9a-f]{40})-\d+x\d+\.[a-z]+(?:[?#]|$)/;
 
-function eventPhoto(entry: GalleryEntry): EventPhoto {
+/** Said for a venue photo ops hasn't described yet. */
+const VENUE_PHOTO_ALT = "A photo from Gwenda";
+
+function eventPhoto(entry: GalleryEntry | VenueGalleryEntry): EventPhoto {
   const url = String(entry?.url || "").trim();
+  const width = Number(entry?.width) || 0;
+  const height = Number(entry?.height) || 0;
   return {
     url,
-    width: Number(entry?.width) || 0,
-    height: Number(entry?.height) || 0,
+    width,
+    height,
     alt: String(entry?.alt || "").trim(),
-    date: String(entry?.date || "").trim(),
+    date: String((entry as GalleryEntry)?.date || "").trim(),
     added: String(entry?.added || "").trim(),
     lqip: /^data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+$/.test(entry?.lqip || "")
       ? String(entry?.lqip)
@@ -107,7 +78,41 @@ function eventPhoto(entry: GalleryEntry): EventPhoto {
       ? String(entry?.color)
       : "",
     hash: SANITY_HASH.exec(url)?.[1] || "",
+    ratio:
+      width > 0 && height > 0 ? Math.round((width / height) * 1000) / 1000 : 0,
   };
+}
+
+/**
+ * The venue's Gallery as Sanity has it → the photos the pages show, in its
+ * order (the first is first on home). One with no picture to show (no
+ * address or size) is left out rather than breaking the page; the same
+ * picture twice shows once.
+ */
+export function venuePhotos(
+  entries: VenueGalleryEntry[] | null | undefined,
+): GalleryPhoto[] {
+  const seen = new Set<string>();
+  const photos: GalleryPhoto[] = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const photo = eventPhoto(entry);
+    if (!photo.url || !(photo.width > 0) || !(photo.height > 0)) continue;
+    const key = photo.hash || photo.url;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const menu = String(entry?.menu || "");
+    photos.push({
+      ...photo,
+      alt: photo.alt || VENUE_PHOTO_ALT,
+      menu: PHOTO_MENUS.includes(menu) ? menu : "",
+    });
+  }
+  return photos;
+}
+
+/** Every venue photo, in the Gallery's order. */
+export async function galleryPhotos(): Promise<GalleryPhoto[]> {
+  return venuePhotos((await fetchVenueDetails()).gallery);
 }
 
 /**

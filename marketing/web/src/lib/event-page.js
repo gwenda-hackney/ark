@@ -8,9 +8,10 @@
  * eventPageModel decides what the page shows; renderEventPage turns it into
  * HTML. The page is filled in on request (functions/_lib/event-pages.js), in
  * the Pages Function and the dev server alike, so nothing here needs the
- * build: what only the build knows (whether bookings are on, a guest
- * chef's mark, where a pop-up's menu is) comes in as `parts`, cut from
- * the built shell (src/pages/whats-on/series-shell.astro).
+ * build: what only the build knows (whether bookings are on, where a
+ * pop-up's menu is) comes in as `parts`, cut from the built shell
+ * (src/pages/whats-on/series-shell.astro). A pop-up's logo and Instagram
+ * are its series' in ops (#296), read with the rest of it.
  */
 import {
   eventDescriptionParagraphs,
@@ -45,6 +46,9 @@ export const MORE_DATES = 8;
 
 /** A photo's frame when it isn't a flyer shown whole: 4:5, as on the cards. */
 const PHOTO_SHAPE = 0.8;
+
+/** A pop-up's logo: 26rem across at most (416px), sharp at 2x. */
+const LOGO_WIDTH = 416;
 
 /** No flyer: the record in the empty frame, as on the night cards. */
 const NO_FLYER_MARK = recordSvg({ size: "large", className: "ch-night-mark" });
@@ -138,6 +142,20 @@ function scheduleRows(slots) {
       when: formatEventSpan(slot?.startTime, slot?.endTime),
     }))
     .filter((row) => row.label);
+}
+
+/**
+ * A pop-up kitchen's own logo from ops (#296), shown whole in place of its
+ * flyer; null when ops has none, and the flyer (or the record) shows.
+ */
+function logoModel(logo, title) {
+  const url = text(logo?.url);
+  if (!url) return null;
+  return {
+    src: sizedImageUrl(url, LOGO_WIDTH),
+    src2x: sizedImageUrl(url, LOGO_WIDTH * 2),
+    alt: title,
+  };
 }
 
 /** Who's on: their link (usually Instagram) sits on the name. */
@@ -243,8 +261,7 @@ export function eventPageModel(
   /** The Book a table button's words, when bookings are on. */
   const bookWords = partText(parts.get("book"));
 
-  const guestKey = title.toLowerCase();
-  const logo = kind === "popup" ? parts.get(`logo:${guestKey}`) || "" : "";
+  const logo = kind === "popup" ? logoModel(detail.logo, title) : null;
   const picture = logo
     ? null
     : pictureModel(featured?.heroImageUrl || detail.heroImageUrl, {
@@ -278,10 +295,7 @@ export function eventPageModel(
   const link = text(next?.pageUrl) || text(detail.pageUrl);
   const form = severalDays ? null : siteFormLink(link, parts);
   const external = form ? null : eventPageLink(link);
-  const fallbackPage = kind === "popup" ? parts.get(`page:${guestKey}`) : "";
-  const page = severalDays
-    ? null
-    : external || (fallbackPage ? eventPageLink(fallbackPage) : null);
+  const page = severalDays ? null : external;
 
   const words = severalDays
     ? text(detail.fullDescription || detail.description)
@@ -290,7 +304,7 @@ export function eventPageModel(
           detail.fullDescription ||
           next?.description ||
           detail.description,
-      ) || (kind === "popup" ? text(parts.get(`line:${guestKey}`)) : "");
+      );
 
   const lead = {
     picture,
@@ -514,7 +528,12 @@ function leadHtml(model) {
       })
     : lead.logo
       ? html`<span class="ch-night-photo ch-event-photo ch-stand-photo--logo"
-          >${raw(lead.logo)}${sticker}</span
+          ><img${attrs({
+            src: lead.logo.src,
+            srcset: `${lead.logo.src} 1x, ${lead.logo.src2x} 2x`,
+            alt: lead.logo.alt,
+            loading: "eager",
+          })} />${sticker}</span
         >`
       : html`<span class="ch-night-photo ch-event-photo ch-event-photo--mark"
           >${raw(NO_FLYER_MARK)}${sticker}</span

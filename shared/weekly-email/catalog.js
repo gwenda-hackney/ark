@@ -104,6 +104,8 @@ export function mapSeries(doc) {
     schedule: doc.schedule === "repeating" ? "repeating" : doc.schedule === "once" ? "once" : "manual",
     recurrence: text(doc.recurrence),
     shortDescription: text(doc.shortDescription),
+    // Its own link from ops: a pop-up kitchen's Instagram (#296).
+    pageUrl: text(doc.pageUrl),
     heroImageUrl: pictureUrl(doc.heroImage) || null,
   };
 }

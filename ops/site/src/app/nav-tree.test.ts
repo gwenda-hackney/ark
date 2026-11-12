@@ -52,7 +52,7 @@ describe("NAV_ROUTES", () => {
 		assert.equal(settings?.heading, true);
 		assert.deepEqual(
 			settings?.children?.map((row) => row.id),
-			["venue", "users", "config", "dev-tools"],
+			["venue", "gallery", "users", "config", "dev-tools"],
 		);
 	});
 });
@@ -91,6 +91,7 @@ describe("flattenNavRoutes", () => {
 				"web",
 				"email",
 				"venue",
+				"gallery",
 				"users",
 				"config",
 				"dev-tools",
@@ -106,6 +107,8 @@ describe("matchActiveRoute", () => {
 		assert.equal(matchActiveRoute(routes, "/inventory/gin")?.id, "inventory");
 		assert.equal(matchActiveRoute(routes, "/lightspeed")?.id, "lightspeed-reconcile");
 		assert.equal(matchActiveRoute(routes, "/lightspeed/export")?.id, "lightspeed-export");
+		assert.equal(matchActiveRoute(routes, "/venue")?.id, "venue");
+		assert.equal(matchActiveRoute(routes, "/venue/gallery")?.id, "gallery");
 		assert.equal(matchActiveRoute(routes, "/suppliers")?.id, "suppliers");
 		assert.equal(matchActiveRoute(routes, "/config/pour")?.id, "config");
 		assert.equal(matchActiveRoute(routes, "/config")?.id, "config");
@@ -172,7 +175,7 @@ describe("visibleRoutes", () => {
 	it("hides developer tools from non-admins", () => {
 		const ids = (list: typeof routes) =>
 			list.find((row) => row.id === "settings")?.children?.map((row) => row.id);
-		assert.deepEqual(ids(visibleRoutes(routes, false)), ["venue", "users", "config"]);
-		assert.deepEqual(ids(visibleRoutes(routes, true)), ["venue", "users", "config", "dev-tools"]);
+		assert.deepEqual(ids(visibleRoutes(routes, false)), ["venue", "gallery", "users", "config"]);
+		assert.deepEqual(ids(visibleRoutes(routes, true)), ["venue", "gallery", "users", "config", "dev-tools"]);
 	});
 });

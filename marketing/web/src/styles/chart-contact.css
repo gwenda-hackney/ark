@@ -1,5 +1,5 @@
 /*
- * Contact (#240, pages/contact.astro): the four ways in as cards at the
+ * Contact (#240, pages/contact.astro): the two ways in as cards at the
  * top, and Find us as one block, the map beside the address and the hours.
  */
 
@@ -10,7 +10,7 @@
  */
 .ch-contact-cards {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   margin: -0.5rem 0 0.5rem;
 }
@@ -48,7 +48,7 @@
   transition: color 0.2s ease;
 }
 
-/* Its arrow in the corner: down to Find us, across to the others */
+/* Its arrow in the corner: down to Find us, across to the list's page */
 .ch-contact-card-arrow {
   position: absolute;
   top: 0.875rem;
@@ -66,13 +66,6 @@
   font-size: 1rem;
   line-height: 1.4;
   color: var(--ch-ink-2);
-}
-
-/* Two by two on a tablet and a phone */
-@media (max-width: 56rem) {
-  .ch-contact-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 30rem) {

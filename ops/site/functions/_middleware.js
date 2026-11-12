@@ -1,13 +1,13 @@
 /**
- * Protects the ops Pages project.
- * Google OAuth (local + production); optional OPS_LOCAL_ADMIN_PW.
+ * Protects the ops Pages project: Google sign-in, or on a developer's machine
+ * the developer's own email (src/access/server/auth.js localSignInEmail).
+ * Either way the ops users list decides who gets in.
  */
 import {
   authMisconfiguredResponse,
   gateRedirectPath,
   isProtectedApiPath,
   isPublicPath,
-  isRequestAuthed,
   opsUserForbiddenResponse,
   relativeRedirect,
   resolveAuth,
@@ -44,36 +44,24 @@ export async function protect(context) {
   const auth = resolveAuth(env);
   if (auth.kind === "misconfigured") return authMisconfiguredResponse();
 
-  const authed = await isRequestAuthed(auth, context.request);
+  // Signed in: a Google session cookie, or local sign-in. Not yet a member.
+  const email = await resolveSessionEmail(context.request, auth);
 
   if (isPublicPath(url.pathname)) {
-    if ((url.pathname === "/gate" || url.pathname === "/gate/") && authed) {
-      if (auth.kind === "google") {
-        const allowed = await isOpsUser(
-          env,
-          await resolveSessionEmail(context.request, auth),
-        );
-        if (!allowed) return opsUserForbiddenResponse();
-      }
+    if ((url.pathname === "/gate" || url.pathname === "/gate/") && email) {
+      if (!(await isOpsUser(env, email))) return opsUserForbiddenResponse({ auth });
       return relativeRedirect(safeRedirectPath(url.searchParams.get("next")));
     }
     return context.next();
   }
 
-  if (auth.kind === "google" && authed) {
-    const email = await resolveSessionEmail(context.request, auth);
-    if (email) {
-      const allowed = await isOpsUser(env, email);
-      if (!allowed) {
-        if (isProtectedApiPath(url.pathname)) {
-          return opsUserForbiddenResponse({ json: true });
-        }
-        return opsUserForbiddenResponse();
+  if (email) {
+    if (!(await isOpsUser(env, email))) {
+      if (isProtectedApiPath(url.pathname)) {
+        return opsUserForbiddenResponse({ json: true });
       }
+      return opsUserForbiddenResponse({ auth });
     }
-  }
-
-  if (authed) {
     if (isSpaDocumentPath(url.pathname)) return serveSpaIndex(context);
     return context.next();
   }

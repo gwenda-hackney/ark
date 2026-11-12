@@ -42,7 +42,8 @@ export async function request<T = unknown>(
 
 export type AuthMe = {
   email: string | null;
-  mode: "google" | "password" | "misconfigured";
+  /** "local": signed in automatically by `npm run ops:dev`, no sign-out. */
+  mode: "google" | "local" | "misconfigured";
   siteEnv: "local" | "preview" | "production" | string;
   envLabel: string;
   databaseId: string | null;
@@ -470,6 +471,48 @@ export function saveParties(parties: import("../venue/types").PartyForm) {
   });
 }
 
+/** The venue's gallery (#291), in its order. */
+export function getVenueGallery() {
+  return coalesce("venue-gallery", () =>
+    request<import("../venue/types").GalleryResponse>("/api/venue/gallery"),
+  );
+}
+
+/** Add a photo at the top of the venue's gallery; it goes on the website by itself. */
+export function uploadVenuePhoto(file: File) {
+  const body = new FormData();
+  body.set("file", file);
+  return request<import("../venue/types").GalleryAddResponse>("/api/venue/gallery", { method: "POST", body });
+}
+
+/** Say what a photo shows, and/or pin it to a menu board on home. */
+export function describeVenuePhoto(
+  key: string,
+  changes: { description?: string; menu?: import("../venue/types").PhotoMenu },
+) {
+  return request<import("../venue/types").GalleryChangeResponse>(`/api/venue/gallery/${encodeURIComponent(key)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(changes),
+  });
+}
+
+/** Put the venue's gallery in a new order: every photo's key, first first. */
+export function orderVenueGallery(keys: string[]) {
+  return request<import("../venue/types").GalleryChangeResponse>("/api/venue/gallery", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ keys }),
+  });
+}
+
+/** Take a photo out of the venue's gallery; it leaves the website by itself. */
+export function removeVenuePhoto(key: string) {
+  return request<import("../venue/types").GalleryChangeResponse>(`/api/venue/gallery/${encodeURIComponent(key)}`, {
+    method: "DELETE",
+  });
+}
+
 export function analyzeRecipeNote(body: { item: unknown; analysis: unknown }) {
   return request<{ ok: boolean; text: string; model?: string }>(
     "/api/menu/analyze",
@@ -857,6 +900,8 @@ export type OpsEvent = {
   heroCrops: Record<string, unknown> | null;
   /** Newest first (#183). */
   gallery: OpsGalleryPhoto[];
+  /** A pop-up kitchen's logo (#296), on its Images tab. */
+  logo?: OpsEventImage | null;
   dates: OpsEventOccurrence[];
   publish: {
     preview: "unpublished" | "stale" | "current";
@@ -1038,6 +1083,23 @@ export function clearEventImage(id: string) {
     `/api/events/${encodeURIComponent(id)}/image`,
     { method: "DELETE" },
   );
+}
+
+/** Add or replace a pop-up kitchen's logo (#296). */
+export function uploadEventLogo(id: string, file: File) {
+  const body = new FormData();
+  body.set("file", file);
+  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/logo`, {
+    method: "POST",
+    body,
+  });
+}
+
+/** Take a pop-up kitchen's logo off; it leaves the website with the next update. */
+export function clearEventLogo(id: string) {
+  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/logo`, {
+    method: "DELETE",
+  });
 }
 
 /** A gallery photo kept in ops (#183): a Sanity asset, shown from cdn.sanity.io. */

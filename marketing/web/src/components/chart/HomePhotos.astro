@@ -1,14 +1,20 @@
 ---
 /**
  * Home's photos (#240): the newest few in two rows, at the foot of home; the
- * rest are on /photos. Which ones is lib/photos.js (homePhotoPlan): never
- * one a menu board already has pinned up.
+ * rest are on /photos. Which ones is lib/photos.js (homePhotoPlan): the
+ * venue's in its Gallery's order, with the newest from a couple of recent
+ * events spread through them (#291); never one a menu board already has
+ * pinned up, so it gets the pop-up kitchen's photos as HomeMenu does.
  */
 import { homePhotoPlan } from "../../lib/photos.js";
-import { galleryPhotos } from "../../lib/photo-sources";
+import { eventPhotos, galleryPhotos } from "../../lib/photo-sources";
 import PhotoWall from "./PhotoWall.astro";
 
-const { row: photos, more } = homePhotoPlan(galleryPhotos());
+const { events, kitchen } = await eventPhotos();
+const { row: photos, more } = homePhotoPlan(await galleryPhotos(), {
+  kitchen: kitchen?.photos || [],
+  events,
+});
 ---
 
 {

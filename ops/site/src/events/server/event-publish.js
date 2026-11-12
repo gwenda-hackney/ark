@@ -33,6 +33,7 @@ import {
   occurrenceSlug,
   recurrenceLabel,
   resolveOccurrenceContent,
+  publishedLogo,
   publishedReplacesSeries,
   seriesDescriptionForPublish,
   seriesShortDescriptionForPublish,
@@ -297,6 +298,7 @@ export async function publishEventPreview(
       takingApplications: event.takingApplications === true,
       category: event.category,
       pageUrl: event.pageUrl,
+      logo: publishedLogo(event),
     }),
   });
 

@@ -4,8 +4,8 @@
  * (event-repository.js), never tables or columns here (#186).
  */
 import { itemSlug, namesClash } from "../../menu/item-key.js";
-import { parseImageAssetId } from "../../../../../shared/sanity-image.js";
-import { sanityProjectId, sanityUploadImage } from "../../platform/sanity.js";
+import { uploadImage } from "../../platform/image-upload.js";
+import { sanityProjectId } from "../../platform/sanity.js";
 import {
   dayBeforeIso,
   expandSeriesOccurrenceDates,
@@ -596,17 +596,6 @@ export async function deleteOccurrences(
   };
 }
 
-/** Upload a photo to Sanity; the asset is the image's only copy (#183). */
-async function uploadEventPhoto(env, { bytes, filename, contentType }) {
-  const asset = await sanityUploadImage(env, bytes, { filename, contentType });
-  if (!parseImageAssetId(asset?._id)) {
-    const error = new Error("The photo didn't upload to Sanity.");
-    error.status = 502;
-    throw error;
-  }
-  return asset._id;
-}
-
 /** The series main image: a new photo starts with no crop. */
 async function writeMainImage(env, id, asset) {
   const events = eventRepository(env);
@@ -616,12 +605,30 @@ async function writeMainImage(env, id, asset) {
 }
 
 export async function setEventImage(env, id, upload) {
-  return writeMainImage(env, id, await uploadEventPhoto(env, upload));
+  return writeMainImage(env, id, await uploadImage(env, upload));
 }
 
 /** Takes the photo off the event. The Sanity asset stays: the live site may still show it. */
 export async function clearEventImage(env, id) {
   return writeMainImage(env, id, "");
+}
+
+/** A pop-up kitchen's logo (#296): a new one, or none. The main image stays as it is. */
+async function writeLogo(env, id, asset) {
+  const events = eventRepository(env);
+  await events.get(id);
+  const record = await events.update(id, { logo: asset ? { asset } : null });
+  return buildEvent(record, await events.nightsOf(id), buildOptions(env));
+}
+
+/** Add or replace the series' logo: uploaded to Sanity, kept in ops. */
+export async function setEventLogo(env, id, upload) {
+  return writeLogo(env, id, await uploadImage(env, upload));
+}
+
+/** Takes the logo off the series. The Sanity asset stays: the live site may still show it. */
+export async function clearEventLogo(env, id) {
+  return writeLogo(env, id, "");
 }
 
 /** Add a photo to the series' gallery, or to one night's (`date`). */
@@ -634,7 +641,7 @@ export async function addGalleryImage(env, id, upload, { date = "" } = {}) {
   }
   const events = eventRepository(env);
   await events.get(id);
-  const asset = await uploadEventPhoto(env, upload);
+  const asset = await uploadImage(env, upload);
   const record = await events.addGalleryPhoto(id, {
     key: crypto.randomUUID().replace(/-/g, "").slice(0, 16),
     asset,
@@ -1317,7 +1324,7 @@ export async function setOccurrenceImage(env, eventId, date, upload) {
     date: normalized,
     occurrence,
   } = await occurrenceForDate(env, eventId, date);
-  const asset = await uploadEventPhoto(env, upload);
+  const asset = await uploadImage(env, upload);
   const saved = await saveOccurrence(env, eventId, {
     ...(occurrence || {}),
     date: normalized,

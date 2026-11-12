@@ -17,6 +17,7 @@ const { location, social, name, domain, contact, brand, seoTopics } =
 const logoUrl = new URL(brand.organizationLogoPath, domain).href;
 const menuUrl = new URL("/bar/", domain).href;
 const eventsUrl = new URL("/whats-on/", domain).href;
+const bookingsUrl = new URL("/bookings/", domain).href;
 /** From ops (Venue details); left out when there are none. */
 const hours = openingHoursSpecification(await fetchOpeningHours());
 
@@ -56,6 +57,12 @@ const structuredData = {
           name: siteConfig.seo.menu.title,
           url: menuUrl,
           description: siteConfig.seo.menu.description,
+        },
+        {
+          "@type": "WebPage",
+          name: siteConfig.seo.bookings.title,
+          url: bookingsUrl,
+          description: siteConfig.seo.bookings.description,
         },
       ],
     },

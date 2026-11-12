@@ -2,9 +2,17 @@
  * The venue's details on the website (#240): one Sanity document,
  * `venueDetails`, that the website reads with one query
  * (marketing/web/src/lib/venue-details.js VENUE_DETAILS_QUERY and
- * readVenueDetails: its opening hours, and the party facts beside them),
- * and putting it there. A save of either puts the whole document there, so
- * the two never disagree about what ops holds.
+ * readVenueDetails: its opening hours, the party facts beside them, and the
+ * venue's gallery of photos, #291), and putting it there. A save of any of
+ * them puts the whole document there, so they never disagree about what ops
+ * holds.
+ *
+ * The gallery is part of this document, not one of its own, as the party
+ * facts are: it is the venue's, ops alone writes it, and one document keeps
+ * one way onto the website (this one), one "on the website" state, and one
+ * read-only document in Studio. Its photos are the Sanity image assets ops
+ * uploaded (#183), referenced in the gallery's order; the website reads their
+ * sizes from the assets' metadata.
  *
  * Saving writes the draft, which the preview site shows at once; then, as
  * for a saved event, the website itself unless `website.auto_update` is
@@ -27,8 +35,27 @@ export const VENUE_DOC_TYPE = "venueDetails";
  * @typedef {{
  *   openingHours: import("../hours-model.js").OpeningDay[] | null,
  *   parties?: import("../parties-model.js").PartyFacts | null,
+ *   gallery?: import("../gallery-model.js").GalleryPhoto[] | null,
  * }} VenueDetails
  */
+
+/**
+ * The gallery as the website reads it: each photo a Sanity image, in the
+ * gallery's order, its description the alt text, `menu` the board on home it
+ * may be pinned up on (left out for none); `_key` is the photo's key, so the
+ * same gallery always makes the same array. Null when there are no photos.
+ * @param {import("../gallery-model.js").GalleryPhoto[] | null | undefined} gallery
+ */
+export function galleryOnWebsite(gallery) {
+  if (!gallery?.length) return null;
+  return gallery.map((photo) => ({
+    _type: "image",
+    _key: photo.key,
+    alt: photo.description || "",
+    ...(photo.menu ? { menu: photo.menu } : {}),
+    asset: { _type: "reference", _ref: photo.asset },
+  }));
+}
 
 /**
  * The party facts as the website reads them: only the ones filled in
@@ -53,11 +80,13 @@ export function partiesOnWebsite(parties) {
  * `{ day, closed, opens, closes }`, Monday first; a closed day has no
  * times; `_key` is the day, so the same hours always make the same array.
  * Hours never saved are left out, so the website says none. Party facts:
- * partiesOnWebsite, left out when there are none.
+ * partiesOnWebsite, left out when there are none. Gallery:
+ * galleryOnWebsite, left out when it has no photos.
  * @param {VenueDetails} details
  */
-export function venueDocument({ openingHours, parties = null }) {
+export function venueDocument({ openingHours, parties = null, gallery = null }) {
   const partyFields = partiesOnWebsite(parties);
+  const photos = galleryOnWebsite(gallery);
   return {
     _id: VENUE_DOC_ID,
     _type: VENUE_DOC_TYPE,
@@ -71,6 +100,7 @@ export function venueDocument({ openingHours, parties = null }) {
         }
       : {}),
     ...(partyFields ? { parties: partyFields } : {}),
+    ...(photos ? { gallery: photos } : {}),
   };
 }
 

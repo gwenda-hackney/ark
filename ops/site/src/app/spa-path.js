@@ -206,7 +206,10 @@ export function parseShellPath(path) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
-  if (p === "/venue" || p.startsWith("/venue/")) return { page: "venue" };
+  // Venue details, and (#291) the venue's gallery of photos
+  if (p === "/venue" || p.startsWith("/venue/")) {
+    return { page: "venue", view: p === "/venue/gallery" ? "gallery" : "details" };
+  }
   if (p === "/more") return { page: "more" };
   if (p === "/events" || p === "/events/nights" || p === "/events/schedule") {
     return {
