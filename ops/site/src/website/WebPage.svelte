@@ -5,6 +5,7 @@
 	 *
 	 *  1. The website: up to date, updating, or "N changes will appear at 3:40".
 	 *     It updates by itself once edits go quiet; "Update website now" skips the wait.
+	 *     On dev it says "Paused" while a developer runs local ops (#300).
 	 *  2. Not on the website yet: events whose saved version isn't on the website
 	 *     (from ops' own status), plus anything else that differs (menu, Studio
 	 *     edits, removed events). Put one, or all, on the website.
@@ -16,6 +17,7 @@
 	import { Badge, BusyOverlay, Button, Confirm, ConfirmDialog, Dialog, PageHeader } from "../ui";
 	import { changeBadgeTone } from "../ui/badge";
 	import { retryJobAction, updateAllAction, updateNowAction } from "./web-page-actions";
+	import { changes, clock, statusOf } from "./site-status-view";
 	import {
 		getDeletedEvents,
 		getEvents,
@@ -29,7 +31,6 @@
 		type OpsEvent,
 		type ReleaseEntry,
 		type SitePendingItem,
-		type SiteStatus,
 	} from "../app/api";
 	import { easeOut, flyMs } from "../ui/motion";
 	import { toast } from "../ui/toast.svelte";
@@ -60,21 +61,6 @@
 	const live = $derived(pendingState.production);
 	const preview = $derived(pendingState.preview);
 
-	function clock(iso: string | null): string {
-		if (!iso) return "";
-		return new Date(iso).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" });
-	}
-
-	function when(iso: string | null): string {
-		if (!iso) return "";
-		const date = new Date(iso);
-		const today = new Date();
-		const sameDay = date.toDateString() === today.toDateString();
-		return sameDay
-			? `today at ${clock(iso)}`
-			: date.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
-	}
-
 	function changeWord(change: string): string {
 		if (change === "added") return "New";
 		if (change === "removed") return "Removed";
@@ -83,56 +69,6 @@
 
 	function itemLabel(item: SitePendingItem): string {
 		return item.kind === "artist" ? `Artist: ${item.label}` : item.label;
-	}
-
-	function changes(count: number): string {
-		return count === 1 ? "1 change" : `${count} changes`;
-	}
-
-	type Tone = "ok" | "waiting" | "updating" | "failed" | "unknown";
-
-	function statusOf(site: SiteStatus | null): { tone: Tone; title: string; note: string } {
-		if (!site) return { tone: "unknown", title: "Checking the website…", note: "" };
-		if (site.needsHelp) {
-			return {
-				tone: "failed",
-				title: "The website didn't update",
-				note: "We tried twice. Press Try again. If it still doesn't work, tell Dan.",
-			};
-		}
-		if (site.failed && !site.updating) {
-			return {
-				tone: "failed",
-				title: "The website didn't update",
-				note: `We'll try again by itself${site.autoUpdateAt ? ` at about ${clock(site.autoUpdateAt)}` : " soon"}.`,
-			};
-		}
-		if (site.updating) {
-			return {
-				tone: "updating",
-				title: "The website is updating",
-				note: "This usually takes about a minute. You can keep working.",
-			};
-		}
-		if (!site.known) {
-			return {
-				tone: "unknown",
-				title: "Not tracked yet",
-				note: "Changes are tracked from the next website update.",
-			};
-		}
-		if (site.items.length) {
-			return {
-				tone: "waiting",
-				title: `${changes(site.items.length)} will appear on the website${site.autoUpdateAt ? ` at about ${clock(site.autoUpdateAt)}` : " soon"}`,
-				note: "Events already show them. Artist pages and the menu update then.",
-			};
-		}
-		return {
-			tone: "ok",
-			title: "The website is up to date",
-			note: site.builtAt ? `Last updated ${when(site.builtAt)}.` : "",
-		};
 	}
 
 	const liveStatus = $derived(statusOf(live));
@@ -434,7 +370,9 @@
 											? "alert"
 											: liveStatus.tone === "updating"
 												? "refresh"
-												: "web"}
+												: liveStatus.tone === "paused"
+													? "clock"
+													: "web"}
 									size={24}
 								/>
 							</span>
@@ -485,9 +423,11 @@
 										? "updating."
 										: previewStatus.tone === "failed"
 											? "didn't update."
-											: preview?.items.length
-												? `${changes(preview.items.length)} will show there${preview.autoUpdateAt ? ` at about ${clock(preview.autoUpdateAt)}` : " soon"}.`
-												: "checking…"}
+											: previewStatus.tone === "paused"
+												? "paused while local ops runs."
+												: preview?.items.length
+													? `${changes(preview.items.length)} will show there${preview.autoUpdateAt ? ` at about ${clock(preview.autoUpdateAt)}` : " soon"}.`
+													: "checking…"}
 							</p>
 							<div class="preview-actions">
 								<a href={siteUrls.preview} target="_blank" rel="noreferrer">
@@ -640,12 +580,14 @@
 	}
 
 	.status.waiting,
-	.status.updating {
+	.status.updating,
+	.status.paused {
 		border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
 	}
 
 	.status.waiting .status-icon,
-	.status.updating .status-icon {
+	.status.updating .status-icon,
+	.status.paused .status-icon {
 		background: var(--primary-wash);
 		color: var(--primary);
 	}
@@ -799,7 +741,8 @@
 	}
 
 	.dot.waiting,
-	.dot.updating {
+	.dot.updating,
+	.dot.paused {
 		background: var(--primary);
 	}
 
