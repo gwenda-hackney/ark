@@ -99,15 +99,6 @@ function nightCards(occurrences, series, todayIso, origin) {
 }
 
 /**
- * Until ops holds a pop-up's line and link, the guest chef named in the
- * site's settings fills them in, for that chef only (StandingCards.astro).
- */
-function guestFallback(title) {
-  const { guestChef } = siteConfig;
-  return String(title).trim().toLowerCase() === guestChef.name.trim().toLowerCase() ? guestChef : null;
-}
-
-/**
  * @param {object} catalog what the website's What's on is built from
  * @param {object[]} catalog.occurrences every night, each with its series' category
  * @param {object[]} [catalog.series]
@@ -144,13 +135,13 @@ export function weeklyEmailModel(catalog, { today, origin = siteConfig.domain } 
     href: absolute(site, deal.href),
   }));
 
+  // A pop-up's line and its Instagram (its link) are its series' in ops (#296).
   const kitchens = popupKitchens(series, occurrences, catalog?.chapters || [], today).map((kitchen) => {
-    const fallback = guestFallback(kitchen.title);
-    const page = kitchen.pageUrl || fallback?.instagram || "";
+    const page = kitchen.pageUrl;
     return {
       title: kitchen.title,
       when: whenLine(kitchen.when, kitchen),
-      note: kitchen.note || fallback?.line || "",
+      note: kitchen.note,
       photo: photoOf(kitchen.photo, kitchen.title),
       href: absolute(site, kitchen.href),
       links: [

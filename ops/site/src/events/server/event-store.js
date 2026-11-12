@@ -613,6 +613,24 @@ export async function clearEventImage(env, id) {
   return writeMainImage(env, id, "");
 }
 
+/** A pop-up kitchen's logo (#296): a new one, or none. The main image stays as it is. */
+async function writeLogo(env, id, asset) {
+  const events = eventRepository(env);
+  await events.get(id);
+  const record = await events.update(id, { logo: asset ? { asset } : null });
+  return buildEvent(record, await events.nightsOf(id), buildOptions(env));
+}
+
+/** Add or replace the series' logo: uploaded to Sanity, kept in ops. */
+export async function setEventLogo(env, id, upload) {
+  return writeLogo(env, id, await uploadImage(env, upload));
+}
+
+/** Takes the logo off the series. The Sanity asset stays: the live site may still show it. */
+export async function clearEventLogo(env, id) {
+  return writeLogo(env, id, "");
+}
+
 /** Add a photo to the series' gallery, or to one night's (`date`). */
 export async function addGalleryImage(env, id, upload, { date = "" } = {}) {
   const night = date ? isoDate(date) : "";

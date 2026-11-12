@@ -19,7 +19,6 @@ const SHELLS = {
 <body><main class="ch-event ch-event--__EVENT_KIND__"><a href="/whats-on">Back</a>
 <p class="ch-event-kicker">__EVENT_EYEBROW__</p><h1>__EVENT_TITLE__</h1>
 <series-part name="book">Book a table</series-part>
-<series-part name="logo:chez pickle"><img src="/chez-pickle.webp" alt="Chez Pickle"></series-part>
 <series-part name="menu:chez-pickle">/kitchen#chez-pickle</series-part>
 <series-part name="form:party">Book your party</series-part>
 <series-body><section class="ch-event-pending">Check back soon</section></series-body></main></body></html>`,
@@ -161,13 +160,17 @@ describe("series page", () => {
     expect(html).not.toMatch(/Next up|More dates/);
   });
 
-  it("shows a pop-up kitchen with its own mark and the way to its menu", async () => {
+  it("shows a pop-up kitchen with its logo and Instagram from ops, and the way to its menu", async () => {
+    const logo =
+      "https://cdn.sanity.io/images/p/production/logo123-900x900.png";
     sanity.series = [
       series("chez-pickle", {
         title: "Chez Pickle",
         category: "popup",
         schedule: "once",
         recurrence: "",
+        pageUrl: "https://www.instagram.com/chezpickle",
+        logo: { url: logo, width: 900, height: 900 },
       }),
     ];
     sanity.events = [
@@ -181,9 +184,32 @@ describe("series page", () => {
     const html = await (await render("/whats-on/chez-pickle")).text();
     expect(html).toContain("ch-event--popup");
     expect(html).toContain('<span class="ch-stand-tag">Pop-up kitchen</span>');
-    expect(html).toContain('src="/chez-pickle.webp"');
+    expect(html).toContain("ch-stand-photo--logo");
+    expect(html).toContain(`src="${logo}?w=416&amp;q=86&amp;auto=format"`);
+    expect(html).toContain('href="https://www.instagram.com/chezpickle"');
     expect(html).toContain('<a class="ch-btn" href="/kitchen#chez-pickle">');
     expect(html).toContain("Thu 8 Jan, 5–10pm");
+  });
+
+  it("shows a pop-up kitchen with no logo in ops by its name and picture alone", async () => {
+    sanity.series = [
+      series("chez-pickle", {
+        title: "Chez Pickle",
+        category: "popup",
+        schedule: "once",
+        recurrence: "",
+      }),
+    ];
+    sanity.events = [
+      night("chez-pickle", "2099-01-08", {
+        title: "Chez Pickle",
+        recurrence: "",
+      }),
+    ];
+    const html = await (await render("/whats-on/chez-pickle")).text();
+    expect(html).toContain("ch-event--popup");
+    expect(html).not.toContain("ch-stand-photo--logo");
+    expect(html).not.toContain("chez-pickle.webp");
   });
 
   it("sends people to a form when the event's link in ops is one of ours", async () => {

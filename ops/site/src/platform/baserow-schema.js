@@ -111,6 +111,8 @@ export function eventFields() {
     },
     // Gallery photos as JSON (#183): Sanity asset ids, newest first.
     { name: "Gallery", body: { name: "Gallery", type: "long_text" } },
+    // A pop-up kitchen's logo (#296): its Sanity asset id.
+    { name: "Logo asset", body: { name: "Logo asset", type: "text" } },
   ];
 }
 

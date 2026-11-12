@@ -47,11 +47,13 @@ const TAKING_APPLICATIONS = "Taking applications";
 const CATEGORY = "Category";
 /** The series' gallery photos as JSON (#183). */
 const GALLERY = "Gallery";
+/** A pop-up kitchen's logo, a Sanity asset id (#296). Added after events moved to D1. */
+const LOGO = "Logo asset";
 const CALENDAR_EVENT = "Google calendar event id";
 /** Calendar links lived in Notes before their own column. */
 const CALENDAR_FALLBACK = "Notes";
 /** Columns added by migrations: a database without them yet saves without them. */
-const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS, CATEGORY];
+const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS, CATEGORY, LOGO];
 
 const fieldNamesCache = new Map();
 
@@ -158,6 +160,7 @@ export function eventFromRow(row) {
     mainImage: imageFromRow(row["Hero asset"]),
     heroCrops: parseHeroCrops(row["Hero crops"]),
     gallery: galleryFromRow(row[GALLERY]),
+    logo: imageFromRow(row[LOGO]),
   };
 }
 
@@ -226,6 +229,7 @@ export function eventToRow(fields, columns) {
   put("gallery", GALLERY, (value) => JSON.stringify(storedGallery(value)));
   if (fields.slug) row.Slug = fields.slug;
   put("mainImage", "Hero asset", (value) => value?.asset || "");
+  put("logo", LOGO, (value) => value?.asset || "");
   for (const column of OPTIONAL_EVENT_COLUMNS) {
     if (column in row && !columns.has(column)) delete row[column];
   }

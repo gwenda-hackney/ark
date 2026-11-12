@@ -13,6 +13,7 @@ import {
   sanityEventDocument,
   sanitySeriesDocument,
   occurrencePayload,
+  publishedLogo,
   stableHeroFraming,
   stableImageRef,
   titleOverrideEchoesSeries,
@@ -549,6 +550,34 @@ test("a promotion or pop-up kitchen says so on its series and night documents an
   assert.equal(JSON.stringify(occurrencePayload({ ...event, category: "event" }, "2026-11-11")), plain);
   assert.ok(!plain.includes("seriesCategory"));
   assert.equal(occurrencePayload({ ...event, category: "promotion" }, "2026-11-11").seriesCategory, "promotion");
+});
+
+test("a pop-up kitchen's logo goes on its series document and in its change hash; nobody else's does (#296)", () => {
+  const LOGO = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-900x900-png";
+  const base = { slug: "chez-pickle", title: "Chez Pickle", description: "Burgers.", schedule: "repeating", nightSchedule: [] };
+  assert.equal("logo" in sanitySeriesDocument({ ...base, category: "popup" }), false, "none when it has none");
+  assert.deepEqual(sanitySeriesDocument({ ...base, category: "popup", logo: LOGO }).logo, {
+    _type: "image",
+    alt: "Chez Pickle",
+    asset: { _type: "reference", _ref: LOGO },
+  });
+  // Only a pop-up kitchen has one on the website: a night or a deal keeps its document as it was
+  assert.equal("logo" in sanitySeriesDocument({ ...base, logo: LOGO }), false);
+  assert.equal("logo" in sanitySeriesDocument({ ...base, category: "promotion", logo: LOGO }), false);
+  assert.equal(publishedLogo({ category: "popup", logo: { asset: LOGO } }), LOGO);
+  assert.equal(publishedLogo({ category: "popup", logo: null }), "");
+  assert.equal(publishedLogo({ category: "event", logo: { asset: LOGO } }), "");
+
+  const event = { name: "Chez Pickle", slug: "chez-pickle", category: "popup", repeatUnit: "week", dates: [{ date: "2026-11-12", overrides: {} }] };
+  const without = JSON.stringify(occurrencePayload(event, "2026-11-12"));
+  assert.ok(!without.includes("seriesLogo"), "series without a logo keep their hash");
+  assert.equal(occurrencePayload({ ...event, logo: { asset: LOGO } }, "2026-11-12").seriesLogo, `asset:${LOGO}`);
+  const night = { ...event, category: "event" };
+  assert.equal(
+    JSON.stringify(occurrencePayload({ ...night, logo: { asset: LOGO } }, "2026-11-12")),
+    JSON.stringify(occurrencePayload(night, "2026-11-12")),
+    "a night's logo isn't on the website, so it doesn't change its hash",
+  );
 });
 
 test("a series taking applications says so on its Sanity document and in its change hash (#41)", () => {

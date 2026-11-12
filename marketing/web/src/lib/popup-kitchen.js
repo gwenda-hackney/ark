@@ -3,7 +3,8 @@
  * series marked "popup" (lib/promotions.js), with a night for every day it
  * cooks, and its menu is the kitchen chapter that points at that series.
  * What's on leaves its nights out; it shows once, on a card, with when it's
- * on, the way to its own page and the way to its menu.
+ * on, the way to its own page and the way to its menu. Its name, logo and
+ * Instagram (its link) are the series' in ops (#296), nothing here.
  */
 import { menuAddresses, menuPage } from "./menu-anchors.js";
 import { nightDay } from "./night-cards.js";
@@ -71,6 +72,23 @@ export function popupWhen(row, nights, todayIso) {
     .join(", ");
 }
 
+/**
+ * A pop-up's logo as its series in Sanity has it (#296): `{ url, width,
+ * height }`, or null when ops has none, and the name stands alone.
+ *
+ * @param {object} row the series
+ * @returns {null | { url: string, width: number, height: number }}
+ */
+export function seriesLogo(row) {
+  const url = String(row?.logo?.url || "").trim();
+  if (!url) return null;
+  return {
+    url,
+    width: Number(row.logo.width) || 0,
+    height: Number(row.logo.height) || 0,
+  };
+}
+
 function hasItems(chapter) {
   if ((chapter.items || []).some((item) => item.available !== false)) {
     return true;
@@ -130,13 +148,14 @@ export function kitchenChaptersOn(chapters, occurrences, todayIso) {
 
 /**
  * Who's in the kitchen: the pop-up booked or on that cooks soonest, with
- * its page, the day it starts ("Thu 12 Nov") and whether it has; null when
- * nothing is booked.
+ * its page, the day it starts ("Thu 12 Nov") and whether it has, when it
+ * cooks as its card says ("Thursdays"), and its logo and Instagram from ops;
+ * null when nothing is booked.
  *
  * @param {Array<object>} series the catalog's series
  * @param {Array<object>} occurrences every night, past ones too
  * @param {string} todayIso YYYY-MM-DD
- * @returns {{ popup: null | { id: string, title: string, href: string, from: string, started: boolean } }}
+ * @returns {{ popup: null | { id: string, title: string, href: string, from: string, started: boolean, when: string, logo: null | { url: string, width: number, height: number }, pageUrl: string } }}
  */
 export function kitchenNow(series, occurrences, todayIso) {
   const [soonest] = (series || [])
@@ -163,8 +182,51 @@ export function kitchenNow(series, occurrences, todayIso) {
       href: `/whats-on/${encodeURIComponent(soonest.row.seriesId)}/`,
       from: shortDate(soonest.first),
       started: soonest.first <= todayIso,
+      when: popupWhen(
+        soonest.row,
+        upcomingNights(soonest.row.seriesId, occurrences, ""),
+        todayIso,
+      ),
+      logo: seriesLogo(soonest.row),
+      /** Their own link from ops: their Instagram, or their website. */
+      pageUrl: String(soonest.row.pageUrl || "").trim(),
     },
   };
+}
+
+/**
+ * The top of home's Food board while a pop-up is booked or on (the window
+ * its menu shows in, kitchenChaptersOn): its logo, "In the kitchen: Chez
+ * Pickle, Thursdays" ("Next in the kitchen" until it has started), and the
+ * way to its page. No logo in ops: the name alone. null when nobody's
+ * booked, and the board is as it always was.
+ *
+ * @param {ReturnType<typeof kitchenNow>["popup"]} popup kitchenNow's
+ * @returns {null | { title: string, logo: null | { url: string, width: number, height: number }, line: string, href: string }}
+ */
+export function kitchenHeader(popup) {
+  if (!popup) return null;
+  const who = [popup.title, popup.when].filter(Boolean).join(", ");
+  return {
+    title: popup.title,
+    logo: popup.logo || null,
+    line: `${popup.started ? "In the kitchen" : "Next in the kitchen"}: ${who}`,
+    href: popup.href,
+  };
+}
+
+/**
+ * What home's Food board says over its menu, or in place of one, under its
+ * top (kitchenHeader). With a pop-up booked or on, the top says who and
+ * when, so all that's left is "soon" when nothing's on the menu yet; with
+ * nobody booked, kitchenLine's, as before.
+ *
+ * @param {null | { id: string, started: boolean }} popup kitchenNow's
+ * @param {Array<object>} chapters the chapters shown (kitchenChaptersOn)
+ */
+export function foodBoardLine(popup, chapters) {
+  if (!popup) return kitchenLine(null, chapters);
+  return (chapters || []).some(hasItems) ? "" : "soon";
 }
 
 /**
@@ -214,8 +276,10 @@ export function popupKitchens(series, occurrences, chapters, todayIso) {
       endTime: next.endTime || "",
       time: next.time || "",
       note: String(row.shortDescription || next.shortDescription || "").trim(),
-      /** Their own page, when ops has one for them. */
-      pageUrl: String(next.pageUrl || "").trim(),
+      /** Their own page (their Instagram), when ops has one for them. */
+      pageUrl: String(next.pageUrl || row.pageUrl || "").trim(),
+      /** Their logo from ops, shown in place of the photo; null without one. */
+      logo: seriesLogo(row),
       ...seriesPhoto(row, next),
       next: next.date,
       /** Its own page, where the whole card leads. */

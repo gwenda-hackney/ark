@@ -1,7 +1,7 @@
 /**
  * EventRepository on D1 (#127): the `events` and `event_dates` tables of the
- * ops database (db/ops/migrations/0006_events.sql). The only events code that
- * knows their column names.
+ * ops database (db/ops/migrations/0006_events.sql, and the columns added
+ * after it). The only events code that knows their column names.
  *
  * Values are tidied on the way in the way the Baserow adapter tidies them on
  * the way out, so both hand callers the same records. Several nights change
@@ -62,6 +62,7 @@ const events = d1Table({
     mainImageAsset: "text",
     heroCrops: "json",
     gallery: "json",
+    logoAsset: "text",
   },
   orderBy: "id",
 });
@@ -137,20 +138,21 @@ function eventToFields(fields) {
     if (key in fields) out[key] = tidy(fields[key]);
   }
   if ("mainImage" in fields) out.mainImageAsset = storedImage(fields.mainImage)?.asset || null;
+  if ("logo" in fields) out.logoAsset = storedImage(fields.logo)?.asset || null;
   return out;
 }
 
 /** A whole event as stored, empty where `fields` has nothing. */
 function fullEvent(fields) {
   const empty = Object.fromEntries(Object.keys(EVENT_FIELDS).map((key) => [key, undefined]));
-  const out = eventToFields({ ...empty, mainImage: null, ...fields });
+  const out = eventToFields({ ...empty, mainImage: null, logo: null, ...fields });
   if (fields.id != null) out.id = fields.id;
   return out;
 }
 
 function eventFromRecord(record) {
   if (!record) return null;
-  const { id, mainImageAsset, ...rest } = record;
+  const { id, mainImageAsset, logoAsset, ...rest } = record;
   return {
     id: String(id),
     ...rest,
@@ -166,6 +168,7 @@ function eventFromRecord(record) {
     mainImage: storedImage({ asset: mainImageAsset }),
     heroCrops: plainObject(rest.heroCrops),
     gallery: rest.gallery || [],
+    logo: storedImage({ asset: logoAsset }),
   };
 }
 

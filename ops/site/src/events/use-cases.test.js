@@ -29,6 +29,7 @@ import { onRequestGet as listEvents, onRequestPost as createEvent } from "../../
 import { onRequestPost as restoreEvent } from "../../functions/api/events/[id]/restore.js";
 import { onRequestPost as syncCalendar } from "../../functions/api/events/[id]/calendar-sync.js";
 import { onRequestDelete as removeImage, onRequestPost as uploadImage } from "../../functions/api/events/[id]/image.js";
+import { onRequestDelete as removeLogo, onRequestPost as uploadLogo } from "../../functions/api/events/[id]/logo.js";
 import { onRequestPost as uploadNightImage } from "../../functions/api/events/[id]/dates/[date]/image.js";
 import { onRequestPost as runWebsiteJob } from "../../functions/api/web/jobs.js";
 import { onRequestPost as uploadGalleryPhoto } from "../../functions/api/events/[id]/gallery.js";
@@ -247,6 +248,26 @@ function editor(world) {
       const res = await callApi(world, removeImage, {
         method: "DELETE",
         path: `/api/events/${id(event)}/image`,
+        params: { id: id(event) },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data.event;
+    },
+    /** Images tab: a pop-up kitchen's logo, added or replaced. */
+    async uploadLogo(event, { name = "logo.png", type = "image/png", bytes = 1024, fill = 9 } = {}) {
+      const form = new FormData();
+      form.set("file", new File([new Uint8Array(bytes).fill(fill)], name, { type }));
+      return callApi(world, uploadLogo, {
+        method: "POST",
+        path: `/api/events/${id(event)}/logo`,
+        params: { id: id(event) },
+        body: form,
+      });
+    },
+    async removeLogo(event) {
+      const res = await callApi(world, removeLogo, {
+        method: "DELETE",
+        path: `/api/events/${id(event)}/logo`,
         params: { id: id(event) },
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
@@ -1052,6 +1073,95 @@ describe("events: gallery", () => {
 
   it("refuses a night date that isn't a date", async () => {
     await ops.addGalleryPhoto(event, { date: "soon", status: 400 });
+  });
+});
+
+describe("events: a pop-up kitchen's logo and Instagram (#296)", () => {
+  let world;
+  let ops;
+  let kitchen;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    waitForUpdateWebsite(world);
+    world.install();
+    ops = editor(world);
+    kitchen = await ops.create(
+      weeklySeries({
+        name: "Chez Pickle",
+        category: "popup",
+        weekdays: ["thu"],
+        startsOn: nextWeekday(4),
+        pageUrl: "@chezpickle",
+      }),
+    );
+    await ops.waitUntilReady(kitchen);
+    await ops.updateWebsite(kitchen);
+  });
+  afterEach(() => world.restore());
+
+  const liveSeries = (title = "Chez Pickle") =>
+    world.sanity.published("eventSeries").find((doc) => doc.title === title);
+  const liveLogo = (title) => liveSeries(title)?.logo?.asset?._ref || "";
+
+  it("its Instagram is the event's link, on its series on the website", async () => {
+    assert.equal(liveSeries().pageUrl, "https://www.instagram.com/chezpickle/");
+  });
+
+  it("adding a logo: straight to Sanity, shown in ops, live on Update website", async () => {
+    const res = await ops.uploadLogo(kitchen);
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    const assets = world.sanity.view("raw").filter((doc) => doc._type === "sanity.imageAsset");
+    assert.equal(assets.length, 1, "uploaded before any staging");
+    const { logo, mainImage } = await ops.open(kitchen);
+    assert.equal(logo.asset, assets[0]._id);
+    assert.match(logo.url, /^https:\/\/cdn\.sanity\.io\/images\//, "ops shows it from the Sanity CDN");
+    assert.equal(mainImage, null, "the logo isn't its picture");
+
+    await ops.waitUntilReady(kitchen);
+    assert.equal(liveLogo(), "", "the live site waits for Update website");
+    assert.equal(await ops.sees(kitchen), "Changed");
+    await ops.updateWebsite(kitchen);
+    assert.equal(liveLogo(), assets[0]._id);
+    assert.equal(liveSeries().heroImage, undefined, "nor on the website");
+    assert.equal(await ops.sees(kitchen), "Live");
+  });
+
+  it("replacing the logo puts the new one live", async () => {
+    await ops.uploadLogo(kitchen, { fill: 1 });
+    await ops.waitUntilReady(kitchen);
+    await ops.updateWebsite(kitchen);
+    const first = liveLogo();
+    await ops.uploadLogo(kitchen, { fill: 2 });
+    await ops.waitUntilReady(kitchen);
+    await ops.updateWebsite(kitchen);
+    assert.ok(liveLogo() && liveLogo() !== first, "a different logo is live");
+  });
+
+  it("removing the logo takes it off the website on Update website", async () => {
+    await ops.uploadLogo(kitchen);
+    await ops.waitUntilReady(kitchen);
+    await ops.updateWebsite(kitchen);
+    const event = await ops.removeLogo(kitchen);
+    assert.equal(event.logo, null);
+    await ops.waitUntilReady(kitchen);
+    await ops.updateWebsite(kitchen);
+    assert.equal(liveLogo(), "");
+    assert.equal(await ops.sees(kitchen), "Live");
+  });
+
+  it("refuses files that aren't images", async () => {
+    const pdf = await ops.uploadLogo(kitchen, { name: "logo.pdf", type: "application/pdf" });
+    assert.equal(pdf.status, 400);
+    assert.match(pdf.data.error, /JPEG, PNG, WebP, or GIF/);
+  });
+
+  it("only a pop-up kitchen's logo goes on the website", async () => {
+    await ops.uploadLogo(kitchen);
+    const night = await ops.edit(kitchen, { category: "event" });
+    assert.ok(night.logo, "ops keeps it, should it be a pop-up kitchen again");
+    await ops.waitUntilReady(kitchen);
+    await ops.updateWebsite(kitchen);
+    assert.equal(liveLogo(), "");
   });
 });
 

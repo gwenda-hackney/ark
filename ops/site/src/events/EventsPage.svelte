@@ -444,7 +444,14 @@
 												/>
 											{/if}
 										{:else if editor.tab === "gallery"}
-											<GalleryTab gallery={editor.gallery} eventId={editor.eventId} busy={editor.busy} />
+											<GalleryTab
+												gallery={editor.gallery}
+												eventId={editor.eventId}
+												busy={editor.busy}
+												logo={editor.showsLogo ? { url: editor.current?.logo?.url || "" } : null}
+												onpicklogo={editor.acceptLogoFile}
+												onclearlogo={() => void editor.onClearLogo()}
+											/>
 										{/if}
 										{#if editor.websiteJob?.state === "failed" && !editor.formDirty}
 											<div class="job-failed" role="alert">

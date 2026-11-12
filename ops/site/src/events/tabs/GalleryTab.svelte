@@ -1,17 +1,37 @@
 <script lang="ts">
 	import { Icon } from "../../app/shell";
-	import { Badge, HelpTip } from "../../ui";
+	import { Badge, HelpTip, PhotoActions } from "../../ui";
 	import type { EventGallery } from "../event-gallery.svelte";
 
 	let {
 		gallery,
 		eventId,
 		busy,
+		logo = null,
+		onpicklogo = () => {},
+		onclearlogo = () => {},
 	}: {
 		gallery: EventGallery;
 		eventId: string;
 		busy: boolean;
+		/**
+		 * A pop-up kitchen's logo slot (#296), above the gallery: its address,
+		 * "" while it has none. null for a series with no logo (CATEGORY_FIELDS).
+		 */
+		logo?: { url: string } | null;
+		onpicklogo?: (file: File | undefined | null) => void;
+		onclearlogo?: () => void;
 	} = $props();
+
+	/** The logo whole, as the website shows it: no crop. */
+	const logoThumb = $derived(logo?.url ? `${logo.url}?w=480&auto=format` : "");
+
+	function onLogoInput(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = "";
+		onpicklogo(file);
+	}
 
 	let dragging = $state(false);
 	let dragDepth = 0;
@@ -52,6 +72,46 @@
 	{#if !eventId}
 		<p class="hint">Save before adding images.</p>
 	{:else}
+		{#if logo}
+			<div class="drive-head logo-head">
+				<h2 class="section-title">
+					<span class="section-label">Logo</span>
+				</h2>
+				<!-- Replace and remove on the heading's row, as the photo on Details has them. -->
+				<PhotoActions
+					take={{ disabled: busy }}
+					replace={{ disabled: busy }}
+					remove={{ disabled: busy || !logo.url, reason: logo.url ? "" : "No logo yet" }}
+					download={logo.url || null}
+					onfile={onLogoInput}
+					onremove={onclearlogo}
+				/>
+			</div>
+			<p class="hint">
+				Their logo goes at the top of the Food board on home, on their card in What's on and on their page.
+				Their Instagram goes on Details.
+			</p>
+			<div class="gallery">
+				{#if logo.url}
+					<a class="tile logo" href={logo.url} target="_blank" rel="noreferrer" title="Logo">
+						<img src={logoThumb} alt="Logo" />
+					</a>
+				{:else}
+					<label class="tile add">
+						<span class="photo-btn primary">
+							<Icon name="upload" size={16} />
+							Add logo
+						</span>
+						<input
+							type="file"
+							accept="image/jpeg,image/png,image/webp,image/gif"
+							disabled={busy}
+							onchange={onLogoInput}
+						/>
+					</label>
+				{/if}
+			</div>
+		{/if}
 		<div class="drive-head">
 			<h2 class="section-title">
 				<span class="section-label">
@@ -376,6 +436,23 @@
 		display: block;
 		width: 100%;
 		height: 100%;
+	}
+
+	/* The logo slot comes first: no gap above it. */
+	.drive-head.logo-head {
+		margin-top: 0;
+	}
+
+	/* A logo is shown whole on white, as the website shows it. */
+	.tile.logo {
+		display: block;
+		background: #fff;
+	}
+
+	.tile.logo img {
+		object-fit: contain;
+		padding: var(--space-3);
+		box-sizing: border-box;
 	}
 
 	.tile img {

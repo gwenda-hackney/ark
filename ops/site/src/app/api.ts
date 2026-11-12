@@ -900,6 +900,8 @@ export type OpsEvent = {
   heroCrops: Record<string, unknown> | null;
   /** Newest first (#183). */
   gallery: OpsGalleryPhoto[];
+  /** A pop-up kitchen's logo (#296), on its Images tab. */
+  logo?: OpsEventImage | null;
   dates: OpsEventOccurrence[];
   publish: {
     preview: "unpublished" | "stale" | "current";
@@ -1081,6 +1083,23 @@ export function clearEventImage(id: string) {
     `/api/events/${encodeURIComponent(id)}/image`,
     { method: "DELETE" },
   );
+}
+
+/** Add or replace a pop-up kitchen's logo (#296). */
+export function uploadEventLogo(id: string, file: File) {
+  const body = new FormData();
+  body.set("file", file);
+  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/logo`, {
+    method: "POST",
+    body,
+  });
+}
+
+/** Take a pop-up kitchen's logo off; it leaves the website with the next update. */
+export function clearEventLogo(id: string) {
+  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/logo`, {
+    method: "DELETE",
+  });
 }
 
 /** A gallery photo kept in ops (#183): a Sanity asset, shown from cdn.sanity.io. */

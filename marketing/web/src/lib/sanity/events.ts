@@ -102,6 +102,12 @@ type SanitySeries = {
   replacesSeriesId?: string | null;
   formerSlugs?: string[] | null;
   datesPending?: boolean | null;
+  pageUrl?: string | null;
+  logo?: {
+    url?: string | null;
+    width?: number | null;
+    height?: number | null;
+  } | null;
   gallery?: EventSeries["gallery"] | null;
   shortDescription?: string | null;
   nightSchedule?: SanityEvent["nightSchedule"];
@@ -128,6 +134,14 @@ function mapSeries(doc: SanitySeries): EventSeries | null {
       .filter(Boolean),
     datesPending: doc.datesPending === true,
     gallery: Array.isArray(doc.gallery) ? doc.gallery : [],
+    pageUrl: doc.pageUrl?.trim() || "",
+    logo: doc.logo?.url
+      ? {
+          url: doc.logo.url,
+          width: Number(doc.logo.width) || 0,
+          height: Number(doc.logo.height) || 0,
+        }
+      : null,
     recurrence: doc.recurrence?.trim() || "",
     shortDescription: doc.shortDescription?.trim() || "",
     nightSchedule: mapNightSchedule(doc.nightSchedule),

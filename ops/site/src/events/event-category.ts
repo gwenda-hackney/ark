@@ -61,6 +61,8 @@ export type CategoryFields = {
 	/** The running order: sets, acts or rounds, with their times. */
 	nightSchedule: FieldNeed;
 	endTime: FieldNeed;
+	/** Their own mark, on the Images tab (#296): only a pop-up kitchen has one. */
+	logo: FieldNeed;
 };
 
 const OFF: TypeField = { need: "off", label: "", placeholder: "" };
@@ -75,6 +77,7 @@ export const CATEGORY_FIELDS: Record<EventCategory, CategoryFields> = {
 		offer: { need: "optional", label: "Offer", placeholder: "£10 Negroni" },
 		nightSchedule: "optional",
 		endTime: "optional",
+		logo: "off",
 	},
 	// The card says "Wed to Sat, 5pm–7pm": it needs the deal and when it ends.
 	promotion: {
@@ -86,8 +89,10 @@ export const CATEGORY_FIELDS: Record<EventCategory, CategoryFields> = {
 		offer: { need: "required", label: "The deal", placeholder: "20% off all cocktails" },
 		nightSchedule: "off",
 		endTime: "required",
+		logo: "off",
 	},
-	// A guest chef: one date, or a run of days with a last one.
+	// A guest chef: one date, or a run of days with a last one. Their logo
+	// and Instagram go on home's Food board, their card and their page.
 	popup: {
 		namePlaceholder: "The kitchen's name",
 		repeats: false,
@@ -97,12 +102,29 @@ export const CATEGORY_FIELDS: Record<EventCategory, CategoryFields> = {
 		offer: OFF,
 		nightSchedule: "off",
 		endTime: "optional",
+		logo: "optional",
 	},
 };
 
 /** The fields for a series' type (one saved before types is a night). */
 export function fieldsFor(event: { category?: string | null } | null | undefined): CategoryFields {
 	return CATEGORY_FIELDS[categoryOf(event)];
+}
+
+/** Whether a series has a logo slot on its Images tab: a pop-up kitchen. */
+export function takesLogo(event: { category?: string | null } | null | undefined): boolean {
+	return fieldsFor(event).logo !== "off";
+}
+
+/**
+ * The link's label on Details: a pop-up kitchen's is their Instagram or
+ * website (CATEGORY_FIELDS); any other series' stays "Guest link".
+ */
+export function linkField(event: { category?: string | null } | null | undefined): { label: string; placeholder: string } {
+	const { pageUrl } = fieldsFor(event);
+	return categoryOf(event) === "popup"
+		? { label: pageUrl.label, placeholder: pageUrl.placeholder }
+		: { label: "Guest link", placeholder: "instagram.com/… or @handle" };
 }
 
 export type TypedField = "artist" | "pageUrl" | "offer" | "nightSchedule";

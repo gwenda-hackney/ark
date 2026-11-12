@@ -9,6 +9,8 @@ import {
 	fieldsFor,
 	filterByCategory,
 	hiddenFields,
+	linkField,
+	takesLogo,
 } from "./event-category";
 
 const events = [
@@ -80,6 +82,19 @@ describe("the fields each type asks for (#245)", () => {
 		assert.equal(popup.repeats, false);
 		assert.deepEqual(popup.repeatsAs, { unit: "day", lastDay: true });
 		assert.equal(popup.namePlaceholder, "The kitchen's name");
+	});
+
+	it("only a pop-up kitchen has a logo, and calls its link their Instagram on Details (#296)", () => {
+		assert.equal(popup.logo, "optional");
+		assert.equal(night.logo, "off");
+		assert.equal(deal.logo, "off");
+		assert.equal(takesLogo(events[3]), true);
+		assert.equal(takesLogo(events[0]), false, "one saved before types is a night");
+		assert.equal(takesLogo(events[2]), false);
+		assert.equal(takesLogo(null), false);
+		assert.deepEqual(linkField(events[3]), { label: "Their Instagram or website", placeholder: "instagram.com/… or @handle" });
+		assert.deepEqual(linkField(events[0]), { label: "Guest link", placeholder: "instagram.com/… or @handle" });
+		assert.deepEqual(linkField(events[2]), linkField(events[0]), "a deal's is as it was");
 	});
 
 	it("reads a saved series' type, and lists what a type doesn't ask for", () => {

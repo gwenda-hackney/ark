@@ -7,6 +7,7 @@ import {
 import { preparePhoto } from "../ui/photo-prep";
 import {
 	clearEventImage,
+	clearEventLogo,
 	clearEventOccurrenceImage,
 	createEvent,
 	deleteEvent,
@@ -18,6 +19,7 @@ import {
 	updateEvent,
 	updateEventOccurrence,
 	uploadEventImage,
+	uploadEventLogo,
 	uploadEventOccurrenceImage,
 	type ApprovedArtist,
 	type OpsEvent,
@@ -38,6 +40,7 @@ import { FormErrors } from "../ui/form-errors.svelte";
 import { EVENT_FIELD_ORDER, eventFieldTab, validateEvent } from "./event-validate";
 import { EventGallery } from "./event-gallery.svelte";
 import { EventForm, type SeriesTextKey } from "./event-form.svelte";
+import { takesLogo } from "./event-category";
 
 export type NewEventKind = "series" | "night" | "once";
 
@@ -53,7 +56,7 @@ export class EventEditor {
 	events = $state<OpsEvent[]>([]);
 	loading = $state(true);
 	saving = $state(false);
-	intent = $state<"" | "save" | "delete" | "image">("");
+	intent = $state<"" | "save" | "delete" | "image" | "logo">("");
 	calendarSyncing = $state(false);
 
 	/** Local ops stages drafts for the local site and never releases. */
@@ -177,7 +180,9 @@ export class EventEditor {
 						? "Deleting…"
 						: this.intent === "image"
 							? "Updating photo…"
-							: "Saving…",
+							: this.intent === "logo"
+								? "Updating logo…"
+								: "Saving…",
 	);
 
 	missing = $derived(
@@ -191,6 +196,13 @@ export class EventEditor {
 
 	webAddressChanged = $derived(this.form.webAddressChanged(this.current));
 	previewDates = $derived(this.form.upcomingDates(this.current));
+
+	/**
+	 * The Images tab's logo slot (#296): for a series saved as a pop-up
+	 * kitchen, nights included (the logo is the series'). Its saved type, not
+	 * what Details shows unsaved.
+	 */
+	showsLogo = $derived(Boolean(this.eventId) && takesLogo(this.current));
 
 	/** Photo owned by this editor (series main, or night override). */
 	framingUrl = $derived(
@@ -788,6 +800,43 @@ export class EventEditor {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not remove the image.";
 			toast.error(message);
+		} finally {
+			this.saving = false;
+			this.intent = "";
+		}
+	};
+	/** The Images tab's logo: a file picked or dropped, added or replacing the one there. */
+	acceptLogoFile = (file: File | undefined | null) => {
+		if (!file || !file.type.startsWith("image/") || !this.eventId) return;
+		void preparePhoto(file).then((ready) => this.onLogo(ready));
+	};
+
+	onLogo = async (file: File | null) => {
+		if (!file || !this.eventId || this.busy) return;
+		this.saving = true;
+		this.intent = "logo";
+		try {
+			const data = await uploadEventLogo(this.eventId, file);
+			this.rememberEvent(data.event, false);
+			await this.stageAfterSave(this.eventId, "Logo saved.");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Could not upload the logo.");
+		} finally {
+			this.saving = false;
+			this.intent = "";
+		}
+	};
+
+	onClearLogo = async () => {
+		if (!this.eventId || this.busy) return;
+		this.saving = true;
+		this.intent = "logo";
+		try {
+			const data = await clearEventLogo(this.eventId);
+			this.rememberEvent(data.event, false);
+			await this.stageAfterSave(this.eventId, "Logo removed.");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Could not remove the logo.");
 		} finally {
 			this.saving = false;
 			this.intent = "";

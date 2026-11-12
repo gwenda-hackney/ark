@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  foodBoardLine,
   kitchenChaptersOn,
+  kitchenHeader,
   kitchenLine,
   kitchenNow,
   popupIsBookedOrOn,
@@ -10,6 +12,9 @@ import {
 } from "./popup-kitchen.js";
 
 const today = "2026-11-10";
+
+/** A logo as the series in Sanity has it. */
+const LOGO = "https://cdn.sanity.io/images/p/production/abc123-900x900.png";
 
 const series = [
   { seriesId: "open-decks", title: "Open Decks", recurrence: "Every Thursday" },
@@ -75,6 +80,7 @@ describe("popupKitchens", () => {
         time: "",
         note: "Smashed burgers, fries and dips.",
         pageUrl: "https://example.com/pickle",
+        logo: null,
         photo: "pickle.png",
         photoPosition: "",
         next: "2026-11-11",
@@ -82,6 +88,23 @@ describe("popupKitchens", () => {
         menuHref: "/kitchen#burgers-and-more",
       },
     ]);
+  });
+
+  it("has their logo and their own link from the series in ops (#296)", () => {
+    const [kitchen] = popupKitchens(
+      [
+        {
+          ...series[2],
+          pageUrl: "https://www.instagram.com/chezpickle",
+          logo: { url: LOGO, width: 900, height: 900 },
+        },
+      ],
+      [night("chez-pickle", "2026-11-12")],
+      [],
+      today,
+    );
+    expect(kitchen.logo).toEqual({ url: LOGO, width: 900, height: 900 });
+    expect(kitchen.pageUrl).toBe("https://www.instagram.com/chezpickle");
   });
 
   it("is empty once the pop-up has no night left", () => {
@@ -265,6 +288,9 @@ describe("a pop-up and its menu", () => {
           href: "/whats-on/chez-pickle/",
           from: "Thu 12 Nov",
           started: true,
+          when: "Wed to Sat",
+          logo: null,
+          pageUrl: "",
         },
       });
     });
@@ -276,11 +302,31 @@ describe("a pop-up and its menu", () => {
         href: "/whats-on/pasta-club/",
         from: "Thu 3 Dec",
         started: false,
+        when: "Thu and Fri, from 3 Dec, until 4 Dec",
+        logo: null,
+        pageUrl: "",
       });
     });
 
     it("is nobody when nothing's booked", () => {
       expect(kitchenNow(kitchens, run, "2026-12-05")).toEqual({ popup: null });
+    });
+
+    it("has its logo, name and Instagram from its series in ops (#296)", () => {
+      const withLogo = kitchens.map((row) =>
+        row.seriesId === "chez-pickle"
+          ? {
+              ...row,
+              pageUrl: "https://www.instagram.com/chezpickle",
+              logo: { url: LOGO, width: 900, height: 900 },
+            }
+          : row,
+      );
+      expect(kitchenNow(withLogo, run, "2026-11-13").popup).toMatchObject({
+        title: "Chez Pickle",
+        logo: { url: LOGO, width: 900, height: 900 },
+        pageUrl: "https://www.instagram.com/chezpickle",
+      });
     });
 
     it("counts only pop-ups, not a night or a deal", () => {
@@ -331,6 +377,74 @@ describe("a pop-up and its menu", () => {
 
     it("says nothing over the house menu when nothing's booked", () => {
       expect(kitchenLine(null, [house])).toBe("");
+    });
+  });
+
+  describe("the top of home's Food board (#296)", () => {
+    const withLogo = kitchens.map((row) =>
+      row.seriesId === "chez-pickle"
+        ? { ...row, logo: { url: LOGO, width: 900, height: 900 } }
+        : row,
+    );
+    const header = (list, day) =>
+      kitchenHeader(kitchenNow(list, run, day).popup);
+
+    it("shows the pop-up's logo, who's in and when, and the way to its page", () => {
+      expect(header(withLogo, "2026-11-13")).toEqual({
+        title: "Chez Pickle",
+        logo: { url: LOGO, width: 900, height: 900 },
+        line: "In the kitchen: Chez Pickle, Wed to Sat",
+        href: "/whats-on/chez-pickle/",
+      });
+    });
+
+    it("is there from when it's booked through its last night, as its menu is", () => {
+      expect(header(withLogo, "2026-11-01")?.title).toBe("Chez Pickle");
+      expect(header(withLogo, "2026-11-14")?.title).toBe("Chez Pickle");
+      // The day after its last night: the next one booked
+      expect(header(withLogo, "2026-11-15")?.title).toBe("Pasta Club");
+    });
+
+    it("says who's next before it has started", () => {
+      expect(header(withLogo, "2026-11-01")?.line).toBe(
+        "Next in the kitchen: Chez Pickle, Wed to Sat, from 12 Nov",
+      );
+    });
+
+    it("is the name alone when the series has no logo", () => {
+      expect(header(kitchens, "2026-11-13")).toMatchObject({
+        logo: null,
+        line: "In the kitchen: Chez Pickle, Wed to Sat",
+      });
+    });
+
+    it("isn't there when nobody's booked", () => {
+      expect(header(withLogo, "2026-12-05")).toBeNull();
+      expect(kitchenHeader(null)).toBeNull();
+    });
+
+    describe("what the board says under it", () => {
+      const own = {
+        id: "chez-pickle",
+        popupSeriesId: "chez-pickle",
+        items: [{ id: "og" }],
+      };
+      const popup = (day) => kitchenNow(kitchens, run, day).popup;
+
+      it("nothing over the menu: the top says who and when", () => {
+        expect(foodBoardLine(popup("2026-11-01"), [own])).toBe("");
+        expect(foodBoardLine(popup("2026-11-13"), [own])).toBe("");
+      });
+
+      it("the list is on its way in place of a menu", () => {
+        expect(foodBoardLine(popup("2026-11-01"), [])).toBe("soon");
+        expect(foodBoardLine(popup("2026-11-13"), [])).toBe("soon");
+      });
+
+      it("as before when nobody's booked", () => {
+        expect(foodBoardLine(null, [])).toBe("none");
+        expect(foodBoardLine(null, [own])).toBe("");
+      });
     });
   });
 
