@@ -32,6 +32,7 @@
 	import SectionsPanel from "./SectionsPanel.svelte";
 	import MenuDaysPicker from "./MenuDaysPicker.svelte";
 	import { MENU_STATUS_TONES, blankMenu, menuDraft, menuPayload, popupDraft, sameMenu } from "./menu-form";
+	import { menuDaysLabel } from "./menu-days.js";
 	import { SECTION_KIND_ITEMS, type Menu, type MenuInput, type MenuPopupRun, type MenuSection } from "./types";
 
 	let { path }: { path: string } = $props();
@@ -248,36 +249,35 @@
 	{:else}
 		<Card>
 			<form class="menu-form" novalidate onsubmit={save}>
-				<div class="row">
-					<Field label="Name" for="menu-name" width="md" required hint="What guests see at the top, e.g. Brunch.">
+				<FormSection title="The menu" description="What it's called, and when guests can order from it.">
+					{#snippet actions()}
+						{#if menu}<Badge tone={MENU_STATUS_TONES[menu.status]} label={menu.statusLabel} />{/if}
+					{/snippet}
+					<Field class="span-6" label="Name" for="menu-name" required hint="What guests see at the top, e.g. Brunch.">
 						<TextField id="menu-name" size="sm" bind:value={draft.name} placeholder="Chez Pickle" autocomplete="off" />
 					</Field>
-					<Field label="Drinks or food" for="menu-kind" hint="Food goes on the kitchen page, drinks on the bar page.">
+					<Field class="span-6" label="Drinks or food" for="menu-kind" hint="Food goes on the kitchen page, drinks on the bar page.">
 						<Segmented bind:value={draft.kind} items={SECTION_KIND_ITEMS} tone="soft" size="sm" ariaLabel="Drinks or food" />
 					</Field>
-					{#if menu}
-						<div class="status">
-							<Badge tone={MENU_STATUS_TONES[menu.status]} label={menu.statusLabel} />
-						</div>
-					{/if}
-				</div>
-				<div class="row">
-					<Field label="Starts" for="menu-starts" width="sm" optional hint="Empty: it's on already.">
+					<Field class="span-3" label="Starts" for="menu-starts" optional hint="Empty: it's on already.">
 						<DateField id="menu-starts" size="sm" bind:value={draft.startsOn} />
 					</Field>
-					<Field label="Ends" for="menu-ends" width="sm" optional hint="Empty: it keeps going.">
+					<Field class="span-3" label="Ends" for="menu-ends" optional hint="Empty: it keeps going.">
 						<DateField id="menu-ends" size="sm" bind:value={draft.endsOn} min={draft.startsOn} />
 					</Field>
-					<Field label="Days" for="menu-days" width="lg" hint="Pick none for every day.">
+					<Field
+						class="span-6"
+						label="Days"
+						for="menu-days"
+						hint={draft.days.length ? `${menuDaysLabel(draft.days)}. Pick none for every day.` : "Every day. Pick days to narrow it down."}
+					>
 						<MenuDaysPicker id="menu-days" bind:days={draft.days} />
 					</Field>
-				</div>
-				<div class="row">
 					<!-- Always there, so the form doesn't move when Drinks or Food is switched. -->
 					<Field
+						class="span-6"
 						label="Pop-up kitchen"
 						for="menu-popup"
-						width="md"
 						optional
 						hint={draft.kind === "kitchen"
 							? "Whose food this is. Pop-up kitchens are added in Events."
@@ -291,7 +291,7 @@
 							disabled={draft.kind !== "kitchen"}
 						/>
 					</Field>
-				</div>
+				</FormSection>
 				<button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
 			</form>
 		</Card>
@@ -342,18 +342,6 @@
 	.menu-form {
 		display: grid;
 		gap: var(--space-4);
-	}
-
-	.row {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-start;
-		gap: var(--space-4) var(--space-6);
-	}
-
-	.status {
-		margin-left: auto;
-		padding-top: var(--space-5);
 	}
 
 	.muted {

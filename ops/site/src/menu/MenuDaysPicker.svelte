@@ -1,7 +1,8 @@
 <script lang="ts">
 	/**
 	 * The days a menu runs (#305): seven toggles, Monday first. None on, or
-	 * all seven, is every day; the line under them says it in words.
+	 * all seven, is every day. Screen readers hear it in words; the field's
+	 * hint shows them.
 	 */
 	import { MENU_DAYS, menuDayList, menuDaysLabel } from "./menu-days.js";
 	import type { MenuDay } from "./types";
@@ -48,11 +49,12 @@
 			</button>
 		{/each}
 	</div>
-	<p class="said" aria-live="polite">{menuDaysLabel(days)}</p>
+	<span class="said" aria-live="polite">{menuDaysLabel(days)}</span>
 </div>
 
 <style>
 	.days {
+		position: relative;
 		display: grid;
 		gap: var(--space-1);
 		min-width: 0;
@@ -100,10 +102,14 @@
 		background: var(--primary-wash);
 	}
 
+	/* For screen readers; the field's hint says it on screen. */
 	.said {
-		margin: 0;
-		font-size: var(--text-xs);
-		color: var(--fg-muted);
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 
 	@media (max-width: 900px) {
