@@ -19,7 +19,12 @@ describe("NAV_ROUTES", () => {
 		assert.equal(service?.name, "Service");
 		assert.deepEqual(
 			service?.children?.map((row) => row.id),
-			["recipes", "stock", "lightspeed"],
+			["menu", "stock", "lightspeed"],
+		);
+		assert.deepEqual(
+			service?.children?.find((row) => row.id === "menu")?.children?.map((row) => row.id),
+			["recipes", "menus"],
+			"Menu → Items and Menus (#305)",
 		);
 		const stock = service?.children?.find((row) => row.id === "stock");
 		const lightspeed = service?.children?.find((row) => row.id === "lightspeed");
@@ -80,6 +85,7 @@ describe("flattenNavRoutes", () => {
 			[
 				"home",
 				"recipes",
+				"menus",
 				"inventory",
 				"suppliers",
 				"lightspeed-reconcile",

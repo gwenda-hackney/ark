@@ -369,7 +369,7 @@
 				),
 			},
 			{
-				headerName: "POS menus",
+				headerName: "Till menus",
 				colId: "posMenus",
 				minWidth: 120,
 				width: 150,

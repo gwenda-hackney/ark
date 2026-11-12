@@ -5,7 +5,13 @@
 import { parseImageAssetId, sanityImageUrl } from "../../../../../shared/sanity-image.js";
 import { sanityProjectId, sanityUploadImage } from "../../platform/sanity.js";
 import { menuRepository } from "./menu-repository.js";
-import { SECTION_KINDS, sectionKind, sectionPopupSeriesId } from "./menu-model.js";
+import {
+  SECTION_KINDS,
+  chapterFieldsOf,
+  sectionKind,
+  sectionMenuId,
+  sectionPopupSeriesId,
+} from "./menu-model.js";
 import { listPopupSeries } from "../../events/server/popups.js";
 import {
   computeRecipeAbv,
@@ -94,10 +100,12 @@ function mapIngredient(record) {
 
 /**
  * A menu_sections record → a section. `recordsById` (every section record by
- * id) lets a group answer with its chapter's kind and pop-up kitchen.
+ * id) lets a group answer with its chapter's menu; `menusById` (menu records
+ * by id) lets a chapter answer with its menu's kind and pop-up kitchen.
  */
-function mapSection(record, recordsById = new Map()) {
-  const popupSeriesId = sectionPopupSeriesId(record, recordsById);
+function mapSection(record, recordsById = new Map(), menusById = new Map()) {
+  const popupSeriesId = sectionPopupSeriesId(record, recordsById, menusById);
+  const menuId = sectionMenuId(record, recordsById);
   return {
     _id: String(record.id),
     id: String(record.id),
@@ -108,9 +116,11 @@ function mapSection(record, recordsById = new Map()) {
     parentId: idText(record.parentId),
     parentTitle: undefined,
     sanityId: text(record.sanityId) || undefined,
-    // Drinks ("bar") or food ("kitchen"), and the pop-up kitchen (an event series) whose chapter it is.
-    kind: sectionKind(record, recordsById),
+    // Drinks ("bar") or food ("kitchen"), and the pop-up kitchen (an event series) whose chapter it is: its menu's.
+    kind: sectionKind(record, recordsById, menusById),
     popupSeriesId: popupSeriesId != null ? String(popupSeriesId) : null,
+    // The menu (#305) its chapter is on.
+    menuId: menuId != null ? String(menuId) : null,
     items: [],
   };
 }
@@ -147,11 +157,12 @@ function menuLabels(sections, posMenus) {
 }
 
 /** `isFoodSection(sectionId)`: whether a section is in a kitchen chapter (menu-placements.js). */
-function foodSections(sectionRecords) {
+function foodSections(sectionRecords, menuRecords = []) {
   const byId = recordsById(sectionRecords);
+  const menusById = recordsById(menuRecords);
   return (sectionId) => {
     const record = byId.get(Number(sectionId));
-    return Boolean(record) && sectionKind(record, byId) === "kitchen";
+    return Boolean(record) && sectionKind(record, byId, menusById) === "kitchen";
   };
 }
 
@@ -214,7 +225,8 @@ export function mapItem(record, { projectId, posMenuNames } = {}) {
 
 /** Every section (nested), and every named drink with its recipe and placements. */
 export async function loadMenuTree(env, repo = menuRepository(env)) {
-  const [sectionRecords, itemRecords, ingredientRecords, placementRecords, posMenus] = await Promise.all([
+  const [menuRecords, sectionRecords, itemRecords, ingredientRecords, placementRecords, posMenus] = await Promise.all([
+    repo.list("menus"),
     repo.list("menu_sections"),
     repo.list("menu_items"),
     repo.list("ingredients"),
@@ -224,8 +236,9 @@ export async function loadMenuTree(env, repo = menuRepository(env)) {
   const labels = menuLabels(sectionRecords, posMenus);
 
   const sectionsById = recordsById(sectionRecords);
+  const menusById = recordsById(menuRecords);
   const sections = sectionRecords
-    .map((record) => mapSection(record, sectionsById))
+    .map((record) => mapSection(record, sectionsById, menusById))
     .filter((section) => Boolean(section.title || section.slug))
     .sort((a, b) => a.orderRank - b.orderRank);
   const byId = new Map(sections.map((section) => [section._id, section]));
@@ -267,7 +280,7 @@ export async function loadMenuTree(env, repo = menuRepository(env)) {
     }
   }
 
-  return { repo, sections: nestMenuSections(sections), items };
+  return { repo, sections: nestMenuSections(sections), items, menus: menuRecords };
 }
 
 async function loadInventoryAbvMap(repo) {
@@ -510,15 +523,16 @@ async function replaceIngredients(repo, itemId, ingredients) {
 export async function createMenuItem(env, input) {
   const repo = menuRepository(env);
   const ingredients = normalizeIngredients(input.ingredients);
-  const [inventoryById, posMenus, siblings, sections] = await Promise.all([
+  const [inventoryById, posMenus, siblings, sections, menus] = await Promise.all([
     loadInventoryAbvMap(repo),
     listPosMenus(env, repo),
     repo.list("menu_items"),
     repo.list("menu_sections"),
+    repo.list("menus"),
   ]);
   const placements = resolvePlacementsForWrite(input, {
     defaultPosMenus: posMenus,
-    isFoodSection: foodSections(sections),
+    isFoodSection: foodSections(sections, menus),
   });
   const derived = applyPlacementDerivedFields({ ...input, placements });
   const payload = {
@@ -580,12 +594,13 @@ export async function updateMenuItem(env, itemId, input) {
     error.status = 404;
     throw error;
   }
-  const [inventoryById, posMenus, placementRecords, siblings, sections] = await Promise.all([
+  const [inventoryById, posMenus, placementRecords, siblings, sections, menus] = await Promise.all([
     loadInventoryAbvMap(repo),
     listPosMenus(env, repo),
     repo.list("menu_placements", { itemId }),
     repo.list("menu_items"),
     repo.list("menu_sections"),
+    repo.list("menus"),
   ]);
   const labels = menuLabels(sections, posMenus);
   const existingMapped = attachPlacements(
@@ -597,7 +612,7 @@ export async function updateMenuItem(env, itemId, input) {
   const placements = resolvePlacementsForWrite(input, {
     existingItem: existingMapped,
     defaultPosMenus: posMenus,
-    isFoodSection: foodSections(sections),
+    isFoodSection: foodSections(sections, menus),
   });
   const derived = applyPlacementDerivedFields({
     ...existingMapped,
@@ -806,10 +821,10 @@ function nextSectionOrder(records) {
   );
 }
 
-function mappedSections(records) {
+function mappedSections(records, menusById = new Map()) {
   const all = recordsById(records);
   const sections = records
-    .map((record) => mapSection(record, all))
+    .map((record) => mapSection(record, all, menusById))
     .filter((section) => Boolean(section.title || section.slug));
   const byId = new Map(sections.map((section) => [section._id, section]));
   for (const section of sections) {
@@ -845,7 +860,7 @@ function assertUniqueSectionSlug(sections, slug, exceptId) {
 const POPUP_NEEDS_FOOD = "Only a Food chapter can belong to a pop-up kitchen.";
 
 /** "bar" or "kitchen" as a save sent it; anything else is refused. */
-function kindInput(value) {
+export function kindInput(value) {
   const kind = text(value).toLowerCase();
   if (!SECTION_KINDS.includes(kind)) fail(400, "Pick Drinks or Food.");
   return kind;
@@ -855,27 +870,59 @@ function kindInput(value) {
  * The pop-up kitchen a save names: its event series' id, null for none.
  * 400 unless it is a series marked as a pop-up kitchen (events' popups.js).
  */
-async function popupInput(env, value) {
+export async function popupInput(env, value) {
   if (value == null || value === "") return null;
   const popup = (await listPopupSeries(env)).find((series) => series.id === String(value).trim());
   if (!popup) fail(400, "Pick a pop-up kitchen: an event marked as a pop-up kitchen (Events).");
   return Number(popup.id);
 }
 
+/** The menu record a save names, or a 400 saying to pick one. */
+function menuInput(menuRecords, value) {
+  const menu = menuRecords.find((record) => String(record.id) === text(String(value ?? "")));
+  if (!menu) fail(400, "Pick a menu for this chapter.");
+  return menu;
+}
+
+/**
+ * A chapter's own fields when it is on `menu`: the menu's kind and pop-up
+ * kitchen, copied for the code before menus. A save that asks for another
+ * kind or pop-up kitchen is refused: those are the menu's to change.
+ */
+function chapterOnMenu(menu, input) {
+  const own = chapterFieldsOf(menu);
+  if (input.kind != null && input.kind !== "" && kindInput(input.kind) !== own.kind) {
+    fail(400, `This chapter is on ${menu.name || "a menu"}: drinks or food is the menu's. Change it on the menu.`);
+  }
+  if (input.popupSeriesId !== undefined && (Number(input.popupSeriesId) || null) !== own.popupSeriesId) {
+    fail(400, `This chapter is on ${menu.name || "a menu"}: its pop-up kitchen is the menu's. Change it on the menu.`);
+  }
+  return { ...own, menuId: menu.id };
+}
+
+/**
+ * Add a chapter or a group. A chapter goes on the menu `input.menuId` names
+ * (#305) and is drinks or food, and a pop-up kitchen's, as that menu is. One
+ * given no menu (the code and migrations before menus) is drinks or food,
+ * and a pop-up kitchen's, as the save says.
+ */
 export async function createMenuSection(env, input) {
   const repo = menuRepository(env);
   const title = text(input.title);
   if (!title) fail(400, "Section name is required.");
   const slug = itemSlug(input.slug) || itemSlug(title);
   if (!slug) fail(400, "Use letters or numbers in the section name.");
-  const records = await repo.list("menu_sections");
-  const { sections, byId } = mappedSections(records);
+  const [records, menus] = await Promise.all([repo.list("menu_sections"), repo.list("menus")]);
+  const menusById = recordsById(menus);
+  const { sections, byId } = mappedSections(records, menusById);
   assertUniqueSectionSlug(sections, slug);
   const parentId = text(input.parentId) || null;
   await assertSectionParent(byId, parentId);
-  // Only a chapter is drinks or food and has a pop-up kitchen; a group follows its chapter.
-  const own = { kind: "", popupSeriesId: null };
-  if (!parentId) {
+  // Only a chapter is on a menu, drinks or food and a pop-up kitchen's; a group follows its chapter.
+  let own = { kind: "", popupSeriesId: null, menuId: null };
+  if (!parentId && text(String(input.menuId ?? ""))) {
+    own = chapterOnMenu(menuInput(menus, input.menuId), input);
+  } else if (!parentId) {
     own.kind = input.kind == null || input.kind === "" ? "bar" : kindInput(input.kind);
     own.popupSeriesId = await popupInput(env, input.popupSeriesId);
     if (own.popupSeriesId && own.kind !== "kitchen") fail(400, POPUP_NEEDS_FOOD);
@@ -888,21 +935,26 @@ export async function createMenuSection(env, input) {
     parentId: parentId ? Number(parentId) : null,
     ...own,
   });
-  return mapSection(record, recordsById([...records, record]));
+  return mapSection(record, recordsById([...records, record]), menusById);
 }
 
+/**
+ * Change a section: its name, line, order, where it sits, and for a chapter
+ * its menu (`menuId`), taking that menu's kind and pop-up kitchen with it.
+ */
 export async function updateMenuSection(env, sectionId, input) {
   const repo = menuRepository(env);
   const existing = await repo.get("menu_sections", sectionId);
   if (!existing) fail(404, "Section not found.");
-  const records = await repo.list("menu_sections");
+  const [records, menus] = await Promise.all([repo.list("menu_sections"), repo.list("menus")]);
+  const menusById = recordsById(menus);
   const all = recordsById(records);
-  const current = mapSection(existing, all);
+  const current = mapSection(existing, all, menusById);
   const title = text(input.title) || current.title;
   if (!title) fail(400, "Section name is required.");
   const slug = itemSlug(input.slug) || current.slug || itemSlug(title);
   if (!slug) fail(400, "Use letters or numbers in the section name.");
-  const { sections, byId } = mappedSections(records);
+  const { sections, byId } = mappedSections(records, menusById);
   assertUniqueSectionSlug(sections, slug, current._id);
   const parentId =
     input.parentId === "" || input.parentId === null
@@ -925,11 +977,17 @@ export async function updateMenuSection(env, sectionId, input) {
     subtitle: input.subtitle == null ? current.subtitle || "" : text(input.subtitle),
     parentId: parentId ? Number(parentId) : null,
   };
+  // A group made a chapter stays on its old chapter's menu (current.menuId) unless the save names one.
+  const menuId = input.menuId === undefined ? current.menuId : text(String(input.menuId ?? "")) || null;
   if (parentId) {
     // A group follows its chapter.
     fields.kind = "";
     fields.popupSeriesId = null;
+    fields.menuId = null;
+  } else if (menuId) {
+    Object.assign(fields, chapterOnMenu(menuInput(menus, menuId), input));
   } else {
+    fields.menuId = null;
     // A group made a chapter keeps what it was under its old chapter (current.*).
     fields.kind = input.kind == null || input.kind === "" ? current.kind : kindInput(input.kind);
     fields.popupSeriesId =
@@ -951,7 +1009,7 @@ export async function updateMenuSection(env, sectionId, input) {
   }
   const record = await repo.update("menu_sections", sectionId, fields);
   all.set(record.id, record);
-  return mapSection(record, all);
+  return mapSection(record, all, menusById);
 }
 
 export async function deleteMenuSection(env, sectionId) {

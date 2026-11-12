@@ -58,7 +58,7 @@ describe("mobileTabs", () => {
 describe("groupPages", () => {
 	it("splits Service where the rail does", () => {
 		assert.deepEqual(ids("service"), [
-			["recipes"],
+			["recipes", "menus"],
 			["inventory", "suppliers"],
 			["lightspeed-reconcile", "lightspeed-export"],
 		]);
@@ -99,7 +99,8 @@ describe("groupPages", () => {
 describe("stripGroups", () => {
 	it("uses the short names", () => {
 		assert.deepEqual(labels("service"), [
-			"Menu items",
+			"Items",
+			"Menus",
 			"Inventory",
 			"Suppliers",
 			"Reconcile",

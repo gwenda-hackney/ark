@@ -39,7 +39,8 @@
 		type EventForm,
 		type SeriesTextKey,
 	} from "../event-form.svelte";
-	import { CATEGORY_CHOICES, linkField } from "../event-category";
+	import { CATEGORY_CHOICES, categoryOf, linkField } from "../event-category";
+	import PopupMenus from "../PopupMenus.svelte";
 
 	let {
 		part,
@@ -429,6 +430,10 @@
 						{/if}
 					</Field>
 				</FormSection>
+			{/if}
+			{#if part === "details" && isSeries && categoryOf(current) === "popup" && eventId}
+				<!-- A saved pop-up kitchen's menus (#305), from the menu module. -->
+				<PopupMenus {eventId} />
 			{/if}
 			{#if show.when}
 				<FormSection

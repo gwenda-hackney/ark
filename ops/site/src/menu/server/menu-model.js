@@ -8,8 +8,10 @@
  * one link to many, a drink's POS menus, is `posMenuIds` (ids, ascending),
  * which D1 keeps in a junction table.
  *
+ *   menus                { id, name, slug, kind, startsOn, endsOn, days,
+ *                          popupSeriesId, order }
  *   menu_sections        { id, name, slug, subtitle, parentId, order, sanityId,
- *                          kind, popupSeriesId }
+ *                          kind, popupSeriesId, menuId }
  *   pos_menus            { id, name, order, isDefault }
  *   menu_items           { id, name, sectionId, menuLine, lockMenuLine, price,
  *                          altPrice, prices, drinkType, cocktailType, notes,
@@ -31,16 +33,39 @@
  * is the stored text as is (analyze-note.js reads it). A photo is a Sanity
  * asset id (#183).
  *
- * A chapter (a section with no parent) is drinks or food, its `kind`
- * (SECTION_KINDS), and may belong to a pop-up kitchen: `popupSeriesId`, the
- * id of an event series whose category is "popup" (the events domain's, so
- * a plain number here, not a link the menu follows). A group carries
- * neither ("" and null): it follows its chapter (sectionKind,
- * sectionPopupSeriesId).
+ * A menu (#305) is what guests see as one menu: Drinks, or a pop-up
+ * kitchen's Chez Pickle. It is drinks or food, its `kind` (SECTION_KINDS),
+ * runs between its dates on its days (menu-days.js: `startsOn` and `endsOn`
+ * YYYY-MM-DD or "", `days` "thu,fri" or "" for every day), and may belong to
+ * a pop-up kitchen: `popupSeriesId`, the id of an event series whose
+ * category is "popup" (the events domain's, so a plain number here, not a
+ * link the menu follows). Only the D1 and memory adapters keep menus; on
+ * Baserow, which is being retired (#234), there are none.
+ *
+ * A chapter (a section with no parent) belongs to a menu, `menuId`, and is
+ * drinks or food, and a pop-up kitchen's, as its menu is. Its own `kind` and
+ * `popupSeriesId` are what it was before menus: the code before menus reads
+ * them, so the menu's are copied there until a clean-up drops them, and a
+ * chapter on no menu still answers with them. A group carries none of the
+ * three ("", null and null): it follows its chapter (sectionKind,
+ * sectionPopupSeriesId, sectionMenuId).
  */
+import { MENU_DAYS, cleanMenuDate, cleanMenuDays, menuDayList, menuRunsOn, menuStatus } from "../menu-days.js";
+
+export { MENU_DAYS, cleanMenuDate, cleanMenuDays, menuDayList, menuRunsOn, menuStatus };
 
 /** Field kinds: text ("" when empty), number (or null), bool, link (an id or null), links (ids), json. */
 export const MENU_COLLECTIONS = {
+  menus: {
+    name: "text",
+    slug: "text",
+    kind: "text",
+    startsOn: "text",
+    endsOn: "text",
+    days: "text",
+    popupSeriesId: "number",
+    order: "number",
+  },
   menu_sections: {
     name: "text",
     slug: "text",
@@ -50,6 +75,7 @@ export const MENU_COLLECTIONS = {
     sanityId: "text",
     kind: "text",
     popupSeriesId: "number",
+    menuId: { link: "menus" },
   },
   pos_menus: {
     name: "text",
@@ -156,14 +182,39 @@ function chapterOf(section, byId) {
   return parent || section;
 }
 
-/** Drinks or food for a section record: a chapter's own kind, a group's chapter's. `byId`: records by id. */
-export function sectionKind(section, byId = new Map()) {
-  return cleanSectionKind(chapterOf(section, byId)?.kind);
+/** The menu record a section record's chapter is on, or null. `menusById`: menu records by id. */
+function menuOf(section, byId, menusById) {
+  const menuId = chapterOf(section, byId)?.menuId;
+  return (menuId != null && menusById.get(menuId)) || null;
 }
 
-/** The pop-up kitchen (an event series' id, or null) a section record belongs to: a chapter's own, a group's chapter's. */
-export function sectionPopupSeriesId(section, byId = new Map()) {
-  return chapterOf(section, byId)?.popupSeriesId ?? null;
+/**
+ * Drinks or food for a section record: its chapter's menu's, or for a
+ * chapter on no menu its own. `byId`: section records by id; `menusById`:
+ * menu records by id.
+ */
+export function sectionKind(section, byId = new Map(), menusById = new Map()) {
+  const menu = menuOf(section, byId, menusById);
+  return cleanSectionKind(menu ? menu.kind : chapterOf(section, byId)?.kind);
+}
+
+/** The pop-up kitchen (an event series' id, or null) a section record belongs to: its chapter's menu's, or a chapter's own. */
+export function sectionPopupSeriesId(section, byId = new Map(), menusById = new Map()) {
+  const menu = menuOf(section, byId, menusById);
+  return (menu ? menu.popupSeriesId : chapterOf(section, byId)?.popupSeriesId) ?? null;
+}
+
+/** The menu (its id, or null) a section record is on: a chapter's own, a group's chapter's. */
+export function sectionMenuId(section, byId = new Map()) {
+  return chapterOf(section, byId)?.menuId ?? null;
+}
+
+/**
+ * What a menu's chapters keep of it in their own fields, for the code
+ * before menus: { kind, popupSeriesId }. A pop-up kitchen's menu is food.
+ */
+export function chapterFieldsOf(menu) {
+  return { kind: cleanSectionKind(menu?.kind), popupSeriesId: menu?.popupSeriesId ?? null };
 }
 
 /** Collections parents first: the order a copy writes them in. */

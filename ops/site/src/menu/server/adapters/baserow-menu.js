@@ -7,6 +7,9 @@
  * so a save before the migration keeps working. write() sends each run of
  * same-kind changes to one table as one batch request.
  *
+ * Menus (#305) were never in Baserow, which is being retired (#234): it
+ * lists none, a chapter's menu reads as none, and writing one is refused.
+ *
  * Photos from before #183 are Baserow files: a drink whose photo hasn't been
  * moved to Sanity yet reads with `legacyPhotoUrl`. That is Baserow's alone,
  * never copied: exportAll refuses while any are left (run the photos
@@ -23,6 +26,7 @@ import {
 import { parseImageAssetId } from "../../../../../../shared/sanity-image.js";
 import {
   CASCADES,
+  MENU_COLLECTIONS,
   MENU_COLLECTION_NAMES,
   matchesWhere,
   menuFields,
@@ -158,10 +162,14 @@ export const BASEROW_MENU_TABLES = {
 /** Rows per batch request (Baserow takes up to 200). */
 const BATCH_SIZE = 200;
 
+/** A collection only D1 keeps (menus): no table, no columns. */
+const ONLY_ON_D1 = { table: null, columns: {} };
+
 function spec(collection) {
   const found = BASEROW_MENU_TABLES[collection];
-  if (!found) throw new Error(`Unknown menu collection "${collection}".`);
-  return found;
+  if (found) return found;
+  if (MENU_COLLECTIONS[collection]) return ONLY_ON_D1;
+  throw new Error(`Unknown menu collection "${collection}".`);
 }
 
 /** A Baserow row → a record. */
@@ -196,7 +204,10 @@ export function rowFromFields(collection, fields, has = () => true) {
   const clean = menuFields(collection, fields);
   const row = {};
   for (const [key, value] of Object.entries(clean)) {
-    const [column, kind] = spec(collection).columns[key];
+    const entry = spec(collection).columns[key];
+    // A field Baserow never had (a chapter's menu) is D1's alone.
+    if (!entry) continue;
+    const [column, kind] = entry;
     if (!has(column)) continue;
     if (kind === "link") row[column] = value == null ? [] : [value];
     else if (kind === "links") row[column] = value;
@@ -214,6 +225,14 @@ export function rowFromFields(collection, fields, has = () => true) {
 
 function withoutId({ id: _id, ...fields }) {
   return fields;
+}
+
+function onlyOnD1(collection) {
+  const error = new Error(
+    `Baserow keeps no ${collection}: they are on D1 only. Switch the menu to D1 (npm run d1:store).`,
+  );
+  error.status = 503;
+  return error;
 }
 
 function notSetUp(collection) {
@@ -236,7 +255,12 @@ export function baserowMenuRepository(
   const fieldNames = new Map();
 
   async function tableId(collection, { required = false } = {}) {
-    const id = (await resolveOpsTableIds(env))[spec(collection).table];
+    const { table } = spec(collection);
+    if (!table) {
+      if (required) throw onlyOnD1(collection);
+      return null;
+    }
+    const id = (await resolveOpsTableIds(env))[table];
     if (!id && required) throw notSetUp(collection);
     return id || null;
   }
@@ -265,7 +289,9 @@ export function baserowMenuRepository(
     if (!id) return [];
     const links = whereLinks(collection, where);
     // Baserow filters by one link; the rest (and "no link") are checked here.
-    const first = Object.entries(links).find(([, value]) => value != null);
+    const first = Object.entries(links).find(
+      ([key, value]) => value != null && spec(collection).columns[key],
+    );
     const rows = await listAllRows(
       env,
       id,

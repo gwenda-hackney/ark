@@ -29,7 +29,7 @@
 	import { provideHelp } from "../ui/help.svelte";
 
 	/** The Help drawer; the ? beside Name opens it on that topic. */
-	const help = provideHelp("POS menus", MENUS_HELP);
+	const help = provideHelp("Till menus", MENUS_HELP);
 
 	let menus = $state<PosMenu[]>([]);
 	let items = $state<MenuItem[]>([]);
@@ -67,7 +67,7 @@
 			menus = data.posMenus || [];
 			items = collectMenuItems(data.sections || []) as MenuItem[];
 		} catch (err) {
-			error = err instanceof Error ? err.message : "Could not load POS menus.";
+			error = err instanceof Error ? err.message : "Could not load till menus.";
 		} finally {
 			loading = false;
 		}
@@ -176,7 +176,7 @@
 
 <div class="page scrollbar-fade">
 	<PageHeader
-		title="POS menus"
+		title="Till menus"
 	>
 		{#snippet actions()}
 			<PageHelp />
@@ -184,7 +184,7 @@
 	</PageHeader>
 
 	<div class="stack">
-		<Card title="Add menu" class="add-card">
+		<Card title="Add till menu" class="add-card">
 			<form class="add" onsubmit={onAdd}>
 				<Field label="Name" for="pos-menu-name" width="lg" required help="Name">
 					<TextField id="pos-menu-name" bind:value={name} placeholder="Live menu" />
@@ -208,9 +208,9 @@
 			{/if}
 		</Card>
 
-		<Card title="Menus" subtitle="{menus.length} in ops" class="menus-card">
+		<Card title="Till menus" subtitle="{menus.length} in ops" class="menus-card">
 			{#if !loading && menus.length === 0}
-				<p class="muted">No POS menus yet.</p>
+				<p class="muted">No till menus yet.</p>
 			{:else if !loading}
 				<ul class="list" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
 					{#each menus as menu (menu.id)}
@@ -292,7 +292,7 @@
 		</Card>
 	</div>
 
-	<BusyOverlay active={loading} label="Loading POS menus…" />
+	<BusyOverlay active={loading} label="Loading till menus…" />
 </div>
 
 <ConfirmDialog {confirm} />

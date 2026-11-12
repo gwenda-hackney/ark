@@ -27,7 +27,7 @@
 		Add menus on Lightspeed · Menus. New drinks pick the default (Fall 2026).
 	</p>
 {:else}
-	<div class="chips" role="group" aria-label="POS menus">
+	<div class="chips" role="group" aria-label="Till menus">
 		{#each menus as menu (menu.id)}
 			<button
 				type="button"

@@ -1,6 +1,5 @@
-/** Configuration's tabs, in order. The first is where /config opens. */
+/** Configuration's tabs, in order. The first is where /config opens. Menu sections are on each menu's page (#305). */
 export const CONFIG_TABS = [
-	{ id: "sections", label: "Menu sections" },
 	{ id: "pour", label: "Pour cost" },
 	{ id: "tasks", label: "Event tasks" },
 	{ id: "environment", label: "Environment" },

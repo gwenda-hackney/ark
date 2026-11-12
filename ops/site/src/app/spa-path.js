@@ -22,6 +22,8 @@ export function isSpaDocumentPath(pathname) {
   return (
     p === "/menu" ||
     p.startsWith("/menu/") ||
+    p === "/menus" ||
+    p.startsWith("/menus/") ||
     p === "/inventory" ||
     p.startsWith("/inventory/") ||
     p === "/lightspeed" ||
@@ -182,6 +184,13 @@ export function parseShellPath(path) {
       tab,
     };
   }
+  // Menus (#305): the list, a new one, or one by its id.
+  if (p === "/menus") return { page: "menus", slug: null, isNew: false };
+  if (p.startsWith("/menus/")) {
+    const part = decodeSegment(p.slice("/menus/".length).split("/")[0] || "");
+    if (part === "new") return { page: "menus", slug: null, isNew: true };
+    return { page: "menus", slug: part || null, isNew: false };
+  }
   if (p === "/inventory") {
     return { page: "inventory", slug: null, isNew: false };
   }
@@ -283,13 +292,32 @@ export function parseShellPath(path) {
     const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");
     return { page: "forms", slug: part || null };
   }
+  // Menu sections live on each menu's page now (#305): old links land on Menus.
+  if (p === "/config/sections" || p.startsWith("/config/sections/")) return { page: "menus", slug: null, isNew: false, moved: true };
   if (p === "/config" || p.startsWith("/config/")) {
     const tab = decodeSegment(p.slice("/config/".length).split("/")[0] || "");
     return { page: "config", tab: tab || null };
   }
-  // Sections used to be a page of its own; it's a Configuration tab now.
-  if (p === "/sections" || p.startsWith("/sections/")) return { page: "config", tab: "sections" };
+  // Sections used to be a page of its own, then a Configuration tab.
+  if (p === "/sections" || p.startsWith("/sections/")) return { page: "menus", slug: null, isNew: false, moved: true };
   return { page: "home" };
+}
+
+/** Menu → Menus. */
+export function menusListPath() {
+  return "/menus";
+}
+
+/** A menu's page, by its id. */
+export function menuPagePath(id) {
+  const key = String(id || "").trim();
+  return key ? `/menus/${encodeURIComponent(key)}` : menusListPath();
+}
+
+/** A new menu; from a pop-up kitchen (`popupId`), it starts with the pop-up's name, dates and days. */
+export function newMenuPath(popupId) {
+  const popup = String(popupId || "").trim();
+  return popup ? `/menus/new?popup=${encodeURIComponent(popup)}` : "/menus/new";
 }
 
 export function menuListPath() {
@@ -405,6 +433,11 @@ export function editorKey(path) {
     if (route.slug) return `artists:${route.slug}`;
     return "artists";
   }
+  if (route.page === "menus") {
+    if (route.isNew) return "menus:new";
+    if (route.slug) return `menus:${route.slug}`;
+    return "menus";
+  }
   // A play application's guest-artist fields can be left unsaved.
   if (route.page === "forms" && route.slug) return `forms:${route.slug}`;
   return route.page || "home";
@@ -416,6 +449,7 @@ export function navigationLeavesEditor(fromPath, toPath) {
   if (from === to) return false;
   if (
     from === "menu" ||
+    from === "menus" ||
     from === "inventory" ||
     from === "lightspeed" ||
     from === "suppliers" ||
@@ -447,6 +481,7 @@ export function isEditorPath(path) {
   if (route.print) return false;
   return (
     (route.page === "menu" ||
+      route.page === "menus" ||
       route.page === "inventory" ||
       route.page === "events" ||
       route.page === "artists") &&
@@ -529,7 +564,9 @@ export function shellCrumbs(
         ? "New event"
         : route.page === "artists"
           ? "New artist"
-          : "New item"
+          : route.page === "menus"
+            ? "New menu"
+            : "New item"
       : "");
   if (leafLabel && nested) crumbs.push({ label: leafLabel });
   const last = crumbs[crumbs.length - 1];
