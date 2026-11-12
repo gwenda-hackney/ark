@@ -4,6 +4,7 @@ import {
 	changedMessage,
 	droppedOrder,
 	eventSections,
+	eventsOnPhotosPage,
 	fromEventsFootnote,
 	galleryFootnote,
 	movedOrder,
@@ -38,6 +39,7 @@ describe("gallery page", () => {
 			described: true,
 			board: "Drinks board",
 			place: 1,
+			small: "",
 		});
 		assert.deepEqual([tiles[1].label, tiles[1].described, tiles[1].board, tiles[1].place], [
 			"Not described yet",
@@ -45,6 +47,18 @@ describe("gallery page", () => {
 			"",
 			2,
 		]);
+	});
+
+	it("badges a photo under 800 px on its long side: the website shows it, but it may look blurry", () => {
+		const tiles = photoTiles([
+			photo("a", { width: 240, height: 240 }),
+			photo("b", { width: 600, height: 800 }),
+			photo("c", { width: 799, height: 500 }),
+		]);
+		assert.deepEqual(
+			tiles.map((tile) => tile.small),
+			["Small: may look blurry on the website (under 800 px)", "", "Small: may look blurry on the website (under 800 px)"],
+		);
 	});
 
 	it("a dragged photo takes the place of the one it's dropped on", () => {
@@ -98,8 +112,9 @@ describe("gallery page: from events", () => {
 				name: "Karaoke with Ross",
 				photos: [{ key: "a", url: cdn("a"), width: 1600, height: 1200, added: "2026-11-08T22:00:00Z" }],
 				more: 3,
+				tooSmall: 0,
 			},
-			{ id: "7", name: "Chez Pickle", photos: [], more: 0 },
+			{ id: "7", name: "Chez Pickle", photos: [], more: 0, tooSmall: 0 },
 		]);
 		assert.deepEqual(sections[0], {
 			id: "12",
@@ -114,9 +129,42 @@ describe("gallery page: from events", () => {
 				},
 			],
 			more: "3 more on its Images tab",
+			note: "",
 		});
 		assert.equal(sections[1].more, "");
 		assert.equal(sections[1].href, "/events/7/gallery");
+	});
+
+	it("says under an event how many of its photos were left out as too small", () => {
+		const photos = [{ key: "a", url: cdn("a"), width: 1600, height: 1200, added: "2026-11-08T22:00:00Z" }];
+		const sections = eventSections([
+			{ id: "12", name: "Karaoke with Ross", photos, more: 0, tooSmall: 2 },
+			{ id: "9", name: "Quiz Night", photos, more: 0, tooSmall: 1 },
+			{ id: "4", name: "Friday, With Guests", photos, more: 0, tooSmall: 0 },
+		]);
+		assert.deepEqual(
+			sections.map((section) => section.note),
+			["2 photos left out as too small (under 800 px).", "1 photo left out as too small (under 800 px).", ""],
+		);
+	});
+
+	it("names an event left off the Photos page because its photos are too small", () => {
+		const [section] = eventSections([{ id: "7", name: "Chez Pickle", photos: [], more: 0, tooSmall: 3 }]);
+		assert.deepEqual([section.name, section.href, section.tiles, section.note], [
+			"Chez Pickle",
+			"/events/7/gallery",
+			[],
+			"Not on the Photos page: 3 photos too small (under 800 px).",
+		]);
+	});
+
+	it("counts only the events on the Photos page in the line under them", () => {
+		const photos = [{ key: "a", url: cdn("a"), width: 1600, height: 1200, added: "2026-11-08T22:00:00Z" }];
+		const sections = eventSections([
+			{ id: "12", name: "Karaoke with Ross", photos, more: 0, tooSmall: 0 },
+			{ id: "7", name: "Chez Pickle", photos: [], more: 0, tooSmall: 3 },
+		]);
+		assert.equal(eventsOnPhotosPage(sections), 1);
 	});
 
 	it("says how many events the Photos page shows, or that there are none yet", () => {

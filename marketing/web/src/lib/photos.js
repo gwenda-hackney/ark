@@ -251,6 +251,22 @@ export const EVENT_PHOTOS_PER_EVENT = 6;
  */
 export const EVENT_PHOTO_MIN = 800;
 
+/**
+ * Whether a photo is too small to show sharp on /photos: under `min`
+ * (EVENT_PHOTO_MIN) on its long side. One from an event is left out there
+ * and of home's strip (eventPhotoGroups); ops badges it, and a venue photo
+ * as small, by this same rule. A photo with no size isn't: there's nothing
+ * to measure.
+ *
+ * @param {{ width?: number, height?: number } | null | undefined} photo
+ * @param {number} [min]
+ */
+export function tooSmallForPhotos(photo, min = EVENT_PHOTO_MIN) {
+  const width = Number(photo?.width) || 0;
+  const height = Number(photo?.height) || 0;
+  return width > 0 && height > 0 && Math.max(width, height) < min;
+}
+
 /** /photos shows the newest few events; older ones keep their own pages. */
 export const EVENT_PHOTO_EVENTS = 8;
 
@@ -292,7 +308,7 @@ export function eventPhotoGroups(
     const photos = [];
     for (const photo of event.photos || []) {
       if (!hasPicture(photo) || isAmong(photo, seen)) continue;
-      if (Math.max(photo.width, photo.height) < min) continue;
+      if (tooSmallForPhotos(photo, min)) continue;
       photos.push(photo);
       for (const key of photoKeys(photo)) seen.add(key);
     }
@@ -312,11 +328,20 @@ export function eventPhotoGroups(
  * left out of them. Home's strip takes its few from events from these
  * (homePhotoPlan), and ops' Gallery page shows the same.
  *
+ * `min: 0` gives the events it would show if no photo were too small: ops
+ * names the ones left out only for that.
+ *
  * @param {Array<{ url?: string, hash?: string }>} venue the venue's photos
  * @param {Parameters<typeof eventPhotoGroups>[0]} events
+ * @param {{ min?: number }} [options]
  */
-export function photosPageEvents(venue, events) {
+export function photosPageEvents(
+  venue,
+  events,
+  { min = EVENT_PHOTO_MIN } = {},
+) {
   return eventPhotoGroups(events, {
+    min,
     shownElsewhere: (venue || []).flatMap(photoKeys),
   });
 }

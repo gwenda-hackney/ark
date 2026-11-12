@@ -8,9 +8,22 @@
  * event-galleries.js), `name` as `title`, each photo with its hash; it reads
  * each group's id, title, `more`, and each photo's key, url, width, height
  * and added. A change here that would break that page fails here.
+ *
+ * Ops also badges a photo too small for the Photos page, by this same rule
+ * (tooSmallForPhotos, and EVENT_PHOTO_MIN in its words): on an event's
+ * Images tab (ops/site/src/events/gallery-photos.ts) and on the venue's own
+ * photos (ops/site/src/venue/gallery-page.ts), through
+ * ops/site/src/website/photos-page.ts. Under each event on its Gallery page
+ * it says how many were left out as too small, and names an event left out
+ * only for that: the one photosPageEvents shows with `min: 0` and not
+ * without (venue-gallery.js galleryFromEvents).
  */
 import { describe, expect, it } from "vitest";
-import { photosPageEvents } from "./photos.js";
+import {
+  EVENT_PHOTO_MIN,
+  photosPageEvents,
+  tooSmallForPhotos,
+} from "./photos.js";
 
 const sha = (n) => n.toString(16).padStart(40, "a");
 const CDN = "https://cdn.sanity.io/images/proj/production";
@@ -169,5 +182,61 @@ describe("photosPageEvents for ops' Gallery page", () => {
 
   it("is none with no events", () => {
     expect(photosPageEvents([venuePhoto(1)], [])).toEqual([]);
+  });
+
+  it("with min 0, shows an event whose photos are all too small: ops names it as left out for that", () => {
+    const events = [
+      opsEvent("12", [
+        opsPhoto(1, "2026-11-06T22:00:00.000Z", { width: 240, height: 240 }),
+      ]),
+      opsEvent("4", [opsPhoto(2, "2026-11-02T22:00:00.000Z")]),
+    ];
+    expect(photosPageEvents([], events).map((group) => group.id)).toEqual([
+      "4",
+    ]);
+    expect(
+      photosPageEvents([], events, { min: 0 }).map((group) => group.id),
+    ).toEqual(["12", "4"]);
+  });
+});
+
+describe("tooSmallForPhotos for ops' badges", () => {
+  it("is a photo under EVENT_PHOTO_MIN on its long side: 240 × 240 is, 800 × 600 isn't", () => {
+    expect(tooSmallForPhotos({ width: 240, height: 240 })).toBe(true);
+    expect(tooSmallForPhotos({ width: 800, height: 600 })).toBe(false);
+    expect(tooSmallForPhotos({ width: 600, height: 800 })).toBe(false);
+    expect(tooSmallForPhotos({ width: EVENT_PHOTO_MIN - 1, height: 300 })).toBe(
+      true,
+    );
+    expect(tooSmallForPhotos({ width: 300, height: EVENT_PHOTO_MIN })).toBe(
+      false,
+    );
+  });
+
+  it("isn't a photo with no size: there's nothing to measure", () => {
+    expect(tooSmallForPhotos({ width: 0, height: 0 })).toBe(false);
+    expect(tooSmallForPhotos({})).toBe(false);
+    expect(tooSmallForPhotos(null)).toBe(false);
+  });
+
+  it("is the photos photosPageEvents leaves out for their size, and no others", () => {
+    const sizes = [
+      [240, 240],
+      [799, 600],
+      [800, 600],
+      [600, 800],
+      [1600, 1200],
+    ];
+    const photos = sizes.map(([width, height], i) =>
+      opsPhoto(i + 1, `2026-11-0${i + 1}T20:00:00.000Z`, { width, height }),
+    );
+    const [group] = photosPageEvents([], [opsEvent("12", photos)]);
+    expect(group.photos.map((photo) => photo.key).sort()).toEqual(
+      photos
+        .filter((photo) => !tooSmallForPhotos(photo))
+        .map((photo) => photo.key)
+        .sort(),
+    );
+    expect(photos.filter((photo) => tooSmallForPhotos(photo))).toHaveLength(2);
   });
 });
