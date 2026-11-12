@@ -1,4 +1,23 @@
 /**
+ * What an address's hash names on the page: "#list" is #list. Null for no
+ * hash, or one naming nothing here.
+ *
+ * @param {Document} doc
+ * @param {string} hash  "#list", or "" for none
+ * @returns {HTMLElement | null}
+ */
+export function hashTarget(doc, hash) {
+  if (!hash || hash.length < 2) return null;
+  let id = hash.slice(1);
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // A malformed escape: look it up as written.
+  }
+  return doc.getElementById(id);
+}
+
+/**
  * In-page menu targets. Resolved on each scroll so a rebuilt list
  * (the What's on diary) still moves the underline.
  *

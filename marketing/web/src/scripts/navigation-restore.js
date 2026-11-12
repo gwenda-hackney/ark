@@ -19,20 +19,31 @@
  * the inbound document's, which wipes client-only classes (`fonts-ready`,
  * `navigation-restore`, …). Re-apply those after every swap or the hero logo
  * stays at `.enter-stagger { opacity: 0 }` forever.
+ *
+ * A reload is not a restore: one of an address with an #anchor lands on it
+ * (holdAnchorOnReload).
  */
 
 import { ensureFontsReadyClass } from "./fonts-ready.js";
+import { hashTarget } from "./page-anchors.js";
 
 const RESTORING_SCROLL = "is-restoring-scroll";
 
-/** The document's own load came by back/forward (and not from the cache). */
-function loadedByBackForward() {
+/**
+ * How the document itself was loaded: "navigate", "reload", "back_forward"
+ * (and not from the cache), or "" when the browser can't say. It stays the
+ * same for every router visit after the first.
+ */
+function documentLoadType() {
   try {
-    const nav = performance.getEntriesByType("navigation")[0];
-    return nav?.type === "back_forward";
+    return performance.getEntriesByType("navigation")[0]?.type ?? "";
   } catch {
-    return false;
+    return "";
   }
+}
+
+function loadedByBackForward() {
+  return documentLoadType() === "back_forward";
 }
 
 /**
@@ -175,6 +186,90 @@ export function whenScrollSettled(fn) {
   });
 }
 
+/** How long the section has to stay put, once the page is in, to be left there. */
+const ANCHOR_STILL_MS = 500;
+/** The longest a reload's section is held, whatever keeps moving the page. */
+const ANCHOR_HOLD_MS = 10_000;
+
+/**
+ * A reload of an address with an #anchor (/#bookings, /bookings#play) lands
+ * that section at the top, under what's fixed there, as following a link to
+ * it does. Left alone, it lands wherever the visitor had scrolled to: the
+ * router keeps that offset in the history entry, and on every load that has
+ * an entry's offset, a reload too, scrolls back to it, with the browser's own
+ * restoring (which would go to the anchor) turned off.
+ *
+ * The section is held there while the page comes in (the router's scroll
+ * back, the styles, the fonts, images above it, home's hero), until the page
+ * has loaded and it has stayed put a moment, the visitor scrolls, clicks,
+ * taps or types, or they go on to another page. The jump is instant, as the
+ * browser's own landing on an anchor is: nothing glides, so reduced motion
+ * has nothing to stop. A reload without an anchor, a first visit (the
+ * browser lands it) and back/forward (the left offset) are left as they are.
+ *
+ * Once per document: its load type stays "reload" for every router visit
+ * after it.
+ *
+ * @param {{ win?: Window, doc?: Document }} [options]
+ */
+export function holdAnchorOnReload({ win = window, doc = document } = {}) {
+  if (documentLoadType() !== "reload") return;
+  const target = hashTarget(doc, win.location.hash);
+  if (!target) return;
+
+  const holding = new AbortController();
+  const { signal } = holding;
+  const release = () => holding.abort();
+  for (const type of ["pointerdown", "keydown", "wheel", "touchstart"]) {
+    win.addEventListener(type, release, {
+      capture: true,
+      passive: true,
+      signal,
+    });
+  }
+  win.addEventListener("pagehide", release, { signal });
+  doc.addEventListener("astro:before-preparation", release, { signal });
+  const giveUp = win.setTimeout(release, ANCHOR_HOLD_MS);
+  signal.addEventListener("abort", () => win.clearTimeout(giveUp));
+
+  // In: loaded (images and all), with the fonts set
+  let pageIn = false;
+  const loaded =
+    doc.readyState === "complete"
+      ? Promise.resolve()
+      : new Promise((resolve) =>
+          win.addEventListener("load", resolve, { once: true, signal }),
+        );
+  void Promise.all([loaded, doc.fonts?.ready]).then(() => {
+    pageIn = true;
+  });
+
+  /** Puts the section at the top: true when it had moved off it. */
+  const land = () => {
+    const from = win.scrollY;
+    target.scrollIntoView({ block: "start", behavior: "instant" });
+    return win.scrollY !== from;
+  };
+
+  land();
+  let stillSince = -1;
+  /** @param {number} time */
+  const hold = (time) => {
+    if (signal.aborted) return;
+    if (!target.isConnected) {
+      release();
+      return;
+    }
+    if (land() || !pageIn || stillSince < 0) stillSince = time;
+    else if (time - stillSince >= ANCHOR_STILL_MS) {
+      release();
+      return;
+    }
+    win.requestAnimationFrame(hold);
+  };
+  win.requestAnimationFrame(hold);
+}
+
 export function initNavigationRestore() {
   // Belt-and-suspenders: the inline <head> script sets this before paint, but
   // set it here too in case that script didn't run.
@@ -187,6 +282,7 @@ export function initNavigationRestore() {
   if (hooksBound) return;
   hooksBound = true;
   visitRestored = isRestoredNavigation();
+  holdAnchorOnReload();
 
   // BFCache restore — the browser already preserved scroll + DOM; just make
   // sure nothing is mid-animation.
