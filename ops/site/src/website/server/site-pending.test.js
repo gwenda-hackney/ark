@@ -2,6 +2,7 @@ import { describe, test } from "vitest";
 import assert from "node:assert/strict";
 import { memoryEventRepository } from "../../events/server/adapters/memory-events.js";
 import { QUIET_MS, autoUpdateTick, decide, parseState, siteStatus } from "./site-pending.js";
+import { LOCAL_OPS_FRESH_MS, LOCAL_OPS_KEY } from "./local-ops.js";
 
 const T0 = Date.parse("2026-09-25T10:00:00Z");
 const item = (id, change = "changed") => ({ kind: "document", id, change, label: id });
@@ -235,5 +236,115 @@ describe("a pop-up kitchen's last night", () => {
     await site.ticks("2026-11-11T00:05:00Z", "2026-11-11T12:00:00Z");
     assert.deepEqual(site.builds, []);
     assert.deepEqual(site.logs, []);
+  });
+});
+
+describe("while local ops is running (#300)", () => {
+  const CHECK_IN = `ops:${LOCAL_OPS_KEY}:dev`;
+  const STATE = "ops:site.auto_update:production";
+  const iso = (ms) => new Date(ms).toISOString();
+  const checkedIn = (at, since = at) =>
+    JSON.stringify({ since: iso(since), at: iso(at), by: "dev@example.com", session: "laptop" });
+
+  /**
+   * One site with a change first seen at T0, so a tick at T0 + QUIET_MS
+   * would build it. `checkIn`: the check-in row, if any. `runId`: a build
+   * someone started after that first tick, whose status is `run`.
+   */
+  function quietSite({ checkIn = "", runId = null, run = null } = {}) {
+    const store = new Map([
+      ["web:site.build_snapshot:production", JSON.stringify({ version: 1, documents: { gone: ["h", "Old", "event"] }, artists: {} })],
+    ]);
+    if (checkIn) store.set(CHECK_IN, checkIn);
+    const dispatched = [];
+    const logs = [];
+    const deps = (now) => ({
+      sites: ["production"],
+      now,
+      read: async (_env, service, key, scope) => store.get(`${service}:${key}:${scope}`) || "",
+      write: async (_env, service, key, scope, value) => store.set(`${service}:${key}:${scope}`, value),
+      query: async () => [],
+      artists: async () => [],
+      popups: async () => [],
+      status: async () => run,
+      dispatch: (site) => async () => {
+        dispatched.push(site);
+        return { runId: 9, runUrl: "u" };
+      },
+      log: { info: (message, fields) => logs.push({ message, ...fields }) },
+    });
+    return {
+      store,
+      dispatched,
+      logs,
+      deps,
+      saved: () => JSON.parse(store.get(STATE)),
+      async seen(env) {
+        await autoUpdateTick(env, deps(T0));
+        if (runId) store.set(STATE, JSON.stringify({ ...JSON.parse(store.get(STATE)), runId }));
+      },
+    };
+  }
+
+  test("hosted dev: a fresh check-in holds the build the tick would start, and records why", async () => {
+    const env = { SITE_ENV: "dev" };
+    const site = quietSite({ checkIn: checkedIn(T0 + QUIET_MS - 60_000, T0 - 60_000) });
+    await site.seen(env);
+    const result = await autoUpdateTick(env, site.deps(T0 + QUIET_MS));
+    assert.deepEqual(site.dispatched, [], "no build");
+    assert.equal(result.production.action, "paused");
+    const why = { reason: "local-ops", since: iso(T0 - 60_000), by: "dev@example.com" };
+    assert.deepEqual(result.production.paused, why);
+    assert.deepEqual(site.saved().paused, why, "the site's state says why it waited");
+    assert.equal(site.saved().runId, null);
+    assert.match(site.logs.at(-1).message, /local ops is running/);
+  });
+
+  test("a stale check-in doesn't: the build starts, and the state no longer says paused", async () => {
+    const env = { SITE_ENV: "dev" };
+    const site = quietSite({ checkIn: checkedIn(T0 + QUIET_MS - LOCAL_OPS_FRESH_MS - 1) });
+    await site.seen(env);
+    const result = await autoUpdateTick(env, site.deps(T0 + QUIET_MS));
+    assert.equal(result.production.action, "build");
+    assert.deepEqual(site.dispatched, ["production"]);
+    assert.equal(result.production.paused, undefined);
+    assert.equal(site.saved().paused, null);
+  });
+
+  test("production ignores a check-in: it builds as usual", async () => {
+    const env = { SITE_ENV: "production" };
+    const site = quietSite({ checkIn: checkedIn(T0 + QUIET_MS - 60_000) });
+    site.store.set(`ops:${LOCAL_OPS_KEY}:production`, checkedIn(T0 + QUIET_MS - 60_000));
+    await site.seen(env);
+    const result = await autoUpdateTick(env, site.deps(T0 + QUIET_MS));
+    assert.equal(result.production.action, "build");
+    assert.deepEqual(site.dispatched, ["production"]);
+  });
+
+  test("a build someone started with Update website now is still followed to the end", async () => {
+    const env = { SITE_ENV: "dev" };
+    const site = quietSite({
+      checkIn: checkedIn(T0 + QUIET_MS - 60_000),
+      runId: 7,
+      run: { completed: true, conclusion: "success" },
+    });
+    await site.seen(env);
+    await autoUpdateTick(env, site.deps(T0 + QUIET_MS));
+    assert.equal(site.saved().runId, null, "the page stops saying it's updating");
+    assert.deepEqual(site.dispatched, []);
+  });
+
+  test("the Website page's status says it's paused, since when and by whom, and gives no update time", async () => {
+    const env = { SITE_ENV: "dev" };
+    const site = quietSite({ checkIn: checkedIn(T0 + 60_000, T0 - 60_000) });
+    await site.seen(env);
+    const status = await siteStatus(env, "production", site.deps(T0 + 2 * 60_000));
+    assert.deepEqual(status.paused, { since: iso(T0 - 60_000), by: "dev@example.com" });
+    assert.equal(status.autoUpdateAt, null);
+    assert.equal(status.items.length, 1, "what's waiting still shows");
+
+    const later = await siteStatus(env, "production", site.deps(T0 + 60_000 + LOCAL_OPS_FRESH_MS + 1));
+    assert.equal(later.paused, null, "once local ops has gone quiet, it isn't");
+    assert.ok(later.autoUpdateAt);
   });
 });

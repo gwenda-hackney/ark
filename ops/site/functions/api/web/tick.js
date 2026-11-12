@@ -25,6 +25,10 @@ function sameSecret(a, b) {
  * Cloudflare call allowance; so is each site's check (`?step=site&site=…`),
  * and the weekly email's (`?step=email`), which does nothing off production
  * or while it's switched off (src/email/server/weekly-email.js).
+ *
+ * On hosted dev, while a developer runs `npm run ops:dev`, the jobs step and
+ * the site checks send nothing to the website by themselves; their answers
+ * say so (`paused`, src/website/server/local-ops.js).
  */
 export const onRequestPost = withApiHandler(async (context) => {
   const header = context.request.headers.get("Authorization") || "";

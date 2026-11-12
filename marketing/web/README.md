@@ -41,7 +41,7 @@ Gitflow-style: `develop` is WIP, `main` is dev, `release` is prod's preview, and
 
 1. **Develop on `develop`** — local Studio + `npm run web:dev` against Gwenda Dev with drafts. CI verifies.
 2. **Dev** — merge to `main`. CI deploys both dev sites and tests them against dev data.
-3. **Preview** — merge `main` into `release`. CI deploys prod's preview (the release code on drafts) and runs the deep smoke test.
+3. **Preview** — merge the release PR from `main` into `release` (`npm run release:pr` opens it). CI deploys prod's preview (the release code on drafts) and runs the deep smoke test.
 4. **Live** — run Web promote from `release`: it rebuilds gwenda.co.uk from published documents.
 5. **Feature branches** — push `marketing/web/**` (except `develop` / `release`) → branch preview on the dev website, with dev data.
 

@@ -4,7 +4,8 @@
  * line, so titles are written for someone who runs Gwenda. A PR's branch
  * prefix says its group (feat/ → New, fix/ → Fixes, anything else → Behind the
  * scenes); an `enhancement` or `bug` label overrides it, and `skip-changelog`
- * leaves it out.
+ * leaves it out. The notes start with the release PR that carried the
+ * release's commit onto `release` (#301), when one did.
  */
 
 export const APPS = {
@@ -39,8 +40,21 @@ export function groupOf(pr) {
   return "Behind the scenes";
 }
 
-/** Markdown notes from PRs ({ number, title, headRefName, labels }), oldest first. */
-export function releaseNotes(prs, { previousTag = "", repo = "" } = {}) {
+/**
+ * The release PR (#301) that put a commit on `release`, from the PRs GitHub
+ * lists for it (`repos/{repo}/commits/{sha}/pulls`): the merged one into
+ * release. Null for releases merged straight into release before release PRs.
+ */
+export function releasePrOf(pulls) {
+  const pr = (pulls || []).find((pull) => pull.base?.ref === "release" && pull.merged_at);
+  return pr ? { number: pr.number, title: pr.title, url: pr.html_url } : null;
+}
+
+/**
+ * Markdown notes from PRs ({ number, title, headRefName, labels }), oldest
+ * first, after a link to the release PR ({ number, url }) when there is one.
+ */
+export function releaseNotes(prs, { previousTag = "", repo = "", releasePr = null } = {}) {
   const groups = Object.fromEntries(GROUPS.map((group) => [group, []]));
   for (const pr of prs) {
     const group = groupOf(pr);
@@ -50,6 +64,7 @@ export function releaseNotes(prs, { previousTag = "", repo = "" } = {}) {
     (group) => `### ${group}\n\n${groups[group].join("\n")}`,
   );
   if (!sections.length) sections.push("Nothing to list: only changes left out of the notes.");
+  if (releasePr) sections.unshift(`Release PR: [#${releasePr.number}](${releasePr.url})`);
   if (previousTag && repo) {
     sections.push(`Compare: https://github.com/${repo}/compare/${encodeURIComponent(previousTag)}...HEAD`);
   }

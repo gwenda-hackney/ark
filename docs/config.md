@@ -172,6 +172,7 @@ A few rows are written by code, not people. Leave them alone:
 | `site.build_snapshot` | web | the site: preview / production (live) | deploy job (`site-build-snapshot.mjs`) | What the last build was made from |
 | `site.auto_update` | ops | the site: preview / production | ops scheduler tick | Quiet timer, running build, failures |
 | `site.prep_failures` | ops | environment | ops website jobs | Events that couldn't be got ready for the website |
+| `site.local_ops` | ops | dev | `npm run ops:dev`, every minute | Local ops is running: hosted dev's automatic website updates wait ([env.md](env.md#local-ops-pauses-devs-automatic-website-updates)) |
 
 
 ## Baserow: no ids

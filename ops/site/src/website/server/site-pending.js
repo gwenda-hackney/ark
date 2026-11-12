@@ -13,6 +13,10 @@
  * night has passed since the build is pending too ("… pop-up kitchen ended"),
  * and the site is rebuilt the morning after, once: that build's snapshot
  * records the new day, so the pop-up is no longer pending.
+ *
+ * While a developer runs `npm run ops:dev`, hosted dev starts no build by
+ * itself (local-ops.js, #300): the tick keeps tracking what is pending and
+ * any build someone started, and holds the one it would start, saying why.
  */
 import {
   SNAPSHOT_CONFIG_KEY,
@@ -27,6 +31,7 @@ import { londonToday } from "../../../../../marketing/web/src/lib/london-day.js"
 import { popupLastNights } from "../../events/server/popups.js";
 import { createLogger } from "../../platform/log.js";
 import { PREVIEW, sanityQuery } from "../../platform/sanity.js";
+import { describePause, localOpsPause } from "./local-ops.js";
 import {
   dispatchProductionDeploy,
   dispatchPreviewDeploy,
@@ -60,6 +65,8 @@ function emptyState() {
     lastError: "",
     // { documentId: [rev, fingerprint] }: see pendingSince.
     fingerprints: {},
+    // Why the last tick started nothing by itself (local-ops.js), or null.
+    paused: null,
   };
 }
 
@@ -192,11 +199,16 @@ function logPopupsEnded(log, site, items) {
   });
 }
 
-/** One scheduler pass over `sites` (both by default). `deps.log`: the request's logger. */
+/**
+ * One scheduler pass over `sites` (both by default). `deps.log`: the
+ * request's logger. While local ops is running (hosted dev only), a build it
+ * would start is held: action "paused", and the site's state says why.
+ */
 export async function autoUpdateTick(env, deps = {}) {
   const now = deps.now ?? Date.now();
   const status = deps.status ?? fetchDeployStatus;
   const log = deps.log ?? createLogger();
+  const pause = await localOpsPause(env, { read: deps.read, now });
   const results = {};
   for (const site of deps.sites ?? SITES) {
     const state = await readState(env, site, deps);
@@ -207,7 +219,11 @@ export async function autoUpdateTick(env, deps = {}) {
     });
     const run = state.runId ? await status(env, state.runId).catch(() => null) : null;
     let { state: next, action } = decide(state, pending, { now, run });
-    if (action === "build") {
+    next = { ...next, paused: pause };
+    if (action === "build" && pause) {
+      action = "paused";
+      log.info(`Not updating the ${site} website by itself: ${describePause(pause)}`, { site, paused: pause });
+    } else if (action === "build") {
       try {
         next = await startBuild(env, site, next, now, (deps.dispatch ?? dispatcherFor)(site));
         logPopupsEnded(log, site, pending.items);
@@ -224,9 +240,12 @@ export async function autoUpdateTick(env, deps = {}) {
     if (pending.known) next = { ...next, fingerprints: pending.fingerprints };
     await writeState(env, site, next, deps);
     // While some documents aren't fingerprinted yet, the count isn't known.
-    results[site] = pending.unresolved
-      ? { action, pending: 0, unchecked: pending.unresolved }
-      : { action, pending: pending.items.length };
+    results[site] = {
+      ...(pending.unresolved
+        ? { action, pending: 0, unchecked: pending.unresolved }
+        : { action, pending: pending.items.length }),
+      ...(pause ? { paused: pause } : {}),
+    };
   }
   return results;
 }
@@ -241,12 +260,18 @@ export async function updateNow(env, site, deps = {}) {
   return next;
 }
 
-/** What the Website page and the menu badge show. */
+/**
+ * What the Website page and the menu badge show. `paused`: local ops is
+ * running, so hosted dev updates nothing by itself (no autoUpdateAt then).
+ */
 export async function siteStatus(env, site, deps = {}) {
   // The tick keeps fingerprints by revision; reuse them, so a page load only
   // fingerprints documents changed since the last tick.
   const now = deps.now ?? Date.now();
-  const state = await readState(env, site, deps);
+  const [state, pause] = await Promise.all([
+    readState(env, site, deps),
+    localOpsPause(env, { read: deps.read, now }),
+  ]);
   const pending = await computePending(env, site, deps, { fingerprints: state.fingerprints, now });
   const changedAt = state.changedAt ? Date.parse(state.changedAt) : null;
   return {
@@ -259,9 +284,10 @@ export async function siteStatus(env, site, deps = {}) {
     failed: state.failures > 0,
     needsHelp: state.failures >= MAX_AUTO_FAILURES,
     lastError: state.lastError || "",
+    paused: pause ? { since: pause.since, by: pause.by } : null,
     // Estimate only: the next cron tick after the quiet period.
     autoUpdateAt:
-      pending.items.length && changedAt && !state.runId
+      pending.items.length && changedAt && !state.runId && !pause
         ? new Date(Math.max(changedAt + QUIET_MS, now)).toISOString()
         : null,
   };

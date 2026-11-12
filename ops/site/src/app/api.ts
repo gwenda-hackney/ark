@@ -678,6 +678,8 @@ export type SiteStatus = {
   failed: boolean;
   needsHelp: boolean;
   lastError: string;
+  /** Hosted dev only: a developer runs local ops, so nothing updates by itself (#300). */
+  paused: { since: string; by: string } | null;
   autoUpdateAt: string | null;
 };
 
