@@ -147,11 +147,13 @@ async function resolveSeries(env, seriesId) {
       const pending = BODY.exec(rest)?.[1] || "";
       const model = eventPageModel(
         // The series' own line of days and its fixed-run flag, for a pop-up's
-        // "when"; and its own link, for a series with no night to carry one.
+        // "when"; its own link, for a series with no night to carry one; and
+        // a pop-up kitchen's logo from ops (#296).
         {
           ...detail,
           schedule: record?.schedule || detail.schedule,
           pageUrl: record?.pageUrl || "",
+          logo: record?.logo || null,
         },
         { category, nights, today: londonToday(), parts },
       );

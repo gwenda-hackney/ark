@@ -104,12 +104,6 @@ export const siteConfig = {
     /** As on the Google listing; international form for schema.org and tel: links. */
     telephone: "+44 20 4637 4754",
   },
-  /** Who's cooking: the guest chef in the kitchen, named on home's food side. */
-  guestChef: {
-    name: "Chez Pickle",
-    line: "Chez Pickle are in the kitchen: smashed burgers, fries, and a lot of dips.",
-    instagram: "https://www.instagram.com/chezpickle",
-  },
   /** Stable paths in public/ — synced from src/assets (see generate:brand-assets). */
   brand: {
     /** The record with the skull (#240), drawn from src/assets/images/logos/icon/ by generate:favicons */

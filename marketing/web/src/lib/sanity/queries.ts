@@ -64,6 +64,12 @@ export const SERIES_QUERY = `*[_type == "eventSeries" && removed != true] | orde
   },
   recurrence,
   replacesSeriesId,
+  pageUrl,
+  "logo": logo{
+    "url": asset->url,
+    "width": asset->metadata.dimensions.width,
+    "height": asset->metadata.dimensions.height
+  },
   shortDescription,
   nightSchedule[]{ label, startTime, endTime },
   description,
