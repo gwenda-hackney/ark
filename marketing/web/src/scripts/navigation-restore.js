@@ -197,7 +197,9 @@ const ANCHOR_HOLD_MS = 10_000;
  * it does. Left alone, it lands wherever the visitor had scrolled to: the
  * router keeps that offset in the history entry, and on every load that has
  * an entry's offset, a reload too, scrolls back to it, with the browser's own
- * restoring (which would go to the anchor) turned off.
+ * restoring (which would go to the anchor) turned off. That is Astro's
+ * ClientRouter (astro/dist/transitions/router.js) by design, still so in
+ * Astro 7.4, so an upgrade won't make this hold unneeded.
  *
  * The section is held there while the page comes in (the router's scroll
  * back, the styles, the fonts, images above it, home's hero), until the page
