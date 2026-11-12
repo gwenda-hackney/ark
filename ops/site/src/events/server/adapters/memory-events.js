@@ -33,6 +33,7 @@ const EMPTY_EVENT = {
   mainImage: null,
   heroCrops: null,
   gallery: [],
+  logo: null,
 };
 
 const EMPTY_OVERRIDES = {

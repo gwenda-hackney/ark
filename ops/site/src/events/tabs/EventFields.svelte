@@ -39,7 +39,7 @@
 		type EventForm,
 		type SeriesTextKey,
 	} from "../event-form.svelte";
-	import { CATEGORY_CHOICES } from "../event-category";
+	import { CATEGORY_CHOICES, linkField } from "../event-category";
 
 	let {
 		part,
@@ -173,6 +173,8 @@
 		form.heroCrops = next && hasMeaningfulFraming(next) ? next : null;
 	}
 
+	/** The link's label: a pop-up kitchen's is their Instagram (#296); a night follows its series' type. */
+	const link = $derived(linkField({ category: inherits ? parentSeries?.category : form.category }));
 	const seriesPhotoUrl = $derived(parentSeries?.mainImage?.url || "");
 	/** A night shows the series photo until it gets one of its own. */
 	const photoFollows = $derived(inherits && !form.ownPhoto && !framingUrl);
@@ -308,7 +310,7 @@
 					</Field>
 					<Field
 						class="span-6"
-						label="Guest link"
+						label={link.label}
 						for="event-page-url"
 						optional={!inherits}
 					>
@@ -324,7 +326,7 @@
 								autocomplete="off"
 								spellcheck="false"
 								bind:value={form.pageUrl}
-								placeholder="instagram.com/… or @handle"
+								placeholder={link.placeholder}
 							/>
 						{/if}
 					</Field>

@@ -8,11 +8,15 @@
  *   endTime, nightSchedule[], repeatEvery, repeatUnit, weekdays[], monthDay,
  *   endsOn, skippedDates[], extraDates[], slug, formerSlugs[], deletedAt,
  *   takingApplications, replacesSeries, driveFolderId, mainImage, heroCrops,
- *   gallery, category }
+ *   gallery, category, logo }
  *
  * category: what the series is (EVENT_CATEGORIES): "event", a night or run
  * of nights; "promotion", a standing deal such as Happy Hour; "popup", a
  * pop-up kitchen. A night has none of its own: it takes its series'.
+ *
+ * logo: a pop-up kitchen's own mark (#296), an image like mainImage, or
+ * null. Only a pop-up kitchen's goes on the website (event-content.js
+ * publishedLogo); its Instagram is its link, pageUrl.
  *
  * gallery: GalleryPhoto[] newest first (#183). GalleryPhoto:
  *   { key, asset, date ("" for the series, or a night's date), added, source }
@@ -182,13 +186,14 @@ export function buildNight(record, options = {}) {
 
 /** A series as ops works with it: its nights, and where it stands on the website. */
 export function buildEvent(record, nights = [], options = {}) {
-  const { mainImage, gallery, ...rest } = record;
+  const { mainImage, logo, gallery, ...rest } = record;
   const event = {
     ...rest,
     id: String(record.id),
     slug: record.slug || seriesSlug(record.name),
     driveFolderUrl: driveFolderWebUrl(record.driveFolderId),
     mainImage: eventImage(mainImage, options),
+    logo: eventImage(logo, options),
     gallery: (gallery || []).map((photo) => galleryPhoto(photo, options)),
   };
   const occurrences = dedupeOccurrences(
