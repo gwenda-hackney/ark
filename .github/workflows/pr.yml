@@ -1,13 +1,14 @@
 name: PR checks
 
-# Checks every pull request into main, for the apps it touches. Website
-# builds and previews come from the branch push (web.yml branch preview);
-# this workflow adds what nothing else runs: lint, and ops tests and build
-# before merge. No secrets: nothing here talks to Baserow, Sanity or Cloudflare.
+# Checks every pull request into main, and the release PR from main into
+# release (#301), for the apps it touches. Website builds and previews come
+# from the branch push (web.yml branch preview); this workflow adds what
+# nothing else runs: lint, and ops tests and build before merge. No secrets:
+# nothing here talks to Baserow, Sanity or Cloudflare.
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, release]
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
@@ -45,6 +46,8 @@ jobs:
               - 'scripts/**'
               # scripts/lib/pages-cleanup.mjs names branches with it.
               - '.github/scripts/cloudflare-pages-branch.mjs'
+              # scripts/lib/rulesets.test.mjs checks it against this workflow.
+              - '.github/rulesets/**'
               - 'vitest.config.mjs'
               - 'package-lock.json'
               - '.github/workflows/pr.yml'
@@ -127,3 +130,20 @@ jobs:
           node-version: "24"
       - name: Check docs/brand
         run: node scripts/brand-check.mjs
+
+  # The check release's ruleset requires (.github/rulesets/release.json). The
+  # jobs above skip apps a PR doesn't touch, and a required job that never
+  # starts waits forever; this one runs on every PR and fails if any of them
+  # failed or was cancelled. Renaming it means changing the ruleset too.
+  release-checks:
+    name: Release checks
+    needs: [changes, web, ops, brand]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Results
+        run: echo "changes=${{ needs.changes.result }} web=${{ needs.web.result }} ops=${{ needs.ops.result }} brand=${{ needs.brand.result }}"
+
+      - name: Fail if a check failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

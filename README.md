@@ -37,7 +37,12 @@ Work is tracked as [GitHub issues](https://github.com/gwenda-hackney/ark/issues)
 
 1. Branch from `main`: `feat/<issue>-<slug>` (or `fix/`, `chore/`, `refactor/`, `test/`). Pushing deploys branch previews on dev data: the website (`<branch>.gwenda-web-dev.pages.dev`) and, for ops changes, ops (`<branch>.gwenda-ops-dev.pages.dev`). The PR's **Previews** comment links to each one, updated on every push.
 2. Open a pull request into `main` and fill in the template. [PR checks](.github/workflows/pr.yml) run lint and tests; merge when they're green, then delete the branch.
-3. `main` deploys dev. Production goes `main` → `release` (prod preview) → promote, and only on purpose. Each production release of the website or ops with code changes becomes a [GitHub Release](https://github.com/gwenda-hackney/ark/releases) listing its PRs, so write PR titles for someone who runs Gwenda; the branch prefix picks the group (`feat/` New, `fix/` Fixes, others Behind the scenes; label `skip-changelog` to leave one out).
+3. `main` deploys dev. Production goes `main` → `release` → promote, and only on purpose:
+   - `npm run release:pr` opens (or updates) a PR from `main` into `release`, titled "Release: #a #b …" and listing the PRs going out (`-- --dry-run` only prints it).
+   - The owner merges it. The push to `release` deploys production ops and prod's preview. `release` takes nothing but such PRs, merged with a merge commit once **Release checks** passes ([ruleset](.github/rulesets/release.json), applied with `npm run rulesets:apply`).
+   - [Web promote](.github/workflows/web-promote.yml) then puts the website live.
+
+   Each production release of the website or ops with code changes becomes a [GitHub Release](https://github.com/gwenda-hackney/ark/releases) that links its release PR and lists its PRs, so write PR titles for someone who runs Gwenda; the branch prefix picks the group (`feat/` New, `fix/` Fixes, others Behind the scenes; label `skip-changelog` to leave one out).
 
 Before pushing: `npm run lint` and `npm test` (website), `npm test -w @gwenda/ops` (ops).
 

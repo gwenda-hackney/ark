@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { groupOf, prNumberOf, releaseNotes } from "./release-notes.mjs";
+import { groupOf, prNumberOf, releaseNotes, releasePrOf } from "./release-notes.mjs";
 
 describe("release notes", () => {
   it("takes the PR number a squash merge ends with", () => {
@@ -40,5 +40,33 @@ describe("release notes", () => {
       repo: "o/r",
     });
     assert.match(notes, /compare\/2026\.09\.26%2Bae2e3ec\.\.\.HEAD$/);
+  });
+
+  it("finds the release PR among the PRs GitHub lists for the release commit", () => {
+    // repos/{repo}/commits/{sha}/pulls: a commit from main is in its own PR
+    // too; only a merged PR into release carried it to production.
+    const pulls = [
+      { number: 298, title: "A reload lands on the anchor", base: { ref: "main" }, merged_at: "2026-11-12T10:19:41Z", html_url: "https://github.com/o/r/pull/298" },
+      { number: 311, title: "Release: #298", base: { ref: "release" }, merged_at: null, html_url: "https://github.com/o/r/pull/311" },
+      { number: 310, title: "Release: #297 #298", base: { ref: "release" }, merged_at: "2026-11-12T11:00:00Z", html_url: "https://github.com/o/r/pull/310" },
+    ];
+    assert.deepEqual(releasePrOf(pulls), { number: 310, title: "Release: #297 #298", url: "https://github.com/o/r/pull/310" });
+    // A release merged straight into release, before release PRs.
+    assert.equal(releasePrOf([]), null);
+    assert.equal(releasePrOf(pulls.slice(0, 2)), null);
+  });
+
+  it("starts with the release PR, then the PRs it included", () => {
+    const prs = [{ number: 297, title: "Mustard record", headRefName: "feat/240-record" }];
+    const notes = releaseNotes(prs, {
+      releasePr: { number: 310, title: "Release: #297", url: "https://github.com/o/r/pull/310" },
+    });
+    assert.equal(notes, "Release PR: [#310](https://github.com/o/r/pull/310)\n\n### New\n\n- Mustard record (#297)");
+  });
+
+  it("keeps today's notes when no release PR carried the commit", () => {
+    const prs = [{ number: 297, title: "Mustard record", headRefName: "feat/240-record" }];
+    assert.equal(releaseNotes(prs, { releasePr: null }), releaseNotes(prs));
+    assert.equal(releaseNotes(prs), "### New\n\n- Mustard record (#297)");
   });
 });
