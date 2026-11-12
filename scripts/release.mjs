@@ -8,12 +8,13 @@
  *
  * Lists the PRs merged since the app's previous release tag that changed its
  * folders (APPS in lib/release-notes.mjs). When none did, as on a
- * content-only promote, no release is made. The tag is `<prefix><version>`;
+ * content-only promote, no release is made. The notes start with a link to
+ * the release PR whose merge put HEAD on release (#301), when there is one. The tag is `<prefix><version>`;
  * gh creates it when it doesn't exist. Needs GH_TOKEN (contents: write) and
  * full git history (fetch-depth: 0). --dry-run prints the notes.
  */
 import { execFileSync } from "node:child_process";
-import { APPS, prNumberOf, releaseNotes } from "./lib/release-notes.mjs";
+import { APPS, prNumberOf, releaseNotes, releasePrOf } from "./lib/release-notes.mjs";
 
 const arg = (name) => {
   const i = process.argv.indexOf(name);
@@ -82,7 +83,10 @@ if (!prs.length) {
   console.log(`No ${app.title} pull requests since ${previousTag || "the start"}; no release.`);
   process.exit(0);
 }
-const notes = releaseNotes(prs, { previousTag, repo });
+// The release PR whose merge commit this is (#301); none for releases merged
+// straight into release before then.
+const releasePr = releasePrOf(JSON.parse(gh("api", `repos/${repo}/commits/${sha}/pulls`)));
+const notes = releaseNotes(prs, { previousTag, repo, releasePr });
 const title = `${app.title} ${version.split("+")[0]}`;
 
 if (DRY_RUN) {
