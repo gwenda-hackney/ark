@@ -87,13 +87,16 @@ export type EventGalleryPhoto = {
 /**
  * An event's photos the website's Photos page shows under the venue's own
  * (venue/server/venue-gallery.js galleryFromEvents); `more` it leaves for the
- * event's own page.
+ * event's own page; `tooSmall` how many of the event's photos it leaves out
+ * as too small. An event left out only because its photos are all too small
+ * comes after the rest, with no photos.
  */
 export type EventPhotoGroup = {
 	id: string;
 	name: string;
 	photos: EventGalleryPhoto[];
 	more: number;
+	tooSmall: number;
 };
 
 /** The gallery, in its order, and where the venue's details stand on the website. */

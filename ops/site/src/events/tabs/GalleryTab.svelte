@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Icon } from "../../app/shell";
-	import { HelpTip } from "../../ui";
+	import { Badge, HelpTip } from "../../ui";
 	import type { EventGallery } from "../event-gallery.svelte";
 
 	let {
@@ -113,6 +113,13 @@
 								loading="lazy"
 							/>
 						</a>
+						{#if image.small}
+							<span class="size">
+								<Badge tone="warning" title={image.small}
+									>Too small<span class="sr-only">: {image.small}</span></Badge
+								>
+							</span>
+						{/if}
 					</li>
 				{/each}
 				<li>
@@ -170,6 +177,20 @@
 	.remove:hover {
 		background: var(--destructive);
 		color: var(--destructive-foreground);
+	}
+
+	/* Too small for the Photos page: bottom left, clear of the cross. The card
+	   behind keeps the badge's wash readable over the photo. */
+	.size {
+		position: absolute;
+		left: 0.4rem;
+		bottom: 0.4rem;
+		z-index: 2;
+		display: flex;
+		max-width: calc(100% - 0.8rem);
+		border-radius: var(--radius-sm);
+		background: var(--card);
+		cursor: help;
 	}
 
 	.tile img {

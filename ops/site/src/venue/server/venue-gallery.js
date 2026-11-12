@@ -16,7 +16,7 @@
  * shows under the venue's own (galleryFromEvents), to see, not to change:
  * they're managed on each event's Images tab.
  */
-import { photosPageEvents } from "../../../../../marketing/web/src/lib/photos.js";
+import { photosPageEvents, tooSmallForPhotos } from "../../../../../marketing/web/src/lib/photos.js";
 import { parseImageAssetId, sanityImageUrl } from "../../../../../shared/sanity-image.js";
 import { listEventGalleries } from "../../events/server/event-galleries.js";
 import { uploadImage } from "../../platform/image-upload.js";
@@ -77,8 +77,14 @@ const withHash = (photo) => ({ ...photo, hash: parseImageAssetId(photo.asset)?.s
  * website orders them by when each asset was uploaded, ops by when each
  * photo was added: for a photo added in ops, the same moment.
  *
+ * Each says how many of the event's photos are too small for the page
+ * (`tooSmall`, the website's tooSmallForPhotos). After them come the events
+ * the page would show but for that, every photo too small (the ones it shows
+ * with no minimum and not without), with no photos: so an event whose photos
+ * never show there is named, not missing.
+ *
  * @param {Array<{ asset: string, url: string }>} venuePhotos the venue's gallery (galleryPhotoView)
- * @returns {Promise<Array<{ id: string, name: string, more: number,
+ * @returns {Promise<Array<{ id: string, name: string, more: number, tooSmall: number,
  *   photos: Array<{ key: string, url: string, width: number, height: number, added: string }> }>>}
  */
 export async function galleryFromEvents(env, venuePhotos, { galleries = listEventGalleries } = {}) {
@@ -87,12 +93,29 @@ export async function galleryFromEvents(env, venuePhotos, { galleries = listEven
     title: event.name,
     photos: event.photos.map(withHash),
   }));
-  return photosPageEvents(venuePhotos.map(withHash), events).map((group) => ({
-    id: group.id,
-    name: group.title,
-    photos: group.photos.map(({ key, url, width, height, added }) => ({ key, url, width, height, added })),
-    more: group.more,
-  }));
+  const venue = venuePhotos.map(withHash);
+  const shown = photosPageEvents(venue, events);
+  const shownIds = new Set(shown.map((group) => group.id));
+  const tooSmall = new Map(
+    events.map((event) => [event.id, event.photos.filter((photo) => tooSmallForPhotos(photo)).length]),
+  );
+  const onlyTooSmall = photosPageEvents(venue, events, { min: 0 }).filter((group) => !shownIds.has(group.id));
+  return [
+    ...shown.map((group) => ({
+      id: group.id,
+      name: group.title,
+      photos: group.photos.map(({ key, url, width, height, added }) => ({ key, url, width, height, added })),
+      more: group.more,
+      tooSmall: tooSmall.get(group.id) || 0,
+    })),
+    ...onlyTooSmall.map((group) => ({
+      id: group.id,
+      name: group.title,
+      photos: [],
+      more: 0,
+      tooSmall: tooSmall.get(group.id) || 0,
+    })),
+  ];
 }
 
 /** After a change: the gallery as it is now, and how putting it on the website went. */

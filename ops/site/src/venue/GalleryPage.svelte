@@ -45,6 +45,7 @@
 		changedMessage,
 		droppedOrder,
 		eventSections,
+		eventsOnPhotosPage,
 		fromEventsFootnote,
 		galleryFootnote,
 		movedOrder,
@@ -363,10 +364,13 @@
 								<button
 									class="open"
 									type="button"
-									aria-label={`Photo ${tile.place}: ${tile.label}. Open to change it`}
+									aria-label={`Photo ${tile.place}: ${tile.label}.${tile.small ? ` ${tile.small}.` : ""} Open to change it`}
 									onclick={() => openPhoto(tile.key)}
 								>
 									<img src={tile.thumb} alt="" loading="lazy" draggable="false" />
+									{#if tile.small}
+										<span class="size" aria-hidden="true"><Badge tone="warning" label="Small" title={tile.small} /></span>
+									{/if}
 									<span class="caption" class:muted={!tile.described}>
 										{tile.label}
 										{#if tile.board}<span class="board">{tile.board}</span>{/if}
@@ -397,20 +401,23 @@
 								<Icon name="chevron-right" size={14} />
 							</a>
 						</div>
-						<ul class="gallery">
-							{#each section.tiles as tile (tile.key)}
-								<li class="tile">
-									<a class="open" href={tile.full} target="_blank" rel="noreferrer" title="Open the photo in a new tab">
-										<img src={tile.thumb} alt={tile.label} loading="lazy" />
-									</a>
-								</li>
-							{/each}
-						</ul>
+						{#if section.tiles.length}
+							<ul class="gallery">
+								{#each section.tiles as tile (tile.key)}
+									<li class="tile">
+										<a class="open" href={tile.full} target="_blank" rel="noreferrer" title="Open the photo in a new tab">
+											<img src={tile.thumb} alt={tile.label} loading="lazy" />
+										</a>
+									</li>
+								{/each}
+							</ul>
+						{/if}
 						{#if section.more}<p class="meta more">{section.more}</p>{/if}
+						{#if section.note}<p class="meta note">{section.note}</p>{/if}
 					</section>
 				{/each}
 				{#snippet footer()}
-					<p class="meta">{fromEventsFootnote(sections.length)}</p>
+					<p class="meta">{fromEventsFootnote(eventsOnPhotosPage(sections))}</p>
 				{/snippet}
 			</Card>
 		</div>
@@ -729,6 +736,7 @@
 	}
 
 	.open img {
+		grid-area: 1 / 1;
 		display: block;
 		width: 100%;
 		height: 100%;
@@ -738,7 +746,21 @@
 		pointer-events: none;
 	}
 
+	/* Small: over the photo's bottom left, clear of the place and the cross.
+	   The card behind keeps the badge's wash readable over the photo. */
+	.size {
+		grid-area: 1 / 1;
+		align-self: end;
+		justify-self: start;
+		display: flex;
+		max-width: calc(100% - 0.8rem);
+		margin: 0.4rem;
+		border-radius: var(--radius-sm);
+		background: var(--card);
+	}
+
 	.caption {
+		grid-area: 2 / 1;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
@@ -805,7 +827,8 @@
 		text-decoration: underline;
 	}
 
-	.meta.more {
+	.meta.more,
+	.meta.note {
 		margin-top: var(--space-2);
 	}
 

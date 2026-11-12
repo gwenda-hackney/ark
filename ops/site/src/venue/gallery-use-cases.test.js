@@ -404,4 +404,65 @@ describe("from events: the Photos page's events, under the venue's own, read-onl
       [["Night 9", 6, 3], ...[8, 7, 6, 5, 4, 3, 2].map((n) => [`Night ${n}`, 1, 0])],
     );
   });
+
+  /** Each event as the page shows it: its name, the photos it shows, and how many it left out as too small. */
+  const tooSmallSummary = (fromEvents) =>
+    fromEvents.map((group) => [group.name, group.photos.map((photo) => photo.key), group.tooSmall]);
+
+  it("says how many of an event's photos it leaves out as too small, as the Photos page does", async () => {
+    const karaoke = await event("Karaoke with Ross");
+    const crowd = await eventPhoto(karaoke, "crowd", "2026-11-06T21:00:00Z");
+    const mic = await eventPhoto(karaoke, "mic-240x240", "2026-11-06T22:00:00Z");
+    // The size comes with the photo, from its Sanity asset
+    assert.deepEqual([mic.width, mic.height], [240, 240]);
+
+    const res = await read();
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    assert.deepEqual(tooSmallSummary(res.data.fromEvents), [["Karaoke with Ross", [crowd.key], 1]]);
+  });
+
+  it("names an event whose photos are all too small, after the ones on the Photos page, with none to show", async () => {
+    const karaoke = await event("Karaoke with Ross");
+    const pickle = await event("Chez Pickle");
+    const crowd = await eventPhoto(karaoke, "crowd", "2026-11-06T21:00:00Z");
+    for (const n of [1, 2, 3]) await eventPhoto(pickle, `pickle-${n}-240x240`, `2026-11-10T1${n}:00:00Z`);
+
+    const res = await read();
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    assert.deepEqual(tooSmallSummary(res.data.fromEvents), [
+      ["Karaoke with Ross", [crowd.key], 0],
+      ["Chez Pickle", [], 3],
+    ]);
+    assert.equal(res.data.fromEvents[1].id, String(pickle.id));
+    assert.equal(res.data.fromEvents[1].more, 0);
+  });
+
+  it("doesn't name one too old for the Photos page whatever its size: that's not what left it out", async () => {
+    const sha = (n) => n.toString(16).padStart(40, "a");
+    const photo = (n, added, size = "1600x1200") => {
+      const [width, height] = size.split("x").map(Number);
+      return {
+        key: `k${n}`,
+        asset: `image-${sha(n)}-${size}-jpg`,
+        url: `https://cdn.sanity.io/images/proj/production/${sha(n)}-${size}.jpg`,
+        width,
+        height,
+        added,
+      };
+    };
+    const galleries = async () => [
+      ...Array.from({ length: 8 }, (_, i) => ({
+        id: String(i + 1),
+        name: `Night ${i + 1}`,
+        photos: [photo(i + 1, `2026-10-${10 + i}T20:00:00Z`)],
+      })),
+      { id: "20", name: "Old Pickle", photos: [photo(20, "2026-09-01T20:00:00Z", "240x240")] },
+      { id: "21", name: "New Pickle", photos: [photo(21, "2026-11-01T20:00:00Z", "240x240")] },
+    ];
+    const fromEvents = await galleryFromEvents(world.env, [], { galleries });
+    assert.deepEqual(
+      fromEvents.map((group) => [group.name, group.photos.length, group.tooSmall]),
+      [...[8, 7, 6, 5, 4, 3, 2, 1].map((n) => [`Night ${n}`, 1, 0]), ["New Pickle", 0, 1]],
+    );
+  });
 });
