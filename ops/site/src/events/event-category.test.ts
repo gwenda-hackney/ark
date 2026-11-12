@@ -3,8 +3,6 @@ import { describe, it } from "vitest";
 import {
 	CATEGORY_CHOICES,
 	CATEGORY_FIELDS,
-	CATEGORY_FILTER_ITEMS,
-	categoryBadge,
 	categoryOf,
 	fieldsFor,
 	filterByCategory,
@@ -27,7 +25,7 @@ describe("event categories", () => {
 		assert.equal(categoryOf(events[2]), "promotion");
 	});
 
-	it("the list keeps promotions and pop-up kitchens apart from nights", () => {
+	it("the Schedule's filter keeps deals and pop-up kitchens apart from nights", () => {
 		const names = (filter: Parameters<typeof filterByCategory>[1]) =>
 			filterByCategory(events, filter).map((event) => event.name);
 		assert.deepEqual(names("all"), ["Jazz Night", "Quiz", "Happy Hour", "Chez Pickle"]);
@@ -36,18 +34,11 @@ describe("event categories", () => {
 		assert.deepEqual(names("popup"), ["Chez Pickle"]);
 	});
 
-	it("uses plain words", () => {
+	it("uses plain words: a promotion is a deal, as ops calls them (#312)", () => {
 		assert.deepEqual(
 			CATEGORY_CHOICES.map((choice) => choice.label),
-			["A night", "A promotion", "A pop-up kitchen"],
+			["A night", "A deal", "A pop-up kitchen"],
 		);
-		assert.deepEqual(
-			CATEGORY_FILTER_ITEMS.map((item) => item.label),
-			["All", "Nights", "Promotions", "Pop-up kitchens"],
-		);
-		assert.equal(categoryBadge(events[0]), "");
-		assert.equal(categoryBadge(events[2]), "Promotion");
-		assert.equal(categoryBadge(events[3]), "Pop-up kitchen");
 	});
 });
 

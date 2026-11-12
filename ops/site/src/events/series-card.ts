@@ -1,12 +1,12 @@
 /**
- * One series as the Series list shows it: a card with its photo, name,
- * next night, how often it runs, and whether the website has it.
+ * One event as the Events, Pop-ups and Deals lists show it (#312): a card
+ * with its photo, name, next night, how often it runs, and whether the
+ * website has it. Each list holds one kind, so the card doesn't say which.
  */
 import type { OpsEvent } from "../app/api";
 import type { BadgeTone } from "../ui/badge";
-import { eventItemPath } from "../app/nav";
 import { seriesWeekdayLabel } from "./event-schedule";
-import { categoryBadge } from "./event-category";
+import { eventPath } from "./event-lists";
 import {
 	repeatLabel,
 	seriesBlurb,
@@ -38,15 +38,13 @@ export type SeriesCardRow = {
 	/** The longer words, for the badge's tooltip. */
 	statusTitle: string;
 	tone: BadgeTone;
-	/** "Promotion" or "Pop-up kitchen"; "" for a night. */
-	kind: string;
 };
 
 export function seriesCardRow(event: OpsEvent): SeriesCardRow {
 	const cadence = repeatLabel(event);
 	return {
 		id: event.id,
-		href: eventItemPath(event.id),
+		href: eventPath(event),
 		when: seriesWeekdayLabel(event) || cadence,
 		cadence,
 		photo: event.mainImage?.url || "",
@@ -59,6 +57,5 @@ export function seriesCardRow(event: OpsEvent): SeriesCardRow {
 		status: statusLabel(event),
 		statusTitle: statusTitle(event),
 		tone: statusTone(event),
-		kind: categoryBadge(event),
 	};
 }

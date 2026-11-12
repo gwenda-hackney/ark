@@ -40,7 +40,8 @@ import { FormErrors } from "../ui/form-errors.svelte";
 import { EVENT_FIELD_ORDER, eventFieldTab, validateEvent } from "./event-validate";
 import { EventGallery } from "./event-gallery.svelte";
 import { EventForm, type SeriesTextKey } from "./event-form.svelte";
-import { takesLogo } from "./event-category";
+import { CATEGORY_FIELDS, takesLogo, type EventCategory } from "./event-category";
+import { homeList, isEventSection, sectionCategory, sectionOf, type EventSection } from "./event-lists";
 
 export type NewEventKind = "series" | "night" | "once";
 
@@ -48,7 +49,8 @@ export type NewEventKind = "series" | "night" | "once";
  * The event editor's state and actions: the events list, the event being
  * edited (a series, a special event or one night), saving, deleting, photos,
  * the calendar and Update website. EventsPage renders it; the route comes
- * from `getPath`.
+ * from `getPath`. The same editor serves Events, Pop-ups and Deals (#312):
+ * an event opens at its kind's address, and Add there starts that kind.
  */
 export class EventEditor {
 	constructor(private readonly getPath: () => string) {}
@@ -131,6 +133,23 @@ export class EventEditor {
 
 	creatingOnce = $derived(
 		Boolean(this.route.isNew) && this.newKind === "once" && !this.attachSeriesId,
+	);
+
+	/** Add on Events, Pop-ups or Deals starts that kind; the Schedule's Add asks first. */
+	presetCategory = $derived<EventCategory | null>(
+		this.route.isNew && !this.newEventRoute ? sectionCategory(this.route.section) : null,
+	);
+
+	/**
+	 * The list it belongs in, which its address names: the address it came
+	 * by until it's loaded, then its saved kind's (a night: its series').
+	 */
+	section = $derived<EventSection>(
+		!this.route.isNew && this.current
+			? sectionOf(this.current)
+			: isEventSection(this.route.section)
+				? this.route.section
+				: "events",
 	);
 
 	seriesOptions = $derived(
@@ -278,6 +297,13 @@ export class EventEditor {
 		this.form.reset(this.newEventRoute ? "once" : "none");
 		this.attachSeriesId = this.presetSeriesId;
 		this.newKind = this.presetSeriesId ? "night" : this.newEventRoute ? "once" : "series";
+		// Add on a kind's list: that kind, once or repeating as it usually is.
+		const preset = this.presetSeriesId ? null : this.presetCategory;
+		if (preset) {
+			this.form.category = preset;
+			this.newKind = CATEGORY_FIELDS[preset].repeats ? "series" : "once";
+			if (this.newKind === "once") this.form.repeatUnit = "once";
+		}
 		this.presetSeriesId = "";
 		this.warnings = [];
 	};
@@ -370,11 +396,11 @@ export class EventEditor {
 		}
 	};
 
-	listHomePath = () => {
-		return this.editingOccurrence || this.creatingOnce || this.editingOnce
-			? eventListPath("schedule")
-			: eventListPath("series");
-	};
+	/** Where Close goes with no page to go back to (event-lists.ts homeList). */
+	listHomePath = () =>
+		eventListPath(
+			homeList({ origin: null, night: this.editingOccurrence, scheduleAdd: this.newEventRoute, section: this.section }),
+		);
 
 	requestDelete = () => {
 		if (!this.eventId || this.busy) return;
@@ -487,11 +513,11 @@ export class EventEditor {
 			attachSeriesId: this.attachSeriesId,
 		});
 
-	/** The tab's address for this editor (new or saved). */
+	/** The tab's address for this editor (new or saved), in its list's address. */
 	tabPath = (tab: string) =>
 		this.route.isNew
-			? eventNewPath(tab, { once: this.newEventRoute })
-			: eventItemPath(this.route.slug || this.eventId, tab);
+			? eventNewPath(tab, { once: this.newEventRoute, section: this.route.section })
+			: eventItemPath(this.route.slug || this.eventId, tab, this.section);
 
 	/** Go to the first problem: its tab, then the field itself. */
 	showErrors = () =>
@@ -592,7 +618,7 @@ export class EventEditor {
 				this.applyWarnings(data.warnings);
 				await this.uploadPendingPhoto(String(data.event.id));
 				await this.stageAfterSave(String(data.event.id), this.form.repeatUnit === "once" ? "Event saved." : "Series saved.");
-				navigate(eventItemPath(data.event.id, this.tab), { replace: true });
+				navigate(eventItemPath(data.event.id, this.tab, sectionOf(data.event)), { replace: true });
 				if (publish) await this.confirmPutOnWebsite();
 			} else {
 				const data = await updateEvent(this.eventId, this.form.body(this.current));

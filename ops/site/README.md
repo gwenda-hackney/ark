@@ -34,28 +34,33 @@ ops/site/                 one package: @gwenda/ops
 
 ## Shell
 
-One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.rail`):
+One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.rail`), one level deep and grouped by the job (#312): What's on, Bar & kitchen, Publish, Settings. The tree is `src/app/nav-routes.ts`; phones get its headings as bottom tabs (Home · What's on · Bar & kitchen · Website · More). A page with tabs lists them there, each tab at its own address.
 
 | Route | Content |
 |-------|---------|
-| `/` | Overview |
-| `/menu` | Menu items (Stock) |
-| `/menu/new` | New recipe |
-| `/menu/:name` | Recipe detail (`/menu/negroni`) |
-| `/inventory` | Inventory (Stock) |
-| `/inventory/new` | New inventory item |
-| `/inventory/:name` | Inventory item detail |
-| `/lightspeed` | Lightspeed POS reconcile (Stock) |
-| `/lightspeed/export` | Lightspeed POS export (Stock) |
-| `/lightspeed/menus` | Lightspeed POS menus (Stock) |
-| `/suppliers` | Wholesaler catalog (Stock) |
-| `/sections` | Guest menu sections |
-| `/web` | The website and its preview: what is waiting, health, publish |
-| `/forms` | People who submitted a site form |
-| `/venue` | Venue details: the opening hours and the party facts (how many fit, what's included, how soon we reply), which go on the website when saved |
-| `/venue/gallery` | Gallery: the venue's own photos for home's photo strip and the top of the Photos page; upload, describe, put in order, remove; each change goes on the website with the venue details. Event photos stay on each event's Images tab |
+| `/` | Dashboard |
+| **What's on** | |
+| `/events/schedule` | Schedule: every upcoming night (events, pop-ups, deals) as a list or a calendar, filtered by kind. Its Add (`/events/new/once`) asks what kind first |
+| `/events` | Events: gigs, residencies, one-off nights. `/events/new` adds one, `/events/:id` opens it, `/events/:id@:date` one night |
+| `/popups` | Pop-ups: guest kitchens, with their menus, logo and nights (`/popups/new`, `/popups/:id`) |
+| `/deals` | Deals: Happy Hour and the like (`/deals/new`, `/deals/:id`) |
+| `/artists`, `/forms` | Artists: Featured artist and Applications tabs (`/artists/:id`, `/forms/:id`) |
+| **Bar & kitchen** | |
+| `/menus` | Menus: the menu list, then each menu (`/menus/:id`) |
+| `/menu` | Items: every drink and dish (`/menu/new`, `/menu/negroni`) |
+| `/inventory`, `/suppliers` | Stock: Inventory and Suppliers tabs (`/inventory/new`, `/inventory/:name`) |
+| **Publish** | |
+| `/web` | Website: what's waiting to go live, health, publish |
+| `/email` | Weekly email |
+| `/venue/gallery` | Photos: the venue's own photos for home's photo strip and the top of the Photos page; upload, describe, put in order, remove; each change goes on the website with the venue details. Event photos stay on each event's Images tab |
+| **Settings** | |
+| `/venue` | Venue: the opening hours and the party facts (how many fit, what's included, how soon we reply), which go on the website when saved |
 | `/users` | Who may sign in |
-| `/config` | House pour-cost targets (Baserow config database) |
+| `/lightspeed`, `/lightspeed/export` | Lightspeed: Reconcile and Export tabs. `/lightspeed/menus` manages the till menus |
+| `/config` | Configuration: pour-cost targets, event tasks |
+| `/web/dev` | Developer tools (admins) |
+
+An event opens at its kind's address: an old `/events/:id` link to a pop-up or a deal moves to `/popups/:id` or `/deals/:id` once it loads. `/sections` and `/config/sections` open Menus.
 
 Old hash URLs (`/#/menu`) still resolve to the path routes. Drink and inventory URLs use the unique name (`/menu/negroni`). The old static Tools pages (stock, breakeven, cashflow) were removed; the calculators come back as an ops feature in [#75](https://github.com/gwenda-hackney/ark/issues/75).
 
@@ -116,7 +121,7 @@ Ops does **not** store recipes in Sanity. **Publish to digital menu** copies gue
 
 ## Weekly email
 
-The "what's on" email to the Mailchimp mailing list, managed at `/email` (Programme → Weekly email). Code: `src/email/` (rules in `server/weekly-email-model.js`, use cases in `server/weekly-email.js`), the Mailchimp client `src/platform/mailchimp.js`, the generator `shared/weekly-email/`.
+The "what's on" email to the Mailchimp mailing list, managed at `/email` (Publish → Weekly email). Code: `src/email/` (rules in `server/weekly-email-model.js`, use cases in `server/weekly-email.js`), the Mailchimp client `src/platform/mailchimp.js`, the generator `shared/weekly-email/`.
 
 **What the page shows.** This week's email as it would go out right now (subject, preview line, the email at phone and desktop width), built from the published website data, so it matches What's on. "Send me a test" sends it to your own address only. Status says where this week's stands, when the next is due, and lists the last few with a link to each campaign in Mailchimp. Everyone signed in can look and send themselves a test; only admins (`ops.admin_emails`) change the schedule or send.
 

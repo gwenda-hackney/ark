@@ -1,6 +1,8 @@
 import type { NavRoute } from "./shell/types";
+import type { SegmentedItem } from "../ui/types";
+import { parseShellPath } from "./spa-path.js";
 
-/** Leaves only. Groups with children are not destinations. */
+/** Pages only: headings are not destinations. */
 export function flattenNavRoutes(routes: NavRoute[]): NavRoute[] {
 	const leaves: NavRoute[] = [];
 	for (const route of routes) {
@@ -13,7 +15,7 @@ export function flattenNavRoutes(routes: NavRoute[]): NavRoute[] {
 	return leaves;
 }
 
-/** Drop admin-only entries (and groups left empty) for everyone else. */
+/** Drop admin-only entries (and headings left empty) for everyone else. */
 export function visibleRoutes(routes: NavRoute[], isAdmin: boolean): NavRoute[] {
 	const out: NavRoute[] = [];
 	for (const route of routes) {
@@ -28,6 +30,26 @@ export function visibleRoutes(routes: NavRoute[], isAdmin: boolean): NavRoute[] 
 	return out;
 }
 
+/** Every address that is this page: its path, and each of its tabs'. */
+export function pagePaths(route: NavRoute): string[] {
+	const paths = [route.path, ...(route.tabs || []).map((tab) => tab.path)].filter(
+		(path): path is string => Boolean(path),
+	);
+	return [...new Set(paths)];
+}
+
+/** The page itself (or one of its tabs), not a record opened in it. */
+export function isPagePath(route: NavRoute | null, path: string): boolean {
+	const bare = path.split("?")[0] || "/";
+	return Boolean(route && pagePaths(route).includes(bare));
+}
+
+/** A page's tabs as links for its header (Stock: Inventory | Suppliers). */
+export function pageTabs(routes: NavRoute[], id: string): SegmentedItem[] {
+	const page = flattenNavRoutes(routes).find((route) => route.id === id);
+	return (page?.tabs || []).map((tab) => ({ id: tab.id, label: tab.label, href: tab.path }));
+}
+
 function decodeNavPath(path: string): string {
 	const bare = path.split("?")[0] ?? "/";
 	try {
@@ -37,7 +59,7 @@ function decodeNavPath(path: string): string {
 	}
 }
 
-/** Schedule list, a special event, or a dated night editor. */
+/** Schedule list, its Add (any kind), or a dated night editor. */
 export function isEventsScheduleNavPath(path: string): boolean {
 	const p = decodeNavPath(path);
 	return (
@@ -51,7 +73,7 @@ export function isEventsScheduleNavPath(path: string): boolean {
 	);
 }
 
-/** Longest matching leaf for the current path. */
+/** Longest matching page for the current path, by its own path or a tab's. */
 export function matchActiveRoute(
 	routes: NavRoute[],
 	path: string,
@@ -59,31 +81,30 @@ export function matchActiveRoute(
 	const withoutQuery = path.split("?")[0] ?? "/";
 	const leaves = flattenNavRoutes(routes);
 	if (isEventsScheduleNavPath(withoutQuery)) {
-		return leaves.find((n) => n.id === "events-schedule") ?? null;
+		return leaves.find((n) => n.id === "schedule") ?? null;
 	}
-	const exact = leaves.find((n) => n.path === withoutQuery);
+	const exact = leaves.find((n) => pagePaths(n).includes(withoutQuery));
 	if (exact) return exact;
 	const ranked = leaves
-		.filter((n) => {
-			const href = n.path;
-			return Boolean(
-				href &&
-					href !== "/" &&
-					(withoutQuery === href || withoutQuery.startsWith(`${href}/`)),
-			);
-		})
-		.sort((a, b) => (b.path?.length || 0) - (a.path?.length || 0));
-	if (ranked[0]) return ranked[0];
+		.flatMap((leaf) => pagePaths(leaf).map((href) => ({ leaf, href })))
+		.filter(
+			({ href }) => href !== "/" && (withoutQuery === href || withoutQuery.startsWith(`${href}/`)),
+		)
+		.sort((a, b) => b.href.length - a.href.length);
+	if (ranked[0]) return ranked[0].leaf;
 	if (withoutQuery === "/" || withoutQuery === "") {
 		return leaves.find((n) => n.path === "/") ?? null;
 	}
 	return null;
 }
 
-export function navGroupContains(
-	group: NavRoute,
-	active: NavRoute | null,
-): boolean {
-	if (!active || !group.children?.length) return false;
-	return flattenNavRoutes([group]).some((leaf) => leaf.id === active.id);
+/**
+ * The frame the app shows a path in: a page with tabs is one frame (Stock
+ * for /inventory and /suppliers), so switching tabs keeps the page and its
+ * tabs where they are; any other page is its own.
+ */
+export function pageFrame(routes: NavRoute[], path: string): string {
+	const page = matchActiveRoute(routes, path);
+	if (page?.tabs?.length) return page.id;
+	return parseShellPath(path).page;
 }

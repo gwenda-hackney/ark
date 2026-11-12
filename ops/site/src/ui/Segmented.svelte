@@ -41,7 +41,7 @@
 				tabindex={item.disabled ? -1 : 0}
 				onclick={item.disabled ? (e) => e.preventDefault() : undefined}
 			>
-				<span>{item.label}</span>
+				<span class="label" data-label={item.label}>{item.label}</span>
 				{#if item.count !== undefined}
 					<span class="count num pill-text">{item.count}</span>
 				{/if}
@@ -55,7 +55,7 @@
 				disabled={item.disabled}
 				onclick={() => pick(item)}
 			>
-				<span>{item.label}</span>
+				<span class="label" data-label={item.label}>{item.label}</span>
 				{#if item.count !== undefined}
 					<span class="count num pill-text">{item.count}</span>
 				{/if}
@@ -130,6 +130,22 @@
 
 	.tab[aria-selected="true"] {
 		font-weight: 600;
+	}
+
+	/* Every label keeps room for its bold width, so picking a tab never
+	   nudges the others along (controls never move). */
+	.label {
+		display: inline-grid;
+	}
+
+	.label::after {
+		content: attr(data-label);
+		height: 0;
+		overflow: hidden;
+		visibility: hidden;
+		font-weight: 600;
+		user-select: none;
+		pointer-events: none;
 	}
 
 	/* Track height less its 3px padding and 1px border, each side. */

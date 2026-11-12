@@ -1,78 +1,73 @@
 import type { NavRoute } from "./shell/types";
+import type { SegmentedItem } from "../ui/types";
+import { pageTabs } from "./nav-tree";
 
 /**
- * Side rail. Menu is its items (drinks and dishes) and its menus (Drinks, a pop-up kitchen's), each
- * with its dates, days and sections. Stock is inventory and suppliers.
- * Lightspeed is POS reconcile and export. Events is series and schedule.
- * Artists holds the artist whose work is hanging at Gwenda and play applications
- * (the website's play form). Website shows what is waiting to appear on the
- * public site. Weekly email is the what's on email to the mailing list.
- * Gallery is the venue's own photos on the website (event photos stay on each
- * event's Images tab). Developer tools (admins) compare preview, code and databases.
+ * Side rail (#312): one level, grouped by the job. What's on is everything
+ * on at Gwenda: the Schedule (every night in one calendar), then Events,
+ * Pop-ups and Deals, each its own list of one kind, and Artists. Bar &
+ * kitchen is the menus, their items and the stock behind them. Publish is
+ * what goes out: the website, the weekly email and the venue's own photos
+ * (event photos stay on each event's Images tab). Settings is the rest.
+ *
+ * A page with tabs lists them here, each with its own address: old
+ * addresses (/suppliers, /forms, /lightspeed/export) are those tabs.
  */
 export const NAV_ROUTES: NavRoute[] = [
 	{ id: "home", path: "/", name: "Dashboard", icon: "home" },
 	{
-		id: "service",
-		name: "Service",
+		id: "whats-on",
+		name: "What's on",
 		icon: "",
 		heading: true,
 		children: [
+			{ id: "schedule", path: "/events/schedule", name: "Schedule", icon: "calendar", hint: "Every night in one calendar" },
+			{ id: "events", path: "/events", name: "Events", icon: "star", hint: "Gigs, residencies, one-off nights" },
+			{ id: "popups", path: "/popups", name: "Pop-ups", icon: "recipes", hint: "Guest kitchens, their menus and nights" },
+			{ id: "deals", path: "/deals", name: "Deals", icon: "tag", hint: "Happy Hour and the like" },
 			{
-				id: "menu",
-				name: "Menu",
-				icon: "menu",
-				children: [
-					{ id: "recipes", path: "/menu", name: "Items", short: "Items", icon: "menu", hint: "Drinks and dishes on the menus" },
-					{ id: "menus", path: "/menus", name: "Menus", icon: "list", hint: "Drinks and pop-up menus, their dates and sections" },
-				],
-			},
-			{
-				id: "stock",
-				name: "Stock",
-				icon: "stock",
-				children: [
-					{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory", hint: "Bottles and what they cost" },
-					{ id: "suppliers", path: "/suppliers", name: "Suppliers", icon: "suppliers", hint: "Who we buy from" },
-				],
-			},
-			{
-				id: "lightspeed",
-				name: "Lightspeed",
-				icon: "lightspeed",
-				children: [
-					{ id: "lightspeed-reconcile", path: "/lightspeed", name: "Reconcile", icon: "lightspeed", hint: "Match a Lightspeed item list" },
-					{ id: "lightspeed-export", path: "/lightspeed/export", name: "Export", icon: "upload", hint: "Item import for Lightspeed" },
+				id: "artists",
+				path: "/artists",
+				name: "Artists",
+				icon: "artist",
+				hint: "The featured artist, and who applied to play",
+				tabs: [
+					{ id: "featured", label: "Featured artist", path: "/artists" },
+					{ id: "applications", label: "Applications", path: "/forms" },
 				],
 			},
 		],
 	},
 	{
-		id: "programme",
-		name: "Programme",
+		id: "bar-kitchen",
+		name: "Bar & kitchen",
 		icon: "",
 		heading: true,
 		children: [
+			{ id: "menus", path: "/menus", name: "Menus", icon: "list", hint: "Drinks and pop-up menus, their dates and sections" },
+			{ id: "recipes", path: "/menu", name: "Items", icon: "menu", hint: "Every drink and dish" },
 			{
-				id: "events",
-				name: "Events",
-				icon: "events",
-				children: [
-					{ id: "events-series", path: "/events", name: "Series", icon: "list", hint: "Residencies and their defaults" },
-					{ id: "events-schedule", path: "/events/schedule", name: "Schedule", icon: "events", hint: "Upcoming nights" },
+				id: "stock",
+				path: "/inventory",
+				name: "Stock",
+				icon: "stock",
+				hint: "Bottles, what they cost, and who we buy from",
+				tabs: [
+					{ id: "inventory", label: "Inventory", path: "/inventory" },
+					{ id: "suppliers", label: "Suppliers", path: "/suppliers" },
 				],
 			},
-			{
-				id: "artists",
-				name: "Artists",
-				icon: "artist",
-				children: [
-					{ id: "artist", path: "/artists", name: "Featured artist", short: "Artist", icon: "artist", hint: "Work hanging at Gwenda" },
-					{ id: "forms", path: "/forms", name: "Play applications", short: "Applications", icon: "forms", hint: "Artists who applied to play" },
-				],
-			},
-			{ id: "web", path: "/web", name: "Website", icon: "web", badge: "website", hint: "See what's waiting and publish it" },
+		],
+	},
+	{
+		id: "publish",
+		name: "Publish",
+		icon: "",
+		heading: true,
+		children: [
+			{ id: "web", path: "/web", name: "Website", icon: "web", badge: "website", hint: "What's waiting to go live" },
 			{ id: "email", path: "/email", name: "Weekly email", short: "Email", icon: "send", hint: "This week's what's on email" },
+			{ id: "photos", path: "/venue/gallery", name: "Photos", icon: "camera", hint: "The venue's own photos, on the website" },
 		],
 	},
 	{
@@ -81,9 +76,19 @@ export const NAV_ROUTES: NavRoute[] = [
 		icon: "",
 		heading: true,
 		children: [
-			{ id: "venue", path: "/venue", name: "Venue details", icon: "clock", hint: "Opening hours and parties, on the website" },
-			{ id: "gallery", path: "/venue/gallery", name: "Gallery", icon: "camera", hint: "The venue's own photos, on the website" },
+			{ id: "venue", path: "/venue", name: "Venue", icon: "clock", hint: "Opening hours and parties, on the website" },
 			{ id: "users", path: "/users", name: "Users", icon: "users", hint: "Who may sign in" },
+			{
+				id: "lightspeed",
+				path: "/lightspeed",
+				name: "Lightspeed",
+				icon: "lightspeed",
+				hint: "Match the till's items, and export ours",
+				tabs: [
+					{ id: "reconcile", label: "Reconcile", path: "/lightspeed" },
+					{ id: "export", label: "Export", path: "/lightspeed/export" },
+				],
+			},
 			{ id: "config", path: "/config", name: "Configuration", icon: "settings", hint: "Pour targets, event tasks" },
 			{
 				id: "dev-tools",
@@ -96,3 +101,8 @@ export const NAV_ROUTES: NavRoute[] = [
 		],
 	},
 ];
+
+/** A rail page's tabs, for its header: `PageHeader tabs={{ items: navTabs("stock"), value }}`. */
+export function navTabs(id: string): SegmentedItem[] {
+	return pageTabs(NAV_ROUTES, id);
+}

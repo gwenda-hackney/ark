@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
-	 * Series as cards, in weekday order. Each card is a real link to the
-	 * series editor, so modifier clicks open a new tab.
+	 * A list's events as cards (series by weekday, then one-offs by date).
+	 * Each card is a real link to the editor, so modifier clicks open a new tab.
 	 */
 	import { Badge } from "../ui";
 	import { navigate } from "../app/nav";
@@ -44,7 +44,6 @@
 						</span>
 						<span class="line muted">{[row.cadence, row.time].filter(Boolean).join(" · ")}</span>
 						<span class="foot">
-							{#if row.kind}<Badge label={row.kind} />{/if}
 							<Badge tone={row.tone} label={row.status} title={row.statusTitle} />
 							{#if row.guest}<span class="guest">{row.guest}</span>{/if}
 						</span>
