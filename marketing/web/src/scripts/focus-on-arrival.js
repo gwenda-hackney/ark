@@ -22,6 +22,7 @@ import {
   isRestoredNavigation,
   whenScrollSettled,
 } from "./navigation-restore.js";
+import { hashTarget } from "./page-anchors.js";
 
 const ATTR = "data-focus-on-arrival";
 /** Boxes someone types into. Dates, ticks and choices open pickers or do nothing with a cursor. */
@@ -78,21 +79,6 @@ export function firstFillable(root) {
     }
   }
   return null;
-}
-
-/**
- * @param {Document} doc
- * @param {string} hash  "#list", or "" for none
- */
-function hashTarget(doc, hash) {
-  if (!hash || hash.length < 2) return null;
-  let id = hash.slice(1);
-  try {
-    id = decodeURIComponent(id);
-  } catch {
-    // A malformed escape: look it up as written.
-  }
-  return doc.getElementById(id);
 }
 
 /**

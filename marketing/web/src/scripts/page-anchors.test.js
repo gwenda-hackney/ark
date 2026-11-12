@@ -2,7 +2,11 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it } from "vitest";
-import { currentPageAnchorId, pageAnchorSections } from "./page-anchors.js";
+import {
+  currentPageAnchorId,
+  hashTarget,
+  pageAnchorSections,
+} from "./page-anchors.js";
 
 function place(el, top) {
   el.getBoundingClientRect = () => ({
@@ -109,5 +113,26 @@ describe("currentPageAnchorId", () => {
         80,
       ),
     ).toBe("series");
+  });
+});
+
+describe("hashTarget", () => {
+  it("finds what the address's hash names, written plainly or escaped", () => {
+    document.body.innerHTML = `
+      <section id="list"></section>
+      <div id="fries-and-dips"></div>
+      <div id="café"></div>
+    `;
+    expect(hashTarget(document, "#list")?.id).toBe("list");
+    expect(hashTarget(document, "#fries-and-dips")?.id).toBe("fries-and-dips");
+    expect(hashTarget(document, "#caf%C3%A9")?.id).toBe("café");
+  });
+
+  it("finds nothing for no hash, a bare #, or a name not on the page", () => {
+    document.body.innerHTML = `<section id="list"></section>`;
+    expect(hashTarget(document, "")).toBeNull();
+    expect(hashTarget(document, "#")).toBeNull();
+    expect(hashTarget(document, "#gone")).toBeNull();
+    expect(hashTarget(document, "#%E0%A4%A")).toBeNull();
   });
 });

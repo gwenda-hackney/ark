@@ -3,6 +3,7 @@
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
+  holdAnchorOnReload,
   initNavigationRestore,
   isRestoredNavigation,
   shouldPinScrollTop,
@@ -175,5 +176,120 @@ describe("a back/forward visit through the router", () => {
     expect(root.classList.contains("is-restoring-scroll")).toBe(true);
     vi.advanceTimersByTime(100);
     expect(root.classList.contains("is-restoring-scroll")).toBe(false);
+  });
+});
+
+describe("a reload of an address with an anchor", () => {
+  /** @type {import("vitest").Mock} */
+  let scrollIntoView;
+  const ownScrollIntoView = Element.prototype.scrollIntoView;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal("performance", {
+      getEntriesByType: vi.fn(() => [{ type: "reload" }]),
+    });
+    document.body.innerHTML = `
+      <article id="party"></article>
+      <article id="play"></article>
+    `;
+    window.history.replaceState(null, "", "/bookings#play");
+    scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+    window.history.replaceState(null, "", "/");
+    Element.prototype.scrollIntoView = ownScrollIntoView;
+  });
+
+  /** The page moves under the section (the router's scroll back, a late image). */
+  function pageMoves() {
+    scrollIntoView.mockImplementation(() => {
+      Object.defineProperty(window, "scrollY", {
+        value: window.scrollY + 10,
+        configurable: true,
+      });
+    });
+  }
+
+  function pageStill() {
+    scrollIntoView.mockImplementation(() => {});
+  }
+
+  it("lands the section at the top at once, without a glide", () => {
+    holdAnchorOnReload();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(
+      document.getElementById("play"),
+    );
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "start",
+      behavior: "instant",
+    });
+  });
+
+  it("holds it there while the page moves, and lets go once it has stayed put", async () => {
+    pageMoves();
+    holdAnchorOnReload();
+    await vi.advanceTimersByTimeAsync(2000);
+    const whileMoving = scrollIntoView.mock.calls.length;
+    expect(whileMoving).toBeGreaterThan(10);
+
+    pageStill();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(scrollIntoView.mock.calls.length).toBeGreaterThan(whileMoving);
+    await vi.advanceTimersByTimeAsync(200);
+    const atRest = scrollIntoView.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(scrollIntoView.mock.calls.length).toBe(atRest);
+  });
+
+  it("lets go after a while, whatever keeps moving the page", async () => {
+    pageMoves();
+    holdAnchorOnReload();
+    await vi.advanceTimersByTimeAsync(10_000);
+    const atEnd = scrollIntoView.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(scrollIntoView.mock.calls.length).toBe(atEnd);
+  });
+
+  for (const [name, leave] of [
+    ["the visitor scrolls", () => window.dispatchEvent(new Event("wheel"))],
+    ["the visitor taps", () => window.dispatchEvent(new Event("touchstart"))],
+    ["the visitor types", () => window.dispatchEvent(new Event("keydown"))],
+    [
+      "the router goes on to another page",
+      () => document.dispatchEvent(new Event("astro:before-preparation")),
+    ],
+  ]) {
+    it(`lets go when ${name}`, async () => {
+      pageMoves();
+      holdAnchorOnReload();
+      await vi.advanceTimersByTimeAsync(100);
+      leave();
+      const then = scrollIntoView.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(scrollIntoView.mock.calls.length).toBe(then);
+    });
+  }
+
+  it("leaves a first visit and back/forward to the browser and the router", () => {
+    for (const type of ["navigate", "back_forward"]) {
+      performance.getEntriesByType.mockReturnValue([{ type }]);
+      holdAnchorOnReload();
+    }
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("leaves a reload without an anchor, or with one naming nothing here, where the visitor was", () => {
+    window.history.replaceState(null, "", "/bookings");
+    holdAnchorOnReload();
+    window.history.replaceState(null, "", "/bookings#gone");
+    holdAnchorOnReload();
+    expect(scrollIntoView).not.toHaveBeenCalled();
   });
 });

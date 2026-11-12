@@ -84,11 +84,11 @@ describe("recordDrawing", () => {
     expect(viewBox).toBe("3 3 174 174");
     expect(body).not.toMatch(/<rect\b/);
     expect(body).toMatch(/^<circle cx="90" cy="90" r="87" fill="#f2e8d2"\/>/);
-    // The three grooves stay, and the middle is the logo's pairing: a
-    // mustard ring, a black centre, the skull in cream on it
+    // The three grooves stay, and the middle is the logo's record label: a
+    // mustard centre with the skull printed on it in black
     expect(body.match(/<circle r=/g)).toHaveLength(3);
     expect(body).toMatch(
-      /<circle cx="90" cy="90" r="59" fill="#dba63c"\/><circle cx="90" cy="90" r="50" fill="#0b0a08"\/><path fill="#f2e8d2" fill-rule="evenodd"/,
+      /<circle cx="90" cy="90" r="59" fill="#dba63c"\/><path fill="#0b0a08" fill-rule="evenodd"/,
     );
   });
 
