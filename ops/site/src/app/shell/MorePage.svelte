@@ -15,6 +15,7 @@
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../../ui/viewport.svelte";
 
 	let me = $state<AuthMe | null>(null);
+	const local = $derived(me?.mode === "local");
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
 	const rows = $derived(
@@ -83,13 +84,21 @@
 		<h2 id="more-account" class="heading">Account</h2>
 		<div class="card account">
 			{#if me}
-				<p class="label">{me.email || "Local access"}</p>
-				<p class="hint">{me.email ? "Signed in" : "Signed in with the local password"}</p>
+				<p class="label">{me.email}</p>
+				<p class="hint">{local ? "Signed in automatically on this machine" : "Signed in"}</p>
 			{/if}
-			<a class="signout" href="/api/auth/logout">
-				<Icon name="logout" size={18} />
-				Sign out
-			</a>
+			{#if local}
+				<!-- npm run ops:dev signs you in again at once: nothing to sign out of. -->
+				<span class="signout" aria-disabled="true" title="Local sign-in is automatic">
+					<Icon name="logout" size={18} />
+					Sign out
+				</span>
+			{:else}
+				<a class="signout" href="/api/auth/logout">
+					<Icon name="logout" size={18} />
+					Sign out
+				</a>
+			{/if}
 		</div>
 	</section>
 </div>
@@ -224,8 +233,13 @@
 		text-decoration: none;
 	}
 
-	.signout:hover {
+	a.signout:hover {
 		background: var(--accent);
+	}
+
+	.signout[aria-disabled="true"] {
+		color: var(--muted-foreground);
+		cursor: not-allowed;
 	}
 
 	.signout:focus-visible {

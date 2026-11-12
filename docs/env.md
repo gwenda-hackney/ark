@@ -12,7 +12,7 @@ Local secrets are never written into the repo. **`bw-unlock` is the login**: aft
 | SM machine token `ARK_LOCAL_BW_TOKEN` | Only in the vault note `ark/.env.local` (folder `ark`) | Read from the unlocked vault when needed, held in memory, never written to disk. |
 | App secrets (SM names) | Look-aside cache `/dev/shm/ark-secrets-<uid>/dev.json` (RAM, mode 600) | 12 hours, tied to the current session. Gone when the container stops. |
 | Local settings | Defaults in `scripts/lib/load-env.mjs` (`LOCAL_DEFAULTS`: the dev Sanity project, localhost links) | Committed. A machine works on the dev copies, like the hosted dev site. |
-| Where your local form emails go | `FORMS_NOTIFY_EMAIL`, defaulting to your git email (`git config user.email`) | Set git's email once per checkout, as you would anyway. |
+| Where your local form emails go, and who local ops signs you in as | `FORMS_NOTIFY_EMAIL`, defaulting to your git email (`git config user.email`) | Set git's email once per checkout, as you would anyway. |
 | Personal overrides | Optional repo-root `.env` (see `.env.example`) | Usually doesn't exist. |
 
 `scripts/lib/load-env.mjs` does this: `.env`, then `LOCAL_DEFAULTS` for anything still unset, then the cache (on a miss: token from the vault, then `bws` lists Ark, Ark/Ops and Ark/Web, env `dev`), then that app's runtime names (`APP_SECRETS` rename). The cache entry holds a hash of the session key, so after `bw-lock` or a new unlock it no longer matches. Scripts that write to SM (`env:*:push`, `setup:*`) clear it. A cold load takes about 4 seconds; a cached one about 60 ms.
@@ -34,6 +34,8 @@ git config user.email you@gwenda.co.uk   # also where your local form emails go
 ```
 
 That's it. `npm run web:dev`, `npm run ops:dev` and the rest now load secrets themselves.
+
+`npm run ops:dev` signs you in as that email without Google (it binds `OPS_LOCAL_SIGN_IN`), as long as it is on the ops users list. Only a local `SITE_ENV=local` run honours it; `npm run ops:prod` and every deployed ops sign in with Google.
 
 ## Everyday
 

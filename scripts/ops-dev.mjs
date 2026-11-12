@@ -22,6 +22,13 @@
  * website", "Update website now" and saves act on the real website, exactly
  * like hosted ops. Use it to reproduce and fix production problems with local
  * stack traces. The app shows a red "LOCAL COPY ON LIVE DATA" banner.
+ *
+ * Sign-in: plain dev signs you in as yourself, without Google. It binds
+ * OPS_LOCAL_SIGN_IN to FORMS_NOTIFY_EMAIL (your git email unless .env says
+ * otherwise), and the ops users list still decides whether you get in. The
+ * server honours it only with SITE_ENV=local and no OPS_LOCAL_LIVE
+ * (localSignInEmail in ops/site/src/access/server/auth.js), so a deployed ops
+ * never does. --live keeps Google sign-in, like production.
  */
 import { spawn } from "node:child_process";
 import { rmSync, symlinkSync } from "node:fs";
@@ -58,6 +65,21 @@ const DEV_VAR_KEYS = [
 
 const LIVE = process.argv.includes("--live");
 
+function googleReady() {
+  return Boolean(
+    process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() &&
+      process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() &&
+      process.env.OPS_SESSION_SECRET?.trim(),
+  );
+}
+
+/** Who plain dev signs in: the email main() already required (missingLocalSettings). */
+function localSignInEmail() {
+  const email = process.env.FORMS_NOTIFY_EMAIL?.trim();
+  if (!email) throw new Error("FORMS_NOTIFY_EMAIL is missing: set your git email (git config user.email).");
+  return email;
+}
+
 function loadRootEnv() {
   loadRepoEnv({ app: "ops", override: true });
 }
@@ -86,7 +108,6 @@ async function useDevSanityProject() {
 /** Production ops secrets (runtime names) straight from Secrets Manager. */
 async function loadProductionSecrets() {
   const {
-    APP_SECRETS,
     listAllSmSecrets,
     pickAppSecrets,
     resolveSecretsForEnv,
@@ -99,12 +120,11 @@ async function loadProductionSecrets() {
   const { values, missing } = pickAppSecrets("ops", resolved);
   if (missing.length) console.warn(`Production secrets missing: ${missing.join(", ")}`);
   for (const [key, value] of values) process.env[key] = value;
-  // Keep the local sign-in fallback; it is not a production secret.
-  void APP_SECRETS;
 }
 
 /**
- * Bindings for `wrangler pages dev`: DEV_VAR_KEYS plus SITE_ENV, written to a
+ * Bindings for `wrangler pages dev`: DEV_VAR_KEYS plus SITE_ENV and how you
+ * sign in (OPS_LOCAL_SIGN_IN, or OPS_LOCAL_LIVE for --live), written to a
  * RAM env file that `.dev.vars` points at. The Cloudflare token and account
  * are bound too: local Functions reach D1 over the API (D1_OVER_API), since
  * the bindings wrangler gives them here are empty local databases.
@@ -126,23 +146,17 @@ function writeBindings() {
       throw new Error(`${key} is missing: local ops reaches its databases over the Cloudflare API. Run bw-unlock.`);
     bindings.set(key, value);
   }
-  if (LIVE) bindings.set("OPS_LOCAL_LIVE", "1");
-
-  const googleId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
-  const googleSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
-  const session = process.env.OPS_SESSION_SECRET?.trim();
-  const password =
-    process.env.OPS_LOCAL_ADMIN_PW?.trim() ||
-    process.env.OPS_PASSWORD?.trim();
-
-  if (googleId && googleSecret && session) {
-    // Google mode
-  } else if (password) {
-    // Password-only fallback
+  if (LIVE) {
+    // Production data: Google sign-in, as on hosted production.
+    bindings.set("OPS_LOCAL_LIVE", "1");
+    if (!googleReady()) {
+      throw new Error(
+        "ops:prod signs in with Google: GOOGLE_OAUTH_CLIENT_ID/SECRET and OPS_SESSION_SECRET are missing. Run bw-unlock.",
+      );
+    }
   } else {
-    throw new Error(
-      "Set GOOGLE_OAUTH_CLIENT_ID/SECRET + OPS_SESSION_SECRET (or OPS_LOCAL_ADMIN_PW) in Secrets Manager, or run bw-unlock.",
-    );
+    // The dev copies: signed in as yourself (see the header).
+    bindings.set("OPS_LOCAL_SIGN_IN", localSignInEmail());
   }
   const file = writeRuntimeEnvFile("ops-dev.env", bindings);
   rmSync(DEV_VARS_PATH, { force: true });
@@ -170,9 +184,7 @@ async function main() {
   }
 
   if (LIVE) {
-    const localPassword = process.env.OPS_LOCAL_ADMIN_PW;
     await loadProductionSecrets();
-    if (localPassword && !process.env.OPS_LOCAL_ADMIN_PW) process.env.OPS_LOCAL_ADMIN_PW = localPassword;
     // Repo .env points local work at the dev Sanity project; live is the real one.
     const { REAL_SANITY_PROJECT_ID } = await import("../shared/sanity-projects.js");
     process.env.SANITY_PROJECT_ID = REAL_SANITY_PROJECT_ID;
@@ -255,11 +267,6 @@ async function main() {
     return child;
   }
 
-  const googleReady = Boolean(
-    process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() &&
-      process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() &&
-      process.env.OPS_SESSION_SECRET?.trim(),
-  );
   // Wrangler (:8788) serves Functions and public/ (the gate, icons); Vite
   // (:5174) serves the live app with HMR and proxies /api to Wrangler.
   console.log(`
@@ -267,9 +274,9 @@ Ops local:
   SPA (HMR):       http://localhost:5174/
   Pages + auth:    http://localhost:8788/
   Auth:            ${
-    googleReady
-      ? "Google OAuth + Baserow Users (same as production)"
-      : "OPS_LOCAL_ADMIN_PW gate"
+    LIVE
+      ? "Google sign-in + ops users list (same as production)"
+      : `signed in as ${localSignInEmail()}, if on the ops users list (no Google)`
   }
 `);
 

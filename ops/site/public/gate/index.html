@@ -35,21 +35,14 @@ main{display:grid;justify-items:center;gap:12px;width:min(100%,22rem)}
 .panel[hidden],[hidden]{display:none!important}
 .lead{color:var(--fg-muted);margin:0}
 .stack{display:flex;flex-direction:column;gap:8px}
-input{
-  width:100%;height:44px;padding:0 12px;border:1px solid var(--border-strong);border-radius:8px;
-  background:var(--surface-2);color:var(--fg);font:inherit;
-}
-button,.google{
+.google{
   appearance:none;display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;
-  padding:0 16px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface-2);
-  color:var(--fg);font:inherit;font-weight:500;cursor:pointer;text-decoration:none;
+  padding:0 16px;border:1px solid var(--primary);border-radius:8px;background:var(--primary);
+  color:var(--bg);font:inherit;font-weight:500;cursor:pointer;text-decoration:none;
 }
-button:hover,.google:hover{background:var(--surface-3)}
-.google{background:var(--primary);border-color:var(--primary);color:var(--bg)}
 .google:hover{background:color-mix(in srgb,var(--primary) 88%,var(--fg))}
-input:focus-visible,button:focus-visible,.google:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.google:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .error{color:var(--danger);font-size:13px;line-height:18px;margin:0}
-.divider{color:var(--fg-muted);font-size:12px;margin:4px 0}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.brand{animation:none}}
@@ -61,18 +54,12 @@ input:focus-visible,button:focus-visible,.google:focus-visible{outline:2px solid
     <div class="mark" aria-hidden="true">G</div>
     <div class="name">Gwenda · Operations</div>
   </div>
-  <!-- Hidden until /api/auth answers. Google-only skips it and goes straight to Google. -->
+  <!-- Hidden until /api/auth answers. Sign-in normally goes straight on to Google. -->
   <div class="panel" id="gate-panel" hidden>
     <h1 class="visually-hidden">Sign in to Gwenda Operations</h1>
     <p class="lead" id="gate-lead"></p>
     <div class="stack">
       <a class="google" id="google-btn" href="/api/auth/login" hidden>Continue with Google</a>
-      <p class="divider" id="password-divider" hidden>or password</p>
-      <form id="gate-form" class="stack" novalidate hidden>
-        <label for="gate-input" class="visually-hidden">Password</label>
-        <input type="password" id="gate-input" name="password" autocomplete="current-password" placeholder="Password" required>
-        <button type="submit">Enter</button>
-      </form>
       <p class="error" id="gate-error" role="alert" hidden></p>
     </div>
   </div>
@@ -81,16 +68,14 @@ input:focus-visible,button:focus-visible,.google:focus-visible{outline:2px solid
 (function () {
   const gate = document.getElementById("gate");
   const panel = document.getElementById("gate-panel");
-  const form = document.getElementById("gate-form");
-  const input = document.getElementById("gate-input");
   const lead = document.getElementById("gate-lead");
   const googleBtn = document.getElementById("google-btn");
-  const divider = document.getElementById("password-divider");
   const error = document.getElementById("gate-error");
   const params = new URLSearchParams(location.search);
   const next = params.get("next") || "/";
   const queryError = params.get("error");
-  const googleHref = "/api/auth/login?next=" + encodeURIComponent(next);
+  // The server checks `next` before sending you anywhere.
+  const signInHref = "/api/auth/login?next=" + encodeURIComponent(next);
 
   function showError(message) {
     error.textContent = message;
@@ -101,28 +86,23 @@ input:focus-visible,button:focus-visible,.google:focus-visible{outline:2px solid
     gate.classList.add("ready");
     gate.removeAttribute("aria-busy");
     panel.hidden = false;
-    if (!form.hidden) input.focus();
   }
 
-  googleBtn.href = googleHref;
+  googleBtn.href = signInHref;
   if (queryError) showError(queryError);
 
   function paint(meta) {
+    // Local: npm run ops:dev has signed you in already; login sends you on.
+    // Google: no tap needed. After an error, show the button instead.
+    if (meta.mode === "local" || (meta.mode === "google" && !queryError)) {
+      location.replace(signInHref);
+      return;
+    }
     if (meta.mode === "google") {
-      // Google is the only way in: no tap needed. After an error, show the button instead.
-      if (!meta.password && !queryError) {
-        location.replace(googleHref);
-        return;
-      }
       lead.textContent = "Sign in with your Google account. You must be on the ops users list.";
       googleBtn.hidden = false;
-      divider.hidden = !meta.password;
-      form.hidden = !meta.password;
-    } else if (meta.mode === "password") {
-      lead.textContent = "Enter the password to open ops tools.";
-      form.hidden = false;
     } else {
-      lead.textContent = "Sign-in is not set up. Set the Google OAuth secrets or OPS_LOCAL_ADMIN_PW.";
+      lead.textContent = "Sign-in is not set up. Set the Google OAuth secrets.";
     }
     reveal();
   }
@@ -134,26 +114,6 @@ input:focus-visible,button:focus-visible,.google:focus-visible{outline:2px solid
       paint({ mode: "misconfigured" });
       showError("Could not load the sign-in page. Try again.");
     });
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    error.hidden = true;
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: input.value, next }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showError(data.error || "That password isn't right.");
-        return;
-      }
-      location.assign(data.redirect || "/");
-    } catch {
-      showError("Could not reach the sign-in page. Try again.");
-    }
-  });
 })();
 </script>
 </body>

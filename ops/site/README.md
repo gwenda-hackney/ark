@@ -63,7 +63,7 @@ Theme/UI primitives mirror trading’s `shell.web` (Gwenda colours + Ysabeau/Rob
 
 ## Auth (Google OAuth + Baserow Users)
 
-The same Google login works on **localhost** and **gwenda-ops.pages.dev**. Who may use ops lives in the Baserow **Users** table (Email + Active), managed at `/users`.
+The same Google login works on **localhost** (`npm run ops:prod`) and **gwenda-ops.pages.dev**. Who may use ops lives in the Baserow **Users** table (Email + Active), managed at `/users`.
 
 ```bash
 # Secrets Manager (loaded after bw-unlock); the client id is in wrangler [vars]
@@ -79,7 +79,7 @@ Google Cloud **Web application** OAuth client (reuse the existing client):
 1. Authorized JavaScript origins: `http://localhost:5174`, `http://127.0.0.1:5174`, `https://gwenda-ops.pages.dev`
 2. Authorized redirect URIs: `http://localhost:5174/api/auth/callback`, `http://127.0.0.1:5174/api/auth/callback`, `https://gwenda-ops.pages.dev/api/auth/callback`
 
-Local: `npm run ops:dev` → http://localhost:5174/ → Continue with Google. Optional `OPS_LOCAL_ADMIN_PW` remains a local bypass only. Leave `OPS_LOCAL_ADMIN_PW` unset on Pages.
+Local: `npm run ops:dev` → http://localhost:5174/ signs you in as your `FORMS_NOTIFY_EMAIL` (your git email) without Google, if it is on the Users list. The server honours that only with `SITE_ENV=local` and no `OPS_LOCAL_LIVE` (`localSignInEmail` in `src/access/server/auth.js`); `npm run ops:prod` and every deployed ops use Google sign-in.
 
 Logout clears the session cookie and returns to `/gate/`.
 

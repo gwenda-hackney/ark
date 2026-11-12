@@ -89,8 +89,5 @@ try {
 
 console.log("Done. Plain ops settings live in the Baserow config database.");
 console.log(
-  "Leave OPS_LOCAL_ADMIN_PW unset on Pages. Local keeps it in Secrets Manager.",
-);
-console.log(
   "Redeploy required for secrets to go live: npm run deploy:production -w @gwenda/ops",
 );

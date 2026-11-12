@@ -18,12 +18,14 @@ import { allowedReturnTo, DEV_OPS_ORIGIN, devPreviewOrigin } from "../../../src/
 export async function onRequestGet(context) {
   const env = await opsEnv(context);
   const auth = resolveAuth(env);
+  const url = new URL(context.request.url);
+  const next = safeRedirectPath(url.searchParams.get("next"));
+
+  // npm run ops:dev has signed you in already: no Google.
+  if (auth.kind === "local") return relativeRedirect(next);
   if (auth.kind !== "google") {
     return new Response("Google OAuth is not configured.", { status: 503 });
   }
-
-  const url = new URL(context.request.url);
-  const next = safeRedirectPath(url.searchParams.get("next"));
 
   // A dev branch preview can't be a Google redirect URI: sign in on the main
   // dev host, which hands the session back (preview-signin.js).

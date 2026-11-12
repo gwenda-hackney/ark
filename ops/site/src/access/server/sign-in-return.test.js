@@ -1,22 +1,19 @@
 /**
- * Sign-in: the return path stays on this site. After the gate, the password
- * form or Google sign-in, the browser goes back to the page asked for
- * (`next`), and whatever `next` says, it lands on ops itself. Checked as a
- * browser resolves the Location it gets. Google and Baserow are faked.
+ * Sign-in: the return path stays on this site. After the gate or Google
+ * sign-in, the browser goes back to the page asked for (`next`), and whatever
+ * `next` says, it lands on ops itself. Checked as a browser resolves the
+ * Location it gets. Google and Baserow are faked.
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
 import { protect as middleware } from "../../../functions/_middleware.js";
-import { onRequestPost as passwordSignIn } from "../../../functions/api/auth.js";
 import { onRequestGet as callback } from "../../../functions/api/auth/callback.js";
 import { onRequestGet as login } from "../../../functions/api/auth/login.js";
-import { AUTH_COOKIE_NAME, createPasswordToken, parseCookies } from "./auth.js";
+import { AUTH_COOKIE_NAME, createSessionToken, parseCookies } from "./auth.js";
 import { resetBaserowClientForTests } from "../../../../../shared/baserow.js";
 import { resetUsersCacheForTests } from "../../users/server/user-store.js";
 
 const SITE = "https://gwenda-ops-dev.pages.dev";
-const PASSWORD = "local-admin-pw";
-const passwordEnv = { SITE_ENV: "dev", OPS_LOCAL_ADMIN_PW: PASSWORD };
 const googleEnv = {
   SITE_ENV: "dev",
   GOOGLE_OAUTH_CLIENT_ID: "client-id",
@@ -48,21 +45,13 @@ function context(request, env) {
   return { request, env, data: { opsEnv: env }, next: async () => new Response("ops app") };
 }
 
-/** Signed in with the local admin password, open /gate/?next=... */
+/** Signed in as an editor on the Users list, open /gate/?next=... */
 async function visitGateSignedIn(next) {
-  const cookie = `${AUTH_COOKIE_NAME}=${await createPasswordToken(PASSWORD)}`;
+  fakeGoogleAndUsers();
+  const session = await createSessionToken(googleEnv.OPS_SESSION_SECRET, "editor@gwenda.co.uk");
+  const cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(session)}`;
   const url = `${SITE}/gate/?next=${encodeURIComponent(next)}`;
-  return middleware(context(new Request(url, { headers: { Cookie: cookie } }), passwordEnv));
-}
-
-/** The password form on /gate/, sending what it read from `?next=`. */
-function submitPassword(next) {
-  const request = new Request(`${SITE}/api/auth`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: PASSWORD, next }),
-  });
-  return passwordSignIn(context(request, passwordEnv));
+  return middleware(context(new Request(url, { headers: { Cookie: cookie } }), googleEnv));
 }
 
 /** Google signs in an editor on the Users list. */
@@ -117,13 +106,6 @@ describe("sign-in: return path stays on this site", () => {
     assert.equal(landsOn(res.headers.get("Location")).origin, SITE);
   });
 
-  it.each(notOnOps)("the password form with %s sends you on within ops", async (_what, next) => {
-    const res = await submitPassword(next);
-    assert.equal(res.status, 200);
-    const { redirect } = await res.json();
-    assert.equal(landsOn(redirect).origin, SITE);
-  });
-
   it.each(notOnOps)("Google sign-in with %s comes back to ops", async (_what, next) => {
     fakeGoogleAndUsers();
     const res = await signInWithGoogle(next);
@@ -134,8 +116,6 @@ describe("sign-in: return path stays on this site", () => {
   it("still sends you back to the page you asked for, with its query", async () => {
     const res = await visitGateSignedIn("/menu/negroni/cost?from=list");
     assert.equal(res.headers.get("Location"), "/menu/negroni/cost?from=list");
-    const form = await submitPassword("/events/schedule?week=2");
-    assert.equal((await form.json()).redirect, "/events/schedule?week=2");
     fakeGoogleAndUsers();
     const google = await signInWithGoogle("/inventory/gin");
     assert.equal(google.headers.get("Location"), "/inventory/gin");

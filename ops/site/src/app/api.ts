@@ -42,7 +42,8 @@ export async function request<T = unknown>(
 
 export type AuthMe = {
   email: string | null;
-  mode: "google" | "password" | "misconfigured";
+  /** "local": signed in automatically by `npm run ops:dev`, no sign-out. */
+  mode: "google" | "local" | "misconfigured";
   siteEnv: "local" | "preview" | "production" | string;
   envLabel: string;
   databaseId: string | null;
