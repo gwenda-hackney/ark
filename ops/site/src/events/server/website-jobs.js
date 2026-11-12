@@ -19,13 +19,17 @@
  * What does not go by itself: an event deleted in ops (it waits on the
  * Website page, with Restore), and anything at all when the setting
  * `website.auto_update` is "off": then events stop at the preview and wait
- * for Update website, as they did before.
+ * for Update website, as they did before. And on hosted dev, nothing goes by
+ * itself while a developer runs `npm run ops:dev` (website/server/local-ops.js,
+ * #300): the queue (no `eventId`) waits; a step for an event someone just
+ * saved still runs.
  *
  * A step that fails is remembered against the event's content, so it is not
  * retried in a loop. Changing the event, or "Try again", clears it.
  */
 import { environmentOf, readState, writeState } from "../../../../../shared/config.js";
 import { AUTO_UPDATE_KEY, websiteFollowsSaves } from "../../website/server/auto-update.js";
+import { localOpsPause } from "../../website/server/local-ops.js";
 import {
   calendarConfigured,
   calendarNightsBehind,
@@ -172,9 +176,14 @@ function prunedFailures(failures, event) {
 /**
  * Run one step for `eventId`, or for the first waiting event when none is
  * given. `retry` runs an event even though it failed before.
- * Returns { idle } when there is nothing to do.
+ * Returns { idle } when there is nothing to do, and { idle, paused } when
+ * the queue waits for local ops (hosted dev only, see the header).
  */
 export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
+  if (!eventId) {
+    const paused = await localOpsPause(env);
+    if (paused) return { idle: true, paused };
+  }
   const failures = await readFailures(env);
   const options = await jobOptions(env);
   let event;

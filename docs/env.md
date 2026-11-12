@@ -53,6 +53,17 @@ Production worker setup (`setup:subscribe-mailchimp-sync`) reads the production 
 
 If Secrets Manager is ever emptied, or every secret has to be replaced, follow [secrets-rebuild.md](secrets-rebuild.md).
 
+## Local ops pauses dev's automatic website updates
+
+Local ops and the ops deployed on dev share dev's databases and dev's Sanity. Every five minutes the deploy webhook's cron asks dev ops to send whatever it thinks is out of date (`/api/web/tick`), with its own code, which would undo what your local ops just did. So while `npm run ops:dev` runs, it checks in every minute, and dev ops sends nothing to the website by itself:
+
+- **Paused on hosted dev:** the queue that gets saved events ready (calendar, preview, website) and the site builds. Dev ops' Website page says *Paused: local ops is running (since 10:20)*.
+- **Still works:** anything someone does by hand on dev ops: a save, **Update website**, **Update website now**. Venue details and the menu only ever go on the website that way.
+- **When it ends:** stopping `ops:dev` clears the check-in, so automatic updates start again on the next tick. A crashed run stops checking in, and the pause lapses 3 minutes after its last check-in.
+- **Never paused:** production. `npm run ops:prod` (`--live`) never checks in.
+
+The check-in is one machine-state row in dev's Gwenda Config: **`site.local_ops`** (Service `ops`, Env `dev`), holding when that run started, its last check-in, your git email and the run's id. Leave it alone; to end a pause at once, stop `ops:dev`. The code: `scripts/lib/ops-dev-checkin.mjs` writes it, `ops/site/src/website/server/local-ops.js` reads it.
+
 ## Cloudflare tokens
 
 Each environment has its own Cloudflare account, because a Cloudflare token can't be limited to some Pages projects or Workers: its deploy rights cover its whole account. So the token dev CI and branch previews hold can't touch production.

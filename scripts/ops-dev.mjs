@@ -29,6 +29,12 @@
  * server honours it only with SITE_ENV=local and no OPS_LOCAL_LIVE
  * (localSignInEmail in ops/site/src/access/server/auth.js), so a deployed ops
  * never does. --live keeps Google sign-in, like production.
+ *
+ * Dev's automatic website updates wait while plain dev runs (#300): it checks
+ * in to dev's config every minute and clears the check-in when it stops
+ * (scripts/lib/ops-dev-checkin.mjs), so the ops deployed on dev doesn't undo
+ * local changes with its own code. A crashed run stops checking in, and the
+ * pause lapses within a few minutes. --live never checks in.
  */
 import { spawn } from "node:child_process";
 import { rmSync, symlinkSync } from "node:fs";
@@ -36,6 +42,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { APP_SECRETS } from "./lib/bitwarden-sm.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
+import { opsDevMode, startCheckIns } from "./lib/ops-dev-checkin.mjs";
 import { writeRuntimeEnvFile } from "./lib/secrets-cache.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -63,7 +70,8 @@ const DEV_VAR_KEYS = [
   ]),
 ];
 
-const LIVE = process.argv.includes("--live");
+const MODE = opsDevMode(process.argv);
+const LIVE = MODE.live;
 
 function googleReady() {
   return Boolean(
@@ -136,7 +144,7 @@ function writeBindings() {
     const value = process.env[key]?.trim();
     if (value) bindings.set(key, value);
   }
-  bindings.set("SITE_ENV", LIVE ? "production" : "local");
+  bindings.set("SITE_ENV", MODE.siteEnv);
   // The D1 bindings are empty local databases here: reach the environment's
   // real ones over the API instead (shared/d1-env.js), with its own token.
   bindings.set("D1_OVER_API", "1");
@@ -209,7 +217,7 @@ async function main() {
       );
       const merged = await applyOpsAppConfig({
         ...process.env,
-        SITE_ENV: LIVE ? "production" : "local",
+        SITE_ENV: MODE.siteEnv,
       });
       for (const key of [
         "GOOGLE_OAUTH_CLIENT_ID",
@@ -236,8 +244,29 @@ async function main() {
     rmSync(bindingsFile, { force: true });
   };
   process.on("exit", removeBindings);
+
+  // Plain dev only (MODE.checksIn): dev ops' automatic website updates wait
+  // while this runs. Cleared on the way out, below.
+  const checkIns = startCheckIns({ mode: MODE, env: process.env, by: LIVE ? "" : localSignInEmail() });
+  if (MODE.checksIn) {
+    console.log("[ops-dev] Dev ops' automatic website updates are paused while this runs.");
+  }
+
+  const children = [];
+  let quitting = null;
+  /** Stop the servers, clear the check-in, then exit (which removes the bindings). */
+  function quit(code) {
+    quitting ??= (async () => {
+      for (const child of children) {
+        if (!child.killed) child.kill("SIGTERM");
+      }
+      await checkIns.stop();
+      process.exit(code);
+    })();
+    return quitting;
+  }
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
-    process.on(signal, () => process.exit(130));
+    process.on(signal, () => void quit(130));
   }
   try {
     const { resolveOpsTableIds } = await import("../shared/baserow.js");
@@ -247,8 +276,6 @@ async function main() {
     console.warn(`Baserow Ops DB not reachable: ${error instanceof Error ? error.message : error}`);
   }
 
-  const children = [];
-
   function run(command, args, cwd, name) {
     const child = spawn(command, args, {
       cwd,
@@ -256,12 +283,8 @@ async function main() {
       env: process.env,
       shell: process.platform === "win32",
     });
-    child.on("exit", (code, signal) => {
-      for (const other of children) {
-        if (other !== child && !other.killed) other.kill("SIGTERM");
-      }
-      process.exit(code ?? (signal ? 1 : 0));
-    });
+    // One server stopping stops the other, and local ops with them.
+    child.on("exit", (code, signal) => void quit(code ?? (signal ? 1 : 0)));
     children.push(child);
     console.log(`[ops-dev] started ${name}`);
     return child;
@@ -287,14 +310,6 @@ Ops local:
     "wrangler",
   );
   run("npx", ["vite", "--host", "0.0.0.0"], OPS_DIR, "vite");
-
-  function shutdown() {
-    for (const child of children) {
-      if (!child.killed) child.kill("SIGTERM");
-    }
-  }
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
 }
 
 main().catch((error) => {
