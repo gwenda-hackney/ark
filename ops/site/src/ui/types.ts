@@ -14,6 +14,8 @@ export type SegmentedItem = {
 	/** Row tally rendered as a trailing chip. */
 	count?: number;
 	disabled?: boolean;
+	/** Why it's disabled, shown beside the label and as its tooltip (like Button's `reason`). */
+	reason?: string;
 	/** When set, the tab is a real link so the active section can be shared. */
 	href?: string;
 };

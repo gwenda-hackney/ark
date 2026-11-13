@@ -64,6 +64,13 @@ export function isClientNavPath(pathname) {
 }
 
 /**
+ * Pages that are off for now, and where their links land instead. The
+ * website shows no featured artist since the rebrand, so Artists opens on
+ * Applications (#313); the page's code stays, so it can come back.
+ */
+const OFF_PAGES = [{ from: "/artists", to: "/forms" }];
+
+/**
  * Turn a Location-like string into a shell path.
  * `/#/menu` → `/menu`, `/menu/#/menu` → `/menu`, `/menu/negroni` → `/menu/negroni`.
  */
@@ -85,6 +92,8 @@ export function canonicalizePath(href) {
   if (path === "/events/nights" || path.startsWith("/events/nights/")) {
     path = `/events/schedule${path.slice("/events/nights".length)}`;
   }
+  const off = OFF_PAGES.find(({ from }) => path === from || path.startsWith(`${from}/`));
+  if (off) return off.to;
   return path + search;
 }
 

@@ -9,7 +9,7 @@ import {
 	visibleRoutes,
 } from "./nav-tree.ts";
 import { NAV_ROUTES } from "./nav-routes.ts";
-import { parseShellPath } from "./spa-path.js";
+import { canonicalizePath, parseShellPath } from "./spa-path.js";
 
 const routes = NAV_ROUTES;
 
@@ -57,8 +57,8 @@ describe("pages with tabs", () => {
 	it("Artists, Stock and Lightspeed are one page each, with their old pages as tabs", () => {
 		const tabs = (id: string) => pageTabs(routes, id).map((tab) => [tab.label, tab.href]);
 		assert.deepEqual(tabs("artists"), [
-			["Featured artist", "/artists"],
 			["Applications", "/forms"],
+			["Featured artist", "/artists"],
 		]);
 		assert.deepEqual(tabs("stock"), [
 			["Inventory", "/inventory"],
@@ -69,6 +69,19 @@ describe("pages with tabs", () => {
 			["Export", "/lightspeed/export"],
 		]);
 		assert.deepEqual(pageTabs(routes, "events"), [], "a page without tabs has none");
+	});
+
+	it("Artists opens on Applications; Featured artist stays in place, off, not on the website (#313)", () => {
+		const artists = flattenNavRoutes(routes).find((row) => row.id === "artists");
+		assert.equal(artists?.path, "/forms");
+		assert.deepEqual(pageTabs(routes, "artists"), [
+			{ id: "applications", label: "Applications", href: "/forms" },
+			{ id: "featured", label: "Featured artist", href: "/artists", disabled: true, reason: "Not on the website" },
+		]);
+		assert.ok(
+			pageTabs(routes, "stock").every((tab) => !tab.disabled),
+			"the other pages' tabs are all on",
+		);
 	});
 
 	it("opens on its first tab", () => {
@@ -170,7 +183,8 @@ describe("matchActiveRoute", () => {
 		assert.deepEqual(opens("/inventory"), ["stock", "inventory"]);
 		assert.deepEqual(opens("/suppliers"), ["stock", "suppliers"]);
 		assert.deepEqual(opens("/forms"), ["artists", "forms"]);
-		assert.deepEqual(opens("/artists"), ["artists", "artists"]);
+		// The featured artist is off (#313): its links land on Applications.
+		assert.deepEqual(opens(canonicalizePath("/artists")), ["artists", "forms"]);
 		assert.deepEqual(opens("/lightspeed"), ["lightspeed", "lightspeed"]);
 		assert.deepEqual(opens("/lightspeed/export"), ["lightspeed", "lightspeed"]);
 		assert.deepEqual(opens("/venue/gallery"), ["photos", "venue"]);

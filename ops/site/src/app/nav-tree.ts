@@ -47,7 +47,12 @@ export function isPagePath(route: NavRoute | null, path: string): boolean {
 /** A page's tabs as links for its header (Stock: Inventory | Suppliers). */
 export function pageTabs(routes: NavRoute[], id: string): SegmentedItem[] {
 	const page = flattenNavRoutes(routes).find((route) => route.id === id);
-	return (page?.tabs || []).map((tab) => ({ id: tab.id, label: tab.label, href: tab.path }));
+	return (page?.tabs || []).map((tab) => ({
+		id: tab.id,
+		label: tab.label,
+		href: tab.path,
+		...(tab.disabled ? { disabled: true, reason: tab.reason } : {}),
+	}));
 }
 
 function decodeNavPath(path: string): string {

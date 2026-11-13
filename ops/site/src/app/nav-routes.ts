@@ -27,13 +27,15 @@ export const NAV_ROUTES: NavRoute[] = [
 			{ id: "deals", path: "/deals", name: "Deals", icon: "tag", hint: "Happy Hour and the like" },
 			{
 				id: "artists",
-				path: "/artists",
+				path: "/forms",
 				name: "Artists",
 				icon: "artist",
-				hint: "The featured artist, and who applied to play",
+				hint: "Who applied to play",
+				// The website shows no featured artist since the rebrand (#313):
+				// its tab stays, off, and /artists lands on Applications.
 				tabs: [
-					{ id: "featured", label: "Featured artist", path: "/artists" },
 					{ id: "applications", label: "Applications", path: "/forms" },
+					{ id: "featured", label: "Featured artist", path: "/artists", disabled: true, reason: "Not on the website" },
 				],
 			},
 		],

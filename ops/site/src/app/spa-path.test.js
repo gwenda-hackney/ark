@@ -366,6 +366,18 @@ describe("spa-path", () => {
     assert.equal(isEditorPath("/artists/new"), true);
   });
 
+  it("sends the featured artist's links, now it's off, to Applications (#313)", () => {
+    assert.equal(canonicalizePath("/artists"), "/forms");
+    assert.equal(canonicalizePath("/artists/"), "/forms");
+    assert.equal(canonicalizePath("/artists/3"), "/forms");
+    assert.equal(canonicalizePath("/artists/new?x=1"), "/forms");
+    assert.equal(canonicalizePath("/#/artists"), "/forms");
+    assert.equal(canonicalizePath("/artistsx"), "/artistsx");
+    assert.equal(canonicalizePath("/forms/12"), "/forms/12");
+    // Still served by the app, so the old link loads it and lands on Applications.
+    assert.equal(isSpaDocumentPath("/artists"), true);
+  });
+
   it("gives Pop-ups and Deals their own list, Add and editor addresses (#312)", () => {
     for (const section of ["popups", "deals"]) {
       assert.equal(isSpaDocumentPath(`/${section}`), true);
