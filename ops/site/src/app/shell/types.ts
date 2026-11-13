@@ -3,9 +3,6 @@ export type NavTab = {
 	id: string;
 	label: string;
 	path: string;
-	/** Off for now: the tab stays in its place, greyed out, saying why (`reason`). */
-	disabled?: boolean;
-	reason?: string;
 };
 
 /**

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
+import { offPage } from "../app/spa-path.js";
 import {
 	SENTRY_ISSUES_URL,
 	applicationsSummary,
@@ -343,14 +344,23 @@ describe("featuredArtistEnding", () => {
 	const october = new Date(2026, 9, 3);
 	const artist = { id: "1", name: "Rita Matos", startMonth: "9", endMonth: "10" };
 
+	const on = { off: false };
+
 	it("warns when the current artist ends this month and nobody is next", () => {
-		assert.equal(featuredArtistEnding({ current: artist, next: null }, october), "Rita Matos");
+		assert.equal(featuredArtistEnding({ current: artist, next: null }, october, on), "Rita Matos");
 	});
 
 	it("stays quiet when someone is next or the artist stays on", () => {
-		assert.equal(featuredArtistEnding({ current: artist, next: { ...artist, id: "2" } }, october), null);
-		assert.equal(featuredArtistEnding({ current: { ...artist, endMonth: "11" }, next: null }, october), null);
-		assert.equal(featuredArtistEnding(null, october), null);
+		assert.equal(featuredArtistEnding({ current: artist, next: { ...artist, id: "2" } }, october, on), null);
+		assert.equal(featuredArtistEnding({ current: { ...artist, endMonth: "11" }, next: null }, october, on), null);
+		assert.equal(featuredArtistEnding(null, october, on), null);
+	});
+
+	it("stays quiet while the Featured artist page is off, and follows its switch (#313)", () => {
+		const ending = { current: artist, next: null };
+		assert.equal(featuredArtistEnding(ending, october, { off: true }), null);
+		assert.equal(offPage("/artists")?.to, "/forms", "it's off for now");
+		assert.equal(featuredArtistEnding(ending, october), null, "the same switch as its tab and its links");
 	});
 });
 

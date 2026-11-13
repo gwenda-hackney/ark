@@ -31,11 +31,11 @@ export const NAV_ROUTES: NavRoute[] = [
 				name: "Artists",
 				icon: "artist",
 				hint: "Who applied to play",
-				// The website shows no featured artist since the rebrand (#313):
-				// its tab stays, off, and /artists lands on Applications.
+				// Featured artist is off for now (spa-path.js OFF_PAGES, #313): its
+				// tab stays, greyed out, and /artists lands on Applications.
 				tabs: [
 					{ id: "applications", label: "Applications", path: "/forms" },
-					{ id: "featured", label: "Featured artist", path: "/artists", disabled: true, reason: "Not on the website" },
+					{ id: "featured", label: "Featured artist", path: "/artists" },
 				],
 			},
 		],

@@ -1,6 +1,6 @@
 import type { NavRoute } from "./shell/types";
 import type { SegmentedItem } from "../ui/types";
-import { parseShellPath } from "./spa-path.js";
+import { offPage, parseShellPath } from "./spa-path.js";
 
 /** Pages only: headings are not destinations. */
 export function flattenNavRoutes(routes: NavRoute[]): NavRoute[] {
@@ -44,15 +44,21 @@ export function isPagePath(route: NavRoute | null, path: string): boolean {
 	return Boolean(route && pagePaths(route).includes(bare));
 }
 
-/** A page's tabs as links for its header (Stock: Inventory | Suppliers). */
+/**
+ * A page's tabs as links for its header (Stock: Inventory | Suppliers). A tab
+ * whose page is off for now (spa-path.js offPage) stays, disabled, saying why.
+ */
 export function pageTabs(routes: NavRoute[], id: string): SegmentedItem[] {
 	const page = flattenNavRoutes(routes).find((route) => route.id === id);
-	return (page?.tabs || []).map((tab) => ({
-		id: tab.id,
-		label: tab.label,
-		href: tab.path,
-		...(tab.disabled ? { disabled: true, reason: tab.reason } : {}),
-	}));
+	return (page?.tabs || []).map((tab) => {
+		const off = offPage(tab.path);
+		return {
+			id: tab.id,
+			label: tab.label,
+			href: tab.path,
+			...(off ? { disabled: true, reason: off.reason } : {}),
+		};
+	});
 }
 
 function decodeNavPath(path: string): string {

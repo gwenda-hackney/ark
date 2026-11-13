@@ -6,7 +6,7 @@
  */
 import { analyzeRecipe, summarizeIssues } from "../menu/analyze.ts";
 import { formatPourPercent } from "../menu/cost.ts";
-import { menuItemPath } from "../app/spa-path.js";
+import { menuItemPath, offPage } from "../app/spa-path.js";
 import { type InventoryItem } from "../inventory/types.ts";
 import { type MenuItem, type MenuSection, type PourTargetMap } from "../menu/types.ts";
 import type {
@@ -293,8 +293,16 @@ export function applicationsSummary(forms: DashboardForms | null, now = Date.now
 
 // ─── Featured artist ─────────────────────────────────────────────────────
 
-/** The current artist leaves this month and nobody is lined up next. */
-export function featuredArtistEnding(artists: DashboardArtists | null, now = new Date()): string | null {
+/**
+ * The current artist leaves this month and nobody is lined up next. Quiet
+ * while the Featured artist page is off (spa-path.js OFF_PAGES, #313).
+ */
+export function featuredArtistEnding(
+	artists: DashboardArtists | null,
+	now = new Date(),
+	{ off = Boolean(offPage("/artists")) }: { off?: boolean } = {},
+): string | null {
+	if (off) return null;
 	const current = artists?.current;
 	if (!current || artists?.next) return null;
 	if (current.endMonth !== String(now.getMonth() + 1)) return null;
