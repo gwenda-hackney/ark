@@ -7,8 +7,15 @@
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { navigate, parseShellPath } from "../app/nav";
 	import { navTabs } from "../app/nav-routes";
+	import { addArtistAction } from "./featured-artist.js";
 
 	let { path = "/artists" }: { path?: string } = $props();
+
+	/** No new featured artists while the website shows none (#313); past ones stay. */
+	const addArtist = addArtistAction();
+	const subtitle = addArtist.disabled
+		? "The website doesn't show a featured artist any more. Past ones stay here to look up."
+		: "Who is on the wall, who is next, and who has been here before.";
 
 	const route = $derived(parseShellPath(path));
 	const editing = $derived(
@@ -140,10 +147,16 @@
 			<PageHeader
 				title="Artists"
 				tabs={{ items: navTabs("artists"), value: "featured" }}
-				subtitle="Who is on the wall, who is next, and who has been here before."
+				{subtitle}
 			>
 				{#snippet actions()}
-					<Button variant="primary" type="button" onclick={() => navigate("/artists/new")}>
+					<Button
+						variant="primary"
+						type="button"
+						disabled={addArtist.disabled}
+						reason={addArtist.reason}
+						onclick={() => navigate("/artists/new")}
+					>
 						{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
 						Add artist
 					</Button>
@@ -163,9 +176,18 @@
 				</ul>
 				<span class="sr-only" role="status">Loading artists…</span>
 			{:else if artists.length === 0}
-				<EmptyState icon="artist" title="No artists yet" text="Add the artist whose work is on the wall, and who is next.">
+				<EmptyState
+					icon="artist"
+					title="No artists yet"
+					text={addArtist.disabled ? subtitle : "Add the artist whose work is on the wall, and who is next."}
+				>
 					{#snippet action()}
-						<Button size="sm" onclick={() => navigate("/artists/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add artist</Button>
+						<Button
+							size="sm"
+							disabled={addArtist.disabled}
+							reason={addArtist.reason}
+							onclick={() => navigate("/artists/new")}
+						>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add artist</Button>
 					{/snippet}
 				</EmptyState>
 			{:else}

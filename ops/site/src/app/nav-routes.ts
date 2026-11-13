@@ -30,9 +30,9 @@ export const NAV_ROUTES: NavRoute[] = [
 				path: "/forms",
 				name: "Artists",
 				icon: "artist",
-				hint: "Who applied to play",
-				// Featured artist is off for now (spa-path.js OFF_PAGES, #313): its
-				// tab stays, greyed out, and /artists lands on Applications.
+				hint: "Who applied to play, and past featured artists",
+				// Applications first (#313): the website shows no featured artist
+				// any more, so its tab is for looking up past ones.
 				tabs: [
 					{ id: "applications", label: "Applications", path: "/forms" },
 					{ id: "featured", label: "Featured artist", path: "/artists" },

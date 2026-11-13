@@ -44,7 +44,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/events` | Events: gigs, residencies, one-off nights. `/events/new` adds one, `/events/:id` opens it, `/events/:id@:date` one night |
 | `/popups` | Pop-ups: guest kitchens, with their menus, logo and nights (`/popups/new`, `/popups/:id`) |
 | `/deals` | Deals: Happy Hour and the like (`/deals/new`, `/deals/:id`) |
-| `/forms` | Artists: Applications (`/forms/:id`). Its Featured artist tab is off, as the website no longer shows one, and `/artists` lands here (#313) |
+| `/forms`, `/artists` | Artists: Applications (`/forms/:id`) and Featured artist (`/artists/:id`) tabs. The website no longer shows a featured artist, so past ones stay to look up but Add is off and `/artists/new` lands on the list (`src/artists/featured-artist.js`, #313) |
 | **Bar & kitchen** | |
 | `/menus` | Menus: the menu list, then each menu (`/menus/:id`) |
 | `/menu` | Items: every drink and dish (`/menu/new`, `/menu/negroni`) |

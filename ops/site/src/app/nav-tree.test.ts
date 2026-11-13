@@ -71,17 +71,13 @@ describe("pages with tabs", () => {
 		assert.deepEqual(pageTabs(routes, "events"), [], "a page without tabs has none");
 	});
 
-	it("Artists opens on Applications; Featured artist stays in place, off, not on the website (#313)", () => {
+	it("Artists opens on Applications; Featured artist is still a tab, to look up past artists (#313)", () => {
 		const artists = flattenNavRoutes(routes).find((row) => row.id === "artists");
 		assert.equal(artists?.path, "/forms");
 		assert.deepEqual(pageTabs(routes, "artists"), [
 			{ id: "applications", label: "Applications", href: "/forms" },
-			{ id: "featured", label: "Featured artist", href: "/artists", disabled: true, reason: "Not on the website" },
+			{ id: "featured", label: "Featured artist", href: "/artists" },
 		]);
-		assert.ok(
-			pageTabs(routes, "stock").every((tab) => !tab.disabled),
-			"the other pages' tabs are all on",
-		);
 	});
 
 	it("opens on its first tab", () => {
@@ -183,8 +179,8 @@ describe("matchActiveRoute", () => {
 		assert.deepEqual(opens("/inventory"), ["stock", "inventory"]);
 		assert.deepEqual(opens("/suppliers"), ["stock", "suppliers"]);
 		assert.deepEqual(opens("/forms"), ["artists", "forms"]);
-		// The featured artist is off (#313): its links land on Applications.
-		assert.deepEqual(opens(canonicalizePath("/artists")), ["artists", "forms"]);
+		assert.deepEqual(opens(canonicalizePath("/artists")), ["artists", "artists"]);
+		assert.deepEqual(opens(canonicalizePath("/artists/3")), ["artists", "artists"]);
 		assert.deepEqual(opens("/lightspeed"), ["lightspeed", "lightspeed"]);
 		assert.deepEqual(opens("/lightspeed/export"), ["lightspeed", "lightspeed"]);
 		assert.deepEqual(opens("/venue/gallery"), ["photos", "venue"]);

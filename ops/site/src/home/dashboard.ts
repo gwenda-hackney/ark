@@ -6,7 +6,8 @@
  */
 import { analyzeRecipe, summarizeIssues } from "../menu/analyze.ts";
 import { formatPourPercent } from "../menu/cost.ts";
-import { menuItemPath, offPage } from "../app/spa-path.js";
+import { menuItemPath } from "../app/spa-path.js";
+import { FEATURED_ARTIST_CLOSED } from "../artists/featured-artist.js";
 import { type InventoryItem } from "../inventory/types.ts";
 import { type MenuItem, type MenuSection, type PourTargetMap } from "../menu/types.ts";
 import type {
@@ -295,14 +296,14 @@ export function applicationsSummary(forms: DashboardForms | null, now = Date.now
 
 /**
  * The current artist leaves this month and nobody is lined up next. Quiet
- * while the Featured artist page is off (spa-path.js OFF_PAGES, #313).
+ * while the featured artist is closed to new entries (artists/featured-artist.js, #313).
  */
 export function featuredArtistEnding(
 	artists: DashboardArtists | null,
 	now = new Date(),
-	{ off = Boolean(offPage("/artists")) }: { off?: boolean } = {},
+	{ closed = Boolean(FEATURED_ARTIST_CLOSED) }: { closed?: boolean } = {},
 ): string | null {
-	if (off) return null;
+	if (closed) return null;
 	const current = artists?.current;
 	if (!current || artists?.next) return null;
 	if (current.endMonth !== String(now.getMonth() + 1)) return null;

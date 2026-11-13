@@ -3,10 +3,6 @@
 	 * Pill tab bar. `invert` keeps the sunken track + ink pill, the same
 	 * height as a button of the same size so it sits in a toolbar row.
 	 * `soft` is a flat underline strip for sitting on cards (no gray box).
-	 *
-	 * A tab that's off stays in its place, greyed out (controls never move).
-	 * With a `reason` it says why beside its label and as its tooltip, and,
-	 * like Button's, can still be hovered and focused, but does nothing.
 	 */
 	import type { SegmentedItem } from "./types";
 
@@ -37,22 +33,17 @@
 	{#each items as item (item.id)}
 		{#if item.href}
 			<a
-				href={item.disabled ? undefined : item.href}
+				href={item.href}
 				role="tab"
 				class="tab"
-				class:soft-off={item.disabled && item.reason}
 				aria-selected={item.id === value}
 				aria-disabled={item.disabled || undefined}
-				tabindex={item.disabled && !item.reason ? -1 : 0}
-				title={item.disabled ? item.reason : undefined}
+				tabindex={item.disabled ? -1 : 0}
 				onclick={item.disabled ? (e) => e.preventDefault() : undefined}
 			>
 				<span class="label" data-label={item.label}>{item.label}</span>
 				{#if item.count !== undefined}
 					<span class="count num pill-text">{item.count}</span>
-				{/if}
-				{#if item.disabled && item.reason}
-					<span class="reason">{item.reason}</span>
 				{/if}
 			</a>
 		{:else}
@@ -60,19 +51,13 @@
 				type="button"
 				role="tab"
 				class="tab"
-				class:soft-off={item.disabled && item.reason}
 				aria-selected={item.id === value}
-				disabled={item.disabled && !item.reason}
-				aria-disabled={item.disabled && item.reason ? "true" : undefined}
-				title={item.disabled ? item.reason : undefined}
+				disabled={item.disabled}
 				onclick={() => pick(item)}
 			>
 				<span class="label" data-label={item.label}>{item.label}</span>
 				{#if item.count !== undefined}
 					<span class="count num pill-text">{item.count}</span>
-				{/if}
-				{#if item.disabled && item.reason}
-					<span class="reason">{item.reason}</span>
 				{/if}
 			</button>
 		{/if}
@@ -202,18 +187,6 @@
 	.tab[aria-disabled="true"] {
 		color: var(--fg-subtle);
 		pointer-events: none;
-	}
-
-	/* Off with a reason: hoverable for its tooltip, but it goes nowhere. */
-	.tab.soft-off {
-		pointer-events: auto;
-		cursor: not-allowed;
-	}
-
-	.reason {
-		font-size: var(--text-2xs);
-		font-weight: 400;
-		color: var(--fg-subtle);
 	}
 
 	.tab:focus-visible {

@@ -19,7 +19,6 @@ import {
   menuPrintPath,
   menuTabPath,
   navigationLeavesEditor,
-  offPage,
   parseShellPath,
   shellCrumbs,
   shellPageKey,
@@ -367,20 +366,14 @@ describe("spa-path", () => {
     assert.equal(isEditorPath("/artists/new"), true);
   });
 
-  it("sends the featured artist's links, now it's off, to Applications (#313)", () => {
-    assert.equal(canonicalizePath("/artists"), "/forms");
-    assert.equal(canonicalizePath("/artists/"), "/forms");
-    assert.equal(canonicalizePath("/artists/3"), "/forms");
-    assert.equal(canonicalizePath("/artists/new?x=1"), "/forms");
-    assert.equal(canonicalizePath("/#/artists"), "/forms");
-    assert.equal(canonicalizePath("/artistsx"), "/artistsx");
-    assert.equal(canonicalizePath("/forms/12"), "/forms/12");
-    // Still served by the app, so the old link loads it and lands on Applications.
-    assert.equal(isSpaDocumentPath("/artists"), true);
-    // One switch for the page: its links, its tab and the dashboard's warning.
-    assert.deepEqual(offPage("/artists/3?x=1"), { from: "/artists", to: "/forms", reason: "Not on the website" });
-    assert.equal(offPage("/forms"), null);
-    assert.equal(offPage("/artistsx"), null);
+  it("sends a new featured artist's address back to the list, and keeps past ones open (#313)", () => {
+    assert.equal(canonicalizePath("/artists/new"), "/artists");
+    assert.equal(canonicalizePath("/artists/new/"), "/artists");
+    assert.equal(canonicalizePath("/artists/new?x=1"), "/artists");
+    assert.equal(canonicalizePath("/#/artists/new"), "/artists");
+    assert.equal(canonicalizePath("/artists"), "/artists");
+    assert.equal(canonicalizePath("/artists/3"), "/artists/3");
+    assert.equal(canonicalizePath("/artists/newton"), "/artists/newton", "an id that starts with new");
   });
 
   it("gives Pop-ups and Deals their own list, Add and editor addresses (#312)", () => {

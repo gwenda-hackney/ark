@@ -4,6 +4,7 @@
  */
 
 import { itemSlug } from "../menu/item-key.js";
+import { closedArtistRedirect } from "../artists/featured-artist.js";
 
 export { itemMatchesKey, itemSlug, namesClash } from "../menu/item-key.js";
 
@@ -64,21 +65,6 @@ export function isClientNavPath(pathname) {
 }
 
 /**
- * Pages that are off for now, the one switch for each (#313): its tab stays
- * in place, greyed out with the reason (nav-tree pageTabs), its links land on
- * `to`, and the dashboard doesn't nag about it. The website shows no featured
- * artist since the rebrand, so Artists opens on Applications. Take an entry
- * out to turn its page back on: the code behind it stays.
- */
-const OFF_PAGES = [{ from: "/artists", to: "/forms", reason: "Not on the website" }];
-
-/** The switch for a path whose page is off (`{ from, to, reason }`), or null. */
-export function offPage(path) {
-  const p = stripTrailingSlash(String(path || "/").split("?")[0] || "/");
-  return OFF_PAGES.find(({ from }) => p === from || p.startsWith(`${from}/`)) || null;
-}
-
-/**
  * Turn a Location-like string into a shell path.
  * `/#/menu` → `/menu`, `/menu/#/menu` → `/menu`, `/menu/negroni` → `/menu/negroni`.
  */
@@ -100,8 +86,9 @@ export function canonicalizePath(href) {
   if (path === "/events/nights" || path.startsWith("/events/nights/")) {
     path = `/events/schedule${path.slice("/events/nights".length)}`;
   }
-  const off = offPage(path);
-  if (off) return off.to;
+  // No new featured artists while it's closed (#313): back to the list.
+  const closedArtist = closedArtistRedirect(path);
+  if (closedArtist) return closedArtist;
   return path + search;
 }
 
