@@ -3,11 +3,6 @@
  * place the logo shows is the same drawing: the 1080 posts, the website's own
  * files and the logo at the top of every email.
  *
- * The posts are the master as it is, black and all. The website's and the
- * emails' files leave its black layer out (`seeThrough`): on the site the
- * logo lies on the leather, in an email on the board, and each shows through
- * the drawing as it did through the original.
- *
  * `npm run brand:logo` (scripts/trace-logo.mjs) draws them once and they are
  * committed like any other asset. Nothing here runs when the site is built or
  * deployed: when a master changes, run it again and commit what it writes.
@@ -54,13 +49,6 @@ const SOCIAL = {
 /** Text is drawn at this multiple and brought down, for clean edges. */
 const TEXT_SCALE = 4;
 
-/** A master without its black layer: only the inks, on nothing. */
-export function seeThrough(svg) {
-  const inks = svg.replace(/<g id="black"[^>]*>.*?<\/g>/s, "");
-  if (inks === svg) throw new Error("the master has no black layer to leave");
-  return inks;
-}
-
 /**
  * A master's own size in px, and where its box sits on the original's
  * canvas: its viewBox is in fractions of the original's pixels.
@@ -89,12 +77,11 @@ function drawn(svg, scale) {
 }
 
 /**
- * A master's inks on the original's canvas (`canvas`, its width and height
- * in px), drawn `width` px wide, on nothing: the framing, and the
- * see-through black, the website's files have always had.
+ * A master on the original's canvas (`canvas`, its width and height in px),
+ * drawn `width` px wide, on nothing: the framing the website's files have
+ * always had.
  */
-async function onCanvas(master, canvas, width) {
-  const svg = seeThrough(master);
+async function onCanvas(svg, canvas, width) {
   const scale = width / canvas.width;
   const { x, y } = frame(svg);
   return sharp({
@@ -137,8 +124,8 @@ export async function post(svg, background) {
 
 /**
  * The website's logo (src/assets/images/logos/bottle.png: the menu panel's
- * flag and the bar's logo are cut from it by astro:assets): the full
- * master's inks at the original's size.
+ * flag and the bar's logo are cut from it by astro:assets): the full master
+ * at the original's size.
  */
 export async function siteLogo(svg, canvas) {
   return (await onCanvas(svg, canvas, canvas.width))
@@ -245,8 +232,8 @@ async function social(size) {
 
 /**
  * The logo at the top of every email (public/brand/logo-email-social.png):
- * the full master's inks with SOCIAL under them, as home's hero shows them,
- * on the email's board.
+ * the full master with SOCIAL under it, as home's hero shows them, on the
+ * email's board.
  *
  * Flat RGB with no colour chunks, so no browser or mail app corrects it and
  * its ground stays exactly the board's colour round it (shared/email's

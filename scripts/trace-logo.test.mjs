@@ -22,7 +22,7 @@ const BLACK = "#0b0a08";
 /** The logo's inks, sampled from the original: cream, mustard, red. */
 const INKS = ["#e6d9be", "#cd9f47", "#ba1b1f"];
 /** The layers, from the bottom up, as a design tool names them. */
-const LAYERS = ["black", "cream", "mustard", "red"];
+const LAYERS = ["cream", "mustard", "red"];
 
 /**
  * An SVG drawn at its own size on nothing: [r, g, b, alpha] at a point given
@@ -58,29 +58,17 @@ describe.each(["gwenda-bottle", "gwenda-bottle-record"])("%s", (name) => {
       [...svg.matchAll(/#[0-9a-f]{3,6}\b/gi)].map(([c]) => c.toLowerCase()),
     );
     expect(colours.size).toBeGreaterThan(0);
-    for (const colour of colours) expect([BLACK, ...INKS]).toContain(colour);
+    for (const colour of colours) expect(INKS).toContain(colour);
   });
 
-  it("has a named layer for the black and for each ink, black at the bottom", () => {
+  it("has a named layer for each ink, and no black: the black is see-through", async () => {
     const ids = [...svg.matchAll(/<g[^>]* id="([^"]+)"/g)].map(([, id]) => id);
     expect(ids).toEqual(LAYERS);
-    expect(svg).toMatch(
-      new RegExp(
-        `<g[^>]* id="black"[^>]* fill="${BLACK}"|<g[^>]* fill="${BLACK}"[^>]* id="black"`,
-      ),
-    );
-  });
-
-  it("stands on any background: black inside the drawing, nothing outside it", async () => {
     const at = await drawn(svg, file(`${name}.svg`).pathname);
-    const black = [0x0b, 0x0a, 0x08, 255];
     // The record between its grooves, the hole in its label, the skull's eye
-    expect(at(70, 470)).toEqual(black);
-    expect(at(360, 438)).toEqual(black);
-    expect(at(765, 305)).toEqual(black);
-    // A corner, and the open air between the record and the bottle's mouth
-    expect(at(5, 5)[3]).toBe(0);
-    expect(at(150, 150)[3]).toBe(0);
+    expect(at(70, 470)[3]).toBe(0);
+    expect(at(360, 438)[3]).toBe(0);
+    expect(at(765, 305)[3]).toBe(0);
   });
 
   it.each(["black", "transparent"])(
@@ -106,10 +94,9 @@ describe("the drawing's frayed edges", () => {
       [452, 794],
       [692, 826],
     ]) {
-      const [r, g, b, alpha] = at(x, y);
-      // Black, give or take the soft edge of so small a mark
-      expect(Math.max(r, g, b), `pin-prick at ${x},${y}`).toBeLessThan(40);
-      expect(alpha).toBe(255);
+      // A hole in the cream (the black is see-through), give or take the
+      // soft edge of so small a mark
+      expect(at(x, y)[3], `pin-prick at ${x},${y}`).toBeLessThan(128);
     }
   });
 
@@ -163,8 +150,8 @@ describe("the bottle and record alone", () => {
 
 /**
  * The logo's other files are drawn from the full master by the same script
- * and committed: each must still be its master's drawing (less its black),
- * so a master that changes without them (or the other way round) fails here.
+ * and committed: each must still be its master's drawing, so a master that
+ * changes without them (or the other way round) fails here.
  */
 describe("the website's and the emails' logo", () => {
   const master = readFileSync(file("gwenda-bottle.svg"), "utf8");
@@ -228,19 +215,15 @@ describe("the website's and the emails' logo", () => {
     ).toBeLessThan(0.005);
   });
 
-  it("leaves the master's black out: what it lies on shows through", async () => {
+  it("is see-through where the drawing is black, as the masters are", async () => {
     const { data, info } = await sharp(new URL("bottle.png", logos).pathname)
       .raw()
       .toBuffer({ resolveWithObject: true });
     const at = (x, y) => [
       ...data.subarray((y * info.width + x) * 4, (y * info.width + x) * 4 + 4),
     ];
-    // The record between its grooves, the hole in its label, the skull's eye
-    expect(at(70, 470)[3]).toBe(0);
+    // The hole in the record's label; a corner of the canvas
     expect(at(360, 438)[3]).toBe(0);
-    expect(at(765, 305)[3]).toBe(0);
-    // Its inks are there: the label's mustard, and a corner of nothing
-    expect(at(300, 440)).toEqual([0xcd, 0x9f, 0x47, 255]);
     expect(at(5, 5)[3]).toBe(0);
   });
 });
