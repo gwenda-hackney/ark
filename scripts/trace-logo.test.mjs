@@ -86,12 +86,45 @@ describe.each(["gwenda-bottle", "gwenda-bottle-record"])("%s", (name) => {
   );
 });
 
-it("leaves GWENDA off the bottle-and-record version", async () => {
-  const [full, bottle] = await Promise.all(
-    ["gwenda-bottle", "gwenda-bottle-record"].map((name) =>
-      sharp(file(`${name}.svg`).pathname).metadata(),
-    ),
-  );
-  expect(bottle.width).toBe(full.width);
-  expect(bottle.height).toBeLessThan(full.height * 0.75);
+describe("the bottle and record alone", () => {
+  const svg = readFileSync(file("gwenda-bottle-record.svg"), "utf8");
+
+  it("leaves GWENDA off", async () => {
+    const [full, bottle] = await Promise.all(
+      ["gwenda-bottle", "gwenda-bottle-record"].map((name) =>
+        sharp(file(`${name}.svg`).pathname).metadata(),
+      ),
+    );
+    expect(bottle.width).toBe(full.width);
+    expect(bottle.height).toBeLessThan(full.height * 0.75);
+  });
+
+  it("ends the pour at the record: a whole front rim with drips over it, and clear air beyond", async () => {
+    const at = await drawn(svg, file("gwenda-bottle-record.svg").pathname);
+    const cream = [0xe6, 0xd9, 0xbe, 255];
+    // The record's front rim: between two streams, under the pool, at its right
+    for (const [x, y] of [
+      [290, 565],
+      [440, 566],
+      [600, 528],
+    ])
+      expect(at(x, y), `rim at ${x},${y}`).toEqual(cream);
+    // The drips: the pour's end, under two streams, and the melt on the left
+    for (const [x, y] of [
+      [648, 552],
+      [521, 584],
+      [345, 606],
+      [83, 612],
+    ])
+      expect(at(x, y), `drip at ${x},${y}`).toEqual(cream);
+    // Where the pour ran on under the bottle to the A, and where GWENDA stood
+    for (const [x, y] of [
+      [760, 490],
+      [700, 520],
+      [200, 600],
+      [300, 600],
+      [450, 600],
+    ])
+      expect(at(x, y)[3], `clear at ${x},${y}`).toBe(0);
+  });
 });

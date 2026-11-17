@@ -28,10 +28,15 @@
  * of its own clearly-inked pixels in the PNG; the black is ours (the PNG has
  * none to sample). svgo then shrinks the result.
  *
- * Run when bottle.png changes:
+ * The bottle and record alone is the same tracing with the record's front
+ * redrawn: where the pour ran down into GWENDA it ends at the record, in
+ * marketing/brand/source/bottle-record-front.svg (drawn by hand; see
+ * bottleAndRecord, below).
+ *
+ * Run when bottle.png or that drawing changes:
  *   npm run brand:logo
  */
-import { mkdirSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import potrace from "potrace";
 import sharp from "sharp";
 import { optimize } from "svgo";
@@ -61,52 +66,15 @@ const INK_MIN = 110;
 const RED_MIN = 120;
 
 /**
- * The bottle and record without GWENDA. The record is finished as a whole
- * disc, an ellipse in PNG pixels: its hidden front half is drawn here, and
- * everything of the PNG below its rim (the wordmark) goes.
+ * The bottle and record without GWENDA: the front of its record, drawn by
+ * hand over the original. Three groups of shapes, in the PNG's pixels, read
+ * by their ids (the file says what each is for, and opens in a browser or a
+ * drawing tool over the original).
  */
-const RECORD = { cx: 362, cy: 455, rx: 300, ry: 110 };
-/**
- * Where the art ends off the record: the left-hand melt (left of MELT_TO px)
- * and, right of the record, just under the bottle's lower edge (the line
- * through two points on it), so the liquid that ran on to GWENDA goes.
- */
-const MELT_TO = 102;
-const LEFT_END = 540;
-const BOTTLE_EDGE = [
-  [550, 310],
-  [830, 475],
-];
-const UNDER_BOTTLE = 12;
-/** The rim: a cream edge around the front half, this thick at its middle. */
-const RIM = 5;
-/**
- * The grooves on the front half, cream arcs like the ones behind: each a
- * fraction of the record's size, from and to an angle (degrees, 0 is the
- * right-hand end, 90 the front), and its thickness at its middle.
- */
-const GROOVES = [
-  [0.56, 30, 150, 3],
-  [0.66, 20, 160, 4],
-  [0.76, 35, 140, 3.5],
-  [0.86, 15, 165, 4],
-];
-/**
- * The pour spreads over the front of the record as a pool, from and to an
- * angle, reaching in from the rim by up to POOL_DEPTH of the record's size.
- * The streams that ran down to GWENDA end in it.
- */
-const POOL = { from: 8, to: 118, depth: 0.42 };
-/** Drips over the rim from the pool: [angle, width, length] in px. */
-const POOL_DRIPS = [
-  [24, 13, 20],
-  [47, 16, 32],
-  [72, 12, 16],
-  [96, 15, 26],
-];
-/** The left-hand melt's one long drip, and the drips under the bottle. */
-const MELT_DRIP = 2.2;
-const END_DRIP = 1.2;
+const front = new URL(
+  "../marketing/brand/source/bottle-record-front.svg",
+  import.meta.url,
+).pathname;
 
 /**
  * The drawing's black: the site's ground (--ch-bg), so a post on our black
@@ -126,6 +94,12 @@ const BLACK_GAP = { "gwenda-bottle": 30, "gwenda-bottle-record": 10 };
  * dark line shows round the cream on a light page.
  */
 const BLACK_INSET = 1;
+/**
+ * A patch of black beyond the cream, open to the outside and no deeper than
+ * this share of the gap, is a fringe of shutting the gaps, not part of the
+ * drawing: it is left out.
+ */
+const BLACK_FRINGE = 0.45;
 
 /** Instagram's square, and the art's longest side in it. */
 const POST = 1080;
@@ -231,159 +205,39 @@ for (let p = 0; p < pixels; p++) {
       : Math.round(128 + ((v - SILHOUETTE) / (255 - SILHOUETTE)) * 127);
 }
 
-/** Where the bottle-and-record art ends at column x: the rim, or either end. */
-function artEnd(x) {
-  const { cx, cy, rx, ry } = RECORD;
-  const u = (x - cx) / rx;
-  if (x < MELT_TO) return LEFT_END;
-  if (Math.abs(u) <= 1) return cy + ry * Math.sqrt(1 - u * u);
-  const [[x0, y0], [x1, y1]] = BOTTLE_EDGE;
-  return y0 + ((x - x0) * (y1 - y0)) / (x1 - x0) + UNDER_BOTTLE;
-}
-
-/** A point on the record's ellipse scaled by f, at an angle in degrees. */
-function onRecord(f, degrees) {
-  const { cx, cy, rx, ry } = RECORD;
-  const a = (degrees * Math.PI) / 180;
-  return [cx + rx * f * Math.cos(a), cy + ry * f * Math.sin(a)];
-}
-
 /**
- * A crescent along the record's ellipse at scale f, from one angle to
- * another, `thick` px at its middle and tapering to nothing at both ends:
- * the way the PNG draws its grooves.
+ * One group of the hand-drawn front, by its id, as a mask at the PNG's size:
+ * its shapes in white, anti-aliased like the PNG's own edges.
  */
-function crescent(f, from, to, thick) {
-  const steps = 48;
-  const outer = [];
-  const inner = [];
-  for (let s = 0; s <= steps; s++) {
-    const t = s / steps;
-    const angle = from + (to - from) * t;
-    const half = (thick / 2) * Math.sin(Math.PI * t);
-    const [x, y] = onRecord(f, angle);
-    // Normal to the ellipse, for an even thickness all the way round
-    const a = (angle * Math.PI) / 180;
-    const [nx, ny] = [RECORD.ry * Math.cos(a), RECORD.rx * Math.sin(a)];
-    const n = Math.hypot(nx, ny);
-    outer.push([x + (nx / n) * half, y + (ny / n) * half]);
-    inner.push([x - (nx / n) * half, y - (ny / n) * half]);
-  }
-  const points = [...outer, ...inner.reverse()];
-  return `<path d="M${points.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L")}Z"/>`;
-}
-
-/** A polygon's path data. */
-const polygon = (points) =>
-  `<path d="M${points.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L")}Z"/>`;
-
-/** A drip hanging from the art's end: a neck of `w` px and a round end. */
-function drip(mid, w, length) {
-  const top = artEnd(mid) - 4;
-  const r = w / 2;
-  const bulb = top + 4 + length - r;
-  // A neck a little narrower than its end, flaring where it leaves the edge
-  return `${polygon([
-    [mid - r * 1.4, top],
-    [mid + r * 1.4, top],
-    [mid + r * 0.75, top + 6],
-    [mid + r * 0.75, bulb],
-    [mid - r * 0.75, bulb],
-    [mid - r * 0.75, top + 6],
-  ])}<circle cx="${mid}" cy="${bulb}" r="${r}"/>`;
-}
-
-/**
- * The pool of pour over the record's front: from the rim inwards, deepest in
- * the middle and gently wavy on its inner edge, like a spreading liquid.
- */
-function pool() {
-  const { from, to, depth } = POOL;
-  const outer = [];
-  const inner = [];
-  const steps = 64;
-  for (let s = 0; s <= steps; s++) {
-    const t = s / steps;
-    const angle = from + (to - from) * t;
-    const reach =
-      depth * Math.sin(Math.PI * t) ** 0.6 * (1 + 0.18 * Math.sin(t * 17));
-    outer.push(onRecord(1.01, angle));
-    inner.push(onRecord(1 - reach, angle));
-  }
-  return polygon([...outer, ...inner.reverse()]);
-}
-
-/**
- * The bottle and record without GWENDA, as [cream, mustard, red] masks:
- * the PNG down to the record's rim, the record's front half drawn in (rim and
- * grooves), and the pour that reaches the rim dripping over it.
- */
-async function bottleAndRecord([cream, mustard, red]) {
-  const clip = (mask) => {
-    const out = Buffer.from(mask);
-    for (let x = 0; x < width; x++)
-      for (let y = Math.ceil(artEnd(x)); y < height; y++)
-        out[y * width + x] = 0;
-    return out;
-  };
-  const kept = clip(cream);
-
-  // The cream reaching the art's end, as runs of columns just above it
-  const runs = [];
-  for (let x = 0; x < width;) {
-    const at = (column) =>
-      kept[Math.floor(artEnd(column) - 2) * width + column] >= 128;
-    if (!at(x)) {
-      x += 1;
-      continue;
-    }
-    const from = x;
-    while (x < width && at(x)) x += 1;
-    if (x - from >= 4) runs.push([from, x]);
-  }
-  // Off the record, each end of the art drips once: the melt on the left is
-  // rounded off and hangs a long drip; under the bottle, a short one. On the
-  // record the rim takes the streams, and the pool drips over it.
-  const drips = [];
-  const { cx, rx } = RECORD;
-  for (const [from, to] of runs) {
-    if (from >= MELT_TO && to <= cx + rx) continue;
-    const w = to - from;
-    const mid = (from + to) / 2;
-    if (to <= MELT_TO) {
-      const neck = Math.min(w * 0.45, 18);
-      const cap = Math.min(w * 0.35, 16);
-      drips.push(
-        `<ellipse cx="${mid}" cy="${artEnd(mid) - 2}" rx="${w / 2}" ry="${cap}"/>`,
-        drip(mid, neck, cap + neck * MELT_DRIP),
-      );
-    } else {
-      const neck = Math.min(w * 0.4, 12);
-      drips.push(drip(mid, neck, neck * END_DRIP));
-    }
-  }
-  for (const [angle, w, length] of POOL_DRIPS)
-    drips.push(drip(onRecord(1, angle)[0], w, length));
-
-  const front = [
-    crescent(1, 0, 180, RIM * 2),
-    ...GROOVES.map(([f, from, to, thick]) => crescent(f, from, to, thick)),
-    pool(),
-    ...drips,
-  ].join("");
-  const drawn = await sharp(
+async function handDrawn(id) {
+  const shapes = readFileSync(front, "utf8").match(
+    new RegExp(`<g id="${id}"[^>]*>([\\s\\S]*?)</g>`),
+  )?.[1];
+  if (shapes === undefined) throw new Error(`${front}: no <g id="${id}">`);
+  return sharp(
     Buffer.from(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%"/><g fill="#fff">${front}</g></svg>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%"/><g fill="#fff">${shapes}</g></svg>`,
     ),
   )
     .extractChannel(0)
     .raw()
     .toBuffer();
-  // Drawn grooves stay off the label
-  const label = mustard;
-  for (let p = 0; p < pixels; p++)
-    kept[p] = Math.max(kept[p], label[p] >= 128 ? 0 : drawn[p]);
-  return [kept, clip(mustard), clip(red)];
+}
+
+/**
+ * The bottle and record without GWENDA, as [cream, mustard, red] masks. In
+ * the full logo the pour and the record's melting rim run down into the
+ * letters; here they end at the record. The original loses what the front's
+ * `erase` covers (GWENDA, and the streams below the record's rim), and gains
+ * its `ink`: the pour pooling along the front rim and dripping over it.
+ */
+async function bottleAndRecord(inkMasks) {
+  const [erase, ink] = await Promise.all(["erase", "ink"].map(handDrawn));
+  const [cream, mustard, red] = inkMasks.map((mask) =>
+    Buffer.from(mask.map((v, p) => Math.min(v, 255 - erase[p]))),
+  );
+  for (let p = 0; p < pixels; p++) cream[p] = Math.max(cream[p], ink[p]);
+  return [cream, mustard, red];
 }
 
 /**
@@ -435,46 +289,81 @@ function distanceSquared(set, w, h) {
 }
 
 /**
+ * A flood over a w x h grid: the pixels `from` reaches through neighbours
+ * (left, right, up, down) that are `open`, itself included. They are marked
+ * in `reached`, which a later flood then stays out of.
+ */
+function flood(w, h, from, open, reached = new Uint8Array(w * h)) {
+  const found = [from];
+  reached[from] = 1;
+  for (let at = 0; at < found.length; at++) {
+    const p = found[at];
+    const x = p % w;
+    for (const q of [p + 1, p - 1, p + w, p - w]) {
+      if (q < 0 || q >= w * h || reached[q] || !open(q)) continue;
+      // Not round the end of a row
+      if ((q === p + 1 && x === w - 1) || (q === p - 1 && x === 0)) continue;
+      reached[q] = 1;
+      found.push(q);
+    }
+  }
+  return found;
+}
+
+/**
  * The black behind some inks, as a mask: everything inside the drawing's
- * outer edge. The outside is what the open air reaches from the canvas's
- * edge without squeezing through a gap narrower than twice `gap`; the rest,
- * less BLACK_INSET at its edge, is black. (A closing, then its holes filled.)
+ * outer edge, less BLACK_INSET.
+ *
+ * The air comes in from the canvas's edge and keeps `gap` clear of the inks,
+ * so it can't pass a gap narrower than twice that; the outside is what lies
+ * within `gap` of the air, and the rest is the drawing. (A closing, with its
+ * holes filled.) That also rounds off the hollows of the outline, a drip's
+ * root or the corner under the melt, with a sliver of black beyond the
+ * cream: a patch of the drawing with no ink on it that is open to the
+ * outside and nowhere deeper than BLACK_FRINGE is one, and goes back to the
+ * outside.
  */
 function backing(inkMasks, gap) {
   // Room round the canvas for the air to pass, where the art touches its edge
   const pad = gap + BLACK_INSET + 2;
   const [w, h] = [width + 2 * pad, height + 2 * pad];
-  const inside = (x, y) => (y + pad) * w + x + pad;
+  const padded = (x, y) => (y + pad) * w + x + pad;
   const ink = new Uint8Array(w * h);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++)
       if (inkMasks.some((mask) => mask[y * width + x] >= 128))
-        ink[inside(x, y)] = 1;
+        ink[padded(x, y)] = 1;
   const fromInk = distanceSquared(ink, w, h);
-  const outside = new Uint8Array(w * h);
-  const reached = [0];
-  outside[0] = 1;
-  while (reached.length) {
-    const p = reached.pop();
-    const [x, y] = [p % w, Math.floor(p / w)];
-    for (const [nx, ny] of [
-      [x + 1, y],
-      [x - 1, y],
-      [x, y + 1],
-      [x, y - 1],
-    ]) {
-      const q = ny * w + nx;
-      if (nx < 0 || ny < 0 || nx >= w || ny >= h || outside[q]) continue;
-      if (fromInk[q] <= gap * gap) continue;
-      outside[q] = 1;
-      reached.push(q);
-    }
+  const air = new Uint8Array(w * h);
+  flood(w, h, 0, (q) => fromInk[q] > gap * gap, air);
+  const fromAir = distanceSquared(air, w, h);
+  const outside = Uint8Array.from(fromAir, (d) => (d <= gap * gap ? 1 : 0));
+
+  const fringe = (gap * (1 + BLACK_FRINGE)) ** 2;
+  const seen = new Uint8Array(w * h);
+  for (let p = 0; p < w * h; p++) {
+    if (seen[p] || outside[p] || ink[p]) continue;
+    // One patch of inkless drawing: whether it's open, and how deep it goes
+    let open = false;
+    const patch = flood(
+      w,
+      h,
+      p,
+      (q) => {
+        if (outside[q]) open = true;
+        return !outside[q] && !ink[q];
+      },
+      seen,
+    );
+    if (open && patch.every((q) => fromAir[q] <= fringe))
+      for (const q of patch) outside[q] = 1;
   }
+
   const fromOutside = distanceSquared(outside, w, h);
   const mask = Buffer.alloc(pixels);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++)
-      if (fromOutside[inside(x, y)] > (gap + BLACK_INSET) ** 2)
+      if (fromOutside[padded(x, y)] > BLACK_INSET ** 2)
         mask[y * width + x] = 255;
   return mask;
 }
@@ -526,7 +415,14 @@ async function logo(inkMasks, gap) {
     plugins: [
       {
         name: "preset-default",
-        params: { overrides: { cleanupIds: false, collapseGroups: false } },
+        params: {
+          overrides: {
+            cleanupIds: false,
+            collapseGroups: false,
+            // Arcs fitted at whole units pull an edge up to 2px off its line
+            convertPathData: { makeArcs: false },
+          },
+        },
       },
     ],
   }).data;

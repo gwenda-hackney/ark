@@ -11,6 +11,8 @@ brand/
 │   ├── gwenda-bottle.svg          ← full logo: bottle, record, GWENDA
 │   ├── gwenda-bottle-record.svg   ← bottle and record only (Instagram)
 │   └── <name>-1080-black.png / -transparent.png  ← 1080×1080 posts
+├── source/               ← what the masters are drawn from
+│   └── bottle-record-front.svg    ← the record's front without GWENDA, drawn by hand
 └── src/
     ├── index.html        ← published at brand.gwenda.co.uk
     ├── logo.png          ← primary gold wordmark (dark backgrounds)
@@ -22,7 +24,9 @@ brand/
 
 ## Bottle logo
 
-`logos/` is traced from the site's `marketing/web/src/assets/images/logos/bottle.png` by `scripts/trace-logo.mjs`, with the clean-up rules (inks, specks) and the bottle-and-record version's drawing (the record's front half, the pour pooling on it, the drips over its rim) in that script. Run `npm run brand:logo` from the repo root when the PNG changes. The website keeps its own PNG and WebP files.
+`logos/` is traced from the site's `marketing/web/src/assets/images/logos/bottle.png` by `scripts/trace-logo.mjs`, with the clean-up rules (inks, specks) in that script. Run `npm run brand:logo` from the repo root when the PNG changes. The website keeps its own PNG and WebP files.
+
+In the full logo the pour runs down into GWENDA. Where it ends without the letters is drawn by hand in `source/bottle-record-front.svg`: the streams reach the record's front rim, pool along it and drip over the edge. Open that file in a browser to see it over the original; change its paths in a drawing tool (units are the original's pixels), then run `npm run brand:logo`.
 
 The masters are filled artwork, so they stand on any background: the drawing's black is drawn (the site's `#0b0a08`), under the cream, mustard and red, and nothing is drawn outside the drawing. Each SVG has four named layers, bottom to top: `black`, `cream`, `mustard`, `red`.
 
