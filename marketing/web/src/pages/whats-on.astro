@@ -5,7 +5,6 @@ import NightCards from "../components/chart/NightCards.astro";
 import StandingCards from "../components/chart/StandingCards.astro";
 import { siteConfig } from "../config/site";
 import { getUpcomingEvents } from "../data/events";
-import { menuChapters } from "../data/menu";
 import { nightsOnly } from "../lib/promotions.js";
 import { fetchWhatsOnCatalog } from "../lib/sanity/events";
 import { fetchMenu } from "../lib/sanity/menu";
@@ -42,7 +41,7 @@ const events = {
     <StandingCards
       series={series}
       occurrences={occurrences}
-      chapters={menuChapters(menu, "kitchen")}
+      menu={menu}
       top
     />
     <NightCards nights={nights} series={series} weeks leadEager={false} />

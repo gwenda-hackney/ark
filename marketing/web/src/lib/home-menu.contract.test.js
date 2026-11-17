@@ -1,6 +1,6 @@
 /**
  * What home's menu panels (lib/home-menu.js) and a pop-up kitchen's "See
- * the menu" (lib/popup-kitchen.js) count on from the menu pages
+ * the menu" (lib/menus.js popupMenuLinks) count on from the menu pages
  * (lib/menu-layout.js): every link they write lands on the heading of the
  * section it names, on the right page. The menu here is as Sanity sends it
  * (MENU_QUERY), so the whole way from the data to both pages is covered.
@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { menuChapters } from "../data/menu";
 import { menuTaste } from "./home-menu.js";
 import { menuSheet } from "./menu-layout.js";
-import { popupMenuHref } from "./popup-kitchen.js";
+import { popupMenuLinks } from "./menus.js";
 import { mapFlatSection, nestMenuSections } from "./sanity/menu";
 
 const item = (name, price) => ({ id: `item-${name}`, name, price });
@@ -164,7 +164,16 @@ describe("home's menu links", () => {
 describe("a pop-up kitchen's See the menu", () => {
   it("lands on its chapter of the food page", () => {
     const menu = menuFrom(docs);
-    const href = popupMenuHref("chez-pickle", menuChapters(menu, "kitchen"));
+    // Booked: a night still to come (lib/menus.js shows its menus from then)
+    const catalog = {
+      series: [
+        { seriesId: "chez-pickle", title: "Chez Pickle", category: "popup" },
+      ],
+      occurrences: [
+        { seriesId: "chez-pickle", date: "2026-11-12", category: "popup" },
+      ],
+    };
+    const href = popupMenuLinks(menu, catalog, "2026-11-10").get("chez-pickle");
     expect(landing(href, menu)).toEqual({
       page: "/kitchen",
       titles: ["Chez Pickle"],

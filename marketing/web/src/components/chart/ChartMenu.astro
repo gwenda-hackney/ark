@@ -15,10 +15,17 @@ interface Props {
   sections: MenuSection[];
   /** Shown when the menu has no chapters yet (or the `empty` slot). */
   empty?: string;
+  /**
+   * The page's links when it shows several menus (lib/menus.js menuShelf):
+   * no two of their chapters share an id.
+   */
+  where?: Parameters<typeof menuSheet>[1];
+  /** The row of its chapters' names at the top; the page's menus' instead. */
+  jumps?: boolean;
 }
 
-const { sections, empty = "" } = Astro.props;
-const { chapters, rows } = menuSheet(sections);
+const { sections, empty = "", where, jumps = true } = Astro.props;
+const { chapters, rows } = menuSheet(sections, where);
 ---
 
 {
@@ -30,7 +37,7 @@ const { chapters, rows } = menuSheet(sections);
     ))
 }
 {
-  chapters.length > 1 && (
+  jumps && chapters.length > 1 && (
     <nav class="ch-jump" aria-label="Menu chapters">
       {chapters.map(({ chapter, id }) => (
         <a href={`#${id}`}>{chapter.title}</a>

@@ -11,54 +11,49 @@
  * booked or on, the Food side opens with who's cooking: its logo and name
  * from ops, and the way to its page (#296).
  */
-import { menuChapters } from "../../data/menu";
 import { sizedImageUrl } from "../../../functions/_lib/sanity-image-url.js";
 import { menuTaste } from "../../lib/home-menu.js";
 import { londonToday } from "../../lib/london-day.js";
 import { menuPage } from "../../lib/menu-anchors.js";
+import { boardPick, menuShelf } from "../../lib/menus.js";
 import { eventPhotos, galleryPhotos } from "../../lib/photo-sources";
 import { homePhotoPlan } from "../../lib/photos.js";
-import {
-  foodBoardLine,
-  kitchenChaptersOn,
-  kitchenHeader,
-  kitchenNow,
-} from "../../lib/popup-kitchen.js";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 import { fetchMenu } from "../../lib/sanity/menu";
 import type { MenuKind } from "../../types/menu";
-import KitchenLine from "./KitchenLine.astro";
 
 const today = londonToday();
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
-const { series, occurrences } = await fetchWhatsOnCatalog().catch(() => ({
+const catalog = await fetchWhatsOnCatalog().catch(() => ({
   series: [],
   occurrences: [],
 }));
 /**
- * Who's in the kitchen: the pop-up booked or on. Its chapter of the menu
- * shows from when it's booked through its last night (kitchenChaptersOn).
+ * Each board's lead (lib/menus.js boardPick, #306): the menu running today,
+ * on the Food board the kitchen cooking today, else the next one, labelled
+ * with its day; the rest under "Also".
  */
-const { popup } = kitchenNow(series, occurrences, today);
-const kitchenChapters = kitchenChaptersOn(
-  menuChapters(menu, "kitchen"),
-  occurrences,
-  today,
-);
-/**
- * The top of the Food side while the pop-up is booked or on: its logo, who
- * and when, the way to its page; null otherwise (lib/popup-kitchen.js).
- */
-const kitchenTop = kitchenHeader(popup);
-/** In place of the Food side's menu, when it has none (lib/popup-kitchen.js). */
-const foodLine = foodBoardLine(popup, kitchenChapters);
+const boards = {
+  bar: boardPick(menuShelf("bar", menu, catalog, today), today),
+  kitchen: boardPick(menuShelf("kitchen", menu, catalog, today), today),
+};
+const kitchenPick = boards.kitchen;
+/** The top of the Food side while a pop-up is booked or on: its logo, who and when. */
+const kitchenTop = kitchenPick?.popup
+  ? {
+      title: kitchenPick.popup.title,
+      logo: kitchenPick.popup.logo,
+      line: kitchenPick.line,
+      href: kitchenPick.popup.href,
+    }
+  : null;
 /** The pop-up's logo at the top of the Food side: 4.5rem (72px), sharp at 2x. */
 const LOGO_WIDTH = 72;
 
 /**
  * The prints taped up on each board: the first of the venue's photos marked
- * for it (its menu board in ops' Gallery); from when a pop-up is booked
- * through its last night, the Food board's are from its own gallery in ops.
+ * for it (its menu board in ops' Gallery); while a pop-up kitchen leads the
+ * Food board, its prints are from that kitchen's own gallery in ops.
  * Which photo goes where on home is lib/photos.js homePhotoPlan, for the
  * boards and the photo row alike.
  */
@@ -69,13 +64,25 @@ const photoPlan = homePhotoPlan(await galleryPhotos(), {
 /** A print's photo, 12rem across at most (192px), sharp at 2x. */
 const PHOTO_WIDTH = 192;
 
-/** A side's menu, by its `kind` in the data: its page, and a taste of it. */
+/**
+ * A side's menu, by its `kind` in the data: its page, a taste of the menu
+ * it leads with, that menu's day when it isn't today's ("Saturday's menu"),
+ * and the others ("Also"). With nothing to lead with, what it says instead.
+ */
 function menuOf(kind: MenuKind) {
+  const pick = boards[kind];
+  const shelf = menuShelf(kind, menu, catalog, today);
   return {
     href: menuPage(kind),
-    taste: menuTaste(
-      kind === "kitchen" ? kitchenChapters : menuChapters(menu, kind),
-    ),
+    taste: pick?.menu
+      ? menuTaste(pick.menu.chapters, { where: shelf.where })
+      : null,
+    menuLabel: pick?.menuLabel || "",
+    also: pick?.also || [],
+    empty:
+      kind === "kitchen" && !pick
+        ? "No kitchen in right now, back soon."
+        : "The list’s on its way.",
   };
 }
 
@@ -140,6 +147,7 @@ const sides = [
 
           {side.taste ? (
             <>
+              {side.menuLabel && <p class="ch-menu-day">{side.menuLabel}</p>}
               <h4 class="ch-menu-chapter">{side.taste.lead.title}</h4>
               <ul class="ch-menu-items">
                 {side.taste.lead.items.map((item) => (
@@ -175,15 +183,22 @@ const sides = [
                 </ul>
               )}
             </>
-          ) : side.key === "food" ? (
-            <KitchenLine
-              line={foodLine}
-              popup={popup}
-              soon="The list’s on its way."
-              class="ch-menu-soon"
-            />
           ) : (
-            <p class="ch-menu-soon">The list’s on its way.</p>
+            <p class="ch-menu-soon">{side.empty}</p>
+          )}
+
+          {side.also.length > 0 && (
+            <p class="ch-menu-also">
+              Also:{" "}
+              {side.also.map((other, index) => (
+                <>
+                  {index > 0 && ", "}
+                  <a href={other.href}>
+                    {other.text} <span aria-hidden="true">→</span>
+                  </a>
+                </>
+              ))}
+            </p>
           )}
 
           {side.photos.length > 0 && (

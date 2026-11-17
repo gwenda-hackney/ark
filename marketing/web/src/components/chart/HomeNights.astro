@@ -7,7 +7,6 @@
  * (StandingCards); then the way to the lot, where all three are.
  */
 import { getUpcomingEvents } from "../../data/events";
-import { menuChapters } from "../../data/menu";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 import { fetchMenu } from "../../lib/sanity/menu";
 import { nightsOnly } from "../../lib/promotions.js";
@@ -61,7 +60,7 @@ const shut = closedDays(await fetchOpeningHours());
   <StandingCards
     series={series}
     occurrences={occurrences}
-    chapters={menuChapters(menu, "kitchen")}
+    menu={menu}
     home
   />
 

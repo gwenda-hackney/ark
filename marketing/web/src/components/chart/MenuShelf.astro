@@ -1,0 +1,272 @@
+---
+/**
+ * A menu page's menus (#306): /bar's or /kitchen's, as lib/menus.js
+ * menuShelf has them for the day the site is built. On the food page, a
+ * line of who cooks which days when two or more pop-up kitchens share the
+ * week. With two or more menus, a row of their names that jumps to each,
+ * always at the top. Then each pop-up kitchen under its logo, name and
+ * days, its menus under their own heads ("Dinner · Thu & Fri") when it has
+ * more than one, today's marked. Menus that haven't started are a line
+ * each at the foot. The order is the same every day: only the "Today"
+ * marks move.
+ */
+import { sizedImageUrl } from "../../../functions/_lib/sanity-image-url.js";
+import type { menuShelf } from "../../lib/menus.js";
+import ChartMenu from "./ChartMenu.astro";
+
+interface Props {
+  shelf: ReturnType<typeof menuShelf>;
+  /** Nothing on the page at all. */
+  empty: string;
+  /** A pop-up kitchen with no menu up yet. */
+  soon: string;
+}
+
+const { shelf, empty, soon } = Astro.props;
+const { menus, kitchens, coming, week, where } = shelf;
+/** Two or more menus: a row of their names, and each under its own head. */
+const several = menus.length > 1;
+/** "Today" only says something when not everything is on today. */
+const marks =
+  menus.some((menu) => !menu.today) ||
+  kitchens.some((kitchen) => kitchen.popup && !kitchen.today);
+/** A pop-up's logo by its name: 4.5rem (72px), sharp at 2x. */
+const LOGO_WIDTH = 72;
+/** A link on this page: just its #part. */
+const hash = (href: string) =>
+  href.includes("#") ? href.slice(href.indexOf("#")) : href;
+/**
+ * The week line already jumps to each kitchen; with one menu each it says
+ * all a row of menu names would, so that row isn't drawn twice.
+ */
+const jumps =
+  several &&
+  !(week.length > 0 && kitchens.every((kitchen) => kitchen.menus.length <= 1));
+---
+
+{
+  week.length > 0 && (
+    <p class="ch-week">
+      {week.map((entry, index) => (
+        <>
+          {index > 0 && <span aria-hidden="true"> · </span>}
+          <span
+            class:list={[
+              "ch-week-day",
+              { "ch-week-day--today": entry.today && marks },
+            ]}
+          >
+            {entry.days}: <a href={hash(entry.href)}>{entry.title}</a>
+          </span>
+        </>
+      ))}
+    </p>
+  )
+}
+
+{
+  jumps && (
+    <nav class="ch-jump" aria-label="Menus">
+      {menus.map((menu) => (
+        <a href={hash(menu.href)}>{menu.name}</a>
+      ))}
+    </nav>
+  )
+}
+
+{
+  kitchens.map((kitchen) => {
+    const heads = kitchen.menus.length > 1 || (several && !kitchen.popup);
+    const only = kitchen.menus.length === 1 ? kitchen.menus[0] : null;
+    return (
+      <section
+        class="ch-kitchen"
+        id={!heads && only?.anchor ? only.anchor : undefined}
+      >
+        {kitchen.popup && (
+          <header class="ch-kitchen-head">
+            {kitchen.popup.logo && (
+              <img
+                class="ch-kitchen-logo"
+                src={sizedImageUrl(kitchen.popup.logo.url, LOGO_WIDTH)}
+                srcset={`${sizedImageUrl(kitchen.popup.logo.url, LOGO_WIDTH)} 1x, ${sizedImageUrl(kitchen.popup.logo.url, LOGO_WIDTH * 2)} 2x`}
+                alt=""
+                width={LOGO_WIDTH}
+                height={LOGO_WIDTH}
+                loading="lazy"
+                decoding="async"
+              />
+            )}
+            <div class="ch-kitchen-who">
+              <h2 class="ch-kitchen-name">
+                <a href={kitchen.popup.href}>{kitchen.popup.title}</a>
+                {marks && kitchen.today && <span class="ch-today">Today</span>}
+              </h2>
+              <p class="ch-kitchen-when">
+                {kitchen.popup.when || kitchen.popup.days}
+                {kitchen.popup.pageUrl && (
+                  <>
+                    {" · "}
+                    <a href={kitchen.popup.pageUrl} rel="noopener">
+                      Their page
+                    </a>
+                  </>
+                )}
+              </p>
+            </div>
+          </header>
+        )}
+        {kitchen.menus.length === 0 && <p class="ch-ital">{soon}</p>}
+        {kitchen.menus.map((menu) => (
+          <div
+            class="ch-menu-of"
+            id={heads && menu.anchor ? menu.anchor : undefined}
+          >
+            {heads && (
+              <h2 class="ch-menu-name">
+                {menu.name}
+                <span class="ch-menu-days"> · {menu.days}</span>
+                {marks && menu.today && <span class="ch-today">Today</span>}
+              </h2>
+            )}
+            <ChartMenu
+              sections={menu.chapters}
+              where={where}
+              jumps={!several}
+            />
+          </div>
+        ))}
+      </section>
+    );
+  })
+}
+
+{kitchens.length === 0 && <p class="ch-ital">{empty}</p>}
+
+{
+  coming.length > 0 && (
+    <ul class="ch-coming">
+      {coming.map((menu) => (
+        <li>
+          {menu.name}, from {menu.from}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+<style>
+  .ch-week {
+    margin: -1rem 0 1.25rem;
+    font-family: var(--ch-pen);
+    font-weight: 600;
+    font-size: 1.5rem;
+    line-height: 1.2;
+    color: var(--ch-cream);
+  }
+
+  .ch-week a,
+  .ch-kitchen-when a {
+    color: var(--ch-mustard);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+  }
+
+  .ch-week a:hover,
+  .ch-kitchen-when a:hover {
+    color: var(--ch-cream);
+  }
+
+  .ch-week-day--today a {
+    text-decoration-thickness: 2px;
+  }
+
+  .ch-kitchen + .ch-kitchen {
+    margin-top: 3rem;
+  }
+
+  .ch-kitchen-head {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .ch-kitchen-logo {
+    flex: none;
+    width: 4.5rem;
+    height: 4.5rem;
+    padding: 0.25rem;
+    box-sizing: border-box;
+    border-radius: 0.375rem;
+    background: #fff;
+    object-fit: contain;
+  }
+
+  .ch-kitchen-name,
+  .ch-menu-name {
+    margin: 0;
+    font-family: var(--ch-display);
+    font-weight: 400;
+    font-size: clamp(1.75rem, 3.8vw, 2.25rem);
+    line-height: 1.05;
+    color: var(--ch-cream);
+  }
+
+  .ch-kitchen-name a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .ch-kitchen-name a:hover {
+    color: var(--ch-mustard);
+  }
+
+  .ch-kitchen-when {
+    margin: 0.25rem 0 0;
+    color: var(--ch-ink-3);
+  }
+
+  .ch-menu-of + .ch-menu-of {
+    margin-top: 2rem;
+  }
+
+  .ch-menu-name {
+    margin-top: 1rem;
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+  }
+
+  .ch-menu-days {
+    font-family: var(--ch-pen);
+    font-weight: 600;
+    color: var(--ch-ink-3);
+  }
+
+  /* The day's mark: a little tag, like the date stickers on What's on */
+  .ch-today {
+    display: inline-block;
+    margin-left: 0.625rem;
+    padding: 0.125rem 0.5rem;
+    vertical-align: 0.3em;
+    border-radius: 0.25rem;
+    background: var(--ch-mustard);
+    color: var(--ch-board);
+    font-family: var(--ch-caps);
+    font-weight: 700;
+    font-size: 0.875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.4;
+  }
+
+  .ch-coming {
+    list-style: none;
+    margin: 2.5rem 0 0;
+    padding: 0;
+    font-family: var(--ch-pen);
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: var(--ch-ink-3);
+  }
+</style>

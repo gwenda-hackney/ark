@@ -26,17 +26,18 @@ import {
 import { londonToday } from "../../lib/london-day.js";
 import { homeStandRow } from "../../lib/home-stands.js";
 import { frameRatio, standSizes } from "../../lib/night-cards.js";
+import { popupMenuLinks } from "../../lib/menus.js";
 import { popupKitchens } from "../../lib/popup-kitchen.js";
 import { promotionDeals } from "../../lib/promotions.js";
 import { standWhen } from "../../lib/stand-when.js";
 import type { Event, EventSeries } from "../../types/events";
-import type { MenuSection } from "../../types/menu";
+import type { Menu } from "../../types/menu";
 
 interface Props {
   series: EventSeries[];
   occurrences: Event[];
-  /** The kitchen menu's chapters: a pop-up's "See the menu" goes to its own. */
-  chapters?: MenuSection[];
+  /** The menu as fetched: a pop-up's "See the menu" goes to its own menus. */
+  menu?: Menu;
   /** Which sections: both, or the pop-up kitchen alone (the food page). */
   show?: "all" | "popup";
   /** Each section under its heading ("Deals", "Pop-up kitchen"). */
@@ -56,7 +57,7 @@ interface Props {
 const {
   series,
   occurrences,
-  chapters = [],
+  menu = { sections: [] },
   show = "all",
   headed = true,
   home = false,
@@ -116,37 +117,40 @@ function logoImage(logo: { url: string } | null) {
   };
 }
 
-const kitchens = popupKitchens(series, occurrences, chapters, today).map(
-  (kitchen) => {
-    const page = kitchen.pageUrl;
-    const logo = logoImage(kitchen.logo);
-    return {
-      kind: "popup",
-      tag: "Pop-up kitchen",
-      id: kitchen.id,
-      title: kitchen.title,
-      when: whenLine(kitchen.when, kitchen),
-      turnover: turnover("popup", kitchen.id),
-      note: kitchen.note,
-      offer: "",
-      href: kitchen.href,
-      ...picture(logo ? "" : kitchen.photo, kitchen.photoPosition),
-      logo,
-      links: [
-        { href: kitchen.menuHref, text: "See the menu →", external: false },
-        ...(page
-          ? [
-              {
-                href: page,
-                text: /instagram\.com/i.test(page) ? "Instagram" : "Their page",
-                external: true,
-              },
-            ]
-          : []),
-      ],
-    };
-  },
-);
+const kitchens = popupKitchens(
+  series,
+  occurrences,
+  popupMenuLinks(menu, { series, occurrences }, today),
+  today,
+).map((kitchen) => {
+  const page = kitchen.pageUrl;
+  const logo = logoImage(kitchen.logo);
+  return {
+    kind: "popup",
+    tag: "Pop-up kitchen",
+    id: kitchen.id,
+    title: kitchen.title,
+    when: whenLine(kitchen.when, kitchen),
+    turnover: turnover("popup", kitchen.id),
+    note: kitchen.note,
+    offer: "",
+    href: kitchen.href,
+    ...picture(logo ? "" : kitchen.photo, kitchen.photoPosition),
+    logo,
+    links: [
+      { href: kitchen.menuHref, text: "See the menu →", external: false },
+      ...(page
+        ? [
+            {
+              href: page,
+              text: /instagram\.com/i.test(page) ? "Instagram" : "Their page",
+              external: true,
+            },
+          ]
+        : []),
+    ],
+  };
+});
 
 const deals =
   show === "popup"

@@ -723,8 +723,12 @@ export type CodeDiff = {
 };
 
 export type SitePendingItem = {
-  /** "popup": a pop-up kitchen the built site still shows has ended (site-pending.js). */
-  kind: "document" | "artist" | "popup";
+  /**
+   * "popup": a pop-up kitchen the built site still shows has ended;
+   * "menus": the menus it shows today differ from its build day's (#306)
+   * (site-pending.js).
+   */
+  kind: "document" | "artist" | "popup" | "menus";
   id: string;
   change: "added" | "changed" | "removed";
   label: string;

@@ -7,7 +7,11 @@
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
+import { evaluate, parse } from "groq-js";
 import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
+import { MENU_QUERY, MENUS_QUERY } from "../../../../marketing/web/src/lib/sanity/queries.ts";
+import { mapFlatSection, mapMenuInfo, nestMenuSections } from "../../../../marketing/web/src/lib/sanity/menu.ts";
+import { menuShelf } from "../../../../marketing/web/src/lib/menus.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { onRequestPost as createItem } from "../../functions/api/menu/index.js";
 import { onRequestPost as createSection } from "../../functions/api/menu/sections.js";
@@ -346,6 +350,67 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     await ops.updateWebsite();
     assert.equal(published(world, "chez-pickle").kind, "bar");
     assert.equal("popupSeries" in published(world, "chez-pickle"), false);
+  });
+
+  it("Update website sends each menu with its dates, days and pop-up, and the website shows them by day (#306)", async () => {
+    const dinner = await ops.addMenu({
+      name: "Dinner",
+      kind: "kitchen",
+      days: ["thu", "fri"],
+      endsOn: "2026-11-28",
+      popupSeriesId: String(pickle.id),
+    });
+    const brunch = await ops.addMenu({ name: "Brunch", kind: "kitchen", days: ["sat"], popupSeriesId: String(pickle.id) });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    const eggs = await ops.section("Eggs", { menuId: brunch.id });
+    const formulas = await ops.section("Our Formulas", { menuId: drinks.id });
+    for (const [name, section] of [["Fried pickles", plates], ["Shakshuka", eggs], ["Negroni", formulas]]) {
+      await ops.item({ name, price: "9", sectionId: section._id, placements: [{ channel: "digital", sectionId: section._id }] });
+    }
+    await ops.publishSeries(pickle);
+    await ops.updateWebsite();
+
+    const site = world.sanity.view("published");
+    const menuDoc = (id) => world.sanity.view("published").find((doc) => doc._id === `menu-${id}`);
+    assert.deepEqual(
+      [dinner, brunch, drinks].map((menu) => {
+        const doc = menuDoc(menu.id);
+        return [doc.name, doc.slug.current, doc.kind, doc.days ?? null, doc.endsOn ?? null, doc.popupSeries?._ref ?? null];
+      }),
+      [
+        ["Dinner", "dinner", "kitchen", ["thu", "fri"], "2026-11-28", "series-chez-pickle"],
+        ["Brunch", "brunch", "kitchen", ["sat"], null, "series-chez-pickle"],
+        ["Drinks", "drinks", "bar", null, null, null],
+      ],
+    );
+    assert.equal(published(world, "small-plates").menu._ref, `menu-${dinner.id}`);
+    assert.equal(published(world, "small-plates").menu._weak, true, "a menu can go before its old chapters");
+    assert.equal((await ops.updateWebsite()).published, 0, "nothing left to publish");
+
+    // The website, reading what was sent with its own queries
+    const read = async (query, params = {}) => (await evaluate(parse(query), { dataset: site, params })).get();
+    const sections = nestMenuSections((await read(MENU_QUERY)).map(mapFlatSection));
+    const menus = (await read(MENUS_QUERY)).map(mapMenuInfo).filter(Boolean);
+    const catalog = {
+      series: [{ seriesId: "chez-pickle", title: "Chez Pickle", category: "popup" }],
+      occurrences: ["2026-11-19", "2026-11-20", "2026-11-21"].map((date) => ({ seriesId: "chez-pickle", date, category: "popup" })),
+    };
+    const kitchen = menuShelf("kitchen", { sections, menus }, catalog, "2026-11-21");
+    assert.deepEqual(
+      kitchen.menus.map((menu) => [menu.label, menu.href, menu.today]),
+      [
+        ["Dinner · Thu & Fri", "/kitchen#dinner", false],
+        ["Brunch · Sat", "/kitchen#brunch", true],
+      ],
+    );
+    assert.deepEqual(menuShelf("bar", { sections, menus }, catalog, "2026-11-21").menus.map((menu) => menu.name), ["Drinks"]);
+
+    // A menu taken out of ops goes from the website on the next update.
+    await ops.editSection(eggs, { menuId: dinner.id });
+    await ops.deleteMenu(brunch);
+    await ops.updateWebsite();
+    assert.equal(menuDoc(brunch.id), undefined);
+    assert.equal(published(world, "eggs").menu._ref, `menu-${dinner.id}`);
   });
 
   it("in Events, a pop-up lists its menus with their days; Add menu starts one from its name, dates and days", async () => {

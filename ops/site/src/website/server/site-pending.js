@@ -12,7 +12,9 @@
  * until its last night, decided when it is built. So a pop-up whose last
  * night has passed since the build is pending too ("… pop-up kitchen ended"),
  * and the site is rebuilt the morning after, once: that build's snapshot
- * records the new day, so the pop-up is no longer pending.
+ * records the new day, so the pop-up is no longer pending. Menus too
+ * (#306): on any day the menus it shows, or today's, differ from the
+ * build day's, it is rebuilt that morning (menusChangedSince).
  *
  * While a developer runs `npm run ops:dev`, hosted dev starts no build by
  * itself (local-ops.js, #300): the tick keeps tracking what is pending and
@@ -28,6 +30,7 @@ import {
 import { readState as readConfigState, writeState as writeConfigState } from "../../../../../shared/config.js";
 import { listArtists } from "../../../../../shared/artists.js";
 import { londonToday } from "../../../../../marketing/web/src/lib/london-day.js";
+import { MENU_DAY_QUERY, menuDayKeyFrom } from "../../../../../marketing/web/src/lib/menu-day.js";
 import { popupLastNights } from "../../events/server/popups.js";
 import { createLogger } from "../../platform/log.js";
 import { PREVIEW, sanityQuery } from "../../platform/sanity.js";
@@ -107,6 +110,34 @@ export function popupsEndedSince(builtAt, popups, today) {
     }));
 }
 
+/**
+ * The menus the built site shows that depend on the day (#306): which
+ * menus run, which is marked today, who leads home's Food board. The
+ * website decides (marketing/web/src/lib/menu-day.js); this asks it about
+ * the build's day and today, from the site's own Sanity view. When they
+ * differ, one pending item, so the site is rebuilt that morning, once:
+ * its new snapshot's day is today.
+ */
+export async function menusChangedSince(env, site, builtAt, today, { query = sanityQuery } = {}) {
+  if (!builtAt || Number.isNaN(Date.parse(builtAt))) return [];
+  const builtOn = londonToday(new Date(builtAt));
+  if (builtOn >= today) return [];
+  const result = await query(env, VIEWS[site], MENU_DAY_QUERY, { from: builtOn });
+  if (!result || Array.isArray(result)) return [];
+  if (menuDayKeyFrom(result, builtOn) === menuDayKeyFrom(result, today)) return [];
+  return [
+    {
+      kind: "menus",
+      id: `menus-${today}`,
+      change: "changed",
+      label: "Today's menus on the website",
+      type: "menus",
+      name: "Today's menus",
+      day: today,
+    },
+  ];
+}
+
 /** Current data vs the last build of one site. `now`: epoch ms, for pop-ups that have ended. */
 export async function computePending(
   env,
@@ -127,8 +158,12 @@ export async function computePending(
     { fingerprints, budget },
   );
   if (!pending.known) return pending;
-  const ended = popupsEndedSince(pending.builtAt, popupRows, londonToday(new Date(now)));
-  return ended.length ? { ...pending, items: [...pending.items, ...ended] } : pending;
+  const today = londonToday(new Date(now));
+  const ended = popupsEndedSince(pending.builtAt, popupRows, today);
+  // Without them the site is checked as before; the next tick tries again.
+  const menus = await menusChangedSince(env, site, pending.builtAt, today, { query }).catch(() => []);
+  const dated = [...ended, ...menus];
+  return dated.length ? { ...pending, items: [...pending.items, ...dated] } : pending;
 }
 
 /**
@@ -227,6 +262,9 @@ export async function autoUpdateTick(env, deps = {}) {
       try {
         next = await startBuild(env, site, next, now, (deps.dispatch ?? dispatcherFor)(site));
         logPopupsEnded(log, site, pending.items);
+        if (pending.items.some((item) => item.kind === "menus")) {
+          log.info(`Rebuilding the ${site} website: today's menus differ from the last build's`, { site });
+        }
       } catch (error) {
         next = {
           ...next,

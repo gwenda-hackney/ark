@@ -54,13 +54,33 @@ export type MenuSection = {
   kind?: MenuKind;
   /** The pop-up kitchen (a series in ops) whose chapter this is, if any. */
   popupSeriesId?: string;
+  /** A chapter's menu (#306), by its slug; none before ops sends menus. */
+  menuId?: string;
   items: MenuItem[];
   /** Nested groups under a chapter (e.g. Spritz under By the Book). */
   subsections?: MenuSection[];
 };
 
+/** A menu guests see (#306): Drinks, or a pop-up's Dinner and Brunch. */
+export type MenuInfo = {
+  /** Its slug: its link on its page (/kitchen#chez-pickle-brunch). */
+  id: string;
+  name: string;
+  kind: MenuKind;
+  /** YYYY-MM-DD, or "" for no start. */
+  startsOn: string;
+  /** YYYY-MM-DD, or "" for ongoing. */
+  endsOn: string;
+  /** The days it runs, "mon" … "sun"; none is every day. */
+  days: string[];
+  /** The pop-up kitchen whose menu it is, by its series' slug. */
+  popupSeriesId?: string;
+};
+
 export type Menu = {
   sections: MenuSection[];
+  /** The menus, in ops' order; none before ops sends them (#306). */
+  menus?: MenuInfo[];
 };
 
 /** The drink's prices: its list when it has one, else the two old fields. */

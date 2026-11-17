@@ -123,6 +123,7 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
   subtitle,
   kind,
   "popupSeriesId": coalesce(popupSeries->slug.current, popupSeries._ref),
+  "menuId": menu->slug.current,
   "parentId": coalesce(parent->slug.current, parent._ref),
   "items": *[_type == "menuItem" && references(^._id) && removed != true] | order(orderRank asc) {
     "id": _id,
@@ -147,6 +148,22 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
       }
     }
   }
+}`;
+
+/**
+ * The menus (#306), in the order ops sets: each runs between its dates on
+ * its days (lib/menus.js), and its chapters name it by its slug (MENU_QUERY
+ * `menuId`). Before ops has sent any there are none, and the website groups
+ * the chapters as it did before menus.
+ */
+export const MENUS_QUERY = `*[_type == "menu"] | order(orderRank asc) {
+  "id": slug.current,
+  name,
+  kind,
+  startsOn,
+  endsOn,
+  days,
+  "popupSeriesId": coalesce(popupSeries->slug.current, popupSeries._ref)
 }`;
 
 /** Singleton site settings (fixed document id). */

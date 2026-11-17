@@ -319,6 +319,41 @@
   }
 }
 
+/*
+ * Which day's menu the board shows when it isn't today's ("Saturday's
+ * menu"), and the board's other menus and kitchens under it ("Also: …",
+ * #306): written up in pen, like the kitchen line.
+ */
+.ch-menu-day {
+  margin: 0 0 -0.25rem;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.15;
+  color: var(--ch-mustard);
+}
+
+.ch-menu-also {
+  margin: 0;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.2;
+  color: var(--ch-cream);
+}
+
+.ch-menu-also a {
+  color: var(--ch-mustard);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+.ch-menu-also a:hover,
+.ch-menu-also a:focus-visible {
+  color: var(--ch-cream);
+}
+
 .ch-menu-soon {
   margin: 0;
   font-family: var(--ch-pen);
