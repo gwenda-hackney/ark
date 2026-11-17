@@ -3,8 +3,8 @@
  * the open rail's row wash and the collapsed rail's halo round the icon.
  *
  * The element it marks carries `data-mark`. Each frame of a move, the shape
- * re-measures where it is going (the rail and the group folds are animating
- * too) and eases toward it, so it lands on the row or icon exactly.
+ * re-measures where it is going (the rail is animating too) and eases
+ * toward it, so it lands on the row or icon exactly.
  */
 
 export type MarkBox = { x: number; y: number; w: number; h: number; r: number };

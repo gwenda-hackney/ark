@@ -23,8 +23,9 @@
 	import EventsPage from "../events/EventsPage.svelte";
 	import ArtistsPage from "../artists/ArtistsPage.svelte";
 	import MorePage from "./shell/MorePage.svelte";
-	import { parseShellPath, shellPageKey, readPath } from "./nav";
+	import { parseShellPath, readPath } from "./nav";
 	import { NAV_ROUTES } from "./nav-routes";
+	import { pageFrame } from "./nav-tree";
 	import { loadPourSettings } from "../config/settings.svelte";
 	import { easeOut, fadeMs, flyMs } from "../ui/motion";
 	import { normalizeClientError, reportClientError } from "./client-error";
@@ -41,9 +42,13 @@
 		void loadPourSettings();
 	});
 
+	/** A page with tabs is one frame, so a tab switch doesn't replay the page transition. */
 	function pageKey(current: string): string {
-		return shellPageKey(current);
+		return pageFrame(routes, current);
 	}
+
+	/** Pages whose list fills the pane (a grid or the events lists). */
+	const FILL_PAGES = new Set(["menu", "inventory", "events", "forms"]);
 
 	function onPageError(error: unknown) {
 		const report = reportClientError("svelte.boundary", error);
@@ -58,12 +63,13 @@
 <ShellLayout {routes} {me} bind:path>
 	{#snippet children({ path: current })}
 		{@const key = pageKey(current)}
-		{@const print = Boolean(parseShellPath(current).print)}
+		{@const route = parseShellPath(current)}
+		{@const print = Boolean(route.print)}
 		{#key key}
 			<svelte:boundary onerror={onPageError}>
 				<div
 					class="page"
-					class:fill={key === "menu" || key === "inventory" || key === "events" || key === "forms"}
+					class:fill={FILL_PAGES.has(route.page)}
 					in:fly={{ y: print ? 0 : 10, duration: print ? 0 : flyMs, easing: easeOut }}
 					out:fade={{ duration: print ? 0 : fadeMs, easing: easeOut }}
 				>
@@ -73,42 +79,48 @@
 						<MenuWorkbench path={current} />
 					{:else if key === "menus"}
 						<MenusPage path={current} />
-					{:else if key === "inventory"}
-						<InventoryWorkbench path={current} />
+					{:else if key === "stock"}
+						<!-- Stock: Inventory | Suppliers (#312) -->
+						{#if route.page === "suppliers"}
+							<SuppliersPage />
+						{:else}
+							<InventoryWorkbench path={current} />
+						{/if}
 					{:else if key === "lightspeed"}
-						{#if parseShellPath(current).view === "export"}
+						{#if route.view === "export"}
 							<LightspeedExportPage />
-						{:else if parseShellPath(current).view === "menus"}
+						{:else if route.view === "menus"}
 							<LightspeedMenusPage />
 						{:else}
 							<LightspeedPage />
 						{/if}
-					{:else if key === "suppliers"}
-						<SuppliersPage />
 					{:else if key === "users"}
 						<UsersPage />
 					{:else if key === "venue"}
-						{#if parseShellPath(current).view === "gallery"}
+						{#if route.view === "gallery"}
 							<GalleryPage />
 						{:else}
 							<VenuePage />
 						{/if}
 					{:else if key === "web"}
-						{#if parseShellPath(current).view === "dev"}
+						{#if route.view === "dev"}
 							<DevToolsPage />
-						{:else if parseShellPath(current).view === "settings"}
+						{:else if route.view === "settings"}
 							<SettingsPage />
 						{:else}
 							<WebPage />
 						{/if}
 					{:else if key === "email"}
 						<WeeklyEmailPage {me} />
-					{:else if key === "forms"}
-						<FormsPage path={current} />
 					{:else if key === "events"}
 						<EventsPage path={current} />
 					{:else if key === "artists"}
-						<ArtistsPage path={current} />
+						<!-- Artists: Featured artist | Applications (#312) -->
+						{#if route.page === "forms"}
+							<FormsPage path={current} />
+						{:else}
+							<ArtistsPage path={current} />
+						{/if}
 					{:else if key === "config"}
 						<ConfigPage path={current} />
 					{:else if key === "more"}

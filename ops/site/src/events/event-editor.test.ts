@@ -143,6 +143,7 @@ describe("EventEditor: opening", () => {
 describe("EventEditor: saving a series", () => {
 	it("asks for a name under the name, without a toast, and saves nothing", async () => {
 		const editor = await open("/events/new/schedule");
+		editor.setNewKind("series");
 		await editor.onSave(submit());
 		assert.equal(editor.errors.get("event-name"), "Add a name.");
 		assert.equal(editor.errors.count, 2, "the description too");
@@ -153,6 +154,7 @@ describe("EventEditor: saving a series", () => {
 
 	it("asks for a description, which the website needs, and switches to Details for it", async () => {
 		const editor = await open("/events/new/schedule");
+		editor.setNewKind("series");
 		editor.form.name = "Quiz";
 		await editor.onSave(submit());
 		assert.equal(editor.errors.get("event-description"), "Add a description. The website needs one.");
@@ -178,6 +180,7 @@ describe("EventEditor: saving a series", () => {
 
 	it("creates a new series, opens it, and queues the website copy", async () => {
 		const editor = await open("/events/new");
+		editor.setNewKind("series");
 		editor.form.name = "Quiz";
 		editor.form.description = "<p>Pub quiz.</p>";
 		const saved = series({ id: "ev9", name: "Quiz", repeatUnit: "none", dates: [] });
@@ -292,9 +295,52 @@ describe("EventEditor: one night", () => {
 	});
 });
 
+describe("EventEditor: Events, Pop-ups and Deals (#312)", () => {
+	it("Add on each starts its kind, once or repeating as it usually is; the Schedule's asks first", async () => {
+		const started = async (path: string) => {
+			const editor = await open(path);
+			return [editor.presetCategory, editor.form.category, editor.newKind, editor.form.repeatUnit];
+		};
+		assert.deepEqual(await started("/events/new"), ["event", "event", "once", "once"]);
+		assert.deepEqual(await started("/popups/new"), ["popup", "popup", "once", "once"]);
+		assert.deepEqual(await started("/deals/new"), ["promotion", "promotion", "series", "none"]);
+		assert.deepEqual(await started("/events/new/once"), [null, "event", "once", "once"]);
+	});
+
+	it("saves a new pop-up and opens it at its list's address", async () => {
+		const editor = await open("/popups/new");
+		editor.form.name = "Dumpling Night";
+		editor.form.description = "<p>Dumplings.</p>";
+		editor.form.startsOn = "2026-12-01";
+		api.createEvent.mockResolvedValue({ event: series({ id: "ev5", repeatUnit: "once", category: "popup" }), warnings: [] });
+		await editor.onSave(submit());
+		assert.equal(api.createEvent.mock.calls[0][0].category, "popup");
+		assert.deepEqual(nav.navigate.mock.calls.at(-1), ["/popups/ev5", { replace: true }]);
+	});
+
+	it("puts a pop-up opened at an old /events address at its own, tabs and all", async () => {
+		const editor = await open("/events/ev1", [series({ category: "popup" })]);
+		assert.equal(editor.section, "popups");
+		assert.equal(editor.tabPath("details"), "/popups/ev1");
+		assert.equal(editor.tabPath("gallery"), "/popups/ev1/gallery");
+		const night = await open("/popups/ev1@2026-10-08", [series({ category: "popup" })]);
+		assert.equal(night.tabPath("details"), "/events/ev1@2026-10-08", "a night stays on the Schedule's address");
+	});
+
+	it("closes, with nowhere to go back to, to a night's Schedule, the Schedule's Add's, or its own list", async () => {
+		assert.equal((await open("/events/ev1@2026-10-08")).listHomePath(), "/events/schedule");
+		assert.equal((await open("/events/new/once")).listHomePath(), "/events/schedule");
+		assert.equal((await open("/events/ev1")).listHomePath(), "/events");
+		assert.equal((await open("/deals/ev1", [series({ category: "promotion" })])).listHomePath(), "/deals");
+		assert.equal((await open("/popups/new")).listHomePath(), "/popups");
+		// A one-off is in its kind's list now, not only on the Schedule.
+		assert.equal((await open("/events/ev2", [series({ id: "ev2", repeatUnit: "once" })])).listHomePath(), "/events");
+	});
+});
+
 describe("EventEditor: the new-event chooser (#158)", () => {
 	it("starts on what the address asks for, or a night when Add night picked the series", async () => {
-		assert.equal((await open("/events/new")).newKind, "series");
+		assert.equal((await open("/events/new")).newKind, "once", "Add on Events: a night (#312)");
 		assert.equal((await open("/events/new/once")).newKind, "once");
 		const editor = await open("/events/ev1");
 		editor.addNightToSeries();

@@ -9,7 +9,6 @@
 		Field,
 		NativeSelect,
 		PageHeader,
-		Segmented,
 		TextField,
 	} from "../ui";
 	import { Icon } from "../app/shell";
@@ -148,11 +147,11 @@
 </script>
 
 <div class="page scrollbar-fade">
-	<PageHeader title="Configuration" subtitle="House targets, and who gets event tasks. Menu sections are on each menu (Menu → Menus).">
-		{#snippet toolbar()}
-			<Segmented value={tab} items={tabItems} tone="soft" size="sm" ariaLabel="Configuration" />
-		{/snippet}
-	</PageHeader>
+	<PageHeader
+		title="Configuration"
+		tabs={{ items: tabItems, value: tab }}
+		subtitle="House targets, and who gets event tasks. Menu sections are on each menu (Bar & kitchen → Menus)."
+	/>
 
 	<!-- Every tab stays mounted so unsaved edits survive a tab switch; the page's guard covers them all. -->
 	<div class="panel" hidden={tab !== "pour"}>

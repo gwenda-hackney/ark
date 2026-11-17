@@ -3,7 +3,7 @@
 	import { Badge, Button, PageHelp } from "../ui";
 	import { editorHeaderActions } from "./editor-header-actions";
 	import type { OpsEvent } from "../app/api";
-	import { eventItemPath } from "../app/nav";
+	import { eventPath } from "./event-lists";
 	import { eventHeaderFlag } from "./event-header-status";
 	import { formatDate, repeatLabel } from "./event-labels";
 	import type { EventForm } from "./event-form.svelte";
@@ -220,7 +220,7 @@
 			{#if parentSeriesName}<span>Part of {parentSeriesName}.</span>{/if}
 			<span>Anything marked From series follows the series until you override it.</span>
 			{#if eventId}
-				<a class="series-link" href={eventItemPath(eventId)}>Edit series</a>
+				<a class="series-link" href={eventPath({ id: eventId, category: current?.category })}>Edit series</a>
 			{/if}
 		</p>
 	{:else if !isNew && !editingOnce && !editingNight}

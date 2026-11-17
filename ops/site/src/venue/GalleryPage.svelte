@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Settings → Gallery (#291): the venue's own photos on the website, in
+	 * Publish → Photos (#291, moved in #312): the venue's own photos on the website, in
 	 * home's photo strip and at the top of the Photos page, in this order.
 	 * The photos are tiles like an event's Images tab (events/tabs/GalleryTab):
 	 * drop or add photos, drag one to move it, the cross takes one out.
@@ -291,7 +291,7 @@
 </script>
 
 <div class="page scrollbar-fade">
-	<PageHeader title="Gallery" subtitle="The venue's own photos on the website. Changes go on the website by themselves." />
+	<PageHeader title="Photos" subtitle="The venue's own photos on the website. Changes go on the website by themselves." />
 
 	{#if loadError}
 		<EmptyState tone="error" title="Could not load the gallery" text={loadError}>
