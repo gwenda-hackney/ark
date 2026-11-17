@@ -22,7 +22,7 @@ brand/
 
 ## Bottle logo
 
-`logos/` is traced from the site's `marketing/web/src/assets/images/logos/bottle.png` by `scripts/trace-logo.mjs`, with the clean-up rules (inks, specks, where GWENDA is cut off and the drips end) in that script. Run `npm run brand:logo` from the repo root when the PNG changes. The website keeps its own PNG and WebP files.
+`logos/` is traced from the site's `marketing/web/src/assets/images/logos/bottle.png` by `scripts/trace-logo.mjs`, with the clean-up rules (inks, specks) and the bottle-and-record version's drawing (the record's front half, the pour pooling on it, the drips over its rim) in that script. Run `npm run brand:logo` from the repo root when the PNG changes. The website keeps its own PNG and WebP files.
 
 ## Colour tokens
 
