@@ -36,8 +36,12 @@ describe("bookingsWords: what the weekly email reads", () => {
 
   it("sends each half's button to its own part of the Bookings page", () => {
     expect(BOOKINGS_PATH).toBe("/bookings");
-    expect(words.halves.map((half) => half.page)).toEqual(["/bookings#party", "/bookings#play"]);
+    expect(words.halves.map((half) => half.page)).toEqual([
+      "/bookings#party",
+      "/bookings#play",
+    ]);
     // The anchor is the half's id, which the page puts on each half (BookingHalves.astro).
-    for (const half of words.halves) expect(half.page).toBe(`${BOOKINGS_PATH}#${half.id}`);
+    for (const half of words.halves)
+      expect(half.page).toBe(`${BOOKINGS_PATH}#${half.id}`);
   });
 });
