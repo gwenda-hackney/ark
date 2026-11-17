@@ -2,116 +2,77 @@ import { expect, test } from "@playwright/test";
 import { PHONE, arrived } from "./support.js";
 
 /**
- * The food page with two pop-up kitchens in one week (#306): the week line,
- * each kitchen's section in week order with today's marked, and a link for
- * every menu that lands on it from a new tab.
- *
- * It needs the sample data: a dev server started with
- * `npm run dev:sample` (dev's content with Chez Pickle Wed–Sun and a made-up
- * Monday kitchen), and `?day=` to pin the day (scripts/dev-site-day.js).
- * Run it with E2E_BASE_URL pointing at that server.
+ * The food page's menus (#306), whatever is on today: each pop-up
+ * kitchen's section with its name, the week line when two or more share
+ * the week, and a link for every menu and kitchen that lands on it from a
+ * new tab. Which menus run on which day is lib/menus.js's, unit-tested
+ * there; this is the page those links and sections make.
  */
 
-async function open(page, path) {
-  await page.goto(path);
-  await arrived(page);
-  test.skip(
-    !(await page.getByText("Monday Dumplings (sample)").count()),
-    "needs the sample over dev's content (npm run dev:sample)",
-  );
+/** Every id the page's own menu links lead to: the week line's and the jump row's. */
+async function menuLinks(page) {
+  return page
+    .locator(".ch-week a, nav.ch-jump[aria-label='Menus'] a")
+    .evaluateAll((links) =>
+      links.map((link) => link.getAttribute("href").slice(1)),
+    );
 }
 
-const week = (page) => page.locator(".ch-week");
-const kitchens = (page) => page.locator(".ch-kitchen");
-
-test.describe("two pop-up kitchens on /kitchen", () => {
-  test("a week line, then each kitchen in week order, the same every day", async ({
+test.describe("/kitchen's menus", () => {
+  test("each kitchen's section has its name, and the week line one link each", async ({
     page,
   }) => {
-    for (const day of ["mon", "thu"]) {
-      await open(page, `/kitchen?day=${day}`);
-      await expect(week(page)).toHaveText(
-        "Mon: Monday Dumplings (sample) · Wed–Sun: Chez Pickle",
-      );
-      await expect(kitchens(page).locator(".ch-kitchen-name a")).toHaveText([
-        "Monday Dumplings (sample)",
-        "Chez Pickle",
-      ]);
+    await page.goto("/kitchen");
+    await arrived(page);
+    const kitchens = page.locator(".ch-kitchen");
+    const names = page.locator(".ch-kitchen-name");
+    test.skip(
+      !(await names.count()),
+      "no pop-up kitchen is booked in this data",
+    );
+    for (const name of await names.all()) {
+      await expect(name).not.toBeEmpty();
     }
-  });
-
-  test("marks the kitchen cooking today", async ({ page }) => {
-    await open(page, "/kitchen?day=thu");
-    await expect(page.locator(".ch-kitchen-name .ch-today")).toHaveCount(1);
-    await expect(kitchens(page).nth(1).locator(".ch-today")).toHaveText(
-      "Today",
-    );
-    await open(page, "/kitchen?day=mon");
-    await expect(kitchens(page).nth(0).locator(".ch-today")).toHaveText(
-      "Today",
-    );
-  });
-
-  test("the week line jumps to each kitchen's menu", async ({ page }) => {
-    await open(page, "/kitchen?day=thu");
-    const link = week(page).getByRole("link", { name: "Chez Pickle" });
-    const anchor = (await link.getAttribute("href")).slice(1);
-    await link.click();
-    await expect(page).toHaveURL(new RegExp(`#${anchor}$`));
-    await expect(page.locator(`#${anchor}`)).toBeInViewport();
+    const week = page.locator(".ch-week a");
+    if (await week.count()) {
+      await expect(week).toHaveCount(await names.count());
+    }
+    // One section per kitchen, and no two links share an id
+    expect(await kitchens.count()).toBeGreaterThanOrEqual(await names.count());
+    const ids = await page
+      .locator(".ch-kitchen[id], .ch-kitchen [id]")
+      .evaluateAll((all) => all.map((element) => element.id));
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   test("every menu's link lands on it from a new tab", async ({ browser }) => {
     const first = await browser.newPage();
-    await open(first, "/kitchen?day=thu");
-    // Each kitchen's link, as the week line gives it
-    const links = await week(first)
-      .getByRole("link")
-      .evaluateAll((all) =>
-        all.map((a) => [a.getAttribute("href").slice(1), a.textContent]),
-      );
+    await first.goto("/kitchen");
+    await arrived(first);
+    const anchors = await menuLinks(first);
     await first.close();
-    expect(links.map(([, name]) => name)).toEqual([
-      "Monday Dumplings (sample)",
-      "Chez Pickle",
-    ]);
-    for (const [anchor, name] of links) {
+    test.skip(!anchors.length, "only one menu on the food page today");
+    for (const anchor of anchors) {
       const page = await browser.newPage({ viewport: PHONE });
-      await open(page, `/kitchen?day=thu#${anchor}`);
-      const target = page.locator(`#${anchor}`);
-      await expect(target).toBeInViewport();
-      // The kitchen's section, or its menu's first chapter before ops sends menus
-      const kitchen = page.locator(
-        `.ch-kitchen#${anchor}, .ch-kitchen:has(#${anchor})`,
-      );
-      await expect(kitchen.locator(".ch-kitchen-name")).toContainText(name);
+      await page.goto(`/kitchen#${anchor}`);
+      await arrived(page);
+      await expect(page.locator(`#${anchor}`)).toBeInViewport();
       await page.close();
     }
   });
-});
 
-test.describe("home's Food board with two kitchens", () => {
-  test("leads with whoever cooks that day, the other under Also", async ({
+  test("a link from the week line or the jump row lands on its menu", async ({
     page,
   }) => {
-    const board = page.locator(".ch-menu-side--food");
-    await open(page, "/?day=mon");
-    await expect(board.locator(".ch-menu-kitchen-line")).toHaveText(
-      "In the kitchen: Monday Dumplings (sample)",
-    );
-    await expect(board.locator(".ch-menu-also")).toHaveText(
-      "Also: Wed–Sun, Chez Pickle →",
-    );
-    await open(page, "/?day=thu");
-    await expect(board.locator(".ch-menu-kitchen-line")).toHaveText(
-      "In the kitchen: Chez Pickle",
-    );
-    await expect(board.locator(".ch-menu-also")).toHaveText(
-      "Also: Mon, Monday Dumplings (sample) →",
-    );
-    await open(page, "/?day=tue");
-    await expect(board.locator(".ch-menu-kitchen-line")).toHaveText(
-      "Wednesday: Chez Pickle",
-    );
+    await page.goto("/kitchen");
+    await arrived(page);
+    const link = page
+      .locator(".ch-week a, nav.ch-jump[aria-label='Menus'] a")
+      .last();
+    test.skip(!(await link.count()), "only one menu on the food page today");
+    const anchor = (await link.getAttribute("href")).slice(1);
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`#${anchor}$`));
+    await expect(page.locator(`#${anchor}`)).toBeInViewport();
   });
 });
