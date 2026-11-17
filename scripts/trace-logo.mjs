@@ -31,11 +31,8 @@
  * leather, or the email's board, shows through. Each master is four stacked
  * layers, a named group apiece for a design tool's layers:
  *
- *   1. black, at the bottom: the black that belongs to something, the
- *      bottle's glass, the record's surface, the slits and scratches in the
- *      letters and the pour (backing, below). The air between things, the
- *      bay under the bottle, the gaps between the letters, stays
- *      see-through, as does everything outside the drawing.
+ *   1. black, at the bottom: everything inside the drawing's outer edge
+ *      (backing, below). Outside it stays see-through.
  *   2. cream: everything light, the whole drawing's silhouette. It is traced
  *      from the PNG's brightness, not from a colour pick, so its edges keep
  *      the PNG's anti-aliasing: the record's thinnest grooves stay grooves.
@@ -126,8 +123,8 @@ const RED_MIN = 120;
 
 /**
  * The bottle and record without GWENDA: the front of its record, drawn by
- * hand over the original. Groups of shapes, in the PNG's pixels, read by
- * their ids (the file says what each is for, and opens in a browser or a
+ * hand over the original. Three groups of shapes, in the PNG's pixels, read
+ * by their ids (the file says what each is for, and opens in a browser or a
  * drawing tool over the original).
  */
 const front = new URL(
@@ -141,38 +138,22 @@ const front = new URL(
  */
 const BLACK = "#0b0a08";
 /**
- * The black is drawn only where it belongs to something: the bottle's glass,
- * the record's surface, the slits and scratches in the letters and the pour.
- * The air between things stays see-through (backing, below). Two objects are
- * drawn by hand, in the PNG's pixels, in a file that says what each is:
- * `solid`, black wherever it has no ink (the record), and `shut`, black
- * where its outline shuts it in (the bottle).
+ * The black fills what the inks enclose once every gap narrower than twice
+ * this (PNG px) is shut: the breaks in the bottle's outline that would let
+ * the outside in, and, in the full logo, the slits between the letters, so
+ * GWENDA stands on one black block as it does in the drawing. The bottle and
+ * record alone takes a smaller one: the air between its drips stays air.
  */
-const objects = new URL(
-  "../marketing/brand/source/bottle-black.svg",
-  import.meta.url,
-).pathname;
-/**
- * Inside `shut` a gap in the ink narrower than twice this (PNG px) is shut:
- * the breaks in the bottle's outline, which would let the air in.
- */
-const SHUT_GAP = 10;
-/**
- * A mark (a slit, a scratch, hatching) is black that the ink shuts in once
- * gaps narrower than twice MARK_GAP are shut, and that is nowhere further
- * than MARK_WIDTH from ink: the inside of a D is shut in too, but it is air.
- */
-const MARK_GAP = 3;
-const MARK_WIDTH = 8;
+const BLACK_GAP = { "gwenda-bottle": 30, "gwenda-bottle-record": 10 };
 /**
  * The black stops this far (PNG px) inside the drawing's outer edge, so no
  * dark line shows round the cream on a light page.
  */
 const BLACK_INSET = 1;
 /**
- * Shutting gaps also rounds off the hollows of an outline with a sliver of
- * black beyond the cream: a patch that is open to the air and no deeper than
- * this share of the gap is that, not part of the drawing, and is left out.
+ * A patch of black beyond the cream, open to the outside and no deeper than
+ * this share of the gap, is a fringe of shutting the gaps, not part of the
+ * drawing: it is left out.
  */
 const BLACK_FRINGE = 0.45;
 
@@ -388,14 +369,14 @@ for (let p = 0; p < pixels; p++) {
 }
 
 /**
- * One group of a hand-drawn file, by its id, as a mask at the PNG's size:
+ * One group of the hand-drawn front, by its id, as a mask at the PNG's size:
  * its shapes in white, anti-aliased like the PNG's own edges.
  */
-async function handDrawn(file, id) {
-  const shapes = readFileSync(file, "utf8").match(
+async function handDrawn(id) {
+  const shapes = readFileSync(front, "utf8").match(
     new RegExp(`<g id="${id}"[^>]*>([\\s\\S]*?)</g>`),
   )?.[1];
-  if (shapes === undefined) throw new Error(`${file}: no <g id="${id}">`);
+  if (shapes === undefined) throw new Error(`${front}: no <g id="${id}">`);
   return sharp(
     Buffer.from(
       `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%"/><g fill="#fff">${shapes}</g></svg>`,
@@ -414,9 +395,7 @@ async function handDrawn(file, id) {
  * its `ink`: the pour pooling along the front rim and dripping over it.
  */
 async function bottleAndRecord(inkMasks) {
-  const [erase, ink] = await Promise.all(
-    ["erase", "ink"].map((id) => handDrawn(front, id)),
-  );
+  const [erase, ink] = await Promise.all(["erase", "ink"].map(handDrawn));
   const [cream, mustard, red] = inkMasks.map((mask) =>
     Buffer.from(mask.map((v, p) => Math.min(v, 255 - erase[p]))),
   );
@@ -495,87 +474,60 @@ function flood(w, h, from, open, reached = new Uint8Array(w * h)) {
 }
 
 /**
- * The black behind some inks, as a mask: under the ink, and wherever the
- * black belongs to something, but not in the air, and stopping BLACK_INSET
- * short of it. What belongs:
+ * The black behind some inks, as a mask: everything inside the drawing's
+ * outer edge, less BLACK_INSET.
  *
- *   - `solid`'s shapes, wherever they have no ink: the record's surface;
- *   - inside `shut`'s shapes, what the air can't reach once gaps under twice
- *     SHUT_GAP are shut: the bottle's glass;
- *   - a patch of what is left that the ink shuts in (gaps under twice
- *     MARK_GAP shut) and that is thin: a mark.
- *
- * The air comes in from the canvas's edge and keeps a gap's width clear of
- * the ink, so it can't pass a narrower one; what lies within that of the air
- * is open, the rest shut in. (A closing.)
+ * The air comes in from the canvas's edge and keeps `gap` clear of the inks,
+ * so it can't pass a gap narrower than twice that; the outside is what lies
+ * within `gap` of the air, and the rest is the drawing. (A closing, with its
+ * holes filled.) That also rounds off the hollows of the outline, a drip's
+ * root or the corner under the melt, with a sliver of black beyond the
+ * cream: a patch of the drawing with no ink on it that is open to the
+ * outside and nowhere deeper than BLACK_FRINGE is one, and goes back to the
+ * outside.
  */
-function backing(inkMasks, solid, shut) {
+function backing(inkMasks, gap) {
   // Room round the canvas for the air to pass, where the art touches its edge
-  const pad = SHUT_GAP + BLACK_INSET + 2;
+  const pad = gap + BLACK_INSET + 2;
   const [w, h] = [width + 2 * pad, height + 2 * pad];
   const padded = (x, y) => (y + pad) * w + x + pad;
-  const [ink, isSolid, isShut] = [0, 1, 2].map(() => new Uint8Array(w * h));
+  const ink = new Uint8Array(w * h);
   for (let y = 0; y < height; y++)
-    for (let x = 0; x < width; x++) {
-      const [p, q] = [y * width + x, padded(x, y)];
-      if (inkMasks.some((mask) => mask[p] >= 128)) ink[q] = 1;
-      if (solid[p] >= 128) isSolid[q] = 1;
-      if (shut[p] >= 128) isShut[q] = 1;
-    }
+    for (let x = 0; x < width; x++)
+      if (inkMasks.some((mask) => mask[y * width + x] >= 128))
+        ink[padded(x, y)] = 1;
   const fromInk = distanceSquared(ink, w, h);
-  /** What the air reaches with gaps under twice `gap` shut, and how far in. */
-  const open = (gap) => {
-    const air = new Uint8Array(w * h);
-    flood(w, h, 0, (q) => fromInk[q] > gap * gap, air);
-    const fromAir = distanceSquared(air, w, h);
-    return { fromAir, is: (q) => fromAir[q] <= gap * gap };
-  };
-  /** The inkless patches that `inside` holds, each with whether it lies open. */
-  const patches = (inside) => {
-    const seen = new Uint8Array(w * h);
-    const found = [];
-    for (let p = 0; p < w * h; p++) {
-      if (seen[p] || ink[p] || !inside(p)) continue;
-      let lies = false;
-      const patch = flood(
-        w,
-        h,
-        p,
-        (q) => {
-          if (ink[q]) return false;
-          if (!inside(q)) lies = true;
-          return inside(q);
-        },
-        seen,
-      );
-      found.push({ patch, open: lies });
-    }
-    return found;
-  };
+  const air = new Uint8Array(w * h);
+  flood(w, h, 0, (q) => fromInk[q] > gap * gap, air);
+  const fromAir = distanceSquared(air, w, h);
+  const outside = Uint8Array.from(fromAir, (d) => (d <= gap * gap ? 1 : 0));
 
-  const belongs = new Uint8Array(w * h);
-  for (let q = 0; q < w * h; q++) if (isSolid[q] && !ink[q]) belongs[q] = 1;
-
-  const glass = open(SHUT_GAP);
-  const fringe = (SHUT_GAP * (1 + BLACK_FRINGE)) ** 2;
-  for (const { patch, open: lies } of patches(
-    (q) => isShut[q] && !glass.is(q),
-  )) {
-    if (lies && patch.every((q) => glass.fromAir[q] <= fringe)) continue;
-    for (const q of patch) belongs[q] = 1;
+  const fringe = (gap * (1 + BLACK_FRINGE)) ** 2;
+  const seen = new Uint8Array(w * h);
+  for (let p = 0; p < w * h; p++) {
+    if (seen[p] || outside[p] || ink[p]) continue;
+    // One patch of inkless drawing: whether it's open, and how deep it goes
+    let open = false;
+    const patch = flood(
+      w,
+      h,
+      p,
+      (q) => {
+        if (outside[q]) open = true;
+        return !outside[q] && !ink[q];
+      },
+      seen,
+    );
+    if (open && patch.every((q) => fromAir[q] <= fringe))
+      for (const q of patch) outside[q] = 1;
   }
 
-  const marks = open(MARK_GAP);
-  for (const { patch } of patches((q) => !marks.is(q) && !belongs[q]))
-    if (patch.every((q) => fromInk[q] <= MARK_WIDTH ** 2))
-      for (const q of patch) belongs[q] = 1;
-
-  const air = Uint8Array.from(ink, (v, q) => (v || belongs[q] ? 0 : 1));
-  const fromAir = distanceSquared(air, w, h);
+  const fromOutside = distanceSquared(outside, w, h);
   const mask = Buffer.alloc(pixels);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++)
-      if (fromAir[padded(x, y)] > BLACK_INSET ** 2) mask[y * width + x] = 255;
+      if (fromOutside[padded(x, y)] > BLACK_INSET ** 2)
+        mask[y * width + x] = 255;
   return mask;
 }
 
@@ -608,8 +560,8 @@ const colours = {
  * named after its layer, over the box around the art, through svgo (which
  * keeps the groups and their names).
  */
-async function logo(inkMasks, solid, shut) {
-  const masks = [backing(inkMasks, solid, shut), ...inkMasks];
+async function logo(inkMasks, gap) {
+  const masks = [backing(inkMasks, gap), ...inkMasks];
   const [x, y, w, h] = artBox(masks);
   const layers = [];
   for (const [index, name] of LAYERS.entries()) {
@@ -650,22 +602,13 @@ function write(file, contents) {
 }
 
 mkdirSync(outDir, { recursive: true });
-const [solid, shut] = await Promise.all(
-  ["solid", "shut"].map((id) => handDrawn(objects, id)),
-);
-// The record alone has more of the record: its front, under the pool
-const frontSolid = await handDrawn(front, "solid");
 const full = [silhouette, inkMask("mustard"), inkMask("red")];
 const masters = {};
-for (const [name, masks, solidHere] of [
-  ["gwenda-bottle", full, solid],
-  [
-    "gwenda-bottle-record",
-    await bottleAndRecord(full),
-    Buffer.from(solid.map((v, p) => Math.max(v, frontSolid[p]))),
-  ],
+for (const [name, masks] of [
+  ["gwenda-bottle", full],
+  ["gwenda-bottle-record", await bottleAndRecord(full)],
 ]) {
-  const svg = await logo(masks, solidHere, shut);
+  const svg = await logo(masks, BLACK_GAP[name]);
   masters[name] = svg;
   write(`${outDir}${name}.svg`, svg);
   write(`${outDir}${name}-1080-black.png`, await post(svg, BLACK));

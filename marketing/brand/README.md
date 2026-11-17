@@ -13,7 +13,6 @@ brand/
 │   └── <name>-1080-black.png / -transparent.png  ← 1080×1080 posts
 ├── source/               ← what the masters are drawn from
 │   ├── bottle-original.png        ← the original raster: only ever traced
-│   ├── bottle-black.svg           ← where the black is an object's (bottle, record), drawn by hand
 │   └── bottle-record-front.svg    ← the record's front without GWENDA, drawn by hand
 └── src/
     ├── index.html        ← published at brand.gwenda.co.uk
@@ -36,7 +35,7 @@ Run `npm run brand:logo` from the repo root when the original or a drawing chang
 
 In the full logo the pour runs down into GWENDA. Where it ends without the letters is drawn by hand in `source/bottle-record-front.svg`: the streams reach the record's front rim, pool along it and drip over the edge. Open that file in a browser to see it over the original; change its paths in a drawing tool (units are the original's pixels), then run `npm run brand:logo`.
 
-The masters are filled artwork, so they stand on any background: the drawing's black is drawn (the site's `#0b0a08`), under the cream, mustard and red. Only the black that belongs to something is drawn: the bottle's glass, the record's surface, the slits and scratches in the letters and the pour. The air between things stays see-through: the bay between the pour and the bottle, the gaps between GWENDA's letters, the insides of the D and the A. The script finds the slits and scratches itself; the bottle and the record are drawn by hand in `source/bottle-black.svg`, which says how. Each SVG has four named layers, bottom to top: `black`, `cream`, `mustard`, `red`. The website's and the emails' files leave the black layer out, so the leather or the email's board shows through.
+The masters are filled artwork, so they stand on any background: the drawing's black is drawn (the site's `#0b0a08`), under the cream, mustard and red, and nothing is drawn outside the drawing. Each SVG has four named layers, bottom to top: `black`, `cream`, `mustard`, `red`.
 
 ## Colour tokens
 
