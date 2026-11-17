@@ -156,7 +156,7 @@ export function logoHeader({ origin, name, social, logo }) {
       { top: 32, bottom: 0, align: "center" },
     ),
     row(
-      `<div class="slab" style="font-family:${FONTS.slab};font-size:13px;line-height:1.3;font-weight:700;letter-spacing:0.34em;text-transform:uppercase;color:${COLOURS.mustard};text-align:center;">${esc(social)} · Hackney Wick</div>`,
+      `<div class="slab" style="font-family:${FONTS.slab};font-size:13px;line-height:1.3;font-weight:700;letter-spacing:0.34em;text-transform:uppercase;color:${COLOURS.mustard};text-align:center;">Hackney Wick</div>`,
       { top: 10, bottom: 30, align: "center" },
     ),
   ];

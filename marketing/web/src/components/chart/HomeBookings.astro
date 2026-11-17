@@ -7,10 +7,10 @@
  * links on to its page: "More →" by the heading, as Photos does, since the
  * halves have their own buttons.
  */
-import { siteConfig } from "../../config/site";
+import { bookingsWords } from "../../lib/bookings.js";
 import BookingHalves from "./BookingHalves.astro";
 
-const words = siteConfig.copy.bookings;
+const words = bookingsWords();
 ---
 
 <section
