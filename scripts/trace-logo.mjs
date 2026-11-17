@@ -22,25 +22,22 @@
  *   npm run brand:logo
  *
  * The drawing is three flat inks on black: cream, mustard and a red drip.
- * The original's black is see-through, which leaves the linework (the
- * record's grooves, the skull's eyes, the scratches in the letters) hollow
- * on a light page. The masters draw the black, so they stand on any
- * background. Each is four stacked layers, a named group apiece for a design
- * tool's layers:
+ * The black is see-through, as in the original: the logo takes whatever it
+ * sits on, so on a light page the linework (the record's grooves, the
+ * skull's eyes, the scratches in the letters) shows that page. Put it on
+ * black (the -1080-black posts) or a dark photo. Each master is three
+ * stacked layers, a named group apiece for a design tool's layers:
  *
- *   1. black, at the bottom: everything inside the drawing's outer edge
- *      (backing, below). Outside it stays see-through.
- *   2. cream: everything light, the whole drawing's silhouette. It is traced
+ *   1. cream: everything light, the whole drawing's silhouette. It is traced
  *      from the PNG's brightness, not from a colour pick, so its edges keep
  *      the PNG's anti-aliasing: the record's thinnest grooves stay grooves.
- *   3. mustard and 4. red, on top: the pixels whose hue is that ink's, inside
+ *   2. mustard and 3. red, on top: the pixels whose hue is that ink's, inside
  *      the silhouette. Edge pixels darkening to black keep their hue but
  *      fall outside the silhouette, so they make no coloured specks.
  *
  * Each layer is drawn at 2x with a light blur before potrace, for smooth
  * curves; specks under SPECK_PX are dropped. Each ink's colour is the median
- * of its own clearly-inked pixels in the PNG; the black is ours (the PNG has
- * none to sample). svgo then shrinks the result.
+ * of its own clearly-inked pixels in the PNG. svgo then shrinks the result.
  *
  * The bottle and record alone is the same tracing with the record's front
  * redrawn: where the pour ran down into GWENDA it ends at the record, in
@@ -133,7 +130,12 @@ const HUES = {
 };
 const INKS = Object.keys(HUES);
 /** The layers, from the bottom up. */
-const LAYERS = ["black", ...INKS];
+/**
+ * The SVG's layers. The black is left out on purpose: the original's is
+ * see-through, so the logo takes whatever it sits on (the leather, an
+ * email's board, a photo). `backing` can draw one if a print ever needs it.
+ */
+const LAYERS = INKS;
 
 const { data, info } = await sharp(src)
   .ensureAlpha()
@@ -415,7 +417,7 @@ const colours = {
  * keeps the groups and their names).
  */
 async function logo(inkMasks, gap) {
-  const masks = [backing(inkMasks, gap), ...inkMasks];
+  const masks = inkMasks;
   const [x, y, w, h] = artBox(masks);
   const layers = [];
   for (const [index, name] of LAYERS.entries()) {
