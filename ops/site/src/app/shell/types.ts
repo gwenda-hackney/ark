@@ -3,6 +3,8 @@ export type NavTab = {
 	id: string;
 	label: string;
 	path: string;
+	/** A status beside the tab's label (Featured artist: "Off" while closed, #313). */
+	badge?: { label: string; tone?: string; title?: string };
 };
 
 /**

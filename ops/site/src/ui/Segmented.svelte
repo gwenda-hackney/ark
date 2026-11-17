@@ -4,6 +4,7 @@
 	 * height as a button of the same size so it sits in a toolbar row.
 	 * `soft` is a flat underline strip for sitting on cards (no gray box).
 	 */
+	import Badge from "./Badge.svelte";
 	import type { SegmentedItem } from "./types";
 
 	let {
@@ -45,6 +46,9 @@
 				{#if item.count !== undefined}
 					<span class="count num pill-text">{item.count}</span>
 				{/if}
+				{#if item.badge}
+					<Badge tone={item.badge.tone} label={item.badge.label} title={item.badge.title} />
+				{/if}
 			</a>
 		{:else}
 			<button
@@ -58,6 +62,9 @@
 				<span class="label" data-label={item.label}>{item.label}</span>
 				{#if item.count !== undefined}
 					<span class="count num pill-text">{item.count}</span>
+				{/if}
+				{#if item.badge}
+					<Badge tone={item.badge.tone} label={item.badge.label} title={item.badge.title} />
 				{/if}
 			</button>
 		{/if}

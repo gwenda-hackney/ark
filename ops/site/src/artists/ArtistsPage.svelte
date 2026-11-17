@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Icon } from "../app/shell";
 	import { onDestroy } from "svelte";
-	import { Badge, BusyOverlay, Button, EmptyState, PageHeader } from "../ui";
+	import { Badge, BusyOverlay, Button, EmptyState, Notice, PageHeader } from "../ui";
 	import ArtistCard from "./ArtistCard.svelte";
 	import { getArtist, getArtists, type ArtistSlot, type WallArtist } from "../app/api";
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
@@ -14,7 +14,7 @@
 	/** No new featured artists while the website shows none (#313); past ones stay. */
 	const addArtist = addArtistAction();
 	const subtitle = addArtist.disabled
-		? "The website doesn't show a featured artist any more. Past ones stay here to look up."
+		? "Artists whose work has been on the wall at Gwenda."
 		: "Who is on the wall, who is next, and who has been here before.";
 
 	const route = $derived(parseShellPath(path));
@@ -126,6 +126,24 @@
 	}
 </script>
 
+<!-- Add artist: while closed it stays in place, locked, with its reason beside it (#313). -->
+{#snippet addButton(size: "md" | "sm")}
+	<span class="add">
+		<Button
+			variant="primary"
+			{size}
+			type="button"
+			disabled={addArtist.disabled}
+			reason={addArtist.reason}
+			onclick={() => navigate("/artists/new")}
+		>
+			{#snippet icon()}<Icon name={addArtist.disabled ? "lock" : "plus"} size={size === "sm" ? 14 : 16} />{/snippet}
+			Add artist
+		</Button>
+		{#if addArtist.reason}<span class="why">{addArtist.reason}</span>{/if}
+	</span>
+{/snippet}
+
 <div class="page">
 	{#if editing}
 		{#if editorLoading}
@@ -150,18 +168,17 @@
 				{subtitle}
 			>
 				{#snippet actions()}
-					<Button
-						variant="primary"
-						type="button"
-						disabled={addArtist.disabled}
-						reason={addArtist.reason}
-						onclick={() => navigate("/artists/new")}
-					>
-						{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
-						Add artist
-					</Button>
+					{@render addButton("md")}
 				{/snippet}
 			</PageHeader>
+
+			{#if addArtist.disabled}
+				<div class="off">
+					<Notice tone="warning" title="Featured artist is off.">
+						The website doesn't show one any more. You can look up past artists here, but you can't add new ones.
+					</Notice>
+				</div>
+			{/if}
 
 			{#if error}
 				<EmptyState tone="error" title="Could not load artists" text={error} />
@@ -178,16 +195,11 @@
 			{:else if artists.length === 0}
 				<EmptyState
 					icon="artist"
-					title="No artists yet"
-					text={addArtist.disabled ? subtitle : "Add the artist whose work is on the wall, and who is next."}
+					title={addArtist.disabled ? "No past artists" : "No artists yet"}
+					text={addArtist.disabled ? undefined : "Add the artist whose work is on the wall, and who is next."}
 				>
 					{#snippet action()}
-						<Button
-							size="sm"
-							disabled={addArtist.disabled}
-							reason={addArtist.reason}
-							onclick={() => navigate("/artists/new")}
-						>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add artist</Button>
+						{@render addButton("sm")}
 					{/snippet}
 				</EmptyState>
 			{:else}
@@ -246,6 +258,22 @@
 		min-height: 0;
 		overflow-y: auto;
 		padding: var(--page-gutter);
+	}
+
+	.off {
+		margin-bottom: var(--space-6);
+	}
+
+	.add {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.why {
+		color: var(--fg-muted);
+		font-size: var(--text-xs);
+		white-space: nowrap;
 	}
 
 	.grid {

@@ -1,6 +1,7 @@
 import type { NavRoute } from "./shell/types";
 import type { SegmentedItem } from "../ui/types";
 import { pageTabs } from "./nav-tree";
+import { FEATURED_ARTIST_CLOSED } from "../artists/featured-artist.js";
 
 /**
  * Side rail (#312): one level, grouped by the job. What's on is everything
@@ -35,7 +36,12 @@ export const NAV_ROUTES: NavRoute[] = [
 				// any more, so its tab is for looking up past ones.
 				tabs: [
 					{ id: "applications", label: "Applications", path: "/forms" },
-					{ id: "featured", label: "Featured artist", path: "/artists" },
+					{
+						id: "featured",
+						label: "Featured artist",
+						path: "/artists",
+						...(FEATURED_ARTIST_CLOSED ? { badge: { label: "Off", tone: "warning", title: FEATURED_ARTIST_CLOSED } } : {}),
+					},
 				],
 			},
 		],

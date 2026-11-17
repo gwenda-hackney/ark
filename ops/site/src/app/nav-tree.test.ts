@@ -9,6 +9,7 @@ import {
 	visibleRoutes,
 } from "./nav-tree.ts";
 import { NAV_ROUTES } from "./nav-routes.ts";
+import { FEATURED_ARTIST_CLOSED } from "../artists/featured-artist.js";
 import { canonicalizePath, parseShellPath } from "./spa-path.js";
 
 const routes = NAV_ROUTES;
@@ -71,13 +72,20 @@ describe("pages with tabs", () => {
 		assert.deepEqual(pageTabs(routes, "events"), [], "a page without tabs has none");
 	});
 
-	it("Artists opens on Applications; Featured artist is still a tab, to look up past artists (#313)", () => {
+	it("Artists opens on Applications; Featured artist is still a tab, marked Off while closed (#313)", () => {
 		const artists = flattenNavRoutes(routes).find((row) => row.id === "artists");
 		assert.equal(artists?.path, "/forms");
 		assert.deepEqual(pageTabs(routes, "artists"), [
 			{ id: "applications", label: "Applications", href: "/forms" },
-			{ id: "featured", label: "Featured artist", href: "/artists" },
+			{
+				id: "featured",
+				label: "Featured artist",
+				href: "/artists",
+				...(FEATURED_ARTIST_CLOSED ? { badge: { label: "Off", tone: "warning", title: "Not on the website" } } : {}),
+			},
 		]);
+		assert.ok(FEATURED_ARTIST_CLOSED, "closed for now, so the tab says Off");
+		assert.ok(pageTabs(routes, "stock").every((tab) => !tab.badge), "other tabs carry none");
 	});
 
 	it("opens on its first tab", () => {
