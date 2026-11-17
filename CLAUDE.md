@@ -2,6 +2,14 @@
 
 Architecture and conventions: [.github/copilot-instructions.md](.github/copilot-instructions.md). Secrets in full: [docs/env.md](docs/env.md). Reference images for design work (renders, logo concepts, food and room photos) are in [docs/brand/](docs/brand/README.md); look there before asking for them, and add new ones with `npm run brand:add -- <file>` rather than copying originals in.
 
+## Show the owner on the mapped ports only
+
+The owner can only open the ports the dev container maps (`.devcontainer/devcontainer.json` `forwardPorts`): **4321** website, **5174** ops, **8788** ops functions, **3333** Studio. Anything else is invisible to them, so a preview on 4331 or 8790 is not "shown".
+
+- To show a branch or worktree, stop what's on that port and run it there (website `astro dev --port 4321`, ops `npm run ops:dev` from the worktree). Say what you stopped.
+- Agents' own checks (Playwright, screenshots) may use any free port; only what the owner looks at must be on a mapped port.
+- Subagents: when the owner is to look, the main session moves the preview onto the mapped port; don't report a private port as the place to look.
+
 ## Secrets: you normally have access
 
 The Bitwarden vault is usually unlocked in this container, and every npm script loads secrets itself. Do not tell the user you cannot reach the vault or a secret until `npm run env:status` says so.
