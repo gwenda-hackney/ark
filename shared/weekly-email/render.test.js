@@ -119,7 +119,7 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
   });
 
   it("has every section, in the site's words", () => {
-    for (const words of ["What’s on this week", "We’re shut on Mondays", "Deals", "Pop-up kitchen", "Next week", "Tonight"]) {
+    for (const words of ["What’s on this week", "Deals", "Pop-up kitchen", "Next week", "Tonight"]) {
       expect(email.html).toContain(words);
     }
     expect(email.html).toContain("Sat 12–8pm · Sun 1–6pm");
@@ -139,7 +139,7 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
 
 describe("renderWeeklyEmail: the top", () => {
   it("centres the heading and the week's dates under the centred logo", () => {
-    const top = email.html.slice(email.html.indexOf("Hackney Wick</div>"), email.html.indexOf("We’re shut on Mondays"));
+    const top = email.html.slice(email.html.indexOf("Hackney Wick</div>"), email.html.indexOf("Deals"));
     // The heading's row, its own table (the stroke under it) and its words
     expect(top).toMatch(/<td align="center"[^>]*><table [^>]*align="center"[^>]*style="[^"]*margin:0 auto;[^"]*"><tr><td [^>]*><h1 [^>]*text-align:center;/);
     // The dates under it
@@ -158,11 +158,9 @@ describe("renderWeeklyEmail: Bookings", () => {
     }
   });
 
-  it("sends each button to its half of /bookings on the site", () => {
+  it("links each half to its part of /bookings, as text: Book a table is the one button", () => {
     const links = tags(section, "a").map((tag) => attr(tag, "href"));
     expect(links).toEqual(["https://gwenda.co.uk/bookings#party", "https://gwenda.co.uk/bookings#play"]);
-    // Outlook's buttons go there too.
-    expect(section.match(/<v:roundrect [^>]*href="https:\/\/gwenda\.co\.uk\/bookings#(party|play)"/g)).toHaveLength(2);
   });
 
   it("puts the halves side by side, wrapping to one under the other on a phone", () => {

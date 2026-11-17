@@ -270,7 +270,7 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
   // What's on this week, centred under the logo like the flyer below it
   rows.push(
     row(
-      `${title("What’s on this week", { align: "center" })}<p class="slab" style="margin:12px 0 0;font-family:${FONTS.slab};font-size:18px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};text-align:center;">${esc(model.week.span)}. We’re shut on Mondays.</p>`,
+      `${title("What’s on this week", { align: "center" })}<p class="slab" style="margin:12px 0 0;font-family:${FONTS.slab};font-size:18px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};text-align:center;">${esc(model.week.span)}.</p>`,
       { bottom: 28, align: "center" },
     ),
   );
@@ -365,7 +365,7 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
 /** The same email for an app that shows no HTML. */
 function renderText(model, tags) {
   const { site } = model;
-  const out = [`WHAT'S ON THIS WEEK AT ${site.name.toUpperCase()}`, `${model.week.span}. We're shut on Mondays.`, ""];
+  const out = [`WHAT'S ON THIS WEEK AT ${site.name.toUpperCase()}`, `${model.week.span}.`, ""];
   const card = (item, when) => {
     out.push(`${when ? `${when}: ` : ""}${item.title}`);
     const times = item.times || (item.when ? [item.when] : []);
