@@ -141,7 +141,16 @@ const sides = [
                   decoding="async"
                 />
               )}
-              <span class="ch-menu-kitchen-line">{kitchenTop.line}</span>
+              <span class="ch-menu-kitchen-line">
+                {kitchenTop.line.endsWith(kitchenTop.title) ? (
+                  <>
+                    {kitchenTop.line.slice(0, -kitchenTop.title.length)}
+                    <span class="ch-menu-kitchen-name">{kitchenTop.title}</span>
+                  </>
+                ) : (
+                  kitchenTop.line
+                )}
+              </span>
             </a>
           )}
 

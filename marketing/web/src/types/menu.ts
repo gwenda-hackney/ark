@@ -98,14 +98,26 @@ export function menuPrices(item: MenuItem): MenuPrice[] {
  * "14 / 18" beside the name. Three or more sizes need their names, so they
  * go on their own line (menuPriceList) and this is blank.
  */
+/** The names ops gives a drink's first two prices by default: not worth showing. */
+const PLAIN_PRICE_NAMES = /^(single|double|pint|half pint|price|)$/i;
+
+/** Sizes that need saying (Slice, Whole; three or more of anything). */
+function namedSizes(rows: MenuPrice[]): boolean {
+  return (
+    rows.length > 2 ||
+    (rows.length === 2 &&
+      rows.some((row) => !PLAIN_PRICE_NAMES.test((row.name || "").trim())))
+  );
+}
+
 export function formatMenuPrice(item: MenuItem): string {
   const rows = menuPrices(item);
-  if (rows.length > 2) return "";
+  if (namedSizes(rows)) return "";
   return rows.map((row) => row.price.trim()).join(" / ");
 }
 
 /** Three or more sizes, each with its name: 125 ml 7 · 175 ml 9 · Bottle 32. */
 export function menuPriceList(item: MenuItem): MenuPrice[] {
   const rows = menuPrices(item);
-  return rows.length > 2 ? rows : [];
+  return namedSizes(rows) ? rows : [];
 }

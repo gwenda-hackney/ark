@@ -175,7 +175,8 @@
    middle); the logo's own --ch-pop is 3.3:1 there */
 .ch-night--tonight .ch-night-date,
 .ch-night-label,
-.ch-stand--deal .ch-stand-tag {
+.ch-stand--deal .ch-stand-tag,
+.ch-stand--next .ch-stand-tag {
   --paper: var(--ch-red);
   --print: var(--ch-cream);
 }

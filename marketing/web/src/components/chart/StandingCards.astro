@@ -25,7 +25,7 @@ import {
 } from "../../../functions/_lib/sanity-image-url.js";
 import { londonToday } from "../../lib/london-day.js";
 import { homeStandRow } from "../../lib/home-stands.js";
-import { frameRatio, standSizes } from "../../lib/night-cards.js";
+import { frameRatio, nightDay, nightLabel, standSizes } from "../../lib/night-cards.js";
 import { popupMenuLinks } from "../../lib/menus.js";
 import { popupKitchens } from "../../lib/popup-kitchen.js";
 import { promotionDeals } from "../../lib/promotions.js";
@@ -117,7 +117,7 @@ function logoImage(logo: { url: string } | null) {
   };
 }
 
-const kitchens = popupKitchens(
+const kitchenCards = popupKitchens(
   series,
   occurrences,
   popupMenuLinks(menu, { series, occurrences }, today),
@@ -127,6 +127,16 @@ const kitchens = popupKitchens(
   const logo = logoImage(kitchen.logo);
   return {
     kind: "popup",
+    /** Its next night: the kitchens take turns, so the soonest leads. */
+    next: String(
+      (occurrences || [])
+        .filter(
+          (night: { seriesId: string; date: string }) =>
+            night.seriesId === kitchen.id && String(night.date) >= today,
+        )
+        .map((night: { date: string }) => String(night.date))
+        .sort()[0] || "",
+    ),
     tag: "Pop-up kitchen",
     id: kitchen.id,
     title: kitchen.title,
@@ -151,6 +161,34 @@ const kitchens = popupKitchens(
     ],
   };
 });
+
+/**
+ * The kitchens take turns (#306): the one cooking next leads, bigger, and
+ * its tag says when: Tonight, Tomorrow, else its day ("Thursday").
+ */
+const kitchens = kitchenCards
+  .slice()
+  .sort((a, b) => (a.next || "9").localeCompare(b.next || "9"))
+  .map((card, index) =>
+    index === 0 && card.next && kitchenCards.length > 1
+      ? {
+          ...card,
+          lead: true,
+          tag:
+            nightLabel(card.next, today) === "Next up"
+              ? fullDay(card.next)
+              : nightLabel(card.next, today),
+        }
+      : index === 0 && card.next
+        ? { ...card, flag: true, tag: nightLabel(card.next, today) === "Next up" ? fullDay(card.next) : nightLabel(card.next, today) }
+        : card,
+  );
+
+function fullDay(dateIso: string) {
+  const names: Record<string, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
+  const { weekday } = nightDay(dateIso);
+  return names[weekday] || weekday;
+}
 
 const deals =
   show === "popup"
@@ -220,7 +258,12 @@ const alone = (section: { cards: unknown[] }) =>
         <ul class:list={["ch-stands", alone(section) && "ch-stands--one"]}>
           {section.cards.map((card, cardIndex) => (
             <li
-              class:list={["ch-stand", `ch-stand--${card.kind}`]}
+              class:list={[
+                "ch-stand",
+                `ch-stand--${card.kind}`,
+                (card.lead || card.flag) && "ch-stand--next",
+                card.lead && "ch-stand--lead",
+              ]}
               style={`--shape: ${card.ratio}`}
               data-stand-when={card.turnover.timeline}
               data-stand-last={card.turnover.last}

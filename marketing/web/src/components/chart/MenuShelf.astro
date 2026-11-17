@@ -13,6 +13,7 @@
 import { sizedImageUrl } from "../../../functions/_lib/sanity-image-url.js";
 import type { menuShelf } from "../../lib/menus.js";
 import ChartMenu from "./ChartMenu.astro";
+import ChartRecord from "./ChartRecord.astro";
 
 interface Props {
   shelf: ReturnType<typeof menuShelf>;
@@ -44,35 +45,7 @@ const jumps =
   !(week.length > 0 && kitchens.every((kitchen) => kitchen.menus.length <= 1));
 ---
 
-{
-  week.length > 0 && (
-    <p class="ch-week">
-      {week.map((entry, index) => (
-        <>
-          {index > 0 && <span aria-hidden="true"> · </span>}
-          <span
-            class:list={[
-              "ch-week-day",
-              { "ch-week-day--today": entry.today && marks },
-            ]}
-          >
-            {entry.days}: <a href={hash(entry.href)}>{entry.title}</a>
-          </span>
-        </>
-      ))}
-    </p>
-  )
-}
-
-{
-  jumps && (
-    <nav class="ch-jump" aria-label="Menus">
-      {menus.map((menu) => (
-        <a href={hash(menu.href)}>{menu.name}</a>
-      ))}
-    </nav>
-  )
-}
+{/* No week line or jump row: each kitchen's own heading says when (owner, 2026-11-17). */}
 
 {
   kitchens.map((kitchen) => {
@@ -96,6 +69,11 @@ const jumps =
                 loading="lazy"
                 decoding="async"
               />
+            )}
+            {!kitchen.popup.logo && (
+              <span class="ch-kitchen-logo ch-kitchen-logo--none" aria-hidden="true">
+                <ChartRecord size="large" />
+              </span>
             )}
             <div class="ch-kitchen-who">
               <h2 class="ch-kitchen-name">
@@ -202,6 +180,18 @@ const jumps =
     border-radius: 0.375rem;
     background: #fff;
     object-fit: contain;
+  }
+
+  /* No logo in ops yet: the record, as on its card */
+  .ch-kitchen-logo--none {
+    display: grid;
+    place-items: center;
+    background: var(--ch-ink-2, #1d1a16);
+  }
+
+  .ch-kitchen-logo--none :global(svg) {
+    width: 80%;
+    height: 80%;
   }
 
   .ch-kitchen-name,
