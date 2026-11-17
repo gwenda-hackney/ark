@@ -10,7 +10,7 @@
  * land: the foot's Play here goes to /bookings#play.
  */
 import "../../styles/chart-bookings.css";
-import { siteConfig } from "../../config/site";
+import { bookingsWords } from "../../lib/bookings.js";
 import {
   PARTY_FORM_SLUG,
   PLAY_FORM_SLUG,
@@ -30,33 +30,33 @@ interface Props {
 const { level = 3 } = Astro.props;
 const Heading = level === 2 ? "h2" : "h3";
 
-const { bookings: words, contactPage } = siteConfig.copy;
 const [partyForm, playForm] = await Promise.all([
   fetchFormBySlug(PARTY_FORM_SLUG).catch(() => null),
   fetchFormBySlug(PLAY_FORM_SLUG).catch(() => null),
 ]);
 
-/** The two halves, in the same shape, the party first. */
-const halves = [
-  {
-    id: "party",
-    heading: words.partyHeading,
-    line: words.partyLine,
+/** What only the page has of each half: the kinds, and the button's form. */
+const forms = {
+  party: {
     kindsLabel: "Kinds of party",
     kinds: partyOccasions(partyForm),
     href: formPublicPath(PARTY_FORM_SLUG),
-    cta: contactPage.partyCta,
   },
-  {
-    id: "play",
-    heading: contactPage.playHeading,
-    line: words.playLine,
+  play: {
     kindsLabel: "Who plays here",
     kinds: playKinds(playForm),
     href: formPublicPath(PLAY_FORM_SLUG),
-    cta: contactPage.playCta,
   },
-];
+};
+
+/**
+ * The two halves, in the same shape, the party first: the words are
+ * Bookings' own (lib/bookings.js), which the weekly email shows too.
+ */
+const halves = bookingsWords().halves.map((half) => ({
+  ...half,
+  ...forms[half.id],
+}));
 ---
 
 <div class="ch-bookings">

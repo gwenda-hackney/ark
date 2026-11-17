@@ -180,6 +180,32 @@ function standing(card, tag, slipStyle) {
   );
 }
 
+/** One half of Bookings: its heading, its line, its button. */
+function bookingHalf(half) {
+  return table(
+    `<tr><td class="half-in" style="padding:0 20px 24px 0;"><h3 class="display" style="margin:0;font-family:${FONTS.display};font-size:28px;line-height:1.05;font-weight:400;font-synthesis:none;color:${COLOURS.cream};">${esc(half.heading)}</h3><p class="slab" style="margin:10px 0 18px;font-family:${FONTS.slab};font-size:17px;line-height:1.45;color:${COLOURS.ink2};">${esc(half.line)}</p>${button(half.cta, half.href)}</td></tr>`,
+  );
+}
+
+/**
+ * Bookings' two halves, as the website has them (#315): side by side on a
+ * desktop, one under the other on a phone. Each half is an inline block no
+ * wider than half the column, so a narrow screen wraps them even where the
+ * app ignores the media query; Outlook gets a two-cell table instead.
+ */
+function bookingHalves(halves) {
+  const column = (half) =>
+    `<div class="half" style="display:inline-block;width:100%;max-width:280px;vertical-align:top;text-align:left;">${bookingHalf(half)}</div>`;
+  const cell = '<td width="280" valign="top">';
+  return (
+    `<div style="font-size:0;line-height:0;text-align:left;">` +
+    `<!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"><tr>${cell}<![endif]-->` +
+    halves.map(column).join(`<!--[if mso]></td>${cell}<![endif]-->`) +
+    `<!--[if mso]></td></tr></table><![endif]-->` +
+    `</div>`
+  );
+}
+
 /** "Wed 11 Nov", "Sat–Sun 21–22 Nov". */
 function stickerText({ weekday, day, month }) {
   return `${weekday} ${day} ${month}`;
@@ -288,6 +314,19 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
     rows.push(rule(), row(heading("Next week"), { bottom: 14 }), row(`${table(lines)}${more}`));
   }
 
+  // Bookings: a party, or playing here, as the website's Bookings page has them
+  const { bookings } = model;
+  if (bookings?.halves?.length) {
+    rows.push(
+      rule(),
+      row(
+        `${heading(bookings.heading)}<p class="slab" style="margin:14px 0 0;font-family:${FONTS.slab};font-size:18px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};">${esc(bookings.note)}</p>`,
+        { bottom: 22 },
+      ),
+      row(bookingHalves(bookings.halves)),
+    );
+  }
+
   // Book a table
   rows.push(
     rule(),
@@ -317,7 +356,7 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
     title: subject,
     preheader,
     rows,
-    css: "@media (min-width:600px){.thumb{width:150px !important}.thumb-img{width:150px !important}}\n@media (max-width:420px){.h1{font-size:36px !important}}",
+    css: "@media (min-width:600px){.thumb{width:150px !important}.thumb-img{width:150px !important}}\n@media (max-width:420px){.h1{font-size:36px !important}}\n@media (max-width:599px){.half{max-width:100% !important}.half-in{padding-right:0 !important}}",
   });
 
   return { subject, preheader, html, text: renderText(model, tags) };
@@ -359,6 +398,10 @@ function renderText(model, tags) {
     }
     if (model.nextWeek.more) out.push(`And ${model.nextWeek.more} more.`);
     out.push("");
+  }
+  if (model.bookings?.halves?.length) {
+    out.push(model.bookings.heading.toUpperCase(), model.bookings.note, "");
+    for (const half of model.bookings.halves) out.push(half.heading, half.line, `${half.cta}: ${half.href}`, "");
   }
   out.push(
     `${site.bookingLabel}: ${site.booking}`,

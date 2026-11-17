@@ -8,10 +8,11 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
 import BookingHalves from "../components/chart/BookingHalves.astro";
 import { siteConfig } from "../config/site";
+import { bookingsWords } from "../lib/bookings.js";
 
 const { title: pageTitle, description: pageDescription } =
   siteConfig.seo.bookings;
-const words = siteConfig.copy.bookings;
+const words = bookingsWords();
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
