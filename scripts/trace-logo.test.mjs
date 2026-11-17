@@ -1,14 +1,21 @@
 import { readFileSync, statSync } from "node:fs";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
+import { EMAIL_LOGO_PATH } from "../shared/email/shell.js";
+import {
+  HERO_LOGO_WIDTHS,
+  emailLogo,
+  heroLogo,
+  siteLogo,
+} from "./lib/logo-renders.mjs";
 
 /**
  * The bottle logo's brand masters (#320), written by scripts/trace-logo.mjs:
  * light enough to hand around, in the logo's own inks only, and filled, so
  * they stand on any background.
  */
-const logos = new URL("../marketing/brand/logos/", import.meta.url);
-const file = (name) => new URL(name, logos);
+const masters = new URL("../marketing/brand/logos/", import.meta.url);
+const file = (name) => new URL(name, masters);
 
 /** The drawing's black (the site's ground), under the inks. */
 const BLACK = "#0b0a08";
@@ -126,5 +133,85 @@ describe("the bottle and record alone", () => {
       [450, 600],
     ])
       expect(at(x, y)[3], `clear at ${x},${y}`).toBe(0);
+  });
+});
+
+/**
+ * The logo's other files are drawn from the full master by the same script
+ * and committed: each must still be its master's drawing, so a master that
+ * changes without them (or the other way round) fails here.
+ */
+describe("the website's and the emails' logo", () => {
+  const master = readFileSync(file("gwenda-bottle.svg"), "utf8");
+  const web = new URL("../marketing/web/", import.meta.url);
+  const logos = new URL("src/assets/images/logos/", web);
+  const original = new URL("../source/bottle-original.png", masters);
+
+  /** The original's canvas, which the website's files keep. */
+  const canvas = async () => {
+    const { width, height } = await sharp(original.pathname).metadata();
+    return { width, height };
+  };
+
+  /** The share of a picture's pixels that are not a fresh drawing's. */
+  async function stale(committed, fresh) {
+    const [a, b] = await Promise.all(
+      [committed.pathname, fresh].map((input) =>
+        sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true }),
+      ),
+    );
+    expect([a.info.width, a.info.height]).toEqual([
+      b.info.width,
+      b.info.height,
+    ]);
+    let off = 0;
+    for (let at = 0; at < a.data.length; at += 4)
+      for (let k = 0; k < 4; k++)
+        if (Math.abs(a.data[at + k] - b.data[at + k]) > 24) {
+          off += 1;
+          break;
+        }
+    return off / (a.data.length / 4);
+  }
+
+  it("is the master at the original's size, for the menu and the bar", async () => {
+    const committed = new URL("bottle.png", logos);
+    const meta = await sharp(committed.pathname).metadata();
+    expect([meta.width, meta.height, meta.hasAlpha]).toEqual([956, 844, true]);
+    expect(
+      await stale(committed, await siteLogo(master, await canvas())),
+    ).toBeLessThan(0.005);
+  });
+
+  it.each(HERO_LOGO_WIDTHS)(
+    "is the master on home's hero, %ipx wide",
+    async (width) => {
+      const committed = new URL(`bottle-hero-${width}.webp`, logos);
+      expect((await sharp(committed.pathname).metadata()).width).toBe(width);
+      expect(
+        await stale(committed, await heroLogo(master, await canvas(), width)),
+      ).toBeLessThan(0.005);
+    },
+  );
+
+  it("is the master with SOCIAL under it, at the top of an email", async () => {
+    const committed = new URL(`public${EMAIL_LOGO_PATH}`, web);
+    const meta = await sharp(committed.pathname).metadata();
+    expect([meta.width, meta.channels]).toEqual([400, 3]);
+    expect(
+      await stale(committed, await emailLogo(master, await canvas())),
+    ).toBeLessThan(0.005);
+  });
+
+  it("stands on its black, as the masters do", async () => {
+    const { data, info } = await sharp(new URL("bottle.png", logos).pathname)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const at = (x, y) => [
+      ...data.subarray((y * info.width + x) * 4, (y * info.width + x) * 4 + 4),
+    ];
+    // The hole in the record's label; a corner of the canvas
+    expect(at(360, 438)).toEqual([0x0b, 0x0a, 0x08, 255]);
+    expect(at(5, 5)[3]).toBe(0);
   });
 });

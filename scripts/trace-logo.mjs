@@ -1,18 +1,32 @@
 #!/usr/bin/env node
 /**
- * The bottle logo's brand masters (#320), traced from the site's bottle.png
- * into marketing/brand/logos/:
+ * The bottle logo, everywhere it shows (#320), from one drawing. The original
+ * raster (marketing/brand/source/bottle-original.png) is only what is traced
+ * here; the masters traced from it are the logo, and every other file is
+ * drawn from them:
  *
- *   gwenda-bottle.svg          the full logo: bottle, record and GWENDA
- *   gwenda-bottle-record.svg   the bottle and record alone, for Instagram
- *   <name>-1080-black.png      each as a 1080x1080 post, centred on our black
- *   <name>-1080-transparent.png  and on transparent
+ *   marketing/brand/logos/
+ *     gwenda-bottle.svg          the full logo: bottle, record and GWENDA
+ *     gwenda-bottle-record.svg   the bottle and record alone, for Instagram
+ *     <name>-1080-black.png      each as a 1080x1080 post, centred on our black
+ *     <name>-1080-transparent.png  and on transparent
+ *   marketing/web/, from the full logo (scripts/lib/logo-renders.mjs)
+ *     src/assets/images/logos/bottle.png           the menu's and the bar's
+ *     src/assets/images/logos/bottle-hero-<w>.webp home's hero, per width
+ *     public/brand/logo-email-social.png           with SOCIAL, for emails
+ *
+ * All of it is written here, once, and committed. Nothing is traced or drawn
+ * when the site is built or deployed: when the original or a master's
+ * drawing changes, run this again and commit the files it writes.
+ *
+ *   npm run brand:logo
  *
  * The drawing is three flat inks on black: cream, mustard and a red drip.
- * The PNG's black is see-through, which leaves the linework (the record's
- * grooves, the skull's eyes, the scratches in the letters) hollow on a light
- * page. The masters draw the black, so they stand on any background. Each is
- * four stacked layers, a named group apiece for a design tool's layers:
+ * The original's black is see-through, which leaves the linework (the
+ * record's grooves, the skull's eyes, the scratches in the letters) hollow
+ * on a light page. The masters draw the black, so they stand on any
+ * background. Each is four stacked layers, a named group apiece for a design
+ * tool's layers:
  *
  *   1. black, at the bottom: everything inside the drawing's outer edge
  *      (backing, below). Outside it stays see-through.
@@ -32,20 +46,27 @@
  * redrawn: where the pour ran down into GWENDA it ends at the record, in
  * marketing/brand/source/bottle-record-front.svg (drawn by hand; see
  * bottleAndRecord, below).
- *
- * Run when bottle.png or that drawing changes:
- *   npm run brand:logo
  */
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import potrace from "potrace";
 import sharp from "sharp";
 import { optimize } from "svgo";
+import { EMAIL_LOGO_PATH } from "../shared/email/shell.js";
+import {
+  HERO_LOGO_WIDTHS,
+  emailLogo,
+  heroLogo,
+  post,
+  siteLogo,
+} from "./lib/logo-renders.mjs";
 
 const src = new URL(
-  "../marketing/web/src/assets/images/logos/bottle.png",
+  "../marketing/brand/source/bottle-original.png",
   import.meta.url,
 ).pathname;
 const outDir = new URL("../marketing/brand/logos/", import.meta.url).pathname;
+/** The website, whose logo files are drawn from the full master. */
+const site = new URL("../marketing/web/", import.meta.url).pathname;
 
 /** Traced at this multiple of the PNG, for smoother curves. */
 const SCALE = 2;
@@ -100,10 +121,6 @@ const BLACK_INSET = 1;
  * drawing: it is left out.
  */
 const BLACK_FRINGE = 0.45;
-
-/** Instagram's square, and the art's longest side in it. */
-const POST = 1080;
-const POST_ART = 920;
 
 /**
  * The inks by hue: each one's colour with its brightness taken out (divided
@@ -428,42 +445,37 @@ async function logo(inkMasks, gap) {
   }).data;
 }
 
-const report = (file) =>
+/** Writes a file and says how big it is. */
+function write(file, contents) {
+  writeFileSync(file, contents);
   console.log(`${file}: ${(statSync(file).size / 1024).toFixed(0)} KB`);
-
-/** The art centred on Instagram's square, on our black and on transparent. */
-async function writePosts(name, svg) {
-  const art = await sharp(Buffer.from(svg), { density: 300 })
-    .resize(POST_ART, POST_ART, { fit: "inside" })
-    .png()
-    .toBuffer();
-  for (const [suffix, background] of [
-    ["black", BLACK],
-    ["transparent", { r: 0, g: 0, b: 0, alpha: 0 }],
-  ]) {
-    const file = `${outDir}${name}-1080-${suffix}.png`;
-    await sharp({
-      create: { width: POST, height: POST, channels: 4, background },
-    })
-      .composite([{ input: art, gravity: "centre" }])
-      .png({ compressionLevel: 9 })
-      .toFile(file);
-    report(file);
-  }
 }
 
 mkdirSync(outDir, { recursive: true });
 const full = [silhouette, inkMask("mustard"), inkMask("red")];
-const bottleOnly = await bottleAndRecord(full);
-
+const masters = {};
 for (const [name, masks] of [
   ["gwenda-bottle", full],
-  ["gwenda-bottle-record", bottleOnly],
+  ["gwenda-bottle-record", await bottleAndRecord(full)],
 ]) {
   const svg = await logo(masks, BLACK_GAP[name]);
-  const file = `${outDir}${name}.svg`;
-  writeFileSync(file, svg);
-  report(file);
-  await writePosts(name, svg);
+  masters[name] = svg;
+  write(`${outDir}${name}.svg`, svg);
+  write(`${outDir}${name}-1080-black.png`, await post(svg, BLACK));
+  write(`${outDir}${name}-1080-transparent.png`, await post(svg, null));
 }
+
+// The website's and the emails' logo: the full master, on the original's canvas
+const canvas = { width, height };
+const logos = `${site}src/assets/images/logos/`;
+write(`${logos}bottle.png`, await siteLogo(masters["gwenda-bottle"], canvas));
+for (const w of HERO_LOGO_WIDTHS)
+  write(
+    `${logos}bottle-hero-${w}.webp`,
+    await heroLogo(masters["gwenda-bottle"], canvas, w),
+  );
+write(
+  `${site}public${EMAIL_LOGO_PATH}`,
+  await emailLogo(masters["gwenda-bottle"], canvas),
+);
 console.log(LAYERS.map((name) => `${name} ${colours[name]}`).join(", "));

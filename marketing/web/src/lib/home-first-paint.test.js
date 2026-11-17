@@ -43,8 +43,9 @@ describe("home's logo comes first", () => {
   });
 
   it("keeps the logo files light", () => {
-    // 16-colour lossless (scripts/write-hero-logo.mjs): 64 KB at 864px,
-    // where astro:assets' lossy WebP was 190 KB
+    // 16-colour lossless, drawn from the master SVG (npm run brand:logo,
+    // scripts/lib/logo-renders.mjs): 33 KB at 864px, where astro:assets'
+    // lossy WebP of the original was 190 KB
     expect(kb("assets/images/logos/bottle-hero-864.webp")).toBeLessThan(80);
     expect(kb("assets/images/logos/bottle-hero-640.webp")).toBeLessThan(45);
   });
