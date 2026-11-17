@@ -15,12 +15,14 @@ import { sizedImageUrl } from "../../../functions/_lib/sanity-image-url.js";
 import { menuTaste } from "../../lib/home-menu.js";
 import { londonToday } from "../../lib/london-day.js";
 import { menuPage } from "../../lib/menu-anchors.js";
-import { boardPick, menuShelf } from "../../lib/menus.js";
+import { boardCards, boardPick, menuShelf } from "../../lib/menus.js";
 import { eventPhotos, galleryPhotos } from "../../lib/photo-sources";
 import { homePhotoPlan } from "../../lib/photos.js";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 import { fetchMenu } from "../../lib/sanity/menu";
 import type { MenuKind } from "../../types/menu";
+import FoodStack from "./FoodStack.astro";
+import KitchenCard from "./KitchenCard.astro";
 
 const today = londonToday();
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
@@ -33,24 +35,48 @@ const catalog = await fetchWhatsOnCatalog().catch(() => ({
  * on the Food board the kitchen cooking today, else the next one, labelled
  * with its day; the rest under "Also".
  */
-const boards = {
-  bar: boardPick(menuShelf("bar", menu, catalog, today), today),
-  kitchen: boardPick(menuShelf("kitchen", menu, catalog, today), today),
+const shelves = {
+  bar: menuShelf("bar", menu, catalog, today),
+  kitchen: menuShelf("kitchen", menu, catalog, today),
 };
-const kitchenPick = boards.kitchen;
-/** The top of the Food side while a pop-up is booked or on: its logo, who and when. */
-const kitchenTop = kitchenPick?.popup
-  ? {
-      title: kitchenPick.popup.title,
-      logo: kitchenPick.popup.logo,
-      line: kitchenPick.line,
-      href: kitchenPick.popup.href,
-      /** Its own colour for its name (#319); none, and it's our red. */
-      style: kitchenPick.popup.colourStyle || undefined,
-    }
+const boards = {
+  bar: boardPick(shelves.bar, today),
+  kitchen: boardPick(shelves.kitchen, today),
+};
+
+/** Who's cooking, at the top of a kitchen's card: its logo, who and when, in its own colour (#319). */
+function topOf(card: ReturnType<typeof boardCards>[number]) {
+  return card.popup
+    ? {
+        title: card.popup.title,
+        logo: card.popup.logo,
+        line: card.line,
+        href: card.popup.href,
+        style: card.popup.colourStyle || undefined,
+      }
+    : null;
+}
+
+/**
+ * Two or more pop-up kitchens: the Food board is a stack of their cards,
+ * the one cooking next on top (FoodStack.astro). One: the board as it was.
+ */
+const foodCards = boardCards(shelves.kitchen, today)
+  .filter((card) => card.popup)
+  .map((card) => ({
+    id: card.id,
+    when: card.when,
+    top: topOf(card)!,
+    taste: card.menu
+      ? menuTaste(card.menu.chapters, { where: shelves.kitchen.where })
+      : null,
+    menuLabel: card.menuLabel,
+    empty: "The list’s on its way.",
+  }));
+const stacked = foodCards.length > 1;
+const kitchenTop = boards.kitchen?.popup
+  ? topOf(boardCards(shelves.kitchen, today)[0])
   : null;
-/** The pop-up's logo at the top of the Food side: 4.5rem (72px), sharp at 2x. */
-const LOGO_WIDTH = 72;
 
 /**
  * The prints taped up on each board: the first of the venue's photos marked
@@ -73,14 +99,15 @@ const PHOTO_WIDTH = 192;
  */
 function menuOf(kind: MenuKind) {
   const pick = boards[kind];
-  const shelf = menuShelf(kind, menu, catalog, today);
+  const shelf = shelves[kind];
   return {
     href: menuPage(kind),
     taste: pick?.menu
       ? menuTaste(pick.menu.chapters, { where: shelf.where })
       : null,
     menuLabel: pick?.menuLabel || "",
-    also: pick?.also || [],
+    // The stack shows the other kitchens: no "Also" under it
+    also: kind === "kitchen" && stacked ? [] : pick?.also || [],
     empty:
       kind === "kitchen" && !pick
         ? "No kitchen in right now, back soon."
@@ -129,77 +156,15 @@ const sides = [
             <p>{side.line}</p>
           </header>
 
-          {side.key === "food" && kitchenTop && (
-            <a
-              href={kitchenTop.href}
-              class="ch-menu-kitchen"
-              style={kitchenTop.style}
-            >
-              {kitchenTop.logo && (
-                <img
-                  class="ch-menu-kitchen-logo"
-                  src={sizedImageUrl(kitchenTop.logo.url, LOGO_WIDTH)}
-                  srcset={`${sizedImageUrl(kitchenTop.logo.url, LOGO_WIDTH)} 1x, ${sizedImageUrl(kitchenTop.logo.url, LOGO_WIDTH * 2)} 2x`}
-                  alt=""
-                  width={LOGO_WIDTH}
-                  height={LOGO_WIDTH}
-                  loading="lazy"
-                  decoding="async"
-                />
-              )}
-              <span class="ch-menu-kitchen-line">
-                {kitchenTop.line.endsWith(kitchenTop.title) ? (
-                  <>
-                    {kitchenTop.line.slice(0, -kitchenTop.title.length)}
-                    <span class="ch-menu-kitchen-name">{kitchenTop.title}</span>
-                  </>
-                ) : (
-                  kitchenTop.line
-                )}
-              </span>
-            </a>
-          )}
-
-          {side.taste ? (
-            <>
-              {side.menuLabel && <p class="ch-menu-day">{side.menuLabel}</p>}
-              <h4 class="ch-menu-chapter">{side.taste.lead.title}</h4>
-              <ul class="ch-menu-items">
-                {side.taste.lead.items.map((item) => (
-                  <li>
-                    <span class="ch-menu-item-line">
-                      <span class="ch-menu-item-name">{item.name}</span>
-                      {item.price && (
-                        <span class="ch-menu-item-price">{item.price}</span>
-                      )}
-                    </span>
-                    {item.description && (
-                      <span class="ch-menu-item-desc">{item.description}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {side.taste.lead.total > side.taste.lead.items.length && (
-                <a href={side.taste.lead.href} class="ch-menu-rest">
-                  and {side.taste.lead.total - side.taste.lead.items.length}{" "}
-                  more →
-                </a>
-              )}
-              {side.taste.more.length > 0 && (
-                <ul class="ch-menu-more">
-                  {side.taste.more.map((part) => (
-                    <li>
-                      <a href={part.href}>
-                        <span>{part.title}</span>
-                        {part.from && <span>from {part.from}</span>}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
+          {side.key === "food" && stacked ? (
+            <FoodStack cards={foodCards} />
           ) : (
-            <p class="ch-menu-soon">{side.empty}</p>
+            <KitchenCard
+              top={side.key === "food" ? kitchenTop : null}
+              taste={side.taste}
+              menuLabel={side.menuLabel}
+              empty={side.empty}
+            />
           )}
 
           {side.also.length > 0 && (

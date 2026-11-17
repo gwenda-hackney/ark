@@ -378,7 +378,42 @@ function dayName(day, today) {
  * }} null when the page has nothing to show
  */
 export function boardPick(shelf, today) {
-  const ranked = shelf.kitchens
+  const [lead, ...others] = boardCards(shelf, today);
+  if (!lead) return null;
+  const { kitchen, chosen } = lead;
+  const also = [
+    ...kitchen.menus
+      .filter((menu) => menu !== chosen)
+      .map((menu) => ({ text: `${menu.name}, ${menu.days}`, href: menu.href })),
+    ...others
+      .filter((card) => card.popup)
+      .map((card) => ({
+        text: `${card.popup.days}, ${card.popup.title}`,
+        href: card.kitchen.href,
+      })),
+  ];
+  return {
+    popup: lead.popup,
+    line: lead.line,
+    menu: lead.menu,
+    menuLabel: lead.menuLabel,
+    also,
+  };
+}
+
+/**
+ * Home's Food board as a stack of cards (#306): one per kitchen, in the
+ * order they next cook, the next one on top. Each says who and when ("In the
+ * kitchen: Chez Pickle", "Monday: Crust Fund"), which of its menus runs that
+ * day ("Saturday's menu" when a later one), and its day in a word for its
+ * strip in the stack ("Today", "Thursday"). Kitchens that cook on the same
+ * day keep their week order. One card is the board as it always was.
+ *
+ * @param {ReturnType<typeof menuShelf>} shelf
+ * @param {string} today YYYY-MM-DD
+ */
+export function boardCards(shelf, today) {
+  return shelf.kitchens
     .map((kitchen, index) => ({
       kitchen,
       index,
@@ -387,59 +422,50 @@ export function boardPick(shelf, today) {
     .sort(
       (a, b) =>
         (a.day || "9999").localeCompare(b.day || "9999") || a.index - b.index,
-    );
-  const lead = ranked[0];
-  if (!lead) return null;
-  const { kitchen } = lead;
-  const day = lead.day || today;
-
-  const menuDays = kitchen.menus.map((menu) => ({
-    menu,
-    day: firstDay(
-      day,
-      (date) => menuRunsOn(menu.info, date) && kitchen.cooks(date),
-    ),
-  }));
-  const chosen =
-    menuDays.find((entry) => entry.day === day) ||
-    [...menuDays]
-      .filter((entry) => entry.day)
-      .sort((a, b) => a.day.localeCompare(b.day))[0] ||
-    menuDays[0] ||
-    null;
-
-  let line = "";
-  if (kitchen.popup) {
-    line =
-      day === today
-        ? `In the kitchen: ${kitchen.popup.title}`
-        : `${lead.day ? dayName(day, today) : "Next"}: ${kitchen.popup.title}`;
-  }
-  const said = kitchen.popup ? day : today;
-  const menuLabel =
-    chosen?.day && chosen.day !== said
-      ? `${dayName(chosen.day, today)}’s menu`
-      : "";
-
-  const also = [
-    ...kitchen.menus
-      .filter((menu) => menu !== chosen?.menu)
-      .map((menu) => ({ text: `${menu.name}, ${menu.days}`, href: menu.href })),
-    ...shelf.kitchens
-      .filter((other) => other !== kitchen && other.popup)
-      .map((other) => ({
-        text: `${other.popup.days}, ${other.popup.title}`,
-        href: other.href,
-      })),
-  ];
-
-  return {
-    popup: kitchen.popup,
-    line,
-    menu: chosen?.menu || null,
-    menuLabel,
-    also,
-  };
+    )
+    .map(({ kitchen, day: next }) => {
+      const day = next || today;
+      const menuDays = kitchen.menus.map((menu) => ({
+        menu,
+        day: firstDay(
+          day,
+          (date) => menuRunsOn(menu.info, date) && kitchen.cooks(date),
+        ),
+      }));
+      const chosen =
+        menuDays.find((entry) => entry.day === day) ||
+        [...menuDays]
+          .filter((entry) => entry.day)
+          .sort((a, b) => a.day.localeCompare(b.day))[0] ||
+        menuDays[0] ||
+        null;
+      const when = !next
+        ? "Next"
+        : day === today
+          ? "Today"
+          : dayName(day, today);
+      const line = kitchen.popup
+        ? day === today
+          ? `In the kitchen: ${kitchen.popup.title}`
+          : `${when}: ${kitchen.popup.title}`
+        : "";
+      const said = kitchen.popup ? day : today;
+      return {
+        id: kitchen.id,
+        kitchen,
+        popup: kitchen.popup,
+        day,
+        /** Its day in a word, for its strip in the stack. */
+        when,
+        line,
+        chosen: chosen?.menu || null,
+        menu: chosen?.menu || null,
+        menuLabel:
+          chosen?.day && chosen.day !== said
+            ? `${dayName(chosen.day, today)}’s menu`
+            : "",
+      };
+    });
 }
 
 /**

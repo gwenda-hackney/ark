@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  boardCards,
   boardPick,
   daysWords,
   menuDayKey,
@@ -174,6 +175,27 @@ describe("two pop-up kitchens in one week", () => {
     expect(thursday.also).toEqual([
       { text: "Mon, Monday Dumplings", href: "/kitchen#dumplings" },
     ]);
+  });
+
+  it("stacks home's Food board one card per kitchen, the one cooking next on top", () => {
+    const cards = (day) =>
+      boardCards(menuShelf("kitchen", menu, catalog, day), day).map((card) => [
+        card.id,
+        card.when,
+        card.menu?.id,
+      ]);
+    expect(cards(MON)).toEqual([
+      ["monday-dumplings", "Today", "dumplings"],
+      ["chez-pickle", "Wednesday", "chez-pickle"],
+    ]);
+    expect(cards(TUE)).toEqual([
+      ["chez-pickle", "Wednesday", "chez-pickle"],
+      ["monday-dumplings", "Monday", "dumplings"],
+    ]);
+    expect(cards(THU)[0][0]).toBe("chez-pickle");
+    // The lead card is what the board led with before
+    const lead = boardCards(menuShelf("kitchen", menu, catalog, TUE), TUE)[0];
+    expect(lead.line).toBe("Wednesday: Chez Pickle");
   });
 
   it("with nobody cooking today, leads with the next one, labelled with its day", () => {
