@@ -1,0 +1,111 @@
+---
+/**
+ * One of home's menu boards (#240): Drinks or Food. Its heading and line,
+ * then what it shows (KitchenCard.astro: on the Food board, who's cooking
+ * first), "Also: …" when there's more, the prints taped up, and the line
+ * to the whole menu at its foot.
+ */
+import { sizedImageUrl } from "../../../functions/_lib/sanity-image-url.js";
+import type { menuTaste } from "../../lib/home-menu.js";
+import KitchenCard from "./KitchenCard.astro";
+
+interface Props {
+  side: "drinks" | "food";
+  id?: string;
+  title: string;
+  href: string;
+  line: string;
+  link: string;
+  top: null | {
+    title: string;
+    logo: null | { url: string };
+    line: string;
+    href: string;
+    style?: string;
+  };
+  taste: ReturnType<typeof menuTaste>;
+  menuLabel: string;
+  empty: string;
+  also: Array<{ text: string; href: string }>;
+  photos: Array<{ url: string; width: number; height: number; alt?: string }>;
+  /** A print's alt text when the photo has none. */
+  photoAlt: string;
+  style?: string;
+}
+
+const {
+  side,
+  id,
+  title,
+  href,
+  line,
+  link,
+  top,
+  taste,
+  menuLabel,
+  empty,
+  also,
+  photos,
+  photoAlt,
+  style,
+} = Astro.props;
+/** A print's photo, 12rem across at most (192px), sharp at 2x. */
+const PHOTO_WIDTH = 192;
+---
+
+<article
+  class:list={["ch-menu-side", `ch-menu-side--${side}`]}
+  id={id}
+  style={style}
+>
+  <header class="ch-menu-side-head">
+    <h3>
+      <a href={href}>{title}</a>
+    </h3>
+    <p>{line}</p>
+  </header>
+
+  <KitchenCard top={top} taste={taste} menuLabel={menuLabel} empty={empty} />
+
+  {
+    also.length > 0 && (
+      <p class="ch-menu-also">
+        Also:{" "}
+        {also.map((other, index) => (
+          <>
+            {index > 0 && ", "}
+            <a href={other.href}>
+              {other.text} <span aria-hidden="true">→</span>
+            </a>
+          </>
+        ))}
+      </p>
+    )
+  }
+
+  {
+    photos.length > 0 && (
+      <div class="ch-menu-photos">
+        {/* The newest goes up last, on top */}
+        {[...photos].reverse().map((photo) => (
+          <figure class="ch-menu-photo ch-print">
+            <img
+              src={sizedImageUrl(photo.url, PHOTO_WIDTH)}
+              srcset={`${sizedImageUrl(photo.url, PHOTO_WIDTH)} 1x, ${sizedImageUrl(photo.url, PHOTO_WIDTH * 2)} 2x`}
+              alt={photo.alt || photoAlt}
+              width={PHOTO_WIDTH}
+              height={Math.round((PHOTO_WIDTH * photo.height) / photo.width)}
+              loading="lazy"
+              decoding="async"
+            />
+          </figure>
+        ))}
+      </div>
+    )
+  }
+
+  <a href={href} class="ch-menu-all">
+    {link}
+    <span aria-hidden="true">→</span>
+  </a>
+</article>

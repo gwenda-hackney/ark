@@ -402,12 +402,12 @@ export function boardPick(shelf, today) {
 }
 
 /**
- * Home's Food board as a stack of cards (#306): one per kitchen, in the
- * order they next cook, the next one on top. Each says who and when ("In the
- * kitchen: Chez Pickle", "Monday: Crust Fund"), which of its menus runs that
- * day ("Saturday's menu" when a later one), and its day in a word for its
- * strip in the stack ("Today", "Thursday"). Kitchens that cook on the same
- * day keep their week order. One card is the board as it always was.
+ * The kitchens for home's board (#306), in the order they next cook: the
+ * first leads the board (boardPick), the rest go under "Also". Each says
+ * who and when ("In the kitchen: Chez Pickle", "Monday: Crust Fund"),
+ * which of its menus runs that day ("Saturday's menu" when a later one),
+ * and its day in a word ("Today", "Thursday"). Kitchens that cook on the
+ * same day keep their week order.
  *
  * @param {ReturnType<typeof menuShelf>} shelf
  * @param {string} today YYYY-MM-DD

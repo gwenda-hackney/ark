@@ -11,7 +11,6 @@
  * booked or on, the Food side opens with who's cooking: its logo and name
  * from ops, and the way to its page (#296).
  */
-import { sizedImageUrl } from "../../../functions/_lib/sanity-image-url.js";
 import { menuTaste } from "../../lib/home-menu.js";
 import { londonToday } from "../../lib/london-day.js";
 import { menuPage } from "../../lib/menu-anchors.js";
@@ -20,9 +19,7 @@ import { eventPhotos, galleryPhotos } from "../../lib/photo-sources";
 import { homePhotoPlan } from "../../lib/photos.js";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 import { fetchMenu } from "../../lib/sanity/menu";
-import type { MenuKind } from "../../types/menu";
-import FoodStack from "./FoodStack.astro";
-import KitchenCard from "./KitchenCard.astro";
+import MenuBoard from "./MenuBoard.astro";
 
 const today = londonToday();
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
@@ -58,82 +55,63 @@ function topOf(card: ReturnType<typeof boardCards>[number]) {
 }
 
 /**
- * Two or more pop-up kitchens: the Food board is a stack of their cards,
- * the one cooking next on top (FoodStack.astro). One: the board as it was.
- */
-const foodCards = boardCards(shelves.kitchen, today)
-  .filter((card) => card.popup)
-  .map((card) => ({
-    id: card.id,
-    when: card.when,
-    top: topOf(card)!,
-    taste: card.menu
-      ? menuTaste(card.menu.chapters, { where: shelves.kitchen.where })
-      : null,
-    menuLabel: card.menuLabel,
-    empty: "The list’s on its way.",
-  }));
-const stacked = foodCards.length > 1;
-const kitchenTop = boards.kitchen?.popup
-  ? topOf(boardCards(shelves.kitchen, today)[0])
-  : null;
-
-/**
  * The prints taped up on each board: the first of the venue's photos marked
- * for it (its menu board in ops' Gallery); while a pop-up kitchen leads the
- * Food board, its prints are from that kitchen's own gallery in ops.
- * Which photo goes where on home is lib/photos.js homePhotoPlan, for the
- * boards and the photo row alike.
+ * for it (its menu board in ops' Gallery); a pop-up kitchen's Food board
+ * takes its own gallery's from ops. Which photo goes where on home is
+ * lib/photos.js homePhotoPlan, for the boards and the photo row alike.
  */
+const gallery = await galleryPhotos();
 const { kitchen: kitchenPhotos } = await eventPhotos(today);
-const photoPlan = homePhotoPlan(await galleryPhotos(), {
+const photoPlan = homePhotoPlan(gallery, {
   kitchen: kitchenPhotos?.photos || [],
 });
-/** A print's photo, 12rem across at most (192px), sharp at 2x. */
-const PHOTO_WIDTH = 192;
+const drinks = {
+  side: "drinks" as const,
+  id: "drinks",
+  title: "Drinks",
+  href: menuPage("bar"),
+  link: "All the drinks",
+  line: "Our own cocktails, the classics, cold beer, and a few with no booze in.",
+  top: null,
+  taste: boards.bar?.menu
+    ? menuTaste(boards.bar.menu.chapters, { where: shelves.bar.where })
+    : null,
+  menuLabel: boards.bar?.menuLabel || "",
+  empty: "The list’s on its way.",
+  also: boards.bar?.also || [],
+  photos: photoPlan.drinks,
+  photoAlt: "",
+};
+
+/** What every Food board says, whoever is cooking. */
+const foodFrame = {
+  side: "food" as const,
+  title: "Food",
+  href: menuPage("kitchen"),
+  link: "All the food",
+  line: "Proper food to go with a drink.",
+};
 
 /**
- * A side's menu, by its `kind` in the data: its page, a taste of the menu
- * it leads with, that menu's day when it isn't today's ("Saturday's menu"),
- * and the others ("Also"). With nothing to lead with, what it says instead.
+ * The Food board: the kitchen cooking next (lib/menus.js boardCards),
+ * its logo and "Day: Name", and the others under "Also".
  */
-function menuOf(kind: MenuKind) {
-  const pick = boards[kind];
-  const shelf = shelves[kind];
-  return {
-    href: menuPage(kind),
-    taste: pick?.menu
-      ? menuTaste(pick.menu.chapters, { where: shelf.where })
-      : null,
-    menuLabel: pick?.menuLabel || "",
-    // The stack shows the other kitchens: no "Also" under it
-    also: kind === "kitchen" && stacked ? [] : pick?.also || [],
-    empty:
-      kind === "kitchen" && !pick
-        ? "No kitchen in right now, back soon."
-        : "The list’s on its way.",
-  };
-}
-
-const sides = [
-  {
-    key: "drinks",
-    title: "Drinks",
-    link: "All the drinks",
-    line: "Our own cocktails, the classics, cold beer, and a few with no booze in.",
-    photos: photoPlan.drinks,
-    ...menuOf("bar"),
-  },
-  {
-    key: "food",
-    title: "Food",
-    link: "All the food",
-    /** What the food is; who's cooking goes at the top, while a pop-up's on. */
-    line: "Proper food to go with a drink.",
-    photos: photoPlan.food,
-    ...menuOf("kitchen"),
-  },
-];
+const lead = boardCards(shelves.kitchen, today)[0];
+const food = {
+  ...foodFrame,
+  id: "food",
+  top: lead ? topOf(lead) : null,
+  taste: boards.kitchen?.menu
+    ? menuTaste(boards.kitchen.menu.chapters, { where: shelves.kitchen.where })
+    : null,
+  menuLabel: boards.kitchen?.menuLabel || "",
+  empty: boards.kitchen
+    ? "The list’s on its way."
+    : "No kitchen in right now, back soon.",
+  also: boards.kitchen?.also || [],
+  photos: photoPlan.food,
+  photoAlt: kitchenPhotos ? `Food from ${kitchenPhotos.title}` : "",
+};
 ---
 
 <section class="ch-home-section ch-home-menu" id="menu">
@@ -143,73 +121,7 @@ const sides = [
   </header>
 
   <div class="ch-menu-sides">
-    {
-      sides.map((side) => (
-        <article
-          class:list={["ch-menu-side", `ch-menu-side--${side.key}`]}
-          id={side.key}
-        >
-          <header class="ch-menu-side-head">
-            <h3>
-              <a href={side.href}>{side.title}</a>
-            </h3>
-            <p>{side.line}</p>
-          </header>
-
-          {side.key === "food" && stacked ? (
-            <FoodStack cards={foodCards} />
-          ) : (
-            <KitchenCard
-              top={side.key === "food" ? kitchenTop : null}
-              taste={side.taste}
-              menuLabel={side.menuLabel}
-              empty={side.empty}
-            />
-          )}
-
-          {side.also.length > 0 && (
-            <p class="ch-menu-also">
-              Also:{" "}
-              {side.also.map((other, index) => (
-                <>
-                  {index > 0 && ", "}
-                  <a href={other.href}>
-                    {other.text} <span aria-hidden="true">→</span>
-                  </a>
-                </>
-              ))}
-            </p>
-          )}
-
-          {side.photos.length > 0 && (
-            <div class="ch-menu-photos">
-              {/* The newest goes up last, on top */}
-              {[...side.photos].reverse().map((photo) => (
-                <figure class="ch-menu-photo ch-print">
-                  <img
-                    src={sizedImageUrl(photo.url, PHOTO_WIDTH)}
-                    srcset={`${sizedImageUrl(photo.url, PHOTO_WIDTH)} 1x, ${sizedImageUrl(photo.url, PHOTO_WIDTH * 2)} 2x`}
-                    alt={
-                      photo.alt ||
-                      (kitchenPhotos ? `Food from ${kitchenPhotos.title}` : "")
-                    }
-                    width={PHOTO_WIDTH}
-                    height={Math.round(
-                      (PHOTO_WIDTH * photo.height) / photo.width,
-                    )}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </figure>
-              ))}
-            </div>
-          )}
-
-          <a href={side.href} class="ch-menu-all">
-            {side.link} <span aria-hidden="true">→</span>
-          </a>
-        </article>
-      ))
-    }
+    <MenuBoard {...drinks} />
+    <MenuBoard {...food} />
   </div>
 </section>

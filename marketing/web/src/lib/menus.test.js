@@ -177,7 +177,7 @@ describe("two pop-up kitchens in one week", () => {
     ]);
   });
 
-  it("stacks home's Food board one card per kitchen, the one cooking next on top", () => {
+  it("orders the kitchens for home's Food board, the one cooking next first", () => {
     const cards = (day) =>
       boardCards(menuShelf("kitchen", menu, catalog, day), day).map((card) => [
         card.id,
@@ -250,6 +250,18 @@ describe("a pop-up with a menu for each day", () => {
       "/kitchen#chez-pickle-dinner",
       "/kitchen#chez-pickle-brunch",
     ]);
+  });
+
+  it("shows the menu for the night it leads with: Dinner on Thursday, Brunch on Saturday", () => {
+    const thursday = boardPick(menuShelf("kitchen", menu, catalog, THU), THU);
+    expect(thursday.menu.name).toBe("Dinner");
+    expect(thursday.menuLabel).toBe("");
+    const saturday = boardPick(menuShelf("kitchen", menu, catalog, SAT), SAT);
+    expect(saturday.menu.name).toBe("Brunch");
+    // Monday, nobody cooks: Thursday is next, and its board is Thursday's dinner
+    const monday = boardPick(menuShelf("kitchen", menu, catalog, MON), MON);
+    expect(monday.line).toBe("Thursday: Chez Pickle");
+    expect(monday.menu.name).toBe("Dinner");
   });
 
   it("on Saturday the board shows brunch, with dinner under Also", () => {
