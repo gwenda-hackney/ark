@@ -2,7 +2,7 @@
 /**
  * A menu page's menus (#306): /bar's or /kitchen's, as lib/menus.js
  * menuShelf has them for the day the site is built: each pop-up kitchen
- * under its logo, name (in its own colour, #319) and days, its menus under their own heads ("Dinner · Thu & Fri") when it has
+ * under its logo, name and days, its menus under their own heads ("Dinner · Thu & Fri") when it has
  * more than one, today's marked. Menus that haven't started are a line
  * each at the foot. The order is the same every day: only the "Today"
  * marks move.
@@ -182,9 +182,9 @@ const LOGO_WIDTH = 72;
     color: var(--ch-cream);
   }
 
-  /* A pop-up kitchen's heading in its own colour (#319), else our accent */
+  /* Cream here: the kitchen's own colour (#319) is for its card on the home page only (owner, 2026-11-17) */
   .ch-kitchen-name a {
-    color: var(--kitchen-ink, var(--ch-cream));
+    color: var(--ch-cream);
     text-decoration: none;
   }
 
