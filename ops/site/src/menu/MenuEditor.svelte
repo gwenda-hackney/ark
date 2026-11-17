@@ -52,6 +52,7 @@
 	let error = $state("");
 	let saving = $state(false);
 	let deleting = $state(false);
+	let copying = $state(false);
 	let discardOpen = $state(false);
 	let deleteOpen = $state(false);
 
@@ -64,6 +65,9 @@
 	const deleteReason = $derived(
 		isNew ? "Save it first" : sections.length ? "Move its sections to another menu first" : undefined,
 	);
+
+	// It copies the menu as saved, so changes not yet saved come first.
+	const copyReason = $derived(isNew ? "Save it first" : dirty ? "Save your changes first" : undefined);
 
 	function popupFromAddress(): string {
 		if (typeof location === "undefined") return "";
@@ -160,6 +164,21 @@
 		}
 	}
 
+	/** Copy menu: the next menu from this one, opened to set its dates. */
+	async function copy() {
+		if (!menu || copying || copyReason) return;
+		copying = true;
+		try {
+			const { menu: made } = await api.copyMenu(menu.id);
+			toast.ok(`${made.name} added, with ${menu.name}'s sections. Set its dates, then add its items.`);
+			navigate(menuPagePath(made.id), { force: true });
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Couldn't copy the menu.");
+		} finally {
+			copying = false;
+		}
+	}
+
 	function back() {
 		leaveEditor(menusListPath());
 	}
@@ -213,6 +232,17 @@
 			<Button variant="outline" type="button" onclick={back}>
 				{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
 				Menus
+			</Button>
+			<Button
+				variant="outline"
+				type="button"
+				busy={copying}
+				disabled={Boolean(copyReason) || copying}
+				reason={copyReason}
+				onclick={() => void copy()}
+			>
+				{#snippet icon()}<Icon name="copy" size={16} />{/snippet}
+				Copy menu
 			</Button>
 			<Button
 				variant="ghost"

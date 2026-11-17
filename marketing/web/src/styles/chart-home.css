@@ -33,7 +33,7 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 1rem;
-  margin-top: 2.75rem;
+  margin-block: 3.5rem 1rem;
 }
 
 /* On a phone: the page's one gutter, as on every other page */
@@ -319,6 +319,41 @@
   }
 }
 
+/*
+ * Which day's menu the board shows when it isn't today's ("Saturday's
+ * menu"), and the board's other menus and kitchens under it ("Also: …",
+ * #306): written up in pen, like the kitchen line.
+ */
+.ch-menu-day {
+  margin: 0 0 -0.25rem;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.15;
+  color: var(--ch-mustard);
+}
+
+.ch-menu-also {
+  margin: 0;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.2;
+  color: var(--ch-cream);
+}
+
+.ch-menu-also a {
+  color: var(--ch-mustard);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+.ch-menu-also a:hover,
+.ch-menu-also a:focus-visible {
+  color: var(--ch-cream);
+}
+
 .ch-menu-soon {
   margin: 0;
   font-family: var(--ch-pen);
@@ -361,6 +396,17 @@
   font-size: 1.375rem;
   line-height: 1.15;
   transition: color 0.2s ease;
+}
+
+/* The kitchen's name in its own colour, read on the board (#319; lib/
+   kitchen-colour.js), else our accent, apart from the day before it */
+.ch-menu-kitchen-name {
+  color: var(--kitchen-ink, var(--ch-red-ink));
+}
+
+.ch-menu-kitchen:hover .ch-menu-kitchen-name,
+.ch-menu-kitchen:focus-visible .ch-menu-kitchen-name {
+  color: inherit;
 }
 
 .ch-menu-kitchen:hover .ch-menu-kitchen-line,
@@ -475,8 +521,8 @@
 
 .ch-stand-row {
   display: grid;
-  /* Two abreast where each gets 24rem; one kind alone takes the row */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  /* Each kind (pop-ups, deals) gets the full width, one under the other */
+  grid-template-columns: minmax(0, 1fr);
   gap: 3rem;
   /* A column with more cards than the other doesn't stretch the other's */
   align-items: start;
@@ -490,11 +536,6 @@
 
 .ch-home .ch-stand-row > .ch-stand-section {
   margin: 0;
-}
-
-/* In a half row, a section's cards go one under another */
-.ch-stand-row .ch-stands {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 /* The rest of a kind, on What's on: a quiet line under its cards */
@@ -679,4 +720,34 @@
   .ch-home .ch-footer {
     padding-inline: var(--ch-gutter);
   }
+}
+
+/* Home: deals and pop-ups at full size, two abreast (the owner, 2026-11-17) */
+.ch-home .ch-stand-row .ch-stands {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
+  gap: 3rem 3.5rem;
+}
+
+.ch-home .ch-stand-row .ch-stand {
+  --stand-h: 20rem;
+  gap: 2.25rem;
+}
+
+.ch-home .ch-stand-row .ch-stand-name {
+  font-size: clamp(1.75rem, 2.4vw, 2.25rem);
+}
+
+/* The kitchen cooking next leads: the whole row, its picture bigger */
+.ch-home .ch-stand-row .ch-stand--lead {
+  grid-column: 1 / -1;
+  --stand-h: 26rem;
+}
+
+.ch-home .ch-stand-row .ch-stand--lead .ch-stand-name {
+  font-size: clamp(2.25rem, 3.4vw, 3rem);
+}
+
+/* The ones after it: smaller, side by side */
+.ch-home .ch-stand-row .ch-stand--popup:not(.ch-stand--lead) {
+  --stand-h: 14rem;
 }

@@ -134,6 +134,14 @@ export function updateMenu(id: string, body: Partial<import("../menu/types").Men
   });
 }
 
+/** Copy menu (#306): a new menu from this one, with its sections but no dates or items. */
+export function copyMenu(id: string) {
+  return request<{ menu: import("../menu/types").Menu }>(`/api/menus/${encodeURIComponent(id)}/copy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 export function deleteMenu(id: string) {
   return request(`/api/menus/${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -715,8 +723,12 @@ export type CodeDiff = {
 };
 
 export type SitePendingItem = {
-  /** "popup": a pop-up kitchen the built site still shows has ended (site-pending.js). */
-  kind: "document" | "artist" | "popup";
+  /**
+   * "popup": a pop-up kitchen the built site still shows has ended;
+   * "menus": the menus it shows today differ from its build day's (#306)
+   * (site-pending.js).
+   */
+  kind: "document" | "artist" | "popup" | "menus";
   id: string;
   change: "added" | "changed" | "removed";
   label: string;
@@ -961,6 +973,8 @@ export type OpsEvent = {
   gallery: OpsGalleryPhoto[];
   /** A pop-up kitchen's logo (#296), on its Images tab. */
   logo?: OpsEventImage | null;
+  /** A pop-up kitchen's own colour (#319), "#0f4d32", or "" for none; beside its logo. */
+  accentColor?: string;
   dates: OpsEventOccurrence[];
   publish: {
     preview: "unpublished" | "stale" | "current";
@@ -1158,6 +1172,15 @@ export function uploadEventLogo(id: string, file: File) {
 export function clearEventLogo(id: string) {
   return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/logo`, {
     method: "DELETE",
+  });
+}
+
+/** A pop-up kitchen's own colour (#319): "#0f4d32", or "" for none. */
+export function setEventAccentColor(id: string, accentColor: string) {
+  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/colour`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accentColor }),
   });
 }
 

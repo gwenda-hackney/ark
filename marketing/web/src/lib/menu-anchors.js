@@ -43,10 +43,14 @@ function token(value) {
  * @param {Array<{ id: string, kind?: string, subsections?: object[] }>} chapters
  *   a menu's chapters as they were fetched, in order: every chapter of a
  *   page, with or without anything on it
+ * @param {Array<{ id: string, kind?: string }>} [menus] menus with links of
+ *   their own (#306), in order. They come before every chapter: a menu's
+ *   link is its slug (`/kitchen#chez-pickle-brunch`), on its own kind's page,
+ *   and a chapter that shares it gets a number.
  * @returns {(section: object) => { page: string, anchor: string, href: string } | undefined}
- *   where one of those sections is: its page, its id there, and the two as a link
+ *   where one of those sections or menus is: its page, its id there, and the two as a link
  */
-export function menuAddresses(chapters) {
+export function menuAddresses(chapters, menus = []) {
   const found = new Map();
   /** The ids given out so far, page by page. */
   const taken = new Map();
@@ -61,6 +65,7 @@ export function menuAddresses(chapters) {
     found.set(section, { page, anchor, href: `${page}#${anchor}` });
   };
 
+  for (const menu of menus) place(menu, menuPage(menu.kind));
   for (const chapter of chapters) place(chapter, menuPage(chapter.kind));
   for (const chapter of chapters) {
     for (const group of chapter.subsections || []) {

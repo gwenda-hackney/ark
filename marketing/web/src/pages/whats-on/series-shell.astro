@@ -17,9 +17,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import ChartFooter from "../../components/chart/ChartFooter.astro";
 import ChartNav from "../../components/chart/ChartNav.astro";
 import { siteConfig } from "../../config/site";
-import { menuChapters } from "../../data/menu";
 import { followUpdatesLink } from "../../lib/follow-updates.js";
-import { popupMenuHref } from "../../lib/popup-kitchen.js";
+import { londonToday } from "../../lib/london-day.js";
+import { popupMenuLinks } from "../../lib/menus.js";
+import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 import { fetchFormButtons } from "../../lib/sanity/forms";
 import { fetchMenu } from "../../lib/sanity/menu";
 import { fetchSiteSettings } from "../../lib/sanity/site-settings";
@@ -27,11 +28,14 @@ import { DATES_PENDING_LABEL } from "../../../functions/_lib/event-series.js";
 
 const { bookingEnabled } = await fetchSiteSettings();
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
-const chapters = menuChapters(menu, "kitchen");
-/** Each pop-up kitchen's own chapter on the food page. */
+const catalog = await fetchWhatsOnCatalog().catch(() => ({
+  series: [],
+  occurrences: [],
+}));
+/** Each pop-up kitchen's menus on the food page (lib/menus.js). */
 const popupMenus = [
-  ...new Set(chapters.map((chapter) => chapter.popupSeriesId).filter(Boolean)),
-].map((seriesId) => ({ seriesId, href: popupMenuHref(seriesId, chapters) }));
+  ...popupMenuLinks(menu, catalog, londonToday()).entries(),
+].map(([seriesId, href]) => ({ seriesId, href }));
 /** Each contact form's button, for an event whose link in ops is that form. */
 const formButtons = await fetchFormButtons().catch(() => []);
 const follow = followUpdatesLink();

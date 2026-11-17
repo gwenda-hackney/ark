@@ -1,5 +1,6 @@
 import { expandSeriesOccurrenceDates, todayIso } from "../event-recurrence.js";
 import { itemSlug } from "../../menu/item-key.js";
+import { storedAccentColor } from "./accent-color.js";
 import {
   parseNightSchedule,
   stableNightSchedule,
@@ -356,6 +357,8 @@ export function occurrencePayload(event, occurrence) {
       : {}),
     // A pop-up kitchen's logo (#296), only when it has one on the website.
     ...(publishedLogo(event) ? { seriesLogo: stableImageRef({ asset: publishedLogo(event) }) } : {}),
+    // A pop-up kitchen's colour (#319), only when it has one on the website.
+    ...(publishedAccentColor(event) ? { seriesAccentColor: publishedAccentColor(event) } : {}),
     isSpecialEdition: content.isSpecialEdition,
     seriesId: String(event?.slug || "").trim(),
     seriesTitle: String(event?.name || "").trim(),
@@ -432,6 +435,12 @@ export function publishedCategory(category) {
  * series that stops being a pop-up kitchen keeps its logo in ops, off the
  * website.
  */
+/** A pop-up kitchen's colour on the website (#319); "" for anyone else, or none. */
+export function publishedAccentColor(event) {
+  if (publishedCategory(event?.category) !== "popup") return "";
+  return storedAccentColor(event?.accentColor);
+}
+
 export function publishedLogo(event) {
   if (publishedCategory(event?.category) !== "popup") return "";
   return String(event?.logo?.asset || "").trim();
@@ -454,6 +463,7 @@ export function sanitySeriesDocument({
   category = "event",
   pageUrl = "",
   logo = "",
+  accentColor = "",
 }) {
   const key = String(slug || "").trim();
   const doc = {
@@ -490,6 +500,10 @@ export function sanitySeriesDocument({
   if (logoAsset) {
     doc.logo = { _type: "image", alt: doc.title, asset: { _type: "reference", _ref: logoAsset } };
   }
+  // A pop-up kitchen's own colour (#319), "#0f4d32": its name and its tag
+  // on the website. Only a pop-up kitchen's, and left off when it has none.
+  const accent = publishedAccentColor({ category, accentColor });
+  if (accent) doc.accentColor = accent;
   return doc;
 }
 

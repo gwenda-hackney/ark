@@ -1,0 +1,103 @@
+---
+/**
+ * What home's Food board shows for one kitchen (#306): its logo and "Day:
+ * Name" in its own colour (#319), the day of its menu when that isn't the
+ * board's day ("Saturday's menu"), a few dishes from its first chapter, and
+ * the rest of its menu as tiles. With nothing on its menu yet, a line in
+ * place of the dishes. One kitchen is the board itself; two or more are
+ * cards in a stack (FoodStack.astro).
+ */
+import { sizedImageUrl } from "../../../functions/_lib/sanity-image-url.js";
+import type { menuTaste } from "../../lib/home-menu.js";
+
+interface Props {
+  /** Who's cooking, or null on the house's own board. */
+  top: null | {
+    title: string;
+    logo: null | { url: string };
+    line: string;
+    href: string;
+    style?: string;
+  };
+  taste: ReturnType<typeof menuTaste>;
+  menuLabel: string;
+  /** In place of the dishes, while the menu has none. */
+  empty: string;
+}
+
+const { top, taste, menuLabel, empty } = Astro.props;
+/** The pop-up's logo at the top: 4.5rem (72px), sharp at 2x. */
+const LOGO_WIDTH = 72;
+---
+
+{
+  top && (
+    <a href={top.href} class="ch-menu-kitchen" style={top.style}>
+      {top.logo && (
+        <img
+          class="ch-menu-kitchen-logo"
+          src={sizedImageUrl(top.logo.url, LOGO_WIDTH)}
+          srcset={`${sizedImageUrl(top.logo.url, LOGO_WIDTH)} 1x, ${sizedImageUrl(top.logo.url, LOGO_WIDTH * 2)} 2x`}
+          alt=""
+          width={LOGO_WIDTH}
+          height={LOGO_WIDTH}
+          loading="lazy"
+          decoding="async"
+        />
+      )}
+      <span class="ch-menu-kitchen-line">
+        {top.line.endsWith(top.title) ? (
+          <>
+            {top.line.slice(0, -top.title.length)}
+            <span class="ch-menu-kitchen-name">{top.title}</span>
+          </>
+        ) : (
+          top.line
+        )}
+      </span>
+    </a>
+  )
+}
+
+{
+  taste ? (
+    <>
+      {menuLabel && <p class="ch-menu-day">{menuLabel}</p>}
+      <h4 class="ch-menu-chapter">{taste.lead.title}</h4>
+      <ul class="ch-menu-items">
+        {taste.lead.items.map((item) => (
+          <li>
+            <span class="ch-menu-item-line">
+              <span class="ch-menu-item-name">{item.name}</span>
+              {item.price && (
+                <span class="ch-menu-item-price">{item.price}</span>
+              )}
+            </span>
+            {item.description && (
+              <span class="ch-menu-item-desc">{item.description}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {taste.lead.total > taste.lead.items.length && (
+        <a href={taste.lead.href} class="ch-menu-rest">
+          and {taste.lead.total - taste.lead.items.length} more →
+        </a>
+      )}
+      {taste.more.length > 0 && (
+        <ul class="ch-menu-more">
+          {taste.more.map((part) => (
+            <li>
+              <a href={part.href}>
+                <span>{part.title}</span>
+                {part.from && <span>from {part.from}</span>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  ) : (
+    <p class="ch-menu-soon">{empty}</p>
+  )
+}

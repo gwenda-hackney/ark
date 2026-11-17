@@ -71,14 +71,15 @@ function hasContent(section) {
  *
  * @param {Array<{ id: string, kind?: string, items: object[], subsections?: object[] }>} chapters
  *   one menu's chapters as they were fetched, in order
+ * @param {ReturnType<typeof menuAddresses>} [where] the page's addresses,
+ *   when it shows more than one menu (lib/menus.js menuShelf)
  * @returns {{
  *   chapters: Array<{ chapter: object, id: string, groups: Array<{ section: object, id?: string }> }>,
  *   rows: ReturnType<typeof menuRows>,
  * }} the chapters in order, for the links that jump to them, and the same
  *   laid out in rows (menuRows), each entry with its `id` and `groups`
  */
-export function menuSheet(chapters) {
-  const where = menuAddresses(chapters);
+export function menuSheet(chapters, where = menuAddresses(chapters)) {
   const drawn = new Map(
     chapters.filter(hasContent).map((chapter) => [
       chapter,

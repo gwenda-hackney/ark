@@ -6,6 +6,7 @@ import {
   type SanityImageField,
 } from "./images";
 import { portableTextToRich } from "../../../functions/_lib/rich-text.js";
+import { cleanColour } from "../kitchen-colour.js";
 import { categoryOf, withSeriesCategory } from "../promotions.js";
 import { EVENTS_QUERY, SERIES_QUERY } from "./queries";
 
@@ -108,6 +109,7 @@ type SanitySeries = {
     width?: number | null;
     height?: number | null;
   } | null;
+  accentColor?: string | null;
   gallery?: EventSeries["gallery"] | null;
   shortDescription?: string | null;
   nightSchedule?: SanityEvent["nightSchedule"];
@@ -142,6 +144,7 @@ function mapSeries(doc: SanitySeries): EventSeries | null {
           height: Number(doc.logo.height) || 0,
         }
       : null,
+    accentColor: cleanColour(doc.accentColor),
     recurrence: doc.recurrence?.trim() || "",
     shortDescription: doc.shortDescription?.trim() || "",
     nightSchedule: mapNightSchedule(doc.nightSchedule),

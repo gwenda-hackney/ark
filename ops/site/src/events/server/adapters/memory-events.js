@@ -34,6 +34,7 @@ const EMPTY_EVENT = {
   heroCrops: null,
   gallery: [],
   logo: null,
+  accentColor: "",
 };
 
 const EMPTY_OVERRIDES = {
