@@ -63,7 +63,7 @@ export function seeThrough(svg) {
 
 /**
  * A master's own size in px, and where its box sits on the original's
- * canvas: its viewBox is in half pixels of the original.
+ * canvas: its viewBox is in fractions of the original's pixels.
  */
 function frame(svg) {
   const width = Number(svg.match(/<svg[^>]* width="(\d+)"/)[1]);

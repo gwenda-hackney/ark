@@ -26,13 +26,15 @@ const LAYERS = ["black", "cream", "mustard", "red"];
 
 /**
  * An SVG drawn at its own size on nothing: [r, g, b, alpha] at a point given
- * in the original's pixels (the SVG's units are half of one).
+ * in the original's pixels (the SVG's units are a fraction of one).
  */
 async function drawn(svg, path) {
-  const [x0, y0] = svg
+  const box = svg
     .match(/viewBox="([^"]*)"/)[1]
     .split(" ")
-    .map((n) => Number(n) / 2);
+    .map(Number);
+  const unit = box[2] / Number(svg.match(/<svg[^>]* width="(\d+)"/)[1]);
+  const [x0, y0] = [box[0] / unit, box[1] / unit];
   const { data, info } = await sharp(path)
     .ensureAlpha()
     .raw()
@@ -91,6 +93,29 @@ describe.each(["gwenda-bottle", "gwenda-bottle-record"])("%s", (name) => {
       expect(meta.hasAlpha).toBe(true);
     },
   );
+});
+
+describe("the drawing's frayed edges", () => {
+  it("keeps the pin-pricks in the letters, too small and faint for a plain threshold", async () => {
+    const svg = readFileSync(file("gwenda-bottle.svg"), "utf8");
+    const at = await drawn(svg, file("gwenda-bottle.svg").pathname);
+    // In the E, the A, the E's foot and the D's: a pixel or two across, grey
+    for (const [x, y] of [
+      [673, 605],
+      [833, 633],
+      [452, 794],
+      [692, 826],
+    ]) {
+      const [r, g, b, alpha] = at(x, y);
+      // Black, give or take the soft edge of so small a mark
+      expect(Math.max(r, g, b), `pin-prick at ${x},${y}`).toBeLessThan(40);
+      expect(alpha).toBe(255);
+    }
+  });
+
+  it("is still light enough to hand around", () => {
+    expect(statSync(file("gwenda-bottle.svg")).size / 1024).toBeLessThan(120);
+  });
 });
 
 describe("the bottle and record alone", () => {
