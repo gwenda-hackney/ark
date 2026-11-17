@@ -180,10 +180,10 @@ function standing(card, tag, slipStyle) {
   );
 }
 
-/** One half of Bookings: its heading, its line, its button. */
+/** One half of Bookings: its heading, its line, its link (text, not a button: Book a table is the one button). */
 function bookingHalf(half) {
   return table(
-    `<tr><td class="half-in" style="padding:0 20px 24px 0;"><h3 class="display" style="margin:0;font-family:${FONTS.display};font-size:28px;line-height:1.05;font-weight:400;font-synthesis:none;color:${COLOURS.cream};">${esc(half.heading)}</h3><p class="slab" style="margin:10px 0 18px;font-family:${FONTS.slab};font-size:17px;line-height:1.45;color:${COLOURS.ink2};">${esc(half.line)}</p>${button(half.cta, half.href)}</td></tr>`,
+    `<tr><td class="half-in" style="padding:0 20px 24px 0;"><h3 class="display" style="margin:0;font-family:${FONTS.display};font-size:28px;line-height:1.05;font-weight:400;font-synthesis:none;color:${COLOURS.cream};">${esc(half.heading)}</h3><p class="slab" style="margin:10px 0 18px;font-family:${FONTS.slab};font-size:17px;line-height:1.45;color:${COLOURS.ink2};">${esc(half.line)}</p><a href="${href(half.href)}" class="slab" style="font-family:${FONTS.slab};font-size:17px;font-weight:700;color:${COLOURS.mustard};text-decoration:underline;">${esc(half.cta)} &rarr;</a></td></tr>`,
   );
 }
 
