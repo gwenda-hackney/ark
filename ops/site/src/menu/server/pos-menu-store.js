@@ -89,7 +89,7 @@ function assertUniqueMenuName(menus, name, exceptId = "") {
     if (exceptId && String(row.id) === String(exceptId)) return false;
     return namesClash(row.name, trimmed);
   });
-  if (clash) fail(409, "A POS menu with that name already exists.");
+  if (clash) fail(409, "A till menu with that name already exists.");
   return trimmed;
 }
 
@@ -118,7 +118,7 @@ export async function updatePosMenu(env, menuId, input) {
   const repo = menuRepository(env);
   const existing = await listPosMenus(env, repo);
   const current = existing.find((row) => String(row.id) === String(menuId));
-  if (!current) fail(404, "POS menu not found.");
+  if (!current) fail(404, "Till menu not found.");
   const name = Object.prototype.hasOwnProperty.call(input || {}, "name")
     ? assertUniqueMenuName(existing, input.name, current.id)
     : current.name;
@@ -139,7 +139,7 @@ export async function deletePosMenu(env, menuId) {
   const repo = menuRepository(env);
   const existing = await listPosMenus(env, repo);
   const current = existing.find((row) => String(row.id) === String(menuId));
-  if (!current) fail(404, "POS menu not found.");
+  if (!current) fail(404, "Till menu not found.");
   const leftover = existing.filter((row) => String(row.id) !== String(menuId));
   await repo.write([
     { op: "remove", collection: "pos_menus", id: menuId },

@@ -103,6 +103,63 @@ export function deletePosMenu(id: string) {
   });
 }
 
+/** Menu → Menus (#305): every menu, and the pop-up kitchens a menu can belong to. */
+export function listMenus() {
+  return request<{ menus: import("../menu/types").Menu[]; popups: import("../menu/types").MenuPopupRun[] }>("/api/menus");
+}
+
+/** A menu's page: the menu, its sections, every menu (to move a chapter to) and the pop-up kitchens. */
+export function getMenuPage(id: string) {
+  return request<{
+    menu: import("../menu/types").Menu;
+    sections: import("../menu/types").MenuSection[];
+    menus: import("../menu/types").Menu[];
+    popups: import("../menu/types").MenuPopupRun[];
+  }>(`/api/menus/${encodeURIComponent(id)}`);
+}
+
+export function createMenu(body: Partial<import("../menu/types").MenuInput>) {
+  return request<{ menu: import("../menu/types").Menu }>("/api/menus", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateMenu(id: string, body: Partial<import("../menu/types").MenuInput> & { orderRank?: number }) {
+  return request<{ menu: import("../menu/types").Menu }>(`/api/menus/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteMenu(id: string) {
+  return request(`/api/menus/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/** A menu as a pop-up kitchen's editor in Events lists it (the menu module's popup-menus.js). */
+export type PopupMenu = {
+  id: string;
+  name: string;
+  kind: "bar" | "kitchen";
+  startsOn: string;
+  endsOn: string;
+  days: string[];
+  daysLabel: string;
+  datesLabel: string;
+  status: "on" | "coming" | "ended";
+  statusLabel: string;
+};
+
+/** A pop-up kitchen's menus, for its editor in Events. */
+export function getPopupMenus(eventId: string) {
+  return request<{ menus: PopupMenu[] }>(`/api/events/${encodeURIComponent(eventId)}/menus`);
+}
+
 export function createSection(body: unknown) {
   return request<{ section: import("../menu/types").MenuSection }>(
     "/api/menu/sections",

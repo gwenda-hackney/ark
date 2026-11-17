@@ -198,7 +198,9 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/lightspeed/export"), "lightspeed");
     assert.equal(shellPageKey("/lightspeed/menus"), "lightspeed");
     assert.equal(shellPageKey("/suppliers"), "suppliers");
-    assert.equal(shellPageKey("/sections"), "config");
+    assert.equal(shellPageKey("/sections"), "menus");
+    assert.equal(shellPageKey("/menus"), "menus");
+    assert.equal(shellPageKey("/menus/3"), "menus");
     assert.equal(shellPageKey("/users"), "users");
     assert.equal(shellPageKey("/venue"), "venue");
     assert.equal(shellPageKey("/venue/gallery"), "venue");
@@ -318,7 +320,9 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/forms"), "forms");
     assert.equal(shellPageKey("/forms/12"), "forms");
     assert.deepEqual(parseShellPath("/forms/12"), { page: "forms", slug: "12" });
-    assert.deepEqual(parseShellPath("/sections"), { page: "config", tab: "sections" });
+    assert.deepEqual(parseShellPath("/sections"), { page: "menus", slug: null, isNew: false, moved: true });
+    assert.deepEqual(parseShellPath("/menus/new"), { page: "menus", slug: null, isNew: true });
+    assert.deepEqual(parseShellPath("/menus/3"), { page: "menus", slug: "3", isNew: false });
     assert.deepEqual(parseShellPath("/lightspeed"), {
       page: "lightspeed",
       view: "reconcile",

@@ -40,7 +40,7 @@ export const ITEM_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Where it appears",
-		body: "Each row puts the drink on one menu: Print, Digital, or a POS (till) menu. Location is the chapter on a printed or digital menu, or the screen on the till. A drink can be on as many as you like. Guest menus need a POS row too, so the till can sell it.",
+		body: "Each row puts the drink on one menu: Print, Digital, or a till menu. Location is the chapter on a printed or digital menu, or the screen on the till. A drink can be on as many as you like. Guest menus need a POS row too, so the till can sell it.",
 	},
 	{
 		title: "Name on it",

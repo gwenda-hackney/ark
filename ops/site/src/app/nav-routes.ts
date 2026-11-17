@@ -1,7 +1,8 @@
 import type { NavRoute } from "./shell/types";
 
 /**
- * Side rail. Menu items is the guest menu (its sections are in Configuration). Stock is inventory and suppliers.
+ * Side rail. Menu is its items (drinks and dishes) and its menus (Drinks, a pop-up kitchen's), each
+ * with its dates, days and sections. Stock is inventory and suppliers.
  * Lightspeed is POS reconcile and export. Events is series and schedule.
  * Artists holds the artist whose work is hanging at Gwenda and play applications
  * (the website's play form). Website shows what is waiting to appear on the
@@ -17,7 +18,15 @@ export const NAV_ROUTES: NavRoute[] = [
 		icon: "",
 		heading: true,
 		children: [
-			{ id: "recipes", path: "/menu", name: "Menu items", icon: "menu", hint: "Drinks on the guest menu" },
+			{
+				id: "menu",
+				name: "Menu",
+				icon: "menu",
+				children: [
+					{ id: "recipes", path: "/menu", name: "Items", short: "Items", icon: "menu", hint: "Drinks and dishes on the menus" },
+					{ id: "menus", path: "/menus", name: "Menus", icon: "list", hint: "Drinks and pop-up menus, their dates and sections" },
+				],
+			},
 			{
 				id: "stock",
 				name: "Stock",
@@ -75,7 +84,7 @@ export const NAV_ROUTES: NavRoute[] = [
 			{ id: "venue", path: "/venue", name: "Venue details", icon: "clock", hint: "Opening hours and parties, on the website" },
 			{ id: "gallery", path: "/venue/gallery", name: "Gallery", icon: "camera", hint: "The venue's own photos, on the website" },
 			{ id: "users", path: "/users", name: "Users", icon: "users", hint: "Who may sign in" },
-			{ id: "config", path: "/config", name: "Configuration", icon: "settings", hint: "Menu sections, pour targets, event tasks" },
+			{ id: "config", path: "/config", name: "Configuration", icon: "settings", hint: "Pour targets, event tasks" },
 			{
 				id: "dev-tools",
 				path: "/web/dev",

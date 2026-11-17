@@ -1254,7 +1254,7 @@
 				<MoneyField id="ls-add-price" size="sm" bind:value={addPrice} />
 			</Field>
 			{#if posMenus.length}
-				<Field label="POS menu" for="ls-add-pos-menu">
+				<Field label="Till menu" for="ls-add-pos-menu">
 					<NativeSelect
 						id="ls-add-pos-menu"
 						size="sm"

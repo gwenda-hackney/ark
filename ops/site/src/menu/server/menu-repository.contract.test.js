@@ -423,6 +423,126 @@ repositoryContract("MenuRepository", {
   },
 });
 
+/** Drinks and a pop-up kitchen's menu, each with a chapter, and a group under one. */
+async function seedMenus(repo) {
+  const drinks = await repo.create("menus", { name: "Drinks", slug: "drinks", kind: "bar", order: 1 });
+  const pickle = await repo.create("menus", {
+    name: "Chez Pickle",
+    slug: "chez-pickle",
+    kind: "kitchen",
+    startsOn: "2026-11-12",
+    endsOn: "2026-11-28",
+    days: "thu,fri,sat",
+    popupSeriesId: 41,
+    order: 2,
+  });
+  const formulas = await repo.create("menu_sections", {
+    name: "Our Formulas",
+    slug: "our-formulas",
+    kind: "bar",
+    menuId: drinks.id,
+  });
+  const burgers = await repo.create("menu_sections", {
+    name: "Chez Pickle",
+    slug: "chez-pickle",
+    kind: "kitchen",
+    popupSeriesId: 41,
+    menuId: pickle.id,
+  });
+  const smash = await repo.create("menu_sections", { name: "Smash", slug: "smash", parentId: burgers.id });
+  return { drinks, pickle, formulas, burgers, smash };
+}
+
+// Menus (#305) are kept by D1 and memory only: Baserow is being retired (#234).
+repositoryContract("MenuRepository menus", {
+  adapters: { memory: ADAPTERS.memory, d1: ADAPTERS.d1 },
+  seed: async (repo) => {
+    await seedMenus(repo);
+  },
+  cases: {
+    "a menu keeps every field; a chapter keeps its menu": async (repo) => {
+      const { pickle, burgers, smash, drinks, formulas } = await seedMenus(repo);
+      assert.deepEqual(pickle, {
+        id: pickle.id,
+        name: "Chez Pickle",
+        slug: "chez-pickle",
+        kind: "kitchen",
+        startsOn: "2026-11-12",
+        endsOn: "2026-11-28",
+        days: "thu,fri,sat",
+        popupSeriesId: 41,
+        order: 2,
+      });
+      assert.deepEqual(await repo.get("menus", pickle.id), pickle);
+      assert.deepEqual(await repo.get("menus", String(drinks.id)), drinks);
+      assert.equal(drinks.endsOn, "", "ongoing: no end date");
+      assert.equal(drinks.popupSeriesId, null);
+      assert.equal((await repo.get("menu_sections", burgers.id)).menuId, pickle.id);
+      assert.equal(smash.menuId, null, "a group follows its chapter");
+      assert.deepEqual(
+        (await repo.list("menu_sections", { menuId: pickle.id })).map((section) => section.name),
+        ["Chez Pickle"],
+      );
+      assert.deepEqual(
+        (await repo.list("menu_sections", { menuId: drinks.id })).map((section) => section.id),
+        [formulas.id],
+      );
+      assert.deepEqual(
+        (await repo.list("menus")).map((menu) => menu.name),
+        ["Drinks", "Chez Pickle"],
+        "by id",
+      );
+    },
+    "a new menu has every field, empty": async (repo) => {
+      const menu = await repo.create("menus", { name: "Brunch" });
+      assert.deepEqual(menu, menuRecord("menus", { id: menu.id, name: "Brunch" }));
+      assert.equal(menu.days, "", "every day");
+      assert.equal(menu.startsOn, "");
+      assert.equal(menu.endsOn, "");
+    },
+    "update changes only the given fields, and moves a chapter to another menu": async (repo) => {
+      const { pickle, drinks, burgers } = await seedMenus(repo);
+      const narrowed = await repo.update("menus", pickle.id, { days: "sat", endsOn: "" });
+      assert.deepEqual(narrowed, { ...pickle, days: "sat", endsOn: "" });
+      const moved = await repo.update("menu_sections", burgers.id, { menuId: drinks.id });
+      assert.equal(moved.menuId, drinks.id);
+      assert.deepEqual(await repo.list("menu_sections", { menuId: pickle.id }), []);
+    },
+    "removing a menu takes it off its chapters, which stay": async (repo) => {
+      const { pickle, burgers } = await seedMenus(repo);
+      await repo.remove("menus", pickle.id);
+      assert.equal(await repo.get("menus", pickle.id), null);
+      const chapter = await repo.get("menu_sections", burgers.id);
+      assert.equal(chapter.menuId, null);
+      assert.equal(chapter.name, "Chez Pickle");
+    },
+    "write adds a menu and its chapter together": async (repo) => {
+      const [brunch] = await repo.write([{ op: "create", collection: "menus", fields: { name: "Brunch", kind: "kitchen" } }]);
+      const [chapter] = await repo.write([
+        { op: "create", collection: "menu_sections", fields: { name: "Brunch", menuId: brunch.id, kind: "kitchen" } },
+        { op: "update", collection: "menus", id: brunch.id, fields: { days: "sat,sun" } },
+      ]);
+      assert.equal(chapter.menuId, brunch.id);
+      assert.equal((await repo.get("menus", brunch.id)).days, "sat,sun");
+    },
+  },
+});
+
+describe("MenuRepository (baserow) menus", () => {
+  it("has none: lists none, a chapter is on none, and won't keep one", async () => {
+    const repo = baserowMenuRepository((await fakeWorld()).env);
+    assert.deepEqual(await repo.list("menus"), []);
+    assert.equal(await repo.get("menus", 1), null);
+    const chapter = await repo.create("menu_sections", { name: "Our Formulas", kind: "bar", menuId: 3 });
+    assert.equal(chapter.menuId, null, "Baserow has no column for it");
+    assert.deepEqual(await repo.list("menu_sections", { menuId: 3 }), []);
+    await assert.rejects(
+      () => repo.create("menus", { name: "Drinks" }),
+      (error) => error.status === 503 && /on D1 only/.test(error.message),
+    );
+  });
+});
+
 describe("MenuRepository (d1) storage", () => {
   it("a copy keeps ids, and new records don't reuse them", async () => {
     const repo = d1MenuRepository(createTestD1("ops"));

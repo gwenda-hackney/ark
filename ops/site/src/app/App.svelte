@@ -5,6 +5,7 @@
 	import { fade, fly } from "svelte/transition";
 	import HomeOverview from "../home/HomeOverview.svelte";
 	import MenuWorkbench from "../menu/MenuWorkbench.svelte";
+	import MenusPage from "../menu/MenusPage.svelte";
 	import InventoryWorkbench from "../inventory/InventoryWorkbench.svelte";
 	import LightspeedPage from "../inventory/LightspeedPage.svelte";
 	import LightspeedExportPage from "../inventory/LightspeedExportPage.svelte";
@@ -70,6 +71,8 @@
 						<HomeOverview />
 					{:else if key === "menu"}
 						<MenuWorkbench path={current} />
+					{:else if key === "menus"}
+						<MenusPage path={current} />
 					{:else if key === "inventory"}
 						<InventoryWorkbench path={current} />
 					{:else if key === "lightspeed"}

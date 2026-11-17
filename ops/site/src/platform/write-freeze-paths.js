@@ -9,7 +9,7 @@ import { featuresForPath } from "../../../../shared/write-freeze.js";
 /** @type {[RegExp, string[]][]} */
 export const OPS_WRITE_FEATURES = [
   [/^\/api\/events(\/|$)/, ["events"]],
-  [/^\/api\/(menu|pos-menus|inventory|suppliers)(\/|$)/, ["menu"]],
+  [/^\/api\/(menu|menus|pos-menus|inventory|suppliers)(\/|$)/, ["menu"]],
   [/^\/api\/artists(\/|$)/, ["artists"]],
   [/^\/api\/users(\/|$)/, ["users"]],
   // Approving an application updates the guest artist and can link it to a series.

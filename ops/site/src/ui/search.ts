@@ -150,7 +150,7 @@ export function recipeSearchFields(
 		},
 		{
 			key: "posMenus",
-			label: "POS menus",
+			label: "Till menus",
 			value: (item.posMenus || []).map((row) => row.name).join(" · "),
 			inGrid: true,
 		},
