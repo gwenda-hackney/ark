@@ -13,9 +13,10 @@
  */
 import { londonToday } from "./london-day.js";
 import { PHOTO_MENUS } from "./photos.js";
-import { kitchenNow } from "./popup-kitchen.js";
+import { boardPick, menuShelf } from "./menus.js";
 import { upcomingNights } from "./promotions.js";
 import { fetchWhatsOnCatalog } from "./sanity/events";
+import { fetchMenu } from "./sanity/menu";
 import {
   fetchVenueDetails,
   type VenueGalleryEntry,
@@ -116,9 +117,9 @@ export async function galleryPhotos(): Promise<GalleryPhoto[]> {
 }
 
 /**
- * Every event's photos, and the pop-up kitchen's from when it's booked
- * through its last night (lib/popup-kitchen.js kitchenNow: the same test as
- * its chapter of the menu), for the Food board. An event links to its page only while it has
+ * Every event's photos, and the photos of the pop-up kitchen home's Food
+ * board leads with (lib/menus.js boardPick: the one cooking today, else
+ * the next), for that board. An event links to its page only while it has
  * one: a night to come, or dates on the way. A series taken off in ops
  * isn't here at all.
  *
@@ -128,10 +129,13 @@ export async function eventPhotos(today = londonToday()): Promise<{
   events: EventPhotoSet[];
   kitchen: EventPhotoSet | null;
 }> {
-  const { series, occurrences } = await fetchWhatsOnCatalog().catch(() => ({
-    series: [] as EventSeries[],
-    occurrences: [],
-  }));
+  const [{ series, occurrences }, menu] = await Promise.all([
+    fetchWhatsOnCatalog().catch(() => ({
+      series: [] as EventSeries[],
+      occurrences: [],
+    })),
+    fetchMenu().catch(() => ({ sections: [] })),
+  ]);
   const events = series.map((row) => ({
     id: row.seriesId,
     title: row.title,
@@ -142,7 +146,10 @@ export async function eventPhotos(today = londonToday()): Promise<{
         : "",
     photos: (row.gallery || []).map(eventPhoto).filter((photo) => photo.url),
   }));
-  const { popup } = kitchenNow(series, occurrences, today);
+  const popup = boardPick(
+    menuShelf("kitchen", menu, { series, occurrences }, today),
+    today,
+  )?.popup;
   return {
     events,
     kitchen: events.find((event) => event.id === popup?.id) || null,

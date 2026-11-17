@@ -33,6 +33,7 @@
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { easeOut, fadeMs, flyMs } from "../ui/motion";
 	import { navigate, parseShellPath } from "../app/nav";
+	import { navTabs } from "../app/nav-routes";
 	import {
 		beginLeave,
 		clearUnsavedGuard,
@@ -537,7 +538,8 @@
 	{:else}
 		<div class="list">
 			<PageHeader
-				title="Play applications"
+				title="Artists"
+				tabs={{ items: navTabs("artists"), value: "applications" }}
 				subtitle="Artists who applied to play through the site. Latest reply for each address."
 			>
 				{#snippet toolbar()}

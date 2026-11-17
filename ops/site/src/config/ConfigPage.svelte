@@ -9,10 +9,8 @@
 		Field,
 		NativeSelect,
 		PageHeader,
-		Segmented,
 		TextField,
 	} from "../ui";
-	import SectionsTab from "../menu/SectionsTab.svelte";
 	import { Icon } from "../app/shell";
 	import { CONFIG_TABS, configTab, configTabPath } from "./config-tabs";
 	import { parseShellPath } from "../app/nav";
@@ -51,8 +49,6 @@
 	);
 
 	onMount(() => {
-		// The old Sections page: show its tab's real address.
-		if (path.startsWith("/sections")) navigate("/config", { replace: true, force: true });
 		void getMe()
 			.then((row) => {
 				connection = row;
@@ -151,17 +147,13 @@
 </script>
 
 <div class="page scrollbar-fade">
-	<PageHeader title="Configuration" subtitle="How the menu is laid out, house targets, and who gets event tasks.">
-		{#snippet toolbar()}
-			<Segmented value={tab} items={tabItems} tone="soft" size="sm" ariaLabel="Configuration" />
-		{/snippet}
-	</PageHeader>
+	<PageHeader
+		title="Configuration"
+		tabs={{ items: tabItems, value: tab }}
+		subtitle="House targets, and who gets event tasks. Menu sections are on each menu (Bar & kitchen → Menus)."
+	/>
 
 	<!-- Every tab stays mounted so unsaved edits survive a tab switch; the page's guard covers them all. -->
-	<div class="panel wide" hidden={tab !== "sections"}>
-		<SectionsTab />
-	</div>
-
 	<div class="panel" hidden={tab !== "pour"}>
 		<p class="lead">Ingredient cost as a share of selling price, by drink type. Recipe analysis and the dashboard flag drinks above their target.</p>
 		{#if pourSettings.loaded}

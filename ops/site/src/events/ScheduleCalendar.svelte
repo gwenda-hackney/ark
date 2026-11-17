@@ -14,6 +14,7 @@
 		shiftScheduleMonth,
 	} from "./event-schedule";
 	import { eventItemPath } from "../app/nav";
+	import { eventPath } from "./event-lists";
 	import type { OpsEvent } from "../app/api";
 
 	let {
@@ -95,7 +96,7 @@
 
 	function rowHref(row: EventScheduleWeek["rows"][number]): string {
 		return row.event.repeatUnit === "once"
-			? eventItemPath(row.event.id)
+			? eventPath(row.event)
 			: eventItemPath(`${row.event.id}@${row.date}`);
 	}
 
@@ -199,9 +200,7 @@
 							{@const time = rowTime(row)}
 							<a
 								class="chip {tone(row.event)}"
-								href={row.event.repeatUnit === "once"
-									? eventItemPath(row.event.id)
-									: eventItemPath(`${row.event.id}@${row.date}`)}
+								href={rowHref(row)}
 								title={[time, name, artist].filter(Boolean).join(" · ")}
 							>
 								{#if time}<span class="when">{time}</span>{/if}

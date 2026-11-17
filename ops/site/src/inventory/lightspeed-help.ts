@@ -58,7 +58,7 @@ export const EXPORT_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Menu filter",
-		body: "Narrow drinks to one POS menu (Fall 2026, Gwenda, …), all menus, or unassigned. Stock always stays in the list. Menu/Screen paths use the filtered menu when one is selected.",
+		body: "Narrow drinks to one till menu (Fall 2026, Gwenda, …), all menus, or unassigned. Stock always stays in the list. Menu/Screen paths use the filtered menu when one is selected.",
 	},
 	{
 		title: "Select",

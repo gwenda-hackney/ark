@@ -208,7 +208,7 @@
 
 <div class="panel">
 	{#if rows.length === 0}
-		<p class="hint">Not on any menu yet. Use Add placement to put it on Print, Digital or a POS menu.</p>
+		<p class="hint">Not on any menu yet. Use Add placement to put it on Print, Digital or a till menu.</p>
 	{:else if phone.matches}
 		<!-- Phones: one line per placement; tap it to edit in a sheet. -->
 		<ul class="lines">

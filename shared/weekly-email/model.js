@@ -124,8 +124,6 @@ function bookingsSection(origin) {
  * @param {object} catalog what the website's What's on is built from
  * @param {object[]} catalog.occurrences every night, each with its series' category
  * @param {object[]} [catalog.series]
- * @param {object[]} [catalog.chapters] the kitchen menu's chapters, for a
- *   pop-up's own place on the food page; the food page itself without
  * @param {object} options
  * @param {string} options.today the day it goes out, in London: YYYY-MM-DD
  *   (lib/london-day.js londonToday)
@@ -158,7 +156,8 @@ export function weeklyEmailModel(catalog, { today, origin = siteConfig.domain } 
   }));
 
   // A pop-up's line and its Instagram (its link) are its series' in ops (#296).
-  const kitchens = popupKitchens(series, occurrences, catalog?.chapters || [], today).map((kitchen) => {
+  // No menus in the email's catalog: "See the menu" goes to the food page.
+  const kitchens = popupKitchens(series, occurrences, new Map(), today).map((kitchen) => {
     const page = kitchen.pageUrl;
     return {
       title: kitchen.title,

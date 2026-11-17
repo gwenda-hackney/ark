@@ -353,8 +353,45 @@ export type MenuSection = {
   kind?: SectionKind;
   /** The pop-up kitchen (an event series' id) whose chapter this is. A group answers with its chapter's. */
   popupSeriesId?: string | null;
+  /** The menu (#305) its chapter is on. A group answers with its chapter's. */
+  menuId?: string | null;
   items?: MenuItem[];
   subsections?: MenuSection[];
+};
+/** A weekday a menu runs on, Monday first (menu-days.js). */
+export type MenuDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+/** A menu (#305): Drinks, or a pop-up kitchen's, with its dates, days and status. */
+export type Menu = {
+  id: string;
+  name: string;
+  slug: string;
+  kind: SectionKind;
+  /** YYYY-MM-DD; "" for no start. */
+  startsOn: string;
+  /** YYYY-MM-DD; "" while it's ongoing. */
+  endsOn: string;
+  /** The weekdays it runs; [] is every day. */
+  days: MenuDay[];
+  popupSeriesId: string | null;
+  popupName: string;
+  orderRank: number;
+  status: "on" | "coming" | "ended";
+  statusLabel: string;
+  datesLabel: string;
+  daysLabel: string;
+  itemCount: number;
+  chapterCount: number;
+};
+/** A pop-up kitchen a menu can belong to, with when it cooks (a new menu for it starts from these). */
+export type MenuPopupRun = MenuPopup & { startsOn: string; endsOn: string; days: MenuDay[] };
+/** What a menu's save sends. */
+export type MenuInput = {
+  name: string;
+  kind: SectionKind;
+  startsOn: string;
+  endsOn: string;
+  days: MenuDay[];
+  popupSeriesId: string;
 };
 export type SectionKind = "bar" | "kitchen";
 /** Drinks or food, as the owner picks it for a chapter. */

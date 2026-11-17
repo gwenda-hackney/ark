@@ -14,6 +14,7 @@
 	import type { SelectOption } from "../ui/types";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { getInventory, getMenu, previewLightspeedCsv } from "../app/api";
+	import { navTabs } from "../app/nav-routes";
 	import { toast } from "../ui/toast.svelte";
 	import type { InventoryItem } from "./types";
 	import type { MenuItem, MenuSection, PosMenu } from "../menu/types";
@@ -344,7 +345,8 @@
 
 <div class="page">
 	<PageHeader
-		title="Export"
+		title="Lightspeed"
+		tabs={{ items: navTabs("lightspeed"), value: "export" }}
 		subtitle="Lightspeed item import. Filter by menu, select rows, then download."
 	>
 		{#snippet actions()}

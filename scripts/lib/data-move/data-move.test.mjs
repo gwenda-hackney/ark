@@ -250,6 +250,8 @@ describe("the menu feature", () => {
         target: menu.adapters.d1({ db }),
       });
       assert.deepEqual(counts, {
+        // Menus (#305) are D1's only: Baserow has none to move.
+        menus: 0,
         menu_sections: 1,
         pos_menus: 1,
         menu_items: 1,

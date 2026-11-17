@@ -19,7 +19,7 @@
 		shellCrumbs,
 		syncCanonicalUrl,
 	} from "../nav";
-	import { activeNavOverride, crumbLeaf } from "../../ui/crumbs.svelte";
+	import { crumbLeaf } from "../../ui/crumbs.svelte";
 	import {
 		backToMore,
 		firstPage,
@@ -30,11 +30,11 @@
 		MORE_PATH,
 		readLastPages,
 		rememberPage,
-		stripGroups,
+		stripPages,
 		type LastPages,
 		type MobileTabId,
 	} from "../mobile-nav";
-	import { flattenNavRoutes, matchActiveRoute, navGroupContains, visibleRoutes } from "../nav-tree";
+	import { isPagePath, matchActiveRoute, visibleRoutes } from "../nav-tree";
 	import { startSitePendingPolling, websiteBadge } from "../../website/site-pending.svelte";
 	import { startWebsiteJobs } from "../../events/website-jobs.svelte";
 	import WebsiteJobsTray from "./WebsiteJobsTray.svelte";
@@ -43,7 +43,6 @@
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../../ui/viewport.svelte";
 
 	const RAIL_KEY = "ops.rail";
-	const GROUP_KEY = "ops.nav.groups";
 
 	let {
 		routes,
@@ -71,22 +70,8 @@
 		}
 	}
 
-	function readExpandedGroups(): Record<string, boolean> {
-		try {
-			const raw = localStorage.getItem(GROUP_KEY);
-			if (!raw) return { stock: true, menu: true, lightspeed: true };
-			const parsed = JSON.parse(raw) as Record<string, boolean>;
-			return parsed && typeof parsed === "object"
-				? { stock: true, menu: true, lightspeed: true, ...parsed }
-				: { stock: true, menu: true, lightspeed: true };
-		} catch {
-			return { stock: true, menu: true, lightspeed: true };
-		}
-	}
-
 	/** Expanded by default — labels visible unless the user collapses the rail. */
 	let open = $state(readRail());
-	let expandedGroups = $state<Record<string, boolean>>(readExpandedGroups());
 	/** Last page used per bottom tab, so the bar returns there. */
 	let lastPages = $state<LastPages>(readLastPages());
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
@@ -150,21 +135,15 @@
 			),
 	);
 
-	const active = $derived(
-		(activeNavOverride.id &&
-			flattenNavRoutes(routes).find((route) => route.id === activeNavOverride.id)) ||
-			matchActiveRoute(routes, path),
-	);
+	const active = $derived(matchActiveRoute(routes, path));
 	const tabs = $derived(mobileTabs(shownRoutes));
 	const currentTab = $derived(mobileTabFor(path, routes));
 	/** Phone tab strip for the current tab's pages. Editors keep their own tabs. */
-	const strip = $derived(showTabs ? stripGroups(currentTab, shownRoutes) : []);
+	const strip = $derived(showTabs ? stripPages(currentTab, shownRoutes) : []);
 	const stripLabel = $derived(tabs.find((row) => row.id === currentTab)?.label || "");
 	const showBackToMore = $derived(showTabs && backToMore(path, routes));
-	/** The strip names the page, so PageHeader can drop its visible title. */
-	const titleInStrip = $derived(
-		strip.length > 0 && active?.path === (path.split("?")[0] || "/"),
-	);
+	/** The strip names the page (on any of its tabs), so PageHeader can drop its visible title. */
+	const titleInStrip = $derived(strip.length > 0 && isPagePath(active, path));
 
 	const mark = $derived(brandTitle.trim().charAt(0).toUpperCase() || "G");
 
@@ -196,42 +175,6 @@
 		if (isModifiedClick(event) || !href) return;
 		event.preventDefault();
 		go(href);
-	}
-
-	/** The group whose icon or flyout was just clicked: its flyout stays shut until the pointer leaves. */
-	let flyoutDismissed = $state<string | null>(null);
-
-	function onFlyoutClick(event: MouseEvent, href: string, groupId: string): void {
-		onLeafClick(event, href);
-		if (isModifiedClick(event)) return;
-		flyoutDismissed = groupId;
-		(event.currentTarget as HTMLElement).blur();
-	}
-
-	function collapsedGroupHref(item: NavRoute): string {
-		if (item.id === "lightspeed") return "/lightspeed";
-		const child = item.children?.find((row) => row.path);
-		return child?.path || "/";
-	}
-
-	function isGroupExpanded(id: string): boolean {
-		return expandedGroups[id] !== false;
-	}
-
-	function persistGroups(): void {
-		try {
-			localStorage.setItem(GROUP_KEY, JSON.stringify(expandedGroups));
-		} catch {
-			/* ignore quota / private mode */
-		}
-	}
-
-	function toggleGroup(id: string): void {
-		expandedGroups = {
-			...expandedGroups,
-			[id]: !isGroupExpanded(id),
-		};
-		persistGroups();
 	}
 
 	function tabHref(id: MobileTabId): string {
@@ -308,8 +251,8 @@
 	}
 
 	$effect(() => {
-		// Rail, page or a group opening or closing: the mark moves.
-		void [open, active?.id, JSON.stringify(expandedGroups), shownRoutes.length, navEl, markEl];
+		// Rail or page changing: the mark moves.
+		void [open, active?.id, shownRoutes.length, navEl, markEl];
 		void tick().then(() => moveMark(true));
 	});
 
@@ -387,132 +330,6 @@
 						{#each item.children as child (child.id)}
 							{@render navEntry(child)}
 						{/each}
-					</div>
-				{:else if item.children?.length}
-					{@const inGroup = navGroupContains(item, active)}
-					{@const groupHref = collapsedGroupHref(item)}
-					{@const groupOpen = open && isGroupExpanded(item.id)}
-					<div
-						class="nav-group"
-						class:expanded={groupOpen}
-						class:dismissed={flyoutDismissed === item.id}
-						role="presentation"
-						onpointerleave={() => {
-							if (flyoutDismissed === item.id) flyoutDismissed = null;
-						}}
-					>
-						{#if open}
-							<button
-								type="button"
-								class="nav-item group-label"
-								class:in={inGroup}
-								data-mark={inGroup && !groupOpen ? "" : undefined}
-								class:open={groupOpen}
-								aria-expanded={groupOpen}
-								aria-controls={`nav-group-${item.id}`}
-								onclick={() => toggleGroup(item.id)}
-							>
-								<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
-								<span class="nav-label">{item.name}</span>
-								<span class="group-chevron" aria-hidden="true">
-									<Icon name="chevron-right" size={14} />
-								</span>
-							</button>
-						{:else}
-							<a
-								class="nav-item"
-								class:on={inGroup}
-								data-mark={inGroup ? "" : undefined}
-								href={groupHref}
-								aria-current={inGroup ? "true" : undefined}
-								aria-haspopup="true"
-								onclick={(e) => onFlyoutClick(e, groupHref, item.id)}
-							>
-								<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
-								<span class="nav-label">{item.name}</span>
-							</a>
-						{/if}
-							<div
-								class="nav-children"
-								id={`nav-group-${item.id}`}
-								role="group"
-								aria-label={item.name}
-								aria-hidden={!groupOpen}
-								inert={groupOpen ? undefined : true}
-							>
-								<div class="nav-children-inner">
-									{#each item.children as child (child.id)}
-										{#if child.children?.length}
-											<p class="nav-sub-label">{child.name}</p>
-											{#each child.children as leaf (leaf.id)}
-												{@const on = active?.id === leaf.id}
-												{@const href = leaf.path || "/"}
-												<a
-													class="nav-item nested deep"
-													class:on
-													data-mark={on && groupOpen ? "" : undefined}
-													href={href}
-													aria-current={on ? "page" : undefined}
-													tabindex={groupOpen ? undefined : -1}
-													onclick={(e) => onLeafClick(e, href)}
-												>
-													<span class="nav-label">{leaf.name}</span>
-												</a>
-											{/each}
-										{:else}
-										{@const on = active?.id === child.id}
-										{@const href = child.path || "/"}
-										<a
-											class="nav-item nested"
-											class:on
-											data-mark={on && groupOpen ? "" : undefined}
-											href={href}
-											aria-current={on ? "page" : undefined}
-											tabindex={groupOpen ? undefined : -1}
-											onclick={(e) => onLeafClick(e, href)}
-										>
-											<span class="nav-label">{child.name}</span>
-										</a>
-										{/if}
-									{/each}
-								</div>
-							</div>
-						{#if !open}
-							<nav class="flyout" aria-label={item.name}>
-								<div class="flyout-card">
-									{#each item.children as child (child.id)}
-										{#if child.children?.length}
-											<p class="flyout-label">{child.name}</p>
-											{#each child.children as leaf (leaf.id)}
-												{@const on = active?.id === leaf.id}
-												{@const href = leaf.path || "/"}
-												<a
-													class="flyout-link"
-													href={href}
-													aria-current={on ? "page" : undefined}
-													onclick={(e) => onFlyoutClick(e, href, item.id)}
-												>
-													<span class="nav-icon"><Icon name={leaf.icon} size={16} /></span>
-													{leaf.name}
-												</a>
-											{/each}
-										{:else}
-										{@const on = active?.id === child.id}
-										{@const href = child.path || "/"}
-										<a
-											class="flyout-link"
-											href={href}
-											aria-current={on ? "page" : undefined}
-											onclick={(e) => onFlyoutClick(e, href, item.id)}
-										>
-											<span class="nav-icon"><Icon name={child.icon} size={16} /></span>
-											{child.name}
-										</a>
-										{/if}
-									{/each}
-								</div>
-							</nav>
-						{/if}
 					</div>
 				{:else}
 					{@const on = active?.id === item.id}
@@ -603,7 +420,7 @@
 		{#if strip.length}
 			<SectionTabs
 				label={stripLabel}
-				groups={strip}
+				pages={strip}
 				{active}
 				badge={badge ? { ...badge, title: badgeTitle(badge.tone, badge.count) } : null}
 				onnavigate={onLeafClick}
@@ -774,9 +591,9 @@
 	}
 
 	/*
-	  Collapsing the rail folds the section labels, their spacing and any open
-	  group's links away over the same time as the width, so the entries glide
-	  to their new rows with the gold mark instead of jumping.
+	  Collapsing the rail folds the section labels and their spacing away over
+	  the same time as the width, so the entries glide to their new rows with
+	  the gold mark instead of jumping.
 	*/
 	.nav-section {
 		margin-block: var(--space-3) var(--space-1);
@@ -812,211 +629,6 @@
 		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--subtle-foreground);
-	}
-
-	.nav-group {
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		flex-shrink: 0;
-		gap: 0.0625rem;
-	}
-
-	.nav-children {
-		display: grid;
-		grid-template-rows: 0fr;
-		opacity: 0;
-		overflow: hidden;
-		pointer-events: none;
-		transition:
-			grid-template-rows var(--t-slow) var(--ease),
-			opacity var(--t-slow) var(--ease);
-	}
-
-	.nav-group.expanded .nav-children {
-		grid-template-rows: 1fr;
-		opacity: 1;
-		pointer-events: auto;
-	}
-
-	.nav-children-inner {
-		min-height: 0;
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-		gap: 0.0625rem;
-	}
-
-	/* The space under the links, inside the fold so a closed group has none. */
-	.nav-children-inner::after {
-		content: "";
-		flex-shrink: 0;
-		height: 0.15rem;
-	}
-
-	.nav-group.expanded .nav-children-inner {
-		min-height: min-content;
-	}
-
-	.nav-item.nested {
-		height: 2.25rem;
-		min-height: 2.25rem;
-		padding-left: var(--space-10);
-		padding-right: var(--space-3);
-		border-radius: var(--radius-sm);
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-		font-weight: 400;
-	}
-
-	.nav-item.nested.deep {
-		height: 2.15rem;
-		min-height: 2.15rem;
-		padding-left: 3.35rem;
-	}
-
-	.nav-sub-label {
-		flex-shrink: 0;
-		margin: var(--space-1) 0 0.05rem var(--space-2);
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--subtle-foreground);
-	}
-
-	.flyout-label {
-		flex-shrink: 0;
-		margin: var(--space-2) 0 0.1rem var(--space-2);
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--subtle-foreground);
-	}
-
-	.nav-item.group-label {
-		cursor: pointer;
-		color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
-		font-size: var(--text-base);
-		font-weight: 500;
-		letter-spacing: 0;
-		text-transform: none;
-	}
-
-	.nav-item.group-label:hover {
-		background: var(--accent);
-		color: var(--foreground);
-	}
-
-	.nav-item.group-label.in {
-		color: var(--primary);
-		background: none;
-	}
-
-	.nav-item.group-label.in:hover {
-		color: var(--primary);
-		background: var(--accent);
-	}
-
-	.nav-item.group-label.in.open {
-		color: var(--primary);
-	}
-
-	.group-chevron {
-		display: grid;
-		place-items: center;
-		margin-left: auto;
-		flex-shrink: 0;
-		width: 1.125rem;
-		height: 1.125rem;
-		color: var(--muted-foreground);
-		opacity: 0.85;
-		transform: rotate(0deg);
-		transition: transform var(--t-slow) var(--ease);
-	}
-
-	.nav-item.group-label.open .group-chevron {
-		transform: rotate(90deg);
-	}
-
-	.nav-item.group-label:hover .group-chevron,
-	.nav-item.group-label.open .group-chevron,
-	.nav-item.group-label.in .group-chevron {
-		color: inherit;
-		opacity: 1;
-	}
-
-	.shell:not(.open) .group-chevron {
-		display: none;
-	}
-
-	.flyout {
-		position: absolute;
-		left: 100%;
-		top: 0;
-		z-index: 70;
-		padding-left: var(--space-2);
-		opacity: 0;
-		pointer-events: none;
-		transform: translate(-0.25rem, 0);
-		transition:
-			opacity var(--t-fast) var(--ease),
-			transform var(--t-fast) var(--ease);
-	}
-
-	.nav-group:hover .flyout,
-	.nav-group:focus-within .flyout {
-		opacity: 1;
-		pointer-events: auto;
-		transform: translate(0, 0);
-	}
-
-	/* Picked a page from it: shut while the pointer is still over it. */
-	.nav-group.dismissed .flyout {
-		opacity: 0;
-		pointer-events: none;
-		transform: translate(-0.25rem, 0);
-	}
-
-	.flyout-card {
-		display: grid;
-		gap: 0.125rem;
-		min-width: 12.75rem;
-		padding: var(--space-1);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--popover);
-		color: var(--popover-foreground);
-		box-shadow: var(--shadow-pop);
-	}
-
-	.flyout-link {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		min-height: 2.35rem;
-		padding: var(--space-1) var(--space-2);
-		border-radius: var(--radius-sm);
-		color: var(--popover-foreground);
-		font-size: var(--text-sm);
-		font-weight: 500;
-		text-decoration: none;
-	}
-
-	.flyout-link:hover {
-		background: var(--accent);
-		color: var(--foreground);
-	}
-
-	.flyout-link.on {
-		background: var(--primary-wash);
-		color: var(--primary);
-	}
-
-	.flyout-link:focus-visible {
-		outline: 2px solid var(--ring);
-		outline-offset: 1px;
 	}
 
 	.rail-foot {
@@ -1417,9 +1029,10 @@
 			border-radius: var(--radius-md);
 		}
 
+		/* Each tab at least as wide as its label, so "Bar & kitchen" stays on one line. */
 		.tabs {
 			display: grid;
-			grid-auto-columns: minmax(0, 1fr);
+			grid-auto-columns: minmax(max-content, 1fr);
 			grid-auto-flow: column;
 			align-items: start;
 			height: var(--bottom-nav-h);
@@ -1489,6 +1102,7 @@
 
 		.tab-label {
 			line-height: 1;
+			white-space: nowrap;
 		}
 	}
 </style>

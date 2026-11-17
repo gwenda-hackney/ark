@@ -198,7 +198,9 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/lightspeed/export"), "lightspeed");
     assert.equal(shellPageKey("/lightspeed/menus"), "lightspeed");
     assert.equal(shellPageKey("/suppliers"), "suppliers");
-    assert.equal(shellPageKey("/sections"), "config");
+    assert.equal(shellPageKey("/sections"), "menus");
+    assert.equal(shellPageKey("/menus"), "menus");
+    assert.equal(shellPageKey("/menus/3"), "menus");
     assert.equal(shellPageKey("/users"), "users");
     assert.equal(shellPageKey("/venue"), "venue");
     assert.equal(shellPageKey("/venue/gallery"), "venue");
@@ -212,13 +214,15 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/events/12/publish"), "events");
     assert.deepEqual(parseShellPath("/events"), {
       page: "events",
+      section: "events",
       slug: null,
       isNew: false,
       tab: null,
-      list: "series",
+      list: "events",
     });
     assert.deepEqual(parseShellPath("/events/nights"), {
       page: "events",
+      section: "events",
       slug: null,
       isNew: false,
       tab: null,
@@ -226,6 +230,7 @@ describe("spa-path", () => {
     });
     assert.deepEqual(parseShellPath("/events/schedule"), {
       page: "events",
+      section: "events",
       slug: null,
       isNew: false,
       tab: null,
@@ -234,6 +239,7 @@ describe("spa-path", () => {
     assert.equal(canonicalizePath("/events/nights"), "/events/schedule");
     assert.deepEqual(parseShellPath("/events/new/once"), {
       page: "events",
+      section: "events",
       slug: null,
       isNew: true,
       tab: "details",
@@ -244,6 +250,7 @@ describe("spa-path", () => {
     assert.equal(eventTabPath("/events/new/once", "gallery"), "/events/new/once/gallery");
     assert.deepEqual(parseShellPath("/events/new"), {
       page: "events",
+      section: "events",
       slug: null,
       isNew: true,
       tab: "details",
@@ -251,6 +258,7 @@ describe("spa-path", () => {
     });
     assert.deepEqual(parseShellPath("/events/new/schedule"), {
       page: "events",
+      section: "events",
       slug: null,
       isNew: true,
       tab: "schedule",
@@ -258,6 +266,7 @@ describe("spa-path", () => {
     });
     assert.deepEqual(parseShellPath("/events/12"), {
       page: "events",
+      section: "events",
       slug: "12",
       isNew: false,
       tab: "details",
@@ -266,6 +275,7 @@ describe("spa-path", () => {
     // Publishing moved to Website > Preview → live; old links open details.
     assert.deepEqual(parseShellPath("/events/12/publish"), {
       page: "events",
+      section: "events",
       slug: "12",
       isNew: false,
       tab: "details",
@@ -273,6 +283,7 @@ describe("spa-path", () => {
     });
     assert.deepEqual(parseShellPath("/events/12/gallery"), {
       page: "events",
+      section: "events",
       slug: "12",
       isNew: false,
       tab: "gallery",
@@ -280,6 +291,7 @@ describe("spa-path", () => {
     });
     assert.deepEqual(parseShellPath("/events/12/bogus"), {
       page: "events",
+      section: "events",
       slug: "12",
       isNew: false,
       tab: "details",
@@ -318,7 +330,9 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/forms"), "forms");
     assert.equal(shellPageKey("/forms/12"), "forms");
     assert.deepEqual(parseShellPath("/forms/12"), { page: "forms", slug: "12" });
-    assert.deepEqual(parseShellPath("/sections"), { page: "config", tab: "sections" });
+    assert.deepEqual(parseShellPath("/sections"), { page: "menus", slug: null, isNew: false, moved: true });
+    assert.deepEqual(parseShellPath("/menus/new"), { page: "menus", slug: null, isNew: true });
+    assert.deepEqual(parseShellPath("/menus/3"), { page: "menus", slug: "3", isNew: false });
     assert.deepEqual(parseShellPath("/lightspeed"), {
       page: "lightspeed",
       view: "reconcile",
@@ -350,6 +364,66 @@ describe("spa-path", () => {
     assert.equal(isEditorPath("/artists"), false);
     assert.equal(isEditorPath("/artists/3"), true);
     assert.equal(isEditorPath("/artists/new"), true);
+  });
+
+  it("sends a new featured artist's address back to the list, and keeps past ones open (#313)", () => {
+    assert.equal(canonicalizePath("/artists/new"), "/artists");
+    assert.equal(canonicalizePath("/artists/new/"), "/artists");
+    assert.equal(canonicalizePath("/artists/new?x=1"), "/artists");
+    assert.equal(canonicalizePath("/#/artists/new"), "/artists");
+    assert.equal(canonicalizePath("/artists"), "/artists");
+    assert.equal(canonicalizePath("/artists/3"), "/artists/3");
+    assert.equal(canonicalizePath("/artists/newton"), "/artists/newton", "an id that starts with new");
+  });
+
+  it("gives Pop-ups and Deals their own list, Add and editor addresses (#312)", () => {
+    for (const section of ["popups", "deals"]) {
+      assert.equal(isSpaDocumentPath(`/${section}`), true);
+      assert.equal(isSpaDocumentPath(`/${section}/36/gallery`), true);
+      assert.equal(isClientNavPath(`/${section}`), true);
+      assert.equal(shellPageKey(`/${section}`), "events", "the same page as Events");
+      assert.deepEqual(parseShellPath(`/${section}`), {
+        page: "events",
+        section,
+        slug: null,
+        isNew: false,
+        tab: null,
+        list: section,
+      });
+      assert.deepEqual(parseShellPath(`/${section}/new`), {
+        page: "events",
+        section,
+        slug: null,
+        isNew: true,
+        tab: "details",
+        list: null,
+      });
+      assert.deepEqual(parseShellPath(`/${section}/36/gallery`), {
+        page: "events",
+        section,
+        slug: "36",
+        isNew: false,
+        tab: "gallery",
+        list: null,
+      });
+      assert.equal(eventListPath(section), `/${section}`);
+      assert.equal(eventNewPath("details", { section }), `/${section}/new`);
+      assert.equal(eventItemPath("36", "gallery", section), `/${section}/36/gallery`);
+      assert.equal(eventTabPath(`/${section}/36`, "ops"), `/${section}/36/ops`, "a tab stays in its list");
+      assert.equal(eventTabPath(`/${section}/new`, "details"), `/${section}/new`);
+      assert.equal(isEditorPath(`/${section}/36`), true);
+      assert.equal(isEditorPath(`/${section}`), false);
+      assert.equal(editorKey(`/${section}/36/ops`), "events:36", "the same editor at any of its addresses");
+      assert.equal(shouldReplaceNav("/events/36", `/${section}/36`), true, "moving it to its list's address isn't a new page");
+    }
+    // A night is a Schedule thing, whichever list its series is in.
+    assert.equal(eventItemPath("36@2026-11-20", undefined, "popups"), "/events/36@2026-11-20");
+    // The Schedule's Add asks what kind first.
+    assert.equal(eventNewPath("details", { once: true, section: "popups" }), "/events/new/once");
+    assert.equal(eventListPath("schedule"), "/events/schedule");
+    assert.equal(eventListPath("anything else"), "/events");
+    assert.equal(isSpaDocumentPath("/popupsx"), false);
+    assert.equal(shellPageKey("/popupsx"), "home");
   });
 
   it("treats drink tabs as the same editor, and list as leaving", () => {

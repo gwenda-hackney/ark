@@ -11,16 +11,14 @@
 	import { navigate } from "../nav";
 	import { NAV_ROUTES } from "../nav-routes";
 	import { visibleRoutes } from "../nav-tree";
-	import { groupPages } from "../mobile-nav";
+	import { tabPages } from "../mobile-nav";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../../ui/viewport.svelte";
 
 	let me = $state<AuthMe | null>(null);
 	const local = $derived(me?.mode === "local");
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
-	const rows = $derived(
-		groupPages("more", visibleRoutes(NAV_ROUTES, Boolean(me?.isAdmin))).flatMap((row) => row.pages),
-	);
+	const rows = $derived(tabPages("more", visibleRoutes(NAV_ROUTES, Boolean(me?.isAdmin))));
 	const envSummary = $derived(
 		!me ? "" : me.databaseId ? `${me.envLabel} · Baserow DB ${me.databaseId}` : me.envLabel,
 	);

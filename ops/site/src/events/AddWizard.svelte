@@ -3,6 +3,7 @@
 	 * Add something to What's on, one question at a time (#245). It starts
 	 * with the type (a night, a deal, a pop-up kitchen or a special night of a
 	 * series), which decides the fields (event-category.ts CATEGORY_FIELDS).
+	 * Add on Events, Pop-ups or Deals has its type picked already (#312).
 	 * Each answer fills the editor's form; Next waits until the step is
 	 * answered, so a repeating series can't be saved without its first night.
 	 * Finishing saves through the editor, and puts it on the website unless
@@ -59,6 +60,15 @@
 			touched = true;
 			index = 1;
 		}
+	});
+	// Add on Events, Pop-ups or Deals (#312) comes with its kind picked: start
+	// at its name, once the form is that kind, so Back still reaches step one.
+	$effect(() => {
+		const preset = editor.presetCategory;
+		if (touched || index !== 0 || !preset || form.category !== preset || kind !== kindForType(preset)) return;
+		touched = true;
+		picked = true;
+		go(1);
 	});
 	const step = $derived(steps[Math.min(index, steps.length - 1)]);
 	const last = $derived(index >= steps.length - 1);

@@ -13,6 +13,8 @@ export type SegmentedItem = {
 	label: string;
 	/** Row tally rendered as a trailing chip. */
 	count?: number;
+	/** A status beside the label (Featured artist: "Off"), there whichever tab is picked. */
+	badge?: { label: string; tone?: string; title?: string };
 	disabled?: boolean;
 	/** When set, the tab is a real link so the active section can be shared. */
 	href?: string;

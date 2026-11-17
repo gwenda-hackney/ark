@@ -44,6 +44,7 @@ const HIDDEN_FIELDS = new Set(["_id", "_type", ...SYSTEM_KEYS]);
 const TYPE_GROUPS = [
   ["eventSeries", "Series"],
   ["event", "Nights"],
+  ["menu", "Menus"],
   ["menuSection", "Menu sections"],
   ["menuItem", "Menu items"],
   ["artist", "Artists"],

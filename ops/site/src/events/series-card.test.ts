@@ -33,6 +33,11 @@ describe("series card", () => {
 		assert.equal(row.tone, "success");
 	});
 
+	it("opens a pop-up or a deal at its own list's address (#312)", () => {
+		assert.equal(seriesCardRow(event({ id: "36", category: "popup" })).href, "/popups/36");
+		assert.equal(seriesCardRow(event({ id: "34", category: "promotion" })).href, "/deals/34");
+	});
+
 	it("says when there is no next night and the website is behind", () => {
 		const row = seriesCardRow(
 			event({ publish: { preview: "current", live: "stale", nextDate: "", previewDates: [] } }),

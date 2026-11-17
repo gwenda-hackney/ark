@@ -3,19 +3,18 @@
 	 * Phone tab strip: the pages of the current bottom tab, along the top of
 	 * the content pane. Links, not a tablist: each tab is a page with its own URL.
 	 */
-	import type { PageGroup } from "../mobile-nav";
 	import type { NavRoute } from "./types";
 
 	let {
 		label,
-		groups,
+		pages,
 		active = null,
 		badge = null,
 		onnavigate,
 	}: {
-		/** Bottom tab name, for the landmark ("Service pages"). */
+		/** Bottom tab name, for the landmark ("What's on pages"). */
 		label: string;
-		groups: PageGroup[];
+		pages: NavRoute[];
 		active?: NavRoute | null;
 		/** Website count, shown on the page with `badge: "website"`. */
 		badge?: { tone: string; count: number; title: string } | null;
@@ -27,7 +26,7 @@
 	/** Keep the current tab in view, centred where there is room. */
 	$effect(() => {
 		void active?.id;
-		void groups;
+		void pages;
 		const el = list;
 		if (!el) return;
 		const current = el.querySelector<HTMLElement>('[aria-current="page"]');
@@ -40,30 +39,25 @@
 
 <nav class="section-tabs" aria-label={`${label} pages`}>
 	<ul bind:this={list}>
-		{#each groups as group, index (group.id)}
-			{#if index > 0}
-				<li class="divider" aria-hidden="true"></li>
-			{/if}
-			{#each group.pages as page (page.id)}
-				{@const on = active?.id === page.id}
-				{@const href = page.path || "/"}
-				<li>
-					<a
-						class="tab"
-						class:on
-						{href}
-						aria-current={on ? "page" : undefined}
-						onclick={(e) => onnavigate(e, href)}
-					>
-						{page.short || page.name}
-						{#if page.badge === "website" && badge}
-							<span class="badge pill-text {badge.tone}" title={badge.title} aria-label={badge.title}>
-								{badge.tone === "failed" ? "!" : badge.count}
-							</span>
-						{/if}
-					</a>
-				</li>
-			{/each}
+		{#each pages as page (page.id)}
+			{@const on = active?.id === page.id}
+			{@const href = page.path || "/"}
+			<li>
+				<a
+					class="tab"
+					class:on
+					{href}
+					aria-current={on ? "page" : undefined}
+					onclick={(e) => onnavigate(e, href)}
+				>
+					{page.short || page.name}
+					{#if page.badge === "website" && badge}
+						<span class="badge pill-text {badge.tone}" title={badge.title} aria-label={badge.title}>
+							{badge.tone === "failed" ? "!" : badge.count}
+						</span>
+					{/if}
+				</a>
+			</li>
 		{/each}
 	</ul>
 </nav>
@@ -100,14 +94,6 @@
 		display: flex;
 		flex-shrink: 0;
 		scroll-snap-align: start;
-	}
-
-	.divider {
-		align-self: center;
-		width: 1px;
-		height: 1rem;
-		margin: 0 var(--space-1);
-		background: var(--border-strong);
 	}
 
 	.tab {

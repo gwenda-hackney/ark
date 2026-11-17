@@ -3,6 +3,7 @@
  * the ops database. The only events code that knows their column names, and
  * how ops copes with columns a database doesn't have yet.
  */
+import { storedAccentColor } from "../accent-color.js";
 import {
   baserowFetch,
   createRow,
@@ -49,11 +50,13 @@ const CATEGORY = "Category";
 const GALLERY = "Gallery";
 /** A pop-up kitchen's logo, a Sanity asset id (#296). Added after events moved to D1. */
 const LOGO = "Logo asset";
+/** A pop-up kitchen's own colour, "#0f4d32" (#319). Added after events moved to D1. */
+const ACCENT = "Accent colour";
 const CALENDAR_EVENT = "Google calendar event id";
 /** Calendar links lived in Notes before their own column. */
 const CALENDAR_FALLBACK = "Notes";
 /** Columns added by migrations: a database without them yet saves without them. */
-const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS, CATEGORY, LOGO];
+const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS, CATEGORY, LOGO, ACCENT];
 
 const fieldNamesCache = new Map();
 
@@ -161,6 +164,7 @@ export function eventFromRow(row) {
     heroCrops: parseHeroCrops(row["Hero crops"]),
     gallery: galleryFromRow(row[GALLERY]),
     logo: imageFromRow(row[LOGO]),
+    accentColor: storedAccentColor(row[ACCENT]),
   };
 }
 
@@ -230,6 +234,7 @@ export function eventToRow(fields, columns) {
   if (fields.slug) row.Slug = fields.slug;
   put("mainImage", "Hero asset", (value) => value?.asset || "");
   put("logo", LOGO, (value) => value?.asset || "");
+  put("accentColor", ACCENT, storedAccentColor);
   for (const column of OPTIONAL_EVENT_COLUMNS) {
     if (column in row && !columns.has(column)) delete row[column];
   }
