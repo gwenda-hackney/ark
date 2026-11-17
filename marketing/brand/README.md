@@ -33,7 +33,7 @@ The SVG masters in `logos/` are the logo: one drawing for everywhere it shows. `
 
 Run `npm run brand:logo` from the repo root when the original or a drawing changes, and commit what it writes: the files are assets like any other, and nothing is traced or drawn when the site is built or deployed. `scripts/trace-logo.test.mjs` fails while a committed file is not its master's drawing.
 
-In the full logo the pour runs down into GWENDA. Where it ends without the letters is drawn by hand in `source/bottle-record-front.svg`: the streams reach the record's front rim, pool along it and drip over the edge. Open that file in a browser to see it over the original; change its paths in a drawing tool (units are the original's pixels), then run `npm run brand:logo`.
+In the full logo the pour runs down into GWENDA and hides the record's front. Without the letters the record is whole, and its front is drawn by hand in `source/bottle-record-front.svg`: a deep, round front edge that carries on from the melt on the left, its rim and grooves as line work, and the pour's streams running down across it and dripping over the edge. Open that file in a browser to see it over the original; change its paths in a drawing tool (units are the original's pixels), then run `npm run brand:logo`.
 
 The drawing's black is see-through, as in the original: the logo takes whatever it lies on, so put it on black (the `-1080-black` posts are on the site's `#0b0a08`) or a dark photo. Each SVG has three named layers, bottom to top: `cream`, `mustard`, `red`.
 

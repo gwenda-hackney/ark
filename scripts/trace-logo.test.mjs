@@ -105,6 +105,7 @@ describe("the drawing's frayed edges", () => {
 
 describe("the bottle and record alone", () => {
   const svg = readFileSync(file("gwenda-bottle-record.svg"), "utf8");
+  const cream = [0xe6, 0xd9, 0xbe, 255];
 
   it("leaves GWENDA off", async () => {
     const [full, bottle] = await Promise.all(
@@ -113,34 +114,64 @@ describe("the bottle and record alone", () => {
       ),
     );
     expect(bottle.width).toBe(full.width);
-    expect(bottle.height).toBeLessThan(full.height * 0.75);
+    // The record's front and its drips reach a little way into where the
+    // letters stood; nothing goes further
+    expect(bottle.height).toBeLessThan(full.height * 0.86);
+    const at = await drawn(svg, file("gwenda-bottle-record.svg").pathname);
+    for (const [x, y] of [
+      [200, 690],
+      [450, 690],
+      [600, 660],
+      [760, 600],
+    ])
+      expect(at(x, y)[3], `clear at ${x},${y}`).toBe(0);
   });
 
-  it("ends the pour at the record: a whole front rim with drips over it, and clear air beyond", async () => {
+  it("has a whole record: a deep front edge, well under the label, drawn as a line", async () => {
     const at = await drawn(svg, file("gwenda-bottle-record.svg").pathname);
-    const cream = [0xe6, 0xd9, 0xbe, 255];
-    // The record's front rim: between two streams, under the pool, at its right
+    // The rim line: left of the middle, right of it, and where it comes up
+    // under the end of the pour
     for (const [x, y] of [
-      [290, 565],
-      [440, 566],
-      [600, 528],
+      [200, 640],
+      [290, 648],
+      [450, 640],
+      [590, 596],
     ])
       expect(at(x, y), `rim at ${x},${y}`).toEqual(cream);
-    // The drips: the pour's end, under two streams, and the melt on the left
+    // Two of the grooves' lines along it
     for (const [x, y] of [
-      [648, 552],
-      [521, 584],
-      [345, 606],
-      [83, 612],
+      [230, 626],
+      [440, 623],
     ])
-      expect(at(x, y), `drip at ${x},${y}`).toEqual(cream);
-    // Where the pour ran on under the bottle to the A, and where GWENDA stood
+      expect(at(x, y), `groove at ${x},${y}`).toEqual(cream);
+    // The record itself is see-through between its lines, and under its rim
+    for (const [x, y] of [
+      [290, 619],
+      [460, 610],
+      [300, 590],
+      [200, 680],
+      [450, 680],
+    ])
+      expect(at(x, y)[3], `see-through at ${x},${y}`).toBe(0);
+  });
+
+  it("has the pour run down the record's front and drip from its new edge", async () => {
+    const at = await drawn(svg, file("gwenda-bottle-record.svg").pathname);
+    // Two streams end in a point on the front; drips hang from the rim under
+    // the pour's end, under two streams, and under the melt on the left
+    for (const [x, y] of [
+      [240, 600],
+      [400, 600],
+      [646, 592],
+      [522, 654],
+      [348, 686],
+      [128, 650],
+    ])
+      expect(at(x, y), `pour at ${x},${y}`).toEqual(cream);
+    // Where the pour ran on under the bottle to the A: clear
     for (const [x, y] of [
       [760, 490],
       [700, 520],
-      [200, 600],
-      [300, 600],
-      [450, 600],
     ])
       expect(at(x, y)[3], `clear at ${x},${y}`).toBe(0);
   });

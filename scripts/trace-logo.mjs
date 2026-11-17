@@ -42,7 +42,7 @@
  * pixels in the PNG. svgo then shrinks the result.
  *
  * The bottle and record alone is the same tracing with the record's front
- * redrawn: where the pour ran down into GWENDA it ends at the record, in
+ * drawn in: where the pour ran down into GWENDA the record is whole, in
  * marketing/brand/source/bottle-record-front.svg (drawn by hand; see
  * bottleAndRecord, below).
  */
@@ -366,9 +366,10 @@ async function handDrawn(id) {
 /**
  * The bottle and record without GWENDA, as [cream, mustard, red] masks. In
  * the full logo the pour and the record's melting rim run down into the
- * letters; here they end at the record. The original loses what the front's
- * `erase` covers (GWENDA, and the streams below the record's rim), and gains
- * its `ink`: the pour pooling along the front rim and dripping over it.
+ * letters; here the record is whole. The original loses what the front's
+ * `erase` covers (GWENDA, and the streams from the letters' tops down), and
+ * gains its `ink`: the record's front in line work, its rim and grooves, with
+ * the pour running down across it and dripping over the edge.
  */
 async function bottleAndRecord(inkMasks) {
   const [erase, ink] = await Promise.all(["erase", "ink"].map(handDrawn));
