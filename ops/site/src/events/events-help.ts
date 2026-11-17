@@ -2,12 +2,12 @@ import type { PageHelpTopic } from "../ui/types";
 
 export const EVENTS_HELP: PageHelpTopic[] = [
 	{
-		title: "Series",
-		body: "Series lists every residency by weekday, with time, guest, the next night, and offer. Open a series to edit it: Details has the name, guest, photo and website wording, Schedule has the pattern and nights, Ops has the team's notes. You can edit a series even when it has no upcoming nights.",
+		title: "Events, Pop-ups and Deals",
+		body: "Each lists one kind: Events the gigs, residencies and one-off nights, Pop-ups the guest kitchens, Deals the likes of Happy Hour. Regulars come first by weekday, then one-offs by date; a one-off drops off once its night has gone. Add on each starts that kind. Open one to edit it: Details has the name, guest, photo and website wording, Schedule has the pattern and nights, Ops has the team's notes. You can edit one even when it has no upcoming nights.",
 	},
 	{
 		title: "Schedule",
-		body: "Schedule lists upcoming nights by week. Calendar shows the same nights on a month grid. Open a night for guest/collaboration, offer, or a one-off flyer. Use Edit series on a night to jump back to the series defaults.",
+		body: "Schedule lists every upcoming night by week: events, pop-ups and deals together, or one kind with the filter above the list. Calendar shows the same nights on a month grid. Open a night for guest/collaboration, offer, or a one-off flyer. Use Edit series on a night to jump back to the series defaults. Add here asks what you're adding first.",
 	},
 	{
 		title: "Series and nights",
@@ -15,7 +15,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Assigning to a series",
-		body: "Press New event on the Schedule and choose Night for a series, then pick the series. Or press Add night on the series itself. Choose Special event for a one-off. On a night, anything marked From series follows the series: press Override to change it for that night, and Use series value to go back.",
+		body: "Press Add on the Schedule and choose A special night in a series we run, then pick the series. Or press Add night on the series itself. On a night, anything marked From series follows the series: press Override to change it for that night, and Use series value to go back.",
 	},
 	{
 		title: "Repeating dates",

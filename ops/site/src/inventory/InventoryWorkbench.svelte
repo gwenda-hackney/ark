@@ -21,6 +21,7 @@
 	import { densityPref } from "../ui/list-prefs.svelte";
 	import { priceBasisTone } from "../ui/badge";
 	import { Icon } from "../app/shell";
+	import { navTabs } from "../app/nav-routes";
 	import { hasRangeSelection, svelteCell } from "../ui/grid";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
@@ -563,7 +564,8 @@
 			>
 				<div class="head">
 					<PageHeader
-						title="Inventory"
+						title="Stock"
+						tabs={{ items: navTabs("stock"), value: "inventory" }}
 						subtitle="Liquors and ingredients for cocktail recipes. Open an item for suppliers, pack price and the product page."
 					>
 						{#snippet actions()}
