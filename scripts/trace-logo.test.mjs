@@ -71,16 +71,29 @@ describe.each(["gwenda-bottle", "gwenda-bottle-record"])("%s", (name) => {
     );
   });
 
-  it("stands on any background: black inside the drawing, nothing outside it", async () => {
+  it("stands on any background: the black that belongs to something is drawn, the air is not", async () => {
     const at = await drawn(svg, file(`${name}.svg`).pathname);
     const black = [0x0b, 0x0a, 0x08, 255];
-    // The record between its grooves, the hole in its label, the skull's eye
-    expect(at(70, 470)).toEqual(black);
-    expect(at(360, 438)).toEqual(black);
-    expect(at(765, 305)).toEqual(black);
-    // A corner, and the open air between the record and the bottle's mouth
-    expect(at(5, 5)[3]).toBe(0);
-    expect(at(150, 150)[3]).toBe(0);
+    // The record between its grooves, the hole in its label, the skull's eye,
+    // between the pour's two streams, the hatching at the record's back
+    for (const [x, y] of [
+      [70, 470],
+      [360, 438],
+      [765, 305],
+      [400, 300],
+      [250, 330],
+    ])
+      expect(at(x, y), `black at ${x},${y}`).toEqual(black);
+    // A corner, the open air over the record, and the bay between the pour
+    // and the bottle: under its neck, under its body, by its base
+    for (const [x, y] of [
+      [5, 5],
+      [150, 150],
+      [500, 290],
+      [600, 400],
+      [700, 450],
+    ])
+      expect(at(x, y)[3], `air at ${x},${y}`).toBe(0);
   });
 
   it.each(["black", "transparent"])(
@@ -93,6 +106,24 @@ describe.each(["gwenda-bottle", "gwenda-bottle-record"])("%s", (name) => {
       expect(meta.hasAlpha).toBe(true);
     },
   );
+});
+
+describe("GWENDA on a light page", () => {
+  it("has air between its letters and inside them, not black", async () => {
+    const svg = readFileSync(file("gwenda-bottle.svg"), "utf8");
+    const at = await drawn(svg, file("gwenda-bottle.svg").pathname);
+    // Between G and W, W and E, E and N, N and D, D and A; in the D, in the A
+    for (const [x, y] of [
+      [206, 650],
+      [381, 650],
+      [488, 650],
+      [574, 650],
+      [760, 700],
+      [627, 650],
+      [823, 700],
+    ])
+      expect(at(x, y)[3], `air at ${x},${y}`).toBe(0);
+  });
 });
 
 describe("the drawing's frayed edges", () => {

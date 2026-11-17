@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 956 844" width="956" height="844">
   <!--
     The front of the record in the bottle-and-record logo, drawn by hand over
-    the original (#320). scripts/trace-logo.mjs reads the two groups below by
+    the original (#320). scripts/trace-logo.mjs reads the groups below by
     their ids and takes only their shapes: the colours here are for looking at
     this file, which shows the result roughly as it will be traced (open it in
     a browser or a drawing tool). Units are the original's pixels. Run
@@ -70,5 +70,17 @@
     <!-- Two specks of the original's black that the stream's new edge would leave stranded: closed. -->
     <path d="M642 473 L647 474.8 L648.8 478.4 L650.3 482 L652.2 487.5 L644 489 Z"/>
     <circle cx="622.5" cy="501.5" r="3.6"/>
+  </g>
+
+  <!--
+    solid: black all over, wherever there is no ink (see bottle-black.svg,
+    whose record this adds to). The record's front, under the pool: the
+    pockets between the streams reach a little below the record's own edge,
+    and are record still. Its lower edge runs inside the pool, above its
+    underside.
+  -->
+  <g id="solid" fill="#3fa7ff" fill-opacity="0.35">
+    <path d="M186 535 L260 548 L362 553 L460 548 L540 532 L600 512 L600 530 L560 546 L520 557
+      L480 563 L440 567 L400 569 L362 569.5 L320 567 L280 564 L240 562 L200 562 L186 563 Z"/>
   </g>
 </svg>
