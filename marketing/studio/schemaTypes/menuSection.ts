@@ -1,5 +1,8 @@
 import { defineField, defineType } from "sanity";
-import { orderRankField, orderRankOrdering } from "@sanity/orderable-document-list";
+import {
+  orderRankField,
+  orderRankOrdering,
+} from "@sanity/orderable-document-list";
 
 export const menuSection = defineType({
   name: "menuSection",
@@ -31,7 +34,8 @@ export const menuSection = defineType({
       name: "kind",
       title: "Menu",
       type: "string",
-      description: "Which menu the chapter belongs to. Subsections follow their parent.",
+      description:
+        "Which menu the chapter belongs to. Subsections follow their parent.",
       options: {
         list: [
           { title: "Bar", value: "bar" },
@@ -49,6 +53,16 @@ export const menuSection = defineType({
       to: [{ type: "eventSeries" }],
       description:
         "The pop-up kitchen (an event series whose category is pop-up) whose chapter this is, if any. Set in ops. Subsections follow their parent.",
+      hidden: ({ document }) => Boolean(document?.parent),
+    }),
+    defineField({
+      name: "menu",
+      title: "Menu",
+      type: "reference",
+      to: [{ type: "menu" }],
+      weak: true,
+      description:
+        "The menu this chapter is on (#306). Set in ops. Subsections follow their parent.",
       hidden: ({ document }) => Boolean(document?.parent),
     }),
     defineField({

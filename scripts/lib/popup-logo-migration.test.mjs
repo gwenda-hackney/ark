@@ -5,14 +5,14 @@
  * run that stopped before the website, with a logo or a link the owner has
  * set since, and with no Chez Pickle. What the website shows is read the way
  * the website reads it (functions/_lib/sanity-events.js) and put through its
- * own rules (src/lib/popup-kitchen.js).
+ * own rules (src/lib/menus.js).
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { fetchPublishedCatalog } from "../../marketing/web/functions/_lib/sanity-events.js";
-import { kitchenHeader, kitchenNow } from "../../marketing/web/src/lib/popup-kitchen.js";
+import { boardPick, menuShelf } from "../../marketing/web/src/lib/menus.js";
 import { parseImageAssetId } from "../../shared/sanity-image.js";
 import { d1EventRepository } from "../../ops/site/src/events/server/adapters/d1-events.js";
 import { d1MenuRepository } from "../../ops/site/src/menu/server/adapters/d1-menu.js";
@@ -98,8 +98,8 @@ describe("2026-11-12-popup-logo", () => {
       SANITY_API_TOKEN: world.env.SANITY_API_TOKEN,
       SITE_ENV: "production",
     });
-    const { popup } = kitchenNow(series, occurrences, TODAY);
-    return { popup, header: kitchenHeader(popup) };
+    const pick = boardPick(menuShelf("kitchen", { sections: [] }, { series, occurrences }, TODAY), TODAY);
+    return { popup: pick?.popup ?? null, header: pick && { line: pick.line, href: pick.popup?.href } };
   }
 
   const stored = async (db) => JSON.stringify(await d1EventRepository(db).exportAll());
@@ -146,7 +146,7 @@ describe("2026-11-12-popup-logo", () => {
     const { popup, header } = await website();
     assert.match(popup.logo.url, new RegExp(logoSha1));
     assert.equal(popup.pageUrl, popupLogo.INSTAGRAM);
-    assert.equal(header.line, "In the kitchen: Chez Pickle, Thursdays");
+    assert.equal(header.line, "In the kitchen: Chez Pickle");
     assert.equal(header.href, "/whats-on/chez-pickle/");
     assert.match(text, /added chez-pickle\.png as the logo of "Chez Pickle"/);
     assert.match(text, /its Instagram is now https:\/\/www\.instagram\.com\/chezpickle/);

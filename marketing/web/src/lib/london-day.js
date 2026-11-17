@@ -4,8 +4,23 @@
  * and a night that has passed since the build drops off.
  */
 
+/**
+ * A day a local dev server is pinned to, to see the site as it will be
+ * that day (src/middleware.ts, `?day=`); never set in a build.
+ */
+const PINNED = Symbol.for("gwenda.siteDay");
+
+/** Pin the day londonToday() answers with no clock given; "" unpins it. */
+export function pinSiteDay(day) {
+  globalThis[PINNED] = day || undefined;
+}
+
 /** Today at the bar, "2026-11-10", whatever clock the visitor's on. */
-export function londonToday(now = new Date()) {
+export function londonToday(now) {
+  if (now === undefined) {
+    if (globalThis[PINNED]) return globalThis[PINNED];
+    now = new Date();
+  }
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/London",
     year: "numeric",

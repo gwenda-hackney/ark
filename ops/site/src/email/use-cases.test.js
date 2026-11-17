@@ -54,6 +54,20 @@ describe("weekly email: this week's email, as it would go out", () => {
     assert.match(email.html, /\*\|UNSUB\|\*/);
   });
 
+  it("ends with Bookings, as the website has it: a party and playing here, each to its half of /bookings", async () => {
+    publishWeek(world);
+    const { data } = await callApi(world, getPreview, { path: "/api/email/preview" });
+    const { html } = data.email;
+    for (const words of ["Have a party", "Play at Gwenda", "Book your party", "Apply to play"]) {
+      assert.ok(html.includes(words), words);
+    }
+    assert.match(html, /href="https:\/\/gwenda-web-dev\.pages\.dev\/bookings#party"/);
+    assert.match(html, /href="https:\/\/gwenda-web-dev\.pages\.dev\/bookings#play"/);
+    // Near the end: after the week, before the table and the foot.
+    assert.ok(html.indexOf("Play at Gwenda") > html.indexOf("Canalside Jazz"));
+    assert.ok(html.indexOf("Play at Gwenda") < html.indexOf(">Book a table</a>"));
+  });
+
   it("is built from published nights only: a draft isn't in it", async () => {
     publishWeek(world);
     world.sanity.docs.set("drafts.event-secret-2026-11-13", {

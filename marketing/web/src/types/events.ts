@@ -69,6 +69,8 @@ export type EventSeries = {
   pageUrl?: string;
   /** A pop-up kitchen's logo from ops (#296); null when it has none. */
   logo?: { url: string; width: number; height: number } | null;
+  /** A pop-up kitchen's own colour from ops (#319), "#0f4d32"; "" when none. */
+  accentColor?: string;
   offer?: string;
   nightSchedule?: Array<{
     label: string;

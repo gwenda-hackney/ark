@@ -29,6 +29,7 @@
 	} from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
+	import { navTabs } from "../app/nav-routes";
 	import type { CatalogSupplier } from "./types";
 	import {
 		SupplierDialog,
@@ -148,7 +149,8 @@
 
 <div class="page scrollbar-fade">
 	<PageHeader
-		title="Suppliers"
+		title="Stock"
+		tabs={{ items: navTabs("stock"), value: "suppliers" }}
 		subtitle="Wholesalers you buy from. Inventory items pick from this list, then store SKU, pack, and price on the product."
 	>
 		{#snippet actions()}

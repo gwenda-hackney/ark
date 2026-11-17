@@ -48,7 +48,9 @@ export const HOME_MENU_ITEMS = 3;
 /**
  * @param {Array<{ id: string, kind?: string, title: string, items: object[], subsections?: object[] }>} chapters
  *   one menu's chapters as they were fetched, in the order ops sets them
- * @param {{ count?: number }} [options] how many of the first chapter's items to list
+ * @param {{ count?: number, where?: ReturnType<typeof menuAddresses> }} [options]
+ *   how many of the first chapter's items to list, and the menu page's
+ *   addresses when it has several menus (lib/menus.js menuShelf)
  * @returns {null | {
  *   lead: { href: string, title: string, total: number, items: Array<{ name: string, description: string, price: string }> },
  *   more: Array<{ href: string, title: string, from: string }>,
@@ -56,8 +58,10 @@ export const HOME_MENU_ITEMS = 3;
  *   first part with anything on (its own items, else its first group's);
  *   `more` the tiles. Each `href` is that section's own place on the menu's page.
  */
-export function menuTaste(chapters, { count = HOME_MENU_ITEMS } = {}) {
-  const where = menuAddresses(chapters);
+export function menuTaste(
+  chapters,
+  { count = HOME_MENU_ITEMS, where = menuAddresses(chapters) } = {},
+) {
   /**
    * Each chapter's parts with items: its own, then each of its groups. A
    * part with nothing on is left out, as it is on the menu's page, and so is

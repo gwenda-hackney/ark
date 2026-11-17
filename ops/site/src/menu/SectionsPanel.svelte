@@ -1,38 +1,42 @@
 <script lang="ts">
-	import { Badge, Button, Confirm, ConfirmDialog, Field, NativeSelect, Segmented, TextField } from "../ui";
+	/**
+	 * A menu's sections (#305): its chapters and their groups, in the order
+	 * guests see them. A new chapter goes on this menu; a chapter can move to
+	 * another. Drinks or food, and the pop-up kitchen, are the menu's.
+	 */
+	import { Button, Confirm, ConfirmDialog, Field, NativeSelect, TextField } from "../ui";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { countSectionItems } from "./menu-sections.js";
-	import { SECTION_KIND_ITEMS, type MenuPopup, type MenuSection } from "./types";
+	import type { MenuSection } from "./types";
 	import { Icon } from "../app/shell";
 
 	let {
 		sections,
-		popups = [],
+		menuId,
+		menus = [],
 		busy = false,
 		onchanged,
 	}: {
+		/** This menu's chapters, each with its groups. */
 		sections: MenuSection[];
-		/** Pop-up kitchens (event series marked as one) a food chapter can belong to. */
-		popups?: MenuPopup[];
+		/** The menu these sections are on: a new chapter goes on it. */
+		menuId: string;
+		/** Every menu, for moving a chapter to another. */
+		menus?: { id: string; name: string }[];
 		busy?: boolean;
 		onchanged: () => Promise<void> | void;
 	} = $props();
 
-	function drinks(count: number): string {
-		return `${count} drink${count === 1 ? "" : "s"}`;
+	function itemsLabel(count: number): string {
+		return `${count} item${count === 1 ? "" : "s"}`;
 	}
 
 	let editingId = $state<string | null>(null);
 	let draftTitle = $state("");
 	let draftSubtitle = $state("");
-	let draftKind = $state("bar");
-	let draftPopupId = $state("");
-	const popupOptions = $derived([
-		{ value: "", label: "None" },
-		...popups.map((popup) => ({ value: popup.id, label: popup.name })),
-	]);
-	const popupName = (id: string | null | undefined) => popups.find((popup) => popup.id === id)?.name || "";
+	let draftMenuId = $state("");
+	const menuOptions = $derived(menus.map((menu) => ({ value: menu.id, label: menu.name })));
 	let addingFor = $state<string | "chapter" | null>(null);
 	let newTitle = $state("");
 	let newParentId = $state("");
@@ -43,8 +47,7 @@
 		editingId = section._id;
 		draftTitle = section.title || "";
 		draftSubtitle = section.subtitle || "";
-		draftKind = section.kind || "bar";
-		draftPopupId = section.popupSeriesId || "";
+		draftMenuId = section.menuId || menuId;
 		addingFor = null;
 	}
 
@@ -67,11 +70,8 @@
 			await api.updateSection(section._id, {
 				title,
 				subtitle: section.parentId ? "" : draftSubtitle.trim(),
-				// Only a chapter is drinks or food and has a pop-up kitchen; a group follows it.
-				// A pop-up kitchen's chapter is food: drinks carry none.
-				...(section.parentId
-					? {}
-					: { kind: draftKind, popupSeriesId: draftKind === "kitchen" ? draftPopupId : "" }),
+				// Only a chapter is on a menu; a group follows it.
+				...(section.parentId ? {} : { menuId: draftMenuId || menuId }),
 			});
 			editingId = null;
 			await onchanged();
@@ -91,10 +91,11 @@
 		}
 		try {
 			saving = true;
-			await api.createSection({
-				title,
-				parentId: addingFor === "chapter" ? "" : newParentId || addingFor,
-			});
+			await api.createSection(
+				addingFor === "chapter"
+					? { title, parentId: "", menuId }
+					: { title, parentId: newParentId || addingFor },
+			);
 			addingFor = null;
 			newTitle = "";
 			await onchanged();
@@ -109,12 +110,12 @@
 		if (saving || busy) return;
 		const count = countSectionItems(section);
 		if (count || (section.subsections || []).length) {
-			toast.error("Move the drinks (and groups) out of this section first.");
+			toast.error("Move the items (and groups) out of this section first.");
 			return;
 		}
 		const ok = await confirm.ask({
 			title: `Delete ${section.title || "this section"}?`,
-			message: "It comes off the menu. It has no drinks in it. This can't be undone.",
+			message: "It comes off the menu. There's nothing in it. This can't be undone.",
 			action: "Delete",
 		});
 		if (!ok) return;
@@ -222,31 +223,18 @@
 				>
 					<TextField id={`sec-sub-${section._id}`} size="sm" bind:value={draftSubtitle} />
 				</Field>
-				<Field label="Drinks or food" for={`sec-kind-${section._id}`} hint="Food shows on the kitchen page, drinks on the bar page.">
-					<Segmented
-						bind:value={draftKind}
-						items={SECTION_KIND_ITEMS}
-						tone="soft"
-						size="sm"
-						ariaLabel="Drinks or food"
-					/>
-				</Field>
-				<!-- Always there, so the form doesn't move when Drinks or Food is switched. -->
 				<Field
-					label="Pop-up kitchen"
-					for={`sec-popup-${section._id}`}
+					label="Menu"
+					for={`sec-menu-${section._id}`}
 					width="md"
-					optional
-					hint={draftKind === "kitchen"
-						? "Whose food this is. Pop-up kitchens are added in Events."
-						: "Only a Food chapter can belong to a pop-up kitchen."}
+					hint="Move it, with its groups, to another menu."
 				>
 					<NativeSelect
-						id={`sec-popup-${section._id}`}
+						id={`sec-menu-${section._id}`}
 						size="sm"
-						bind:value={draftPopupId}
-						options={popupOptions}
-						disabled={draftKind !== "kitchen"}
+						bind:value={draftMenuId}
+						options={menuOptions}
+						disabled={menuOptions.length < 2}
 					/>
 				</Field>
 			{/if}
@@ -304,9 +292,7 @@
 					<div class="identity">
 						<h3 class="chapter-name">
 							{chapter.title}
-							<span class="chapter-count tnum">{drinks(countSectionItems(chapter))}</span>
-							{#if chapter.kind === "kitchen"}<Badge>Food</Badge>{/if}
-							{#if popupName(chapter.popupSeriesId)}<Badge>{popupName(chapter.popupSeriesId)}</Badge>{/if}
+							<span class="chapter-count tnum">{itemsLabel(countSectionItems(chapter))}</span>
 						</h3>
 						{#if chapter.subtitle}<p class="subtitle">{chapter.subtitle}</p>{/if}
 					</div>
@@ -321,7 +307,7 @@
 								<li class="group">
 									<div class="group-row">
 										<span class="group-name">{sub.title}</span>
-										<span class="count tnum">{drinks((sub.items || []).length)}</span>
+										<span class="count tnum">{itemsLabel((sub.items || []).length)}</span>
 										{@render tools(sub, subIndex, groups.length)}
 									</div>
 									{#if editingId === sub._id}{@render editForm(sub)}{/if}

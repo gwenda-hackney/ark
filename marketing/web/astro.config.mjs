@@ -1,6 +1,7 @@
 import { defineConfig, envField } from "astro/config";
 import { resolve } from "node:path";
 import { loadEnv } from "vite";
+import { devSiteDay } from "./scripts/dev-site-day.js";
 import { devSiteGate } from "./scripts/dev-site-gate.js";
 import { devOwnOrigin } from "./scripts/lib/dev-own-origin.mjs";
 import { missingLocalSettings } from "../../shared/config.js";
@@ -859,6 +860,7 @@ export default defineConfig({
       devWhatsOnApi(),
       devEventPages(),
       devFeaturedArtistApi(),
+      devSiteDay(),
       ...(gatePlugin ? [gatePlugin] : []),
     ],
   },

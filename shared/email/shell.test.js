@@ -37,7 +37,8 @@ describe("the email shell", () => {
     expect(logo).toContain('<a href="https://gwenda.co.uk"');
     expect(logo).toContain('src="https://gwenda.co.uk/brand/logo-email-social.png"');
     expect(logo).toContain('alt="Gwenda Social"');
-    expect(line).toContain("Social · Hackney Wick");
+    expect(line).toContain(">Hackney Wick<");
+    expect(line).not.toContain("Social ·");
     expect(logoHeader({ ...site, logo: "cid:logo@gwenda" })[0]).toContain('src="cid:logo@gwenda"');
   });
 

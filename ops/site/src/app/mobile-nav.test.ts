@@ -4,14 +4,14 @@ import {
 	LAST_PAGE_KEY,
 	backToMore,
 	firstPage,
-	groupPages,
 	hideShellChrome,
 	lastPage,
 	mobileTabFor,
 	mobileTabs,
 	readLastPages,
 	rememberPage,
-	stripGroups,
+	stripPages,
+	tabPages,
 	type MobileTabId,
 } from "./mobile-nav.ts";
 import { NAV_ROUTES } from "./nav-routes.ts";
@@ -20,12 +20,12 @@ import { flattenNavRoutes, visibleRoutes } from "./nav-tree.ts";
 const staff = visibleRoutes(NAV_ROUTES, false);
 const admin = visibleRoutes(NAV_ROUTES, true);
 
-function ids(tab: MobileTabId, routes = admin): string[][] {
-	return groupPages(tab, routes).map((group) => group.pages.map((row) => row.id));
+function ids(tab: MobileTabId, routes = admin): string[] {
+	return tabPages(tab, routes).map((row) => row.id);
 }
 
 function labels(tab: MobileTabId, routes = admin): string[] {
-	return stripGroups(tab, routes).flatMap((group) => group.pages.map((row) => row.short || row.name));
+	return stripPages(tab, routes).map((row) => row.short || row.name);
 }
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -37,11 +37,11 @@ function memoryStorage(initial: Record<string, string> = {}) {
 	};
 }
 
-describe("mobileTabs", () => {
-	it("keeps the bar to Home, Service, Programme, Website, More", () => {
+describe("mobileTabs (#312)", () => {
+	it("reads Home · What's on · Bar & kitchen · Website · More", () => {
 		assert.deepEqual(
 			mobileTabs().map((tab) => tab.label),
-			["Home", "Service", "Programme", "Website", "More"],
+			["Home", "What's on", "Bar & kitchen", "Website", "More"],
 		);
 	});
 
@@ -55,37 +55,22 @@ describe("mobileTabs", () => {
 	});
 });
 
-describe("groupPages", () => {
-	it("splits Service where the rail does", () => {
-		assert.deepEqual(ids("service"), [
-			["recipes"],
-			["inventory", "suppliers"],
-			["lightspeed-reconcile", "lightspeed-export"],
-		]);
-	});
-
-	it("keeps Website out of Programme, and the weekly email in it", () => {
-		assert.deepEqual(ids("programme"), [
-			["events-series", "events-schedule"],
-			["artist", "forms"],
-			["email"],
-		]);
-	});
-
-	it("gives Website its page and, for admins, Developer tools", () => {
-		assert.deepEqual(ids("website"), [["web", "dev-tools"]]);
-		assert.deepEqual(ids("website", staff), [["web"]]);
+describe("tabPages", () => {
+	it("gives each tab its rail heading's pages", () => {
+		assert.deepEqual(ids("whats-on"), ["schedule", "events", "popups", "deals", "artists"]);
+		assert.deepEqual(ids("bar-kitchen"), ["menus", "recipes", "stock"]);
+		assert.deepEqual(ids("website"), ["web", "email", "photos"]);
 	});
 
 	it("lists settings on More, with Developer tools for admins only", () => {
-		assert.deepEqual(ids("more"), [["venue", "gallery", "users", "config", "dev-tools"]]);
-		assert.deepEqual(ids("more", staff), [["venue", "gallery", "users", "config"]]);
+		assert.deepEqual(ids("more"), ["venue", "users", "lightspeed", "config", "dev-tools"]);
+		assert.deepEqual(ids("more", staff), ["venue", "users", "lightspeed", "config"]);
 		assert.deepEqual(ids("home"), []);
 	});
 
 	it("reaches every rail page from the bar", () => {
 		const listed = new Set(
-			(["service", "programme", "website", "more"] as MobileTabId[]).flatMap((tab) => ids(tab).flat()),
+			(["whats-on", "bar-kitchen", "website", "more"] as MobileTabId[]).flatMap((tab) => ids(tab)),
 		);
 		listed.add("home");
 		const rail = flattenNavRoutes(admin).map((row) => row.id);
@@ -96,47 +81,44 @@ describe("groupPages", () => {
 	});
 });
 
-describe("stripGroups", () => {
+describe("stripPages", () => {
 	it("uses the short names", () => {
-		assert.deepEqual(labels("service"), [
-			"Menu items",
-			"Inventory",
-			"Suppliers",
-			"Reconcile",
-			"Export",
-		]);
-		assert.deepEqual(labels("programme"), ["Series", "Schedule", "Artist", "Applications", "Email"]);
-		assert.deepEqual(labels("website"), ["Website", "Developer tools"]);
+		assert.deepEqual(labels("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Artists"]);
+		assert.deepEqual(labels("bar-kitchen"), ["Menus", "Items", "Stock"]);
+		assert.deepEqual(labels("website"), ["Website", "Email", "Photos"]);
 	});
 
-	it("has no strip with nothing to switch to", () => {
-		assert.deepEqual(stripGroups("website", staff), []);
-		assert.deepEqual(stripGroups("home", admin), []);
-		assert.deepEqual(stripGroups("more", admin), []);
+	it("has no strip on Home or More", () => {
+		assert.deepEqual(stripPages("home", admin), []);
+		assert.deepEqual(stripPages("more", admin), []);
 	});
 });
 
 describe("mobileTabFor", () => {
-	it("maps pages to their tab", () => {
+	it("maps pages, their tabs and what's opened in them to their tab", () => {
 		assert.equal(mobileTabFor("/"), "home");
-		assert.equal(mobileTabFor("/menu"), "service");
-		assert.equal(mobileTabFor("/menu/negroni"), "service");
-		assert.equal(mobileTabFor("/config/sections"), "more");
-		assert.equal(mobileTabFor("/inventory"), "service");
-		assert.equal(mobileTabFor("/suppliers"), "service");
-		assert.equal(mobileTabFor("/lightspeed/export"), "service");
-		assert.equal(mobileTabFor("/events"), "programme");
-		assert.equal(mobileTabFor("/events/schedule"), "programme");
-		assert.equal(mobileTabFor("/artists"), "programme");
-		assert.equal(mobileTabFor("/forms"), "programme");
+		assert.equal(mobileTabFor("/events/schedule"), "whats-on");
+		assert.equal(mobileTabFor("/events"), "whats-on");
+		assert.equal(mobileTabFor("/events/12@2026-09-25"), "whats-on");
+		assert.equal(mobileTabFor("/popups/36"), "whats-on");
+		assert.equal(mobileTabFor("/deals"), "whats-on");
+		assert.equal(mobileTabFor("/artists"), "whats-on");
+		assert.equal(mobileTabFor("/forms/12"), "whats-on");
+		assert.equal(mobileTabFor("/menus"), "bar-kitchen");
+		assert.equal(mobileTabFor("/menu/negroni"), "bar-kitchen");
+		assert.equal(mobileTabFor("/inventory"), "bar-kitchen");
+		assert.equal(mobileTabFor("/suppliers"), "bar-kitchen");
 	});
 
-	it("puts Website and Developer tools on Website, settings on More", () => {
+	it("puts Website, the email and Photos on Website, settings on More", () => {
 		assert.equal(mobileTabFor("/web"), "website");
-		assert.equal(mobileTabFor("/web/dev"), "website");
-		assert.equal(mobileTabFor("/web/dev/settings"), "website");
+		assert.equal(mobileTabFor("/email"), "website");
+		assert.equal(mobileTabFor("/venue/gallery"), "website");
+		assert.equal(mobileTabFor("/venue"), "more");
 		assert.equal(mobileTabFor("/users"), "more");
+		assert.equal(mobileTabFor("/lightspeed/export"), "more");
 		assert.equal(mobileTabFor("/config"), "more");
+		assert.equal(mobileTabFor("/web/dev"), "more");
 		assert.equal(mobileTabFor("/more"), "more");
 	});
 });
@@ -145,8 +127,9 @@ describe("backToMore", () => {
 	it("shows on settings pages, not on More or the other tabs", () => {
 		assert.equal(backToMore("/users"), true);
 		assert.equal(backToMore("/config"), true);
+		assert.equal(backToMore("/lightspeed"), true);
 		assert.equal(backToMore("/more"), false);
-		assert.equal(backToMore("/web/dev"), false);
+		assert.equal(backToMore("/web"), false);
 		assert.equal(backToMore("/"), false);
 	});
 });
@@ -154,31 +137,32 @@ describe("backToMore", () => {
 describe("lastPage", () => {
 	it("falls back to the first page of the tab", () => {
 		assert.equal(lastPage("home", admin, {}), "/");
-		assert.equal(lastPage("service", admin, {}), "/menu");
-		assert.equal(lastPage("programme", admin, {}), "/events");
+		assert.equal(lastPage("whats-on", admin, {}), "/events/schedule");
+		assert.equal(lastPage("bar-kitchen", admin, {}), "/menus");
 		assert.equal(lastPage("website", admin, {}), "/web");
 		assert.equal(lastPage("more", admin, {}), "/more");
 		assert.equal(firstPage("website", admin), "/web");
 	});
 
 	it("returns to the last page used in a tab", () => {
-		assert.equal(lastPage("service", admin, { service: "/suppliers" }), "/suppliers");
-		assert.equal(lastPage("website", admin, { website: "/web/dev" }), "/web/dev");
+		assert.equal(lastPage("bar-kitchen", admin, { "bar-kitchen": "/inventory" }), "/inventory");
+		assert.equal(lastPage("website", admin, { website: "/email" }), "/email");
 	});
 
 	it("ignores a remembered page the tab no longer has", () => {
-		assert.equal(lastPage("website", staff, { website: "/web/dev" }), "/web");
-		assert.equal(lastPage("service", admin, { service: "/events" }), "/menu");
+		assert.equal(lastPage("bar-kitchen", admin, { "bar-kitchen": "/events" }), "/menus");
+		// Before #312 the tabs were Service and Programme.
+		assert.equal(lastPage("whats-on", admin, { programme: "/events" } as never), "/events/schedule");
 	});
 
-	it("remembers the rail page, not the record that was open", () => {
+	it("remembers the rail page, not the record or tab that was open", () => {
 		const storage = memoryStorage();
-		rememberPage("/events/schedule", NAV_ROUTES, storage);
-		rememberPage("/inventory/gin", NAV_ROUTES, storage);
+		rememberPage("/popups/36", NAV_ROUTES, storage);
+		rememberPage("/suppliers", NAV_ROUTES, storage);
 		rememberPage("/users", NAV_ROUTES, storage);
 		assert.deepEqual(readLastPages(storage), {
-			programme: "/events/schedule",
-			service: "/inventory",
+			"whats-on": "/popups",
+			"bar-kitchen": "/inventory",
 		});
 	});
 
@@ -202,8 +186,10 @@ describe("hideShellChrome", () => {
 	it("hides the bar and strip in editors and the print book", () => {
 		assert.equal(hideShellChrome("/menu/negroni"), true);
 		assert.equal(hideShellChrome("/events/new"), true);
+		assert.equal(hideShellChrome("/popups/36"), true);
 		assert.equal(hideShellChrome("/menu/print"), true);
 		assert.equal(hideShellChrome("/menu"), false);
+		assert.equal(hideShellChrome("/popups"), false);
 		assert.equal(hideShellChrome("/more"), false);
 	});
 });

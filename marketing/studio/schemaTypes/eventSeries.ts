@@ -28,7 +28,8 @@ export const eventSeries = defineType({
       type: "array",
       of: [{ type: "string" }],
       readOnly: true,
-      description: "Set by ops. Old web addresses that redirect to this series.",
+      description:
+        "Set by ops. Old web addresses that redirect to this series.",
     }),
     defineField({
       name: "schedule",
@@ -111,6 +112,14 @@ export const eventSeries = defineType({
       ],
     }),
     defineField({
+      name: "accentColor",
+      title: "Colour",
+      type: "string",
+      readOnly: true,
+      description:
+        "From ops: a pop-up kitchen's own colour (its Images tab), like #0f4d32. Its name and its day tag on the website use it.",
+    }),
+    defineField({
       name: "shortDescription",
       title: "Short description",
       type: "text",
@@ -172,12 +181,17 @@ export const eventSeries = defineType({
         {
           type: "image",
           fields: [
-            defineField({ name: "alt", type: "string", title: "Alternative text" }),
+            defineField({
+              name: "alt",
+              type: "string",
+              title: "Alternative text",
+            }),
             defineField({
               name: "date",
               type: "string",
               title: "Night",
-              description: "A night's photo (YYYY-MM-DD): its page shows it too.",
+              description:
+                "A night's photo (YYYY-MM-DD): its page shows it too.",
               hidden: true,
             }),
             defineField({

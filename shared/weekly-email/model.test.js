@@ -155,6 +155,10 @@ describe("weeklyEmailModel: what each entry says", () => {
     expect(preview.nights[0].href).toBe("https://preview.example.com/whats-on/chess");
     expect(preview.site.whatsOn).toBe("https://preview.example.com/whats-on");
     expect(preview.site.booking).toMatch(/^https:\/\/www\.opentable\./);
+    expect(preview.bookings.halves.map((half) => half.href)).toEqual([
+      "https://preview.example.com/bookings#party",
+      "https://preview.example.com/bookings#play",
+    ]);
   });
 });
 

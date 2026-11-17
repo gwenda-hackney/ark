@@ -299,6 +299,7 @@ export async function publishEventPreview(
       category: event.category,
       pageUrl: event.pageUrl,
       logo: publishedLogo(event),
+      accentColor: event.accentColor,
     }),
   });
 

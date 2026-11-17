@@ -7,7 +7,6 @@
  * (StandingCards); then the way to the lot, where all three are.
  */
 import { getUpcomingEvents } from "../../data/events";
-import { menuChapters } from "../../data/menu";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 import { fetchMenu } from "../../lib/sanity/menu";
 import { nightsOnly } from "../../lib/promotions.js";
@@ -58,14 +57,11 @@ const shut = closedDays(await fetchOpeningHours());
     empty="Nothing on this week. The bar’s open anyway."
   />
 
-  <StandingCards
-    series={series}
-    occurrences={occurrences}
-    chapters={menuChapters(menu, "kitchen")}
-    home
-  />
+  <StandingCards series={series} occurrences={occurrences} menu={menu} home />
 
   <div class="ch-home-actions">
-    <a href="/whats-on" class="ch-btn ch-btn--solid">Everything that’s on</a>
+    <a href="/whats-on" class="ch-menu-all">
+      Everything that’s on <span aria-hidden="true">→</span>
+    </a>
   </div>
 </section>

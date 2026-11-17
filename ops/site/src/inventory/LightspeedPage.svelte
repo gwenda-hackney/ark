@@ -20,6 +20,7 @@
 		TextField,
 	} from "../ui";
 	import { getMenu, previewLightspeedCsv } from "../app/api";
+	import { navTabs } from "../app/nav-routes";
 	import { flattenMenuSections, sectionPathLabel } from "../menu/menu-sections.js";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
@@ -572,7 +573,8 @@
 
 <div class="page scrollbar-fade">
 	<PageHeader
-		title="POS reconcile"
+		title="Lightspeed"
+		tabs={{ items: navTabs("lightspeed"), value: "reconcile" }}
 	>
 		{#snippet actions()}
 			<PageHelp title="POS reconcile" topics={RECONCILE_HELP} />
@@ -1254,7 +1256,7 @@
 				<MoneyField id="ls-add-price" size="sm" bind:value={addPrice} />
 			</Field>
 			{#if posMenus.length}
-				<Field label="POS menu" for="ls-add-pos-menu">
+				<Field label="Till menu" for="ls-add-pos-menu">
 					<NativeSelect
 						id="ls-add-pos-menu"
 						size="sm"

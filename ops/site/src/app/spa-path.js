@@ -4,6 +4,7 @@
  */
 
 import { itemSlug } from "../menu/item-key.js";
+import { closedArtistRedirect } from "../artists/featured-artist.js";
 
 export { itemMatchesKey, itemSlug, namesClash } from "../menu/item-key.js";
 
@@ -22,6 +23,8 @@ export function isSpaDocumentPath(pathname) {
   return (
     p === "/menu" ||
     p.startsWith("/menu/") ||
+    p === "/menus" ||
+    p.startsWith("/menus/") ||
     p === "/inventory" ||
     p.startsWith("/inventory/") ||
     p === "/lightspeed" ||
@@ -38,6 +41,10 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/venue/") ||
     p === "/events" ||
     p.startsWith("/events/") ||
+    p === "/popups" ||
+    p.startsWith("/popups/") ||
+    p === "/deals" ||
+    p.startsWith("/deals/") ||
     p === "/artists" ||
     p.startsWith("/artists/") ||
     p === "/web" ||
@@ -79,7 +86,22 @@ export function canonicalizePath(href) {
   if (path === "/events/nights" || path.startsWith("/events/nights/")) {
     path = `/events/schedule${path.slice("/events/nights".length)}`;
   }
+  // No new featured artists while it's closed (#313): back to the list.
+  const closedArtist = closedArtistRedirect(path);
+  if (closedArtist) return closedArtist;
   return path + search;
+}
+
+/**
+ * What's on's lists of one kind (#312), each at its own address: Events
+ * (nights), Pop-ups and Deals. Each opens the same event editor under its own
+ * address (`/popups/36`); a night of any of them is a Schedule thing and stays
+ * under `/events` (`/events/36@2026-11-20`).
+ */
+export const EVENT_SECTIONS = ["events", "popups", "deals"];
+
+function eventSectionBase(section) {
+  return EVENT_SECTIONS.includes(section) ? `/${section}` : "/events";
 }
 
 /** Drink editor tabs. `details` is the default (Build) and is omitted from the URL. */
@@ -182,6 +204,13 @@ export function parseShellPath(path) {
       tab,
     };
   }
+  // Menus (#305): the list, a new one, or one by its id.
+  if (p === "/menus") return { page: "menus", slug: null, isNew: false };
+  if (p.startsWith("/menus/")) {
+    const part = decodeSegment(p.slice("/menus/".length).split("/")[0] || "");
+    if (part === "new") return { page: "menus", slug: null, isNew: true };
+    return { page: "menus", slug: part || null, isNew: false };
+  }
   if (p === "/inventory") {
     return { page: "inventory", slug: null, isNew: false };
   }
@@ -206,62 +235,13 @@ export function parseShellPath(path) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
-  // Venue details, and (#291) the venue's gallery of photos
+  // Venue, and (#291) the venue's photos (Publish → Photos, #312)
   if (p === "/venue" || p.startsWith("/venue/")) {
     return { page: "venue", view: p === "/venue/gallery" ? "gallery" : "details" };
   }
   if (p === "/more") return { page: "more" };
-  if (p === "/events" || p === "/events/nights" || p === "/events/schedule") {
-    return {
-      page: "events",
-      slug: null,
-      isNew: false,
-      tab: null,
-      list: p === "/events" ? "series" : "schedule",
-    };
-  }
-  if (p.startsWith("/events/")) {
-    const parts = p
-      .slice("/events/".length)
-      .split("/")
-      .filter(Boolean)
-      .map(decodeSegment);
-    if (parts[0] === "new") {
-      if (parts[1] === "once") {
-        return {
-          page: "events",
-          slug: null,
-          isNew: true,
-          tab: normalizeEventTab(parts[2]),
-          list: null,
-          kind: "once",
-        };
-      }
-      return {
-        page: "events",
-        slug: null,
-        isNew: true,
-        tab: normalizeEventTab(parts[1]),
-        list: null,
-      };
-    }
-    if (parts[0] === "nights" || parts[0] === "schedule") {
-      return {
-        page: "events",
-        slug: null,
-        isNew: false,
-        tab: null,
-        list: "schedule",
-      };
-    }
-    return {
-      page: "events",
-      slug: parts[0] || null,
-      isNew: false,
-      tab: normalizeEventTab(parts[1]),
-      list: null,
-    };
-  }
+  const eventSection = /^\/(events|popups|deals)(?:\/|$)/.exec(p)?.[1];
+  if (eventSection) return parseEventPath(p, eventSection);
   if (p === "/artists") {
     return { page: "artists", slug: null, isNew: false };
   }
@@ -283,13 +263,58 @@ export function parseShellPath(path) {
     const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");
     return { page: "forms", slug: part || null };
   }
+  // Menu sections live on each menu's page now (#305): old links land on Menus.
+  if (p === "/config/sections" || p.startsWith("/config/sections/")) return { page: "menus", slug: null, isNew: false, moved: true };
   if (p === "/config" || p.startsWith("/config/")) {
     const tab = decodeSegment(p.slice("/config/".length).split("/")[0] || "");
     return { page: "config", tab: tab || null };
   }
-  // Sections used to be a page of its own; it's a Configuration tab now.
-  if (p === "/sections" || p.startsWith("/sections/")) return { page: "config", tab: "sections" };
+  // Sections used to be a page of its own, then a Configuration tab.
+  if (p === "/sections" || p.startsWith("/sections/")) return { page: "menus", slug: null, isNew: false, moved: true };
   return { page: "home" };
+}
+
+/**
+ * `/events`, `/popups` or `/deals`: that list (`list` names the list shown),
+ * a new one of that kind, or one opened by id. `/events/schedule` is the
+ * Schedule; `/events/new/once` is its Add, which asks what kind first.
+ */
+function parseEventPath(p, section) {
+  const base = `/${section}`;
+  const at = (fields) => ({ page: "events", section, slug: null, isNew: false, tab: null, list: null, ...fields });
+  if (p === base) return at({ list: section });
+  const parts = p
+    .slice(base.length + 1)
+    .split("/")
+    .filter(Boolean)
+    .map(decodeSegment);
+  if (section === "events" && (parts[0] === "nights" || parts[0] === "schedule")) {
+    return at({ list: "schedule" });
+  }
+  if (parts[0] === "new") {
+    if (section === "events" && parts[1] === "once") {
+      return at({ isNew: true, tab: normalizeEventTab(parts[2]), kind: "once" });
+    }
+    return at({ isNew: true, tab: normalizeEventTab(parts[1]) });
+  }
+  return at({ slug: parts[0] || null, tab: normalizeEventTab(parts[1]) });
+}
+
+/** Menu → Menus. */
+export function menusListPath() {
+  return "/menus";
+}
+
+/** A menu's page, by its id. */
+export function menuPagePath(id) {
+  const key = String(id || "").trim();
+  return key ? `/menus/${encodeURIComponent(key)}` : menusListPath();
+}
+
+/** A new menu; from a pop-up kitchen (`popupId`), it starts with the pop-up's name, dates and days. */
+export function newMenuPath(popupId) {
+  const popup = String(popupId || "").trim();
+  return popup ? `/menus/new?popup=${encodeURIComponent(popup)}` : "/menus/new";
 }
 
 export function menuListPath() {
@@ -328,37 +353,42 @@ export function menuTabPath(basePath, tab) {
   return menuItemPath(parsed.slug, tab);
 }
 
-/** Series index (`/events`) or schedule calendar (`/events/schedule`). */
-export function eventListPath(view = "series") {
-  return view === "nights" || view === "schedule"
-    ? "/events/schedule"
-    : "/events";
+/** A What's on list: the Schedule (`/events/schedule`), or Events, Pop-ups or Deals. */
+export function eventListPath(list = "events") {
+  return list === "nights" || list === "schedule" ? "/events/schedule" : eventSectionBase(list);
 }
 
+/**
+ * Add, from a list: a new one of that list's kind (`/popups/new`), or with
+ * `once` the Schedule's Add, which asks what kind first (`/events/new/once`).
+ */
 export function eventNewPath(tab, options = {}) {
   const once = options === true || Boolean(options?.once);
-  return withEventTab(once ? "/events/new/once" : "/events/new", tab);
+  const base = once ? "/events/new/once" : `${eventSectionBase(options?.section)}/new`;
+  return withEventTab(base, tab);
 }
 
-export function eventItemPath(id, tab) {
+/** An event at its list's address (`/popups/36`); a night (`36@2026-11-20`) is always under /events. */
+export function eventItemPath(id, tab, section) {
   const slug = String(id || "").trim();
-  if (!slug) return eventListPath();
+  if (!slug) return eventListPath(section);
   // Keep @ literal so a night URL stays `/events/12@2026-09-25` and the rail
   // can tell it from the series editor.
   const encoded = slug
     .split("@")
     .map((part) => encodeURIComponent(part))
     .join("@");
-  return withEventTab(`/events/${encoded}`, tab);
+  const base = slug.includes("@") ? "/events" : eventSectionBase(section);
+  return withEventTab(`${base}/${encoded}`, tab);
 }
 
-/** Event URL plus tab (`/events/12/schedule`). Unknown tabs fold to details. */
+/** Event URL plus tab (`/popups/12/schedule`), in the same list. Unknown tabs fold to details. */
 export function eventTabPath(basePath, tab) {
   const parsed = parseShellPath(basePath);
   if (parsed.page !== "events") return eventListPath();
-  if (parsed.isNew) return eventNewPath(tab, { once: parsed.kind === "once" });
-  if (!parsed.slug) return eventListPath();
-  return eventItemPath(parsed.slug, tab);
+  if (parsed.isNew) return eventNewPath(tab, { once: parsed.kind === "once", section: parsed.section });
+  if (!parsed.slug) return eventListPath(parsed.section);
+  return eventItemPath(parsed.slug, tab, parsed.section);
 }
 
 export function inventoryListPath() {
@@ -405,6 +435,11 @@ export function editorKey(path) {
     if (route.slug) return `artists:${route.slug}`;
     return "artists";
   }
+  if (route.page === "menus") {
+    if (route.isNew) return "menus:new";
+    if (route.slug) return `menus:${route.slug}`;
+    return "menus";
+  }
   // A play application's guest-artist fields can be left unsaved.
   if (route.page === "forms" && route.slug) return `forms:${route.slug}`;
   return route.page || "home";
@@ -416,6 +451,7 @@ export function navigationLeavesEditor(fromPath, toPath) {
   if (from === to) return false;
   if (
     from === "menu" ||
+    from === "menus" ||
     from === "inventory" ||
     from === "lightspeed" ||
     from === "suppliers" ||
@@ -447,6 +483,7 @@ export function isEditorPath(path) {
   if (route.print) return false;
   return (
     (route.page === "menu" ||
+      route.page === "menus" ||
       route.page === "inventory" ||
       route.page === "events" ||
       route.page === "artists") &&
@@ -529,7 +566,9 @@ export function shellCrumbs(
         ? "New event"
         : route.page === "artists"
           ? "New artist"
-          : "New item"
+          : route.page === "menus"
+            ? "New menu"
+            : "New item"
       : "");
   if (leafLabel && nested) crumbs.push({ label: leafLabel });
   const last = crumbs[crumbs.length - 1];

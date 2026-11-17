@@ -33,6 +33,7 @@ import {
   untrashDriveFile,
 } from "../../platform/google-drive.js";
 import { parseNightSchedule } from "./night-schedule.js";
+import { checkedAccentColor } from "./accent-color.js";
 import { eventRepository } from "./event-repository.js";
 import {
   buildEvent,
@@ -190,6 +191,7 @@ export async function updateEvent(env, id, input) {
         ? input.takingApplications
         : current.takingApplications,
     category: input?.category !== undefined ? input.category : current.category,
+    accentColor: input?.accentColor !== undefined ? input.accentColor : current.accentColor,
     pageUrl: input?.pageUrl !== undefined ? input.pageUrl : current.pageUrl,
     shortDescription:
       input?.shortDescription !== undefined
@@ -629,6 +631,18 @@ export async function setEventLogo(env, id, upload) {
 /** Takes the logo off the series. The Sanity asset stays: the live site may still show it. */
 export async function clearEventLogo(env, id) {
   return writeLogo(env, id, "");
+}
+
+/**
+ * A pop-up kitchen's own colour (#319): "#0f4d32", or "" for none (our red
+ * on the website). Saved on its own, as the logo is; the website follows on
+ * the series' next Update website.
+ */
+export async function setEventAccentColor(env, id, color) {
+  const events = eventRepository(env);
+  await events.get(id);
+  const record = await events.update(id, { accentColor: checkedAccentColor(color) });
+  return buildEvent(record, await events.nightsOf(id), buildOptions(env));
 }
 
 /** Add a photo to the series' gallery, or to one night's (`date`). */

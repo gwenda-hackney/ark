@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { kitchenColourStyle } from "../../../../../marketing/web/src/lib/kitchen-colour.js";
 	import { Icon } from "../../app/shell";
-	import { Badge, HelpTip, PhotoActions } from "../../ui";
+	import { Badge, Button, HelpTip, PhotoActions } from "../../ui";
 	import type { EventGallery } from "../event-gallery.svelte";
 
 	let {
@@ -10,6 +11,9 @@
 		logo = null,
 		onpicklogo = () => {},
 		onclearlogo = () => {},
+		name = "",
+		colour = "",
+		oncolour = () => {},
 	}: {
 		gallery: EventGallery;
 		eventId: string;
@@ -21,7 +25,22 @@
 		logo?: { url: string } | null;
 		onpicklogo?: (file: File | undefined | null) => void;
 		onclearlogo?: () => void;
+		/** The kitchen's name, for the colour's preview. */
+		name?: string;
+		/** Its own colour (#319), beside the logo: "#0f4d32", or "" for none (our red). */
+		colour?: string;
+		/** Save a colour as soon as it's picked or typed; "" takes it off. */
+		oncolour?: (hex: string) => void;
 	} = $props();
+
+	/** Our red, which the website uses for a kitchen with no colour of its own. */
+	const OUR_RED = "#e4513f";
+	/** The name and tag as the website shows them on our dark board (lib/kitchen-colour.js). */
+	const colourPreview = $derived(kitchenColourStyle(colour));
+
+	function onColourInput(e: Event) {
+		oncolour((e.currentTarget as HTMLInputElement).value.trim());
+	}
 
 	/** The logo whole, as the website shows it: no crop. */
 	const logoThumb = $derived(logo?.url ? `${logo.url}?w=480&auto=format` : "");
@@ -110,6 +129,49 @@
 						/>
 					</label>
 				{/if}
+			</div>
+			<div class="drive-head colour-head">
+				<h2 class="section-title">
+					<span class="section-label">Colour</span>
+				</h2>
+				<Button
+					variant="ghost"
+					size="sm"
+					type="button"
+					disabled={busy || !colour}
+					reason={colour ? "" : "No colour yet"}
+					onclick={() => oncolour("")}
+				>
+					Use our red
+				</Button>
+			</div>
+			<p class="hint">
+				Their name and their day tag on the website take it. Text is lightened just enough to read on our
+				dark boards.
+			</p>
+			<div class="colour-row">
+				<input
+					class="colour-pick"
+					type="color"
+					value={colour || OUR_RED}
+					disabled={busy}
+					aria-label="Pick their colour"
+					onchange={onColourInput}
+				/>
+				<input
+					class="colour-hex"
+					type="text"
+					value={colour}
+					placeholder="#0f4d32"
+					spellcheck="false"
+					disabled={busy}
+					aria-label="Their colour as a hex value"
+					onchange={onColourInput}
+				/>
+				<div class="colour-preview" style={colourPreview} aria-label="How it looks on the website">
+					<span class="colour-tag">Tonight</span>
+					<span class="colour-name">{name || "Their name"}</span>
+				</div>
 			</div>
 		{/if}
 		<div class="drive-head">
@@ -441,6 +503,56 @@
 	/* The logo slot comes first: no gap above it. */
 	.drive-head.logo-head {
 		margin-top: 0;
+	}
+
+	/* The colour, under the logo: a picker, its hex, and how the website shows it. */
+	.colour-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.colour-pick {
+		width: 2.75rem;
+		height: 2.75rem;
+		padding: 0;
+		border: 1px solid var(--border, #ccc);
+		border-radius: var(--radius-sm, 6px);
+		background: none;
+		cursor: pointer;
+	}
+
+	.colour-hex {
+		width: 8rem;
+		font-family: var(--font-mono, monospace);
+	}
+
+	/* The website's dark board, its name in the readable tint, its tag filled: no colour is our red */
+	.colour-preview {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-sm, 6px);
+		background: #1a1510;
+	}
+
+	.colour-name {
+		font-weight: 700;
+		font-size: 1.125rem;
+		color: var(--kitchen-ink, #e4513f);
+	}
+
+	.colour-tag {
+		padding: 0.125rem 0.5rem;
+		border-radius: 3px;
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		background: var(--kitchen-fill, #b3161d);
+		color: var(--kitchen-on-fill, #f2e8d2);
 	}
 
 	/* A logo is shown whole on white, as the website shows it. */
