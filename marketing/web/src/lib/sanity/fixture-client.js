@@ -1,32 +1,47 @@
 /**
- * Sample data for a local dev server (#306): `SITE_FIXTURE=<file>` makes
- * the site read Sanity documents from that file instead of a dataset, with
- * the site's own GROQ queries run on them (groq-js, as ops' tests do). So a
- * page can be seen with a made-up second pop-up, or any other sample, with
- * no Sanity token and nothing written anywhere.
+ * Sample data over the real content, for a local dev server (#306):
+ * `SITE_OVERLAY=<file>` reads every document from the dataset the site
+ * would read anyway (dev's Sanity, drafts and all), once per server, lets
+ * the file add to or change them, and runs the site's own GROQ queries on
+ * the result (groq-js, as ops' tests do). So a page can be seen with a
+ * made-up second pop-up kitchen next to everything that's really there,
+ * and nothing is written anywhere.
  *
- * The file is a module whose default export is the documents, or a
- * function of today (YYYY-MM-DD at the bar) that returns them, so nights
- * and dates can sit around whatever day it is. Only `fetch` is offered:
- * the site reads, never writes. Sample files live in fixtures/.
+ * The file is a module whose default export is a function of the
+ * documents and today (YYYY-MM-DD at the bar) that returns the documents
+ * to use. Restart the server after editing it. Samples live in fixtures/.
  */
 import { resolve } from "node:path";
 import { londonToday } from "../london-day.js";
 
-/** @param {string} file the fixture module, from the web package's folder */
-export function fixtureClient(file) {
-  const url = resolve(process.cwd(), file);
+/** Everything the site reads: content and image assets, as drafts overlay them. */
+const EVERYTHING = `*[!(_id in path("versions.**"))]`;
+
+/**
+ * @param {string} file the overlay module, from the web package's folder
+ * @param {{ fetch: (query: string, params?: object) => Promise<any> }} base
+ *   the site's own Sanity client
+ */
+export function overlayClient(file, base) {
+  const path = resolve(process.cwd(), file);
+  let dataset;
+  const load = async () => {
+    const [docs, overlay] = await Promise.all([
+      base.fetch(EVERYTHING),
+      import(/* @vite-ignore */ path),
+    ]);
+    return overlay.default(docs || [], londonToday(new Date()));
+  };
   return {
     async fetch(query, params = {}) {
-      const [{ parse, evaluate }, loaded] = await Promise.all([
+      dataset ??= load().catch((error) => {
+        dataset = undefined;
+        throw error;
+      });
+      const [{ parse, evaluate }, docs] = await Promise.all([
         import("groq-js"),
-        // Read once per server: restart it after editing the file
-        import(/* @vite-ignore */ url),
+        dataset,
       ]);
-      const docs =
-        typeof loaded.default === "function"
-          ? loaded.default(londonToday(new Date()))
-          : loaded.default;
       const result = await evaluate(parse(query, { params }), {
         dataset: docs,
         params,

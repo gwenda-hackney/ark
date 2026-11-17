@@ -7,7 +7,7 @@ import { PHONE, arrived } from "./support.js";
  * every menu that lands on it from a new tab.
  *
  * It needs the sample data: a dev server started with
- * `SITE_FIXTURE=fixtures/two-popups.mjs` (Chez Pickle Wed–Sun, a made-up
+ * `npm run dev:sample` (dev's content with Chez Pickle Wed–Sun and a made-up
  * Monday kitchen), and `?day=` to pin the day (scripts/dev-site-day.js).
  * Run it with E2E_BASE_URL pointing at that server.
  */
@@ -17,7 +17,7 @@ async function open(page, path) {
   await arrived(page);
   test.skip(
     !(await page.getByText("Monday Dumplings (sample)").count()),
-    "needs the two-popups sample data (SITE_FIXTURE=fixtures/two-popups.mjs)",
+    "needs the sample over dev's content (npm run dev:sample)",
   );
 }
 
@@ -54,21 +54,37 @@ test.describe("two pop-up kitchens on /kitchen", () => {
 
   test("the week line jumps to each kitchen's menu", async ({ page }) => {
     await open(page, "/kitchen?day=thu");
-    await week(page).getByRole("link", { name: "Chez Pickle" }).click();
-    await expect(page).toHaveURL(/#chez-pickle$/);
-    await expect(page.locator("#chez-pickle")).toBeInViewport();
+    const link = week(page).getByRole("link", { name: "Chez Pickle" });
+    const anchor = (await link.getAttribute("href")).slice(1);
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`#${anchor}$`));
+    await expect(page.locator(`#${anchor}`)).toBeInViewport();
   });
 
   test("every menu's link lands on it from a new tab", async ({ browser }) => {
-    for (const [anchor, name] of [
-      ["chez-pickle", "Chez Pickle"],
-      ["monday-dumplings", "Monday Dumplings (sample)"],
-    ]) {
+    const first = await browser.newPage();
+    await open(first, "/kitchen?day=thu");
+    // Each kitchen's link, as the week line gives it
+    const links = await week(first)
+      .getByRole("link")
+      .evaluateAll((all) =>
+        all.map((a) => [a.getAttribute("href").slice(1), a.textContent]),
+      );
+    await first.close();
+    expect(links.map(([, name]) => name)).toEqual([
+      "Monday Dumplings (sample)",
+      "Chez Pickle",
+    ]);
+    for (const [anchor, name] of links) {
       const page = await browser.newPage({ viewport: PHONE });
       await open(page, `/kitchen?day=thu#${anchor}`);
       const target = page.locator(`#${anchor}`);
       await expect(target).toBeInViewport();
-      await expect(target.locator(".ch-kitchen-name")).toContainText(name);
+      // The kitchen's section, or its menu's first chapter before ops sends menus
+      const kitchen = page.locator(
+        `.ch-kitchen#${anchor}, .ch-kitchen:has(#${anchor})`,
+      );
+      await expect(kitchen.locator(".ch-kitchen-name")).toContainText(name);
       await page.close();
     }
   });

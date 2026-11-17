@@ -550,6 +550,25 @@
   gap: 2.5rem;
 }
 
+/*
+ * Two or more pop-up kitchens (#306): every card the same, so they line up
+ * along the top. The picture is one fixed box, the words start at its top
+ * edge, and a long name wraps down without moving the tag or the logo. A
+ * row's cards are one height. One alone is as it always was.
+ */
+.ch-stands:not(.ch-stands--one):has(.ch-stand--popup) {
+  align-items: stretch;
+}
+
+.ch-stands:not(.ch-stands--one) .ch-stand--popup {
+  grid-template-columns: calc(0.8 * var(--stand-h)) minmax(0, 1fr);
+  align-items: start;
+}
+
+.ch-stands:not(.ch-stands--one) .ch-stand--popup .ch-night-photo {
+  aspect-ratio: 0.8;
+}
+
 /* A guest's own mark stands in for a photo: whole, on its white */
 .ch-night-photo.ch-stand-photo--logo {
   background: #fff;
@@ -710,7 +729,8 @@
   /* The picture's column is one width on every card, so a deal's words and
      the kitchen's start on the same line; each picture keeps its own shape */
   .ch-stand,
-  .ch-stands--one .ch-stand {
+  .ch-stands--one .ch-stand,
+  .ch-stands:not(.ch-stands--one) .ch-stand--popup {
     grid-template-columns: 7.5rem minmax(0, 1fr);
     gap: 1.125rem;
   }
