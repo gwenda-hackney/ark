@@ -8,7 +8,10 @@
  *   endTime, nightSchedule[], repeatEvery, repeatUnit, weekdays[], monthDay,
  *   endsOn, skippedDates[], extraDates[], slug, formerSlugs[], deletedAt,
  *   takingApplications, replacesSeries, driveFolderId, mainImage, heroCrops,
- *   gallery, category, logo }
+ *   gallery, category, logo, accentColor }
+ *
+ * accentColor: a pop-up kitchen's own colour (#319), "#0f4d32", or "" for
+ * none. Like its logo, only a pop-up kitchen's goes on the website.
  *
  * category: what the series is (EVENT_CATEGORIES): "event", a night or run
  * of nights; "promotion", a standing deal such as Happy Hour; "popup", a
@@ -39,6 +42,7 @@ import {
   parseIsoDate,
   todayIso,
 } from "../event-recurrence.js";
+import { checkedAccentColor } from "./accent-color.js";
 import { occurrenceHash, occurrenceIsSpecialEdition, seriesSlug } from "./event-content.js";
 import { driveFolderWebUrl } from "../../platform/google-drive.js";
 import { parseNightSchedule } from "./night-schedule.js";
@@ -332,6 +336,7 @@ export function eventFieldsFromInput(input, { slug } = {}) {
     pageUrl: normalizePageUrl(input.pageUrl),
     takingApplications: input.takingApplications === true,
     category: checkedCategory(input.category),
+    accentColor: checkedAccentColor(input.accentColor),
     shortDescription: text(input.shortDescription),
     description: text(input.description),
     operationsNotes: text(input.operationsNotes),

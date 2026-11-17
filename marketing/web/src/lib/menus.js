@@ -16,6 +16,7 @@
  * last night. Those menus have no links of their own, so the page's links
  * stay as they were.
  */
+import { kitchenColourStyle } from "./kitchen-colour.js";
 import { menuAddresses, menuPage } from "./menu-anchors.js";
 import { popupIsBookedOrOn, popupWhen, seriesLogo } from "./popup-kitchen.js";
 import { categoryOf, upcomingNights } from "./promotions.js";
@@ -276,6 +277,8 @@ export function menuShelf(kind, menu, catalog, today) {
           days: daysWords(days),
           logo: seriesLogo(row),
           pageUrl: String(row.pageUrl || "").trim(),
+          /** Its own colour (#319), as CSS custom properties; "" for our red. */
+          colourStyle: kitchenColourStyle(row.accentColor),
         },
         nights: new Set(nights.map((night) => String(night.date))),
         menus,

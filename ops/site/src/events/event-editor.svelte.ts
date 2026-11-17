@@ -15,6 +15,7 @@ import {
 	ensureEventOccurrence,
 	getEvents,
 	putEventOnWebsite,
+	setEventAccentColor,
 	syncEventCalendar,
 	updateEvent,
 	updateEventOccurrence,
@@ -821,6 +822,24 @@ export class EventEditor {
 			await this.stageAfterSave(this.eventId, "Logo saved.");
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Could not upload the logo.");
+		} finally {
+			this.saving = false;
+			this.intent = "";
+		}
+	};
+
+	/** The Images tab's colour beside the logo (#319): saved as soon as it's picked or typed. */
+	onAccentColor = async (color: string) => {
+		if (!this.eventId || this.busy) return;
+		if (color === (this.current?.accentColor || "")) return;
+		this.saving = true;
+		this.intent = "save";
+		try {
+			const data = await setEventAccentColor(this.eventId, color);
+			this.rememberEvent(data.event, false);
+			await this.stageAfterSave(this.eventId, color ? "Colour saved." : "Colour removed.");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Could not save the colour.");
 		} finally {
 			this.saving = false;
 			this.intent = "";

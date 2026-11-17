@@ -398,9 +398,10 @@
   transition: color 0.2s ease;
 }
 
-/* The kitchen's name in the accent, apart from the day before it */
+/* The kitchen's name in its own colour, read on the board (#319; lib/
+   kitchen-colour.js), else our accent, apart from the day before it */
 .ch-menu-kitchen-name {
-  color: var(--ch-red-ink);
+  color: var(--kitchen-ink, var(--ch-red-ink));
 }
 
 .ch-menu-kitchen:hover .ch-menu-kitchen-name,

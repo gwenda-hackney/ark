@@ -65,6 +65,7 @@ export const SERIES_QUERY = `*[_type == "eventSeries" && removed != true] | orde
   recurrence,
   replacesSeriesId,
   pageUrl,
+  accentColor,
   "logo": logo{
     "url": asset->url,
     "width": asset->metadata.dimensions.width,

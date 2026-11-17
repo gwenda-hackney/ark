@@ -451,6 +451,9 @@
 												logo={editor.showsLogo ? { url: editor.current?.logo?.url || "" } : null}
 												onpicklogo={editor.acceptLogoFile}
 												onclearlogo={() => void editor.onClearLogo()}
+												name={editor.current?.name || ""}
+												colour={editor.current?.accentColor || ""}
+												oncolour={(hex) => void editor.onAccentColor(hex)}
 											/>
 										{/if}
 										{#if editor.websiteJob?.state === "failed" && !editor.formDirty}

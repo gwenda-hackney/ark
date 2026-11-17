@@ -4,6 +4,7 @@ import {
   popupKitchens,
   popupWhen,
 } from "./popup-kitchen.js";
+import { kitchenColourStyle } from "./kitchen-colour.js";
 
 const today = "2026-11-10";
 
@@ -60,6 +61,7 @@ describe("popupKitchens", () => {
         note: "Smashed burgers, fries and dips.",
         pageUrl: "https://example.com/pickle",
         logo: null,
+        colourStyle: "",
         photo: "pickle.png",
         photoPosition: "",
         next: "2026-11-11",
@@ -84,6 +86,17 @@ describe("popupKitchens", () => {
     );
     expect(kitchen.logo).toEqual({ url: LOGO, width: 900, height: 900 });
     expect(kitchen.pageUrl).toBe("https://www.instagram.com/chezpickle");
+  });
+
+  it("has their own colour from ops, for their card's tag (#319)", () => {
+    const [kitchen] = popupKitchens(
+      [{ ...series[2], accentColor: "#0f4d32" }],
+      [night("chez-pickle", "2026-11-12")],
+      new Map(),
+      today,
+    );
+    expect(kitchen.colourStyle).toBe(kitchenColourStyle("#0f4d32"));
+    expect(kitchen.colourStyle).toContain("--kitchen-fill: #0f4d32");
   });
 
   it("is empty once the pop-up has no night left", () => {

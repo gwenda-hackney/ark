@@ -6,6 +6,7 @@
  * when it's on, the way to its own page and the way to its menu. Its name,
  * logo and Instagram (its link) are the series' in ops (#296), nothing here.
  */
+import { kitchenColourStyle } from "./kitchen-colour.js";
 import { menuPage } from "./menu-anchors.js";
 import { nightDay } from "./night-cards.js";
 import {
@@ -137,6 +138,8 @@ export function popupKitchens(series, occurrences, menuLinks, todayIso) {
       pageUrl: String(next.pageUrl || row.pageUrl || "").trim(),
       /** Their logo from ops, shown in place of the photo; null without one. */
       logo: seriesLogo(row),
+      /** Their own colour (#319), as CSS custom properties; "" for our red. */
+      colourStyle: kitchenColourStyle(row.accentColor),
       ...seriesPhoto(row, next),
       next: next.date,
       /** Its own page, where the whole card leads. */

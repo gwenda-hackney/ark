@@ -25,7 +25,12 @@ import {
 } from "../../../functions/_lib/sanity-image-url.js";
 import { londonToday } from "../../lib/london-day.js";
 import { homeStandRow } from "../../lib/home-stands.js";
-import { frameRatio, nightDay, nightLabel, standSizes } from "../../lib/night-cards.js";
+import {
+  frameRatio,
+  nightDay,
+  nightLabel,
+  standSizes,
+} from "../../lib/night-cards.js";
 import { popupMenuLinks } from "../../lib/menus.js";
 import { popupKitchens } from "../../lib/popup-kitchen.js";
 import { promotionDeals } from "../../lib/promotions.js";
@@ -147,6 +152,7 @@ const kitchenCards = popupKitchens(
     href: kitchen.href,
     ...picture(logo ? "" : kitchen.photo, kitchen.photoPosition),
     logo,
+    colourStyle: kitchen.colourStyle,
     links: [
       { href: kitchen.menuHref, text: "See the menu →", external: false },
       ...(page
@@ -180,12 +186,27 @@ const kitchens = kitchenCards
               : nightLabel(card.next, today),
         }
       : index === 0 && card.next
-        ? { ...card, flag: true, tag: nightLabel(card.next, today) === "Next up" ? fullDay(card.next) : nightLabel(card.next, today) }
+        ? {
+            ...card,
+            flag: true,
+            tag:
+              nightLabel(card.next, today) === "Next up"
+                ? fullDay(card.next)
+                : nightLabel(card.next, today),
+          }
         : card,
   );
 
 function fullDay(dateIso: string) {
-  const names: Record<string, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
+  const names: Record<string, string> = {
+    Mon: "Monday",
+    Tue: "Tuesday",
+    Wed: "Wednesday",
+    Thu: "Thursday",
+    Fri: "Friday",
+    Sat: "Saturday",
+    Sun: "Sunday",
+  };
   const { weekday } = nightDay(dateIso);
   return names[weekday] || weekday;
 }
@@ -205,6 +226,7 @@ const deals =
         href: deal.href,
         ...picture(deal.photo, deal.photoPosition),
         logo: null,
+        colourStyle: "",
         links: [],
       }));
 
@@ -264,7 +286,9 @@ const alone = (section: { cards: unknown[] }) =>
                 (card.lead || card.flag) && "ch-stand--next",
                 card.lead && "ch-stand--lead",
               ]}
-              style={`--shape: ${card.ratio}`}
+              style={[`--shape: ${card.ratio}`, card.colourStyle]
+                .filter(Boolean)
+                .join("; ")}
               data-stand-when={card.turnover.timeline}
               data-stand-last={card.turnover.last}
             >

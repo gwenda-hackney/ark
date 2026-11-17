@@ -45,6 +45,8 @@ const kitchenTop = kitchenPick?.popup
       logo: kitchenPick.popup.logo,
       line: kitchenPick.line,
       href: kitchenPick.popup.href,
+      /** Its own colour for its name (#319); none, and it's our red. */
+      style: kitchenPick.popup.colourStyle || undefined,
     }
   : null;
 /** The pop-up's logo at the top of the Food side: 4.5rem (72px), sharp at 2x. */
@@ -128,7 +130,11 @@ const sides = [
           </header>
 
           {side.key === "food" && kitchenTop && (
-            <a href={kitchenTop.href} class="ch-menu-kitchen">
+            <a
+              href={kitchenTop.href}
+              class="ch-menu-kitchen"
+              style={kitchenTop.style}
+            >
               {kitchenTop.logo && (
                 <img
                   class="ch-menu-kitchen-logo"

@@ -1,6 +1,7 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { normalizePageUrl } from "./event-store.js";
+import { checkedAccentColor } from "./accent-color.js";
 import {
   occurrenceHash,
   plainToEventDescription,
@@ -13,6 +14,7 @@ import {
   sanityEventDocument,
   sanitySeriesDocument,
   occurrencePayload,
+  publishedAccentColor,
   publishedLogo,
   stableHeroFraming,
   stableImageRef,
@@ -550,6 +552,26 @@ test("a promotion or pop-up kitchen says so on its series and night documents an
   assert.equal(JSON.stringify(occurrencePayload({ ...event, category: "event" }, "2026-11-11")), plain);
   assert.ok(!plain.includes("seriesCategory"));
   assert.equal(occurrencePayload({ ...event, category: "promotion" }, "2026-11-11").seriesCategory, "promotion");
+});
+
+test("a pop-up kitchen's colour goes on its series document and in its change hash; nobody else's does (#319)", () => {
+  const base = { slug: "chez-pickle", title: "Chez Pickle", description: "Burgers.", schedule: "repeating", nightSchedule: [] };
+  assert.equal(sanitySeriesDocument({ ...base, category: "popup", accentColor: "#0F4D32" }).accentColor, "#0f4d32");
+  assert.equal("accentColor" in sanitySeriesDocument({ ...base, category: "popup" }), false, "none when it has none");
+  assert.equal("accentColor" in sanitySeriesDocument({ ...base, category: "promotion", accentColor: "#0f4d32" }), false);
+  assert.equal(publishedAccentColor({ category: "popup", accentColor: "#0f4d32" }), "#0f4d32");
+  assert.equal(publishedAccentColor({ category: "event", accentColor: "#0f4d32" }), "");
+  const event = { slug: "chez-pickle", name: "Chez Pickle", category: "popup", nightSchedule: [] };
+  const plain = JSON.stringify(occurrencePayload(event, "2026-11-11"));
+  assert.ok(!plain.includes("seriesAccentColor"), "a kitchen with no colour keeps its hash");
+  assert.equal(occurrencePayload({ ...event, accentColor: "#0f4d32" }, "2026-11-11").seriesAccentColor, "#0f4d32");
+});
+
+test("a pop-up kitchen's colour is checked on the way in (#319)", () => {
+  assert.equal(checkedAccentColor(" #0F4D32 "), "#0f4d32");
+  assert.equal(checkedAccentColor("abc"), "#aabbcc");
+  assert.equal(checkedAccentColor(""), "");
+  assert.throws(() => checkedAccentColor("green"), { status: 400, message: /hex value/ });
 });
 
 test("a pop-up kitchen's logo goes on its series document and in its change hash; nobody else's does (#296)", () => {

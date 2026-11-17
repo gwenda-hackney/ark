@@ -973,6 +973,8 @@ export type OpsEvent = {
   gallery: OpsGalleryPhoto[];
   /** A pop-up kitchen's logo (#296), on its Images tab. */
   logo?: OpsEventImage | null;
+  /** A pop-up kitchen's own colour (#319), "#0f4d32", or "" for none; beside its logo. */
+  accentColor?: string;
   dates: OpsEventOccurrence[];
   publish: {
     preview: "unpublished" | "stale" | "current";
@@ -1170,6 +1172,15 @@ export function uploadEventLogo(id: string, file: File) {
 export function clearEventLogo(id: string) {
   return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/logo`, {
     method: "DELETE",
+  });
+}
+
+/** A pop-up kitchen's own colour (#319): "#0f4d32", or "" for none. */
+export function setEventAccentColor(id: string, accentColor: string) {
+  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/colour`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accentColor }),
   });
 }
 

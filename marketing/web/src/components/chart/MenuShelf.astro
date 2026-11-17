@@ -1,11 +1,8 @@
 ---
 /**
  * A menu page's menus (#306): /bar's or /kitchen's, as lib/menus.js
- * menuShelf has them for the day the site is built. On the food page, a
- * line of who cooks which days when two or more pop-up kitchens share the
- * week. With two or more menus, a row of their names that jumps to each,
- * always at the top. Then each pop-up kitchen under its logo, name and
- * days, its menus under their own heads ("Dinner · Thu & Fri") when it has
+ * menuShelf has them for the day the site is built: each pop-up kitchen
+ * under its logo, name (in its own colour, #319) and days, its menus under their own heads ("Dinner · Thu & Fri") when it has
  * more than one, today's marked. Menus that haven't started are a line
  * each at the foot. The order is the same every day: only the "Today"
  * marks move.
@@ -24,8 +21,8 @@ interface Props {
 }
 
 const { shelf, empty, soon } = Astro.props;
-const { menus, kitchens, coming, week, where } = shelf;
-/** Two or more menus: a row of their names, and each under its own head. */
+const { menus, kitchens, coming, where } = shelf;
+/** Two or more menus: each under its own head. */
 const several = menus.length > 1;
 /** "Today" only says something when not everything is on today. */
 const marks =
@@ -33,19 +30,11 @@ const marks =
   kitchens.some((kitchen) => kitchen.popup && !kitchen.today);
 /** A pop-up's logo by its name: 4.5rem (72px), sharp at 2x. */
 const LOGO_WIDTH = 72;
-/** A link on this page: just its #part. */
-const hash = (href: string) =>
-  href.includes("#") ? href.slice(href.indexOf("#")) : href;
-/**
- * The week line already jumps to each kitchen; with one menu each it says
- * all a row of menu names would, so that row isn't drawn twice.
- */
-const jumps =
-  several &&
-  !(week.length > 0 && kitchens.every((kitchen) => kitchen.menus.length <= 1));
 ---
 
-{/* No week line or jump row: each kitchen's own heading says when (owner, 2026-11-17). */}
+{
+  /* No week line or jump row: each kitchen's own heading says when (owner, 2026-11-17). */
+}
 
 {
   kitchens.map((kitchen) => {
@@ -55,6 +44,7 @@ const jumps =
       <section
         class="ch-kitchen"
         id={!heads && only?.anchor ? only.anchor : undefined}
+        style={kitchen.popup?.colourStyle || undefined}
       >
         {kitchen.popup && (
           <header class="ch-kitchen-head">
@@ -71,7 +61,10 @@ const jumps =
               />
             )}
             {!kitchen.popup.logo && (
-              <span class="ch-kitchen-logo ch-kitchen-logo--none" aria-hidden="true">
+              <span
+                class="ch-kitchen-logo ch-kitchen-logo--none"
+                aria-hidden="true"
+              >
                 <ChartRecord size="large" />
               </span>
             )}
@@ -134,16 +127,6 @@ const jumps =
 }
 
 <style>
-  .ch-week {
-    margin: -1rem 0 1.25rem;
-    font-family: var(--ch-pen);
-    font-weight: 600;
-    font-size: 1.5rem;
-    line-height: 1.2;
-    color: var(--ch-cream);
-  }
-
-  .ch-week a,
   .ch-kitchen-when a {
     color: var(--ch-mustard);
     text-decoration: underline;
@@ -151,13 +134,8 @@ const jumps =
     text-underline-offset: 0.15em;
   }
 
-  .ch-week a:hover,
   .ch-kitchen-when a:hover {
     color: var(--ch-cream);
-  }
-
-  .ch-week-day--today a {
-    text-decoration-thickness: 2px;
   }
 
   .ch-kitchen + .ch-kitchen {
@@ -204,8 +182,9 @@ const jumps =
     color: var(--ch-cream);
   }
 
+  /* A pop-up kitchen's heading in its own colour (#319), else our accent */
   .ch-kitchen-name a {
-    color: inherit;
+    color: var(--kitchen-ink, var(--ch-red-ink));
     text-decoration: none;
   }
 

@@ -181,6 +181,13 @@
   --print: var(--ch-cream);
 }
 
+/* A pop-up kitchen's day tag, filled with its own colour (#319); none,
+   and it's our red as above */
+.ch-stand--next .ch-stand-tag {
+  --paper: var(--kitchen-fill, var(--ch-red));
+  --print: var(--kitchen-on-fill, var(--ch-cream));
+}
+
 /* The offer, on a cream ticket */
 .ch-night-offer {
   --paper: var(--ch-cream);
