@@ -7,6 +7,10 @@ Static HTML brand guidelines at [brand.gwenda.co.uk](https://brand.gwenda.co.uk)
 ```
 brand/
 ├── brand-guidelines.md   ← full guidelines (Markdown reference)
+├── logos/                ← the bottle logo's masters (npm run brand:logo)
+│   ├── gwenda-bottle.svg          ← full logo: bottle, record, GWENDA
+│   ├── gwenda-bottle-record.svg   ← bottle and record only (Instagram)
+│   └── <name>-1080-black.png / -transparent.png  ← 1080×1080 posts
 └── src/
     ├── index.html        ← published at brand.gwenda.co.uk
     ├── logo.png          ← primary gold wordmark (dark backgrounds)
@@ -15,6 +19,10 @@ brand/
     ├── favicon.png
     └── hero.webp         ← hero photograph (guidelines demo only)
 ```
+
+## Bottle logo
+
+`logos/` is traced from the site's `marketing/web/src/assets/images/logos/bottle.png` by `scripts/trace-logo.mjs`, with the clean-up rules (inks, specks, where GWENDA is cut off and the drips end) in that script. Run `npm run brand:logo` from the repo root when the PNG changes. The website keeps its own PNG and WebP files.
 
 ## Colour tokens
 
