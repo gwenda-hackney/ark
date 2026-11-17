@@ -35,7 +35,7 @@ Run `npm run brand:logo` from the repo root when the original or a drawing chang
 
 In the full logo the pour runs down into GWENDA. Where it ends without the letters is drawn by hand in `source/bottle-record-front.svg`: the streams reach the record's front rim, pool along it and drip over the edge. Open that file in a browser to see it over the original; change its paths in a drawing tool (units are the original's pixels), then run `npm run brand:logo`.
 
-The masters are filled artwork, so they stand on any background: the drawing's black is drawn (the site's `#0b0a08`), under the cream, mustard and red, and nothing is drawn outside the drawing. Each SVG has four named layers, bottom to top: `black`, `cream`, `mustard`, `red`.
+The drawing's black is see-through, as in the original: the logo takes whatever it lies on, so put it on black (the `-1080-black` posts are on the site's `#0b0a08`) or a dark photo. Each SVG has three named layers, bottom to top: `cream`, `mustard`, `red`.
 
 ## Colour tokens
 

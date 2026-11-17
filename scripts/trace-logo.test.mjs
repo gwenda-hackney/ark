@@ -17,8 +17,6 @@ import {
 const masters = new URL("../marketing/brand/logos/", import.meta.url);
 const file = (name) => new URL(name, masters);
 
-/** The drawing's black (the site's ground), under the inks. */
-const BLACK = "#0b0a08";
 /** The logo's inks, sampled from the original: cream, mustard, red. */
 const INKS = ["#e6d9be", "#cd9f47", "#ba1b1f"];
 /** The layers, from the bottom up, as a design tool names them. */
