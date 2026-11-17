@@ -19,6 +19,7 @@ import {
   onRequestGet as openMenu,
   onRequestPatch as editMenu,
 } from "../../functions/api/menus/[id].js";
+import { onRequestPost as copyMenu } from "../../functions/api/menus/[id]/copy.js";
 import { onRequestPost as createEvent } from "../../functions/api/events/index.js";
 import { onRequestPost as publishEvent } from "../../functions/api/events/[id]/publish.js";
 import { onRequestGet as popupMenus } from "../../functions/api/events/[id]/menus.js";
@@ -59,6 +60,15 @@ function owner(world) {
     async deleteMenu(menu, status = 200) {
       const res = await callApi(world, deleteMenu, { method: "DELETE", path: `/api/menus/${menu.id}`, params: { id: menu.id } });
       return status === 200 ? ok(res) : refused(res, status);
+    },
+    /** Copy menu, on a menu's page. */
+    async copyMenu(menu, status = 201) {
+      const res = await callApi(world, copyMenu, {
+        method: "POST",
+        path: `/api/menus/${menu.id}/copy`,
+        params: { id: menu.id },
+      });
+      return status === 201 ? ok(res, 201).menu : refused(res, status);
     },
     async section(title, more = {}) {
       return ok(
@@ -209,6 +219,76 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
       (await ops.menus()).menus.map((menu) => menu.name),
       ["Drinks"],
     );
+  });
+
+  it("copies a menu to start the next: its fields and sections, not its dates or items, right after it", async () => {
+    const food = await ops.addMenu({
+      name: "Chez Pickle",
+      kind: "kitchen",
+      startsOn: "2026-11-12",
+      endsOn: "2026-11-28",
+      days: ["wed", "thu", "fri", "sat"],
+      popupSeriesId: String(pickle.id),
+    });
+    const later = await ops.addMenu({ name: "Brunch", kind: "kitchen" });
+    const burgers = await ops.section("Burgers", { menuId: food.id, subtitle: "Smashed to order" });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    const smash = await ops.section("Smash", { parentId: burgers._id });
+    await ops.section("Veggie", { parentId: burgers._id, subtitle: "No meat" });
+    await ops.item({ name: "OG Burger", price: "14", sectionId: smash._id, placements: [{ channel: "digital", sectionId: smash._id }] });
+    await ops.item({ name: "Fries", price: "6", sectionId: sides._id, placements: [{ channel: "digital", sectionId: sides._id }] });
+    await ops.publishSeries(pickle);
+    await ops.updateWebsite();
+    assert.ok((await ops.open(food)).sections[0].sanityId, "the original is on the website");
+
+    const copy = await ops.copyMenu(food);
+    assert.deepEqual(
+      { name: copy.name, slug: copy.slug, kind: copy.kind, days: copy.days, popupSeriesId: copy.popupSeriesId },
+      { name: "Chez Pickle (copy)", slug: "chez-pickle-copy", kind: "kitchen", days: ["wed", "thu", "fri", "sat"], popupSeriesId: String(pickle.id) },
+    );
+    assert.deepEqual({ startsOn: copy.startsOn, endsOn: copy.endsOn }, { startsOn: "", endsOn: "" }, "its dates are the next run's to set");
+    assert.equal(copy.itemCount, 0, "items aren't copied");
+    assert.deepEqual(
+      (await ops.menus()).menus.map((menu) => menu.name),
+      ["Drinks", "Chez Pickle", "Chez Pickle (copy)", "Brunch"],
+      "right after the original",
+    );
+    assert.equal((await ops.menus()).menus.find((menu) => menu.id === later.id).name, "Brunch");
+
+    const { sections } = await ops.open(copy);
+    assert.deepEqual(
+      sections.map((chapter) => [
+        chapter.title,
+        chapter.subtitle,
+        chapter.subsections.map((group) => [group.title, group.subtitle]),
+      ]),
+      [
+        ["Burgers", "Smashed to order", [["Smash", undefined], ["Veggie", "No meat"]]],
+        ["Sides", undefined, []],
+      ],
+    );
+    const copied = sections.flatMap((chapter) => [chapter, ...chapter.subsections]);
+    assert.deepEqual(
+      copied.map((section) => section.slug),
+      ["burgers-2", "smash-2", "veggie-2", "sides-2"],
+      "each with its own web address",
+    );
+    assert.ok(copied.every((section) => !section.sanityId), "none is the original's on the website");
+    assert.ok(copied.every((section) => section.items.length === 0));
+    assert.deepEqual(
+      { kind: sections[0].kind, popupSeriesId: sections[0].popupSeriesId, menuId: sections[0].menuId },
+      { kind: "kitchen", popupSeriesId: String(pickle.id), menuId: copy.id },
+    );
+    const original = await ops.open(food);
+    assert.deepEqual(
+      original.sections.map((chapter) => chapter.slug),
+      ["burgers", "sides"],
+      "the original keeps its sections",
+    );
+    assert.equal(original.menu.itemCount, 2, "and its items");
+
+    assert.equal((await ops.copyMenu(food)).name, "Chez Pickle (copy 2)");
+    assert.match(await ops.copyMenu({ id: "999" }, 404), /not found/);
   });
 
   it("sections move with their menu: a chapter is drinks or food, and a pop-up's, as its menu is", async () => {

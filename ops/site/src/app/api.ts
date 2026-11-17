@@ -134,6 +134,14 @@ export function updateMenu(id: string, body: Partial<import("../menu/types").Men
   });
 }
 
+/** Copy menu (#306): a new menu from this one, with its sections but no dates or items. */
+export function copyMenu(id: string) {
+  return request<{ menu: import("../menu/types").Menu }>(`/api/menus/${encodeURIComponent(id)}/copy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 export function deleteMenu(id: string) {
   return request(`/api/menus/${encodeURIComponent(id)}`, {
     method: "DELETE",
