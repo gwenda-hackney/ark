@@ -24,6 +24,8 @@ brand/
 
 `logos/` is traced from the site's `marketing/web/src/assets/images/logos/bottle.png` by `scripts/trace-logo.mjs`, with the clean-up rules (inks, specks) and the bottle-and-record version's drawing (the record's front half, the pour pooling on it, the drips over its rim) in that script. Run `npm run brand:logo` from the repo root when the PNG changes. The website keeps its own PNG and WebP files.
 
+The masters are filled artwork, so they stand on any background: the drawing's black is drawn (the site's `#0b0a08`), under the cream, mustard and red, and nothing is drawn outside the drawing. Each SVG has four named layers, bottom to top: `black`, `cream`, `mustard`, `red`.
+
 ## Colour tokens
 
 Dark-palette CSS variables are synced from the marketing site:

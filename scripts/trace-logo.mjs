@@ -9,19 +9,24 @@
  *   <name>-1080-transparent.png  and on transparent
  *
  * The drawing is three flat inks on black: cream, mustard and a red drip.
- * Black and transparent are both left out, so whatever is behind shows
- * through. It is traced as three stacked layers:
+ * The PNG's black is see-through, which leaves the linework (the record's
+ * grooves, the skull's eyes, the scratches in the letters) hollow on a light
+ * page. The masters draw the black, so they stand on any background. Each is
+ * four stacked layers, a named group apiece for a design tool's layers:
  *
- *   1. cream: everything light, the whole drawing's silhouette. It is traced
+ *   1. black, at the bottom: everything inside the drawing's outer edge
+ *      (backing, below). Outside it stays see-through.
+ *   2. cream: everything light, the whole drawing's silhouette. It is traced
  *      from the PNG's brightness, not from a colour pick, so its edges keep
  *      the PNG's anti-aliasing: the record's thinnest grooves stay grooves.
- *   2. mustard and 3. red, on top: the pixels whose hue is that ink's, inside
+ *   3. mustard and 4. red, on top: the pixels whose hue is that ink's, inside
  *      the silhouette. Edge pixels darkening to black keep their hue but
  *      fall outside the silhouette, so they make no coloured specks.
  *
  * Each layer is drawn at 2x with a light blur before potrace, for smooth
  * curves; specks under SPECK_PX are dropped. Each ink's colour is the median
- * of its own clearly-inked pixels in the PNG. svgo then shrinks the result.
+ * of its own clearly-inked pixels in the PNG; the black is ours (the PNG has
+ * none to sample). svgo then shrinks the result.
  *
  * Run when bottle.png changes:
  *   npm run brand:logo
@@ -103,10 +108,28 @@ const POOL_DRIPS = [
 const MELT_DRIP = 2.2;
 const END_DRIP = 1.2;
 
-/** Instagram's square, the art's longest side in it, and our black. */
+/**
+ * The drawing's black: the site's ground (--ch-bg), so a post on our black
+ * and the logo's own black are one.
+ */
+const BLACK = "#0b0a08";
+/**
+ * The black fills what the inks enclose once every gap narrower than twice
+ * this (PNG px) is shut: the breaks in the bottle's outline that would let
+ * the outside in, and, in the full logo, the slits between the letters, so
+ * GWENDA stands on one black block as it does in the drawing. The bottle and
+ * record alone takes a smaller one: the air between its drips stays air.
+ */
+const BLACK_GAP = { "gwenda-bottle": 30, "gwenda-bottle-record": 10 };
+/**
+ * The black stops this far (PNG px) inside the drawing's outer edge, so no
+ * dark line shows round the cream on a light page.
+ */
+const BLACK_INSET = 1;
+
+/** Instagram's square, and the art's longest side in it. */
 const POST = 1080;
 const POST_ART = 920;
-const BLACK = "#0b0a08";
 
 /**
  * The inks by hue: each one's colour with its brightness taken out (divided
@@ -118,6 +141,8 @@ const HUES = {
   red: [1, 0.16, 0.17],
 };
 const INKS = Object.keys(HUES);
+/** The layers, from the bottom up. */
+const LAYERS = ["black", ...INKS];
 
 const { data, info } = await sharp(src)
   .ensureAlpha()
@@ -361,6 +386,99 @@ async function bottleAndRecord([cream, mustard, red]) {
   return [kept, clip(mustard), clip(red)];
 }
 
+/**
+ * Each pixel's squared distance to the nearest set pixel of a w x h mask:
+ * Felzenszwalb and Huttenlocher's lower envelope of parabolas, down the
+ * columns and then along the rows.
+ */
+function distanceSquared(set, w, h) {
+  const far = 1e20;
+  const longest = Math.max(w, h);
+  const f = new Float64Array(longest);
+  const d = new Float64Array(longest);
+  const v = new Int32Array(longest);
+  const z = new Float64Array(longest + 1);
+  const pass = (length) => {
+    let k = 0;
+    v[0] = 0;
+    z[0] = -far;
+    z[1] = far;
+    for (let q = 1; q < length; q++) {
+      let s;
+      do {
+        const p = v[k];
+        s = (f[q] + q * q - (f[p] + p * p)) / (2 * q - 2 * p);
+      } while (s <= z[k] && --k >= 0);
+      k += 1;
+      v[k] = q;
+      z[k] = s;
+      z[k + 1] = far;
+    }
+    k = 0;
+    for (let q = 0; q < length; q++) {
+      while (z[k + 1] < q) k += 1;
+      d[q] = (q - v[k]) ** 2 + f[v[k]];
+    }
+  };
+  const out = new Float64Array(w * h);
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) f[y] = set[y * w + x] ? 0 : far;
+    pass(h);
+    for (let y = 0; y < h; y++) out[y * w + x] = d[y];
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) f[x] = out[y * w + x];
+    pass(w);
+    for (let x = 0; x < w; x++) out[y * w + x] = d[x];
+  }
+  return out;
+}
+
+/**
+ * The black behind some inks, as a mask: everything inside the drawing's
+ * outer edge. The outside is what the open air reaches from the canvas's
+ * edge without squeezing through a gap narrower than twice `gap`; the rest,
+ * less BLACK_INSET at its edge, is black. (A closing, then its holes filled.)
+ */
+function backing(inkMasks, gap) {
+  // Room round the canvas for the air to pass, where the art touches its edge
+  const pad = gap + BLACK_INSET + 2;
+  const [w, h] = [width + 2 * pad, height + 2 * pad];
+  const inside = (x, y) => (y + pad) * w + x + pad;
+  const ink = new Uint8Array(w * h);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++)
+      if (inkMasks.some((mask) => mask[y * width + x] >= 128))
+        ink[inside(x, y)] = 1;
+  const fromInk = distanceSquared(ink, w, h);
+  const outside = new Uint8Array(w * h);
+  const reached = [0];
+  outside[0] = 1;
+  while (reached.length) {
+    const p = reached.pop();
+    const [x, y] = [p % w, Math.floor(p / w)];
+    for (const [nx, ny] of [
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+    ]) {
+      const q = ny * w + nx;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h || outside[q]) continue;
+      if (fromInk[q] <= gap * gap) continue;
+      outside[q] = 1;
+      reached.push(q);
+    }
+  }
+  const fromOutside = distanceSquared(outside, w, h);
+  const mask = Buffer.alloc(pixels);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++)
+      if (fromOutside[inside(x, y)] > (gap + BLACK_INSET) ** 2)
+        mask[y * width + x] = 255;
+  return mask;
+}
+
 /** The smallest box around some masks' ink, in PNG pixels, padded. */
 function artBox(masks, pad = 8) {
   let [x0, y0, x1, y1] = [width, height, 0, 0];
@@ -380,22 +498,37 @@ function artBox(masks, pad = 8) {
   return [x0, y0, x1 - x0, y1 - y0];
 }
 
-const inks = Object.fromEntries(INKS.map((name) => [name, sampleInk(name)]));
+const colours = {
+  black: BLACK,
+  ...Object.fromEntries(INKS.map((name) => [name, sampleInk(name)])),
+};
 
-/** One SVG: the layers, over the box around their art, through svgo. */
-async function logo(masks) {
+/**
+ * One SVG: the black behind the inks' masks and then each ink, a group
+ * named after its layer, over the box around the art, through svgo (which
+ * keeps the groups and their names).
+ */
+async function logo(inkMasks, gap) {
+  const masks = [backing(inkMasks, gap), ...inkMasks];
   const [x, y, w, h] = artBox(masks);
-  const paths = [];
-  for (const [index, name] of INKS.entries()) {
+  const layers = [];
+  for (const [index, name] of LAYERS.entries()) {
     const d = await trace(masks[index]);
     if (d)
-      paths.push(`<path fill="${inks[name]}" fill-rule="evenodd" d="${d}"/>`);
+      layers.push(
+        `<g id="${name}" fill="${colours[name]}"><path fill-rule="evenodd" d="${d}"/></g>`,
+      );
   }
-  const raw = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x * SCALE} ${y * SCALE} ${w * SCALE} ${h * SCALE}" width="${w}" height="${h}">${paths.join("")}</svg>`;
+  const raw = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x * SCALE} ${y * SCALE} ${w * SCALE} ${h * SCALE}" width="${w}" height="${h}">${layers.join("")}</svg>`;
   return optimize(raw, {
     multipass: true,
     floatPrecision: 0,
-    plugins: ["preset-default"],
+    plugins: [
+      {
+        name: "preset-default",
+        params: { overrides: { cleanupIds: false, collapseGroups: false } },
+      },
+    ],
   }).data;
 }
 
@@ -431,10 +564,10 @@ for (const [name, masks] of [
   ["gwenda-bottle", full],
   ["gwenda-bottle-record", bottleOnly],
 ]) {
-  const svg = await logo(masks);
+  const svg = await logo(masks, BLACK_GAP[name]);
   const file = `${outDir}${name}.svg`;
   writeFileSync(file, svg);
   report(file);
   await writePosts(name, svg);
 }
-console.log(`inks: ${Object.values(inks).join(" ")}`);
+console.log(LAYERS.map((name) => `${name} ${colours[name]}`).join(", "));

@@ -4,13 +4,37 @@ import { describe, expect, it } from "vitest";
 
 /**
  * The bottle logo's brand masters (#320), written by scripts/trace-logo.mjs:
- * light enough to hand around, and in the logo's own three inks only.
+ * light enough to hand around, in the logo's own inks only, and filled, so
+ * they stand on any background.
  */
 const logos = new URL("../marketing/brand/logos/", import.meta.url);
 const file = (name) => new URL(name, logos);
 
-/** The logo's inks, sampled from bottle.png: cream, mustard, red. */
+/** The drawing's black (the site's ground), under the inks. */
+const BLACK = "#0b0a08";
+/** The logo's inks, sampled from the original: cream, mustard, red. */
 const INKS = ["#e6d9be", "#cd9f47", "#ba1b1f"];
+/** The layers, from the bottom up, as a design tool names them. */
+const LAYERS = ["black", "cream", "mustard", "red"];
+
+/**
+ * An SVG drawn at its own size on nothing: [r, g, b, alpha] at a point given
+ * in the original's pixels (the SVG's units are half of one).
+ */
+async function drawn(svg, path) {
+  const [x0, y0] = svg
+    .match(/viewBox="([^"]*)"/)[1]
+    .split(" ")
+    .map((n) => Number(n) / 2);
+  const { data, info } = await sharp(path)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return (x, y) => {
+    const at = (Math.round(y - y0) * info.width + Math.round(x - x0)) * 4;
+    return [...data.subarray(at, at + 4)];
+  };
+}
 
 describe.each(["gwenda-bottle", "gwenda-bottle-record"])("%s", (name) => {
   const svg = readFileSync(file(`${name}.svg`), "utf8");
@@ -25,7 +49,29 @@ describe.each(["gwenda-bottle", "gwenda-bottle-record"])("%s", (name) => {
       [...svg.matchAll(/#[0-9a-f]{3,6}\b/gi)].map(([c]) => c.toLowerCase()),
     );
     expect(colours.size).toBeGreaterThan(0);
-    for (const colour of colours) expect(INKS).toContain(colour);
+    for (const colour of colours) expect([BLACK, ...INKS]).toContain(colour);
+  });
+
+  it("has a named layer for the black and for each ink, black at the bottom", () => {
+    const ids = [...svg.matchAll(/<g[^>]* id="([^"]+)"/g)].map(([, id]) => id);
+    expect(ids).toEqual(LAYERS);
+    expect(svg).toMatch(
+      new RegExp(
+        `<g[^>]* id="black"[^>]* fill="${BLACK}"|<g[^>]* fill="${BLACK}"[^>]* id="black"`,
+      ),
+    );
+  });
+
+  it("stands on any background: black inside the drawing, nothing outside it", async () => {
+    const at = await drawn(svg, file(`${name}.svg`).pathname);
+    const black = [0x0b, 0x0a, 0x08, 255];
+    // The record between its grooves, the hole in its label, the skull's eye
+    expect(at(70, 470)).toEqual(black);
+    expect(at(360, 438)).toEqual(black);
+    expect(at(765, 305)).toEqual(black);
+    // A corner, and the open air between the record and the bottle's mouth
+    expect(at(5, 5)[3]).toBe(0);
+    expect(at(150, 150)[3]).toBe(0);
   });
 
   it.each(["black", "transparent"])(
