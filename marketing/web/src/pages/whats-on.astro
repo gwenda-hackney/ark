@@ -38,12 +38,7 @@ const events = {
     set:html={JSON.stringify(events)}
   />
   <ChartPage title="What's on" lead={lead}>
-    <StandingCards
-      series={series}
-      occurrences={occurrences}
-      menu={menu}
-      top
-    />
+    <StandingCards series={series} occurrences={occurrences} menu={menu} top />
     <NightCards nights={nights} series={series} weeks leadEager={false} />
   </ChartPage>
 </BaseLayout>

@@ -57,12 +57,7 @@ const shut = closedDays(await fetchOpeningHours());
     empty="Nothing on this week. The bar’s open anyway."
   />
 
-  <StandingCards
-    series={series}
-    occurrences={occurrences}
-    menu={menu}
-    home
-  />
+  <StandingCards series={series} occurrences={occurrences} menu={menu} home />
 
   <div class="ch-home-actions">
     <a href="/whats-on" class="ch-menu-all">
