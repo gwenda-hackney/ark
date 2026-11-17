@@ -7,8 +7,9 @@
  */
 import { londonToday, weekStart } from "../../../../../marketing/web/src/lib/london-day.js";
 import { fetchWeeklyCatalog, renderWeeklyEmail, weeklyEmailModel } from "../../../../../shared/weekly-email/index.js";
-import { DATASET, sanityProjectId } from "../../platform/sanity.js";
-import { publicSiteOrigin } from "../../website/server/site-urls.js";
+import { emailLogoUrl } from "../../../../../shared/email/shell.js";
+import { DATASET, runsOnMachine, sanityProjectId } from "../../platform/sanity.js";
+import { publicSiteOrigin, siteUrls } from "../../website/server/site-urls.js";
 
 /** Why a week with no nights isn't sent. */
 export const EMPTY_WEEK = "No nights on the website this week, so there's nothing to send.";
@@ -41,7 +42,11 @@ export async function buildWeeklyEmail(env, { now = new Date() } = {}) {
       token: String(env.SANITY_API_TOKEN || "").trim(),
     });
     model = weeklyEmailModel(catalog, { today, origin });
-    email = renderWeeklyEmail(model);
+    // On a developer's machine the preview shows the local website's logo
+    // (web:dev on 4321), so a logo change is seen before it's deployed. Local
+    // ops can't send, so this never reaches an inbox.
+    const logoUrl = runsOnMachine(env) ? emailLogoUrl(siteUrls(env).preview) : undefined;
+    email = renderWeeklyEmail(model, { logoUrl });
   } catch (error) {
     throw buildFailed(error);
   }
