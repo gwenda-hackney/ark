@@ -13,6 +13,7 @@
     "ops/site"
   ],
   "scripts": {
+    "dev": "node scripts/dev.mjs",
     "web:dev": "npm run dev -w @gwenda/web",
     "web:dev:live": "npm run dev:live -w @gwenda/web",
     "ops:dev": "npm run dev -w @gwenda/ops",
