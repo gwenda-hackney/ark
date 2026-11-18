@@ -9,7 +9,7 @@ Each Cloudflare account (production, and gwenda-dev) has its own three databases
 | Role      | Database         | Binding      | Holds                                                 | Bound in                                   |
 | --------- | ---------------- | ------------ | ----------------------------------------------------- | ------------------------------------------ |
 | `ops`     | `gwenda-ops`     | `OPS_DB`     | events, menu and inventory, artists, users, Instagram | ops; website (artists)                     |
-| `website` | `gwenda-website` | `WEBSITE_DB` | guests: subscribers and form submissions              | website, ops, Mailchimp sync, Wi-Fi portal |
+| `website` | `gwenda-website` | `WEBSITE_DB` | guests: subscribers, form submissions, Wi-Fi guests   | website, ops, Mailchimp sync, Wi-Fi portal |
 | `config`  | `gwenda-config`  | `CONFIG_DB`  | settings and sync state                               | ops, website                               |
 
 The names, ids and bindings are listed in `shared/d1-databases.js`. `npm run setup:d1` creates any database that's missing (location: western Europe) and records its id there. `shared/d1-databases.test.js` checks every wrangler config binds those ids, preview envs included.
