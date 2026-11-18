@@ -19,7 +19,7 @@
 	import { MENU_LIST_SORTS, type MenuListSort } from "./menu-list";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
-	import { refreshSitePending } from "../website/site-pending.svelte";
+	import { followMenuSaves, publishedToasts } from "./menu-website-follow";
 	import type { InventoryItem } from "../inventory/types";
 	import type { DrinkType, MenuItem, MenuSection, PosMenu } from "./types";
 	import { publishPendingCount } from "./publish";
@@ -287,7 +287,8 @@
 				const dest = opts?.after ?? menuItemPath(savedName, editorTab);
 				navigate(dest, { replace: true, force: true });
 			}
-			toast.ok("Saved. Publish when you want guests to see this.");
+			toast.ok("Saved. It goes on the website by itself in a few minutes.");
+			void followMenuSaves();
 			return true;
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Save failed.");
@@ -320,6 +321,7 @@
 			sections = removeItemFromSections(sections, item._id);
 			backToGrid();
 			toast.ok("Deleted.");
+			void followMenuSaves();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Delete failed.");
 		} finally {
@@ -365,6 +367,7 @@
 			}
 			await applyPhotoItem(data.item);
 			toast.ok("Photo saved.");
+			void followMenuSaves();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Upload failed.");
 		} finally {
@@ -380,6 +383,7 @@
 			const data = await api.deletePhoto(item._id);
 			await applyPhotoItem(data.item);
 			toast.ok("Photo removed.");
+			void followMenuSaves();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Could not remove photo.");
 		} finally {
@@ -397,21 +401,7 @@
 			if (selectedId && detailOpen) {
 				item = findById(selectedId) || item;
 			}
-			for (const warning of data.warnings || []) toast.info(warning);
-			const missing = data.sync?.missing || [];
-			if (missing.length) {
-				toast.error(`${missing.length} need a menu section before they can go on the website: ${missing.join(", ")}.`);
-			}
-			if (!data.published) {
-				if (!missing.length) toast.ok("The website already shows this menu.");
-			} else {
-				toast.ok(
-					data.building
-						? "Menu on the website. The menu page shows it in about 2 minutes."
-						: "Menu on the website. The menu page shows it after the next website update.",
-				);
-				void refreshSitePending();
-			}
+			publishedToasts(data);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Update failed.");
 		} finally {

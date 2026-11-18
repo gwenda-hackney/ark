@@ -260,13 +260,14 @@ const MENU_SAME = {
  * (`slug`, written when it is created and then left alone, like a
  * section's), drinks or food, dates, days, pop-up kitchen and place in the
  * order. The website shows each between its dates, on its days. Returns the
- * ids it keeps and how many writes it planned.
+ * ids it keeps, how many writes it planned and which ops menus they are.
  */
 function ensureSanityMenus(writes, preview, menus, sections, popupDocs = new Map()) {
   const sent = new Set(
     sections.filter((section) => !section.parentId && section.menuId).map((section) => String(section.menuId)),
   );
   const wantedIds = new Set();
+  const changed = [];
   let count = 0;
   for (const record of menus) {
     if (!sent.has(String(record.id))) continue;
@@ -287,6 +288,7 @@ function ensureSanityMenus(writes, preview, menus, sections, popupDocs = new Map
       const patch = patchToMatch(current, wanted, { refs: MENU_REFS, sameAs: MENU_SAME });
       if (patch) {
         writes.add({ patch: { id, ...patch } });
+        changed.push(String(record.id));
         count += 1;
       }
       continue;
@@ -301,20 +303,21 @@ function ensureSanityMenus(writes, preview, menus, sections, popupDocs = new Map
     }
     writes.add({ create: doc });
     preview.menus.set(id, { ...wanted, _id: id });
+    changed.push(String(record.id));
     count += 1;
   }
-  return { wantedIds, writes: count };
+  return { wantedIds, writes: count, changed };
 }
 
 /** Menus on the preview that ops no longer sends: they go, drafts and all. */
 function dropGoneMenus(writes, preview, wantedIds) {
-  let count = 0;
+  const gone = [];
   for (const id of preview.menus.keys()) {
     if (wantedIds.has(id)) continue;
     writes.add({ delete: { id } });
-    count += 1;
+    gone.push(id);
   }
-  return count;
+  return gone;
 }
 
 const SECTION_REFS = { parent: reference, popupSeries: reference, menu: weakReference };
@@ -338,6 +341,7 @@ const SECTION_SAME = {
 function ensureSanitySections(pending, writes, menu, sections, popupDocs = new Map()) {
   const flat = flattenMenuSections(sections);
   const byBaserowId = new Map();
+  const changed = [];
   let count = 0;
 
   for (const section of flat) {
@@ -372,6 +376,7 @@ function ensureSanitySections(pending, writes, menu, sections, popupDocs = new M
           if (value == null || value === "") delete current[key];
           else current[key] = value;
         }
+        changed.push(String(section._id));
         count += 1;
       } else {
         link(sanityId)();
@@ -384,13 +389,14 @@ function ensureSanitySections(pending, writes, menu, sections, popupDocs = new M
       }
       writes.add({ create: doc }, link(sanityId));
       menu.addSection({ ...wanted, _id: sanityId, slug });
+      changed.push(String(section._id));
       count += 1;
     }
 
     byBaserowId.set(String(section._id), sanityId);
   }
 
-  return { byBaserowId, writes: count };
+  return { byBaserowId, writes: count, changed };
 }
 
 function sectionRef(sanitySectionId) {
@@ -441,7 +447,11 @@ export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
   }
 }
 
-async function publishItems(env, pending, { items, sections, menus = [], target }) {
+/**
+ * What a publish sends: the drinks on the digital menu, and the sections
+ * they sit in, with their chapters, so each has its parent.
+ */
+function publishScope(items, sections) {
   const publishable = items.filter((item) =>
     Array.isArray(item.placements) && item.placements.length
       ? hasDigitalPlacement(item)
@@ -475,7 +485,49 @@ async function publishItems(env, pending, { items, sections, menus = [], target 
     }
   }
 
-  const publishing = [...withAncestors.values()];
+  return { publishable, publishing: [...withAncestors.values()] };
+}
+
+/**
+ * What Update website would change now, read only (#305): the menus,
+ * sections and drinks whose website documents ops would write or take off,
+ * planned exactly as syncOpsMenuToSanity plans them but with nothing sent.
+ * Ids are ops ids; `goneMenus` are Sanity ids of menus that would go.
+ * `tree`: the menu as loadMenuTree read it, when the caller has it.
+ */
+export async function planOpsMenuSync(env, tree = null) {
+  const { items, sections, menus = [] } = tree || (await loadMenuTree(env));
+  const { publishable, publishing } = publishScope(items, sections);
+  const popupDocs = await popupSeriesDocuments(env, [
+    ...publishing.map((section) => section.popupSeriesId),
+    ...menus.map((record) => record.popupSeriesId),
+  ]);
+  const menu = await previewMenu(env);
+  const writes = { add() {} };
+  const pending = { item() {}, section() {} };
+  const plannedMenus = ensureSanityMenus(writes, menu, menus, publishing, popupDocs);
+  const plannedSections = ensureSanitySections(pending, writes, menu, publishing, popupDocs);
+  const changedItems = [];
+  for (const item of publishable) {
+    const sectionId = String(digitalSectionId(item) || item.sectionId || item.section?._id || "");
+    if (!sectionId || !plannedSections.byBaserowId.get(sectionId)) continue;
+    const previous = item.publishSnapshots?.preview;
+    if (!menu.itemId(item) || previous?.hash !== projectionHash(websiteProjection(item))) changedItems.push(String(item._id));
+  }
+  const kept = new Set(publishable);
+  const takenOff = items
+    .filter((item) => !kept.has(item) && item.sanityId && item.publishSnapshots?.preview)
+    .map((item) => String(item._id));
+  return {
+    menus: plannedMenus.changed,
+    sections: plannedSections.changed,
+    items: [...changedItems, ...takenOff],
+    goneMenus: dropGoneMenus(writes, menu, plannedMenus.wantedIds),
+  };
+}
+
+async function publishItems(env, pending, { items, sections, menus = [], target }) {
+  const { publishable, publishing } = publishScope(items, sections);
   const popupDocs = await popupSeriesDocuments(env, [
     ...publishing.map((section) => section.popupSeriesId),
     ...menus.map((record) => record.popupSeriesId),
@@ -556,7 +608,7 @@ async function publishItems(env, pending, { items, sections, menus = [], target 
   }
 
   const removed = await dropOffMenuItems(env, pending, writes, items, publishable, target);
-  const goneMenus = dropGoneMenus(writes, menu, wantedIds);
+  const goneMenus = dropGoneMenus(writes, menu, wantedIds).length;
   await writes.send(env);
   return { created, synced, unchanged, missing, removed, sectionWrites, menuWrites: menuWrites + goneMenus };
 }

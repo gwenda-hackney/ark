@@ -3,8 +3,11 @@
 	 * Menu → Menus (#305): every menu, with its type, dates, days, pop-up
 	 * kitchen, number of items and status. A row opens the menu's page
 	 * (MenuEditor), where its details and sections are; Add menu starts one.
+	 * Like Events and Drinks, the list stays mounted under the menu, which
+	 * comes forward over it (editorZoom); closing it steps back to the list
+	 * where it was scrolled. /menus/<id> still opens a menu directly.
 	 */
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import type { ColDef, ICellRendererParams, RowClickedEvent } from "ag-grid-community";
 	import { Button, DataGrid, EmptyState, PageHeader, Skeleton } from "../ui";
 	import BadgeCell from "../ui/BadgeCell.svelte";
@@ -45,9 +48,10 @@
 		if (route.moved) navigate("/menus", { replace: true, force: true });
 	});
 
-	// The list loads when it shows, and again on the way back from a menu.
+	// The list loads once (under a menu opened by its address too), and
+	// again on the way back from a menu, keeping its rows and scroll.
 	$effect(() => {
-		if (!editing) void load();
+		if (!editing || untrack(() => !menus.length && !error)) void load();
 	});
 
 	const columnDefs = $derived.by((): ColDef<Menu>[] => {
@@ -130,10 +134,8 @@
 	}
 </script>
 
-{#if editing}
-	<MenuEditor {path} />
-{:else}
-	<div class="page">
+<div class="menus-root">
+	<div class="page" class:parked={editing} inert={editing}>
 		<PageHeader title="Menus" subtitle="Every menu guests can see: the drinks, and each pop-up kitchen's food.">
 			{#snippet actions()}
 				<Button type="button" onclick={() => navigate(newMenuPath())}>
@@ -171,9 +173,40 @@
 			</div>
 		{/if}
 	</div>
-{/if}
+	<!-- Always mounted: it comes forward over the list when a menu opens (EditorShell). -->
+	<MenuEditor {path} open={editing} />
+</div>
 
 <style>
+	.menus-root {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
+		height: 100%;
+		overflow: hidden;
+	}
+
+	/* Steps back and dims while a menu comes forward over it; it keeps its scroll. */
+	.page {
+		transition:
+			transform 440ms var(--ease),
+			opacity 440ms var(--ease);
+	}
+
+	.page.parked {
+		pointer-events: none;
+		transform: scale(0.97);
+		opacity: 0.35;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.page {
+			transition: none;
+		}
+	}
+
 	.page {
 		position: relative;
 		flex: 1;

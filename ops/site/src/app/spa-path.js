@@ -109,7 +109,13 @@ export const MENU_DETAIL_TABS = ["details", "menu", "cost", "analysis"];
 const MENU_TAB_IDS = new Set(MENU_DETAIL_TABS);
 /** Event editor tabs. `details` is the default and is omitted from the URL. */
 /** Publishing moved to Website > Preview → live; old /publish links land on details. */
-export const EVENT_DETAIL_TABS = ["details", "schedule", "ops", "gallery"];
+export const EVENT_DETAIL_TABS = [
+  "details",
+  "menus",
+  "schedule",
+  "ops",
+  "gallery",
+];
 const EVENT_TAB_IDS = new Set(EVENT_DETAIL_TABS);
 /** Older drink tabs still resolve. */
 const MENU_TAB_ALIASES = new Map([
@@ -143,7 +149,9 @@ export function normalizeMenuTab(tab) {
 }
 
 export function normalizePrintFilter(filter) {
-  const raw = String(filter || "").trim().toLowerCase();
+  const raw = String(filter || "")
+    .trim()
+    .toLowerCase();
   return MENU_PRINT_FILTER_IDS.has(raw) ? raw : "cocktail";
 }
 
@@ -165,7 +173,8 @@ function withEventTab(base, tab) {
 export function parseShellPath(path) {
   const p = stripTrailingSlash((path || "/").split("?")[0] || "/");
   if (p === "/" || p === "") return { page: "home" };
-  if (p === "/menu") return { page: "menu", slug: null, isNew: false, tab: null };
+  if (p === "/menu")
+    return { page: "menu", slug: null, isNew: false, tab: null };
   if (p.startsWith("/menu/")) {
     const parts = p
       .slice("/menu/".length)
@@ -228,7 +237,8 @@ export function parseShellPath(path) {
     const rest = p === "/lightspeed" ? "" : p.slice("/lightspeed/".length);
     return {
       page: "lightspeed",
-      view: rest === "export" ? "export" : rest === "menus" ? "menus" : "reconcile",
+      view:
+        rest === "export" ? "export" : rest === "menus" ? "menus" : "reconcile",
     };
   }
   if (p === "/suppliers" || p.startsWith("/suppliers/")) {
@@ -237,7 +247,10 @@ export function parseShellPath(path) {
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
   // Venue, and (#291) the venue's photos (Publish → Photos, #312)
   if (p === "/venue" || p.startsWith("/venue/")) {
-    return { page: "venue", view: p === "/venue/gallery" ? "gallery" : "details" };
+    return {
+      page: "venue",
+      view: p === "/venue/gallery" ? "gallery" : "details",
+    };
   }
   if (p === "/more") return { page: "more" };
   const eventSection = /^\/(events|popups|deals)(?:\/|$)/.exec(p)?.[1];
@@ -264,13 +277,15 @@ export function parseShellPath(path) {
     return { page: "forms", slug: part || null };
   }
   // Menu sections live on each menu's page now (#305): old links land on Menus.
-  if (p === "/config/sections" || p.startsWith("/config/sections/")) return { page: "menus", slug: null, isNew: false, moved: true };
+  if (p === "/config/sections" || p.startsWith("/config/sections/"))
+    return { page: "menus", slug: null, isNew: false, moved: true };
   if (p === "/config" || p.startsWith("/config/")) {
     const tab = decodeSegment(p.slice("/config/".length).split("/")[0] || "");
     return { page: "config", tab: tab || null };
   }
   // Sections used to be a page of its own, then a Configuration tab.
-  if (p === "/sections" || p.startsWith("/sections/")) return { page: "menus", slug: null, isNew: false, moved: true };
+  if (p === "/sections" || p.startsWith("/sections/"))
+    return { page: "menus", slug: null, isNew: false, moved: true };
   return { page: "home" };
 }
 
@@ -281,19 +296,34 @@ export function parseShellPath(path) {
  */
 function parseEventPath(p, section) {
   const base = `/${section}`;
-  const at = (fields) => ({ page: "events", section, slug: null, isNew: false, tab: null, list: null, ...fields });
+  const at = (fields) => ({
+    page: "events",
+    section,
+    slug: null,
+    isNew: false,
+    tab: null,
+    list: null,
+    ...fields,
+  });
   if (p === base) return at({ list: section });
   const parts = p
     .slice(base.length + 1)
     .split("/")
     .filter(Boolean)
     .map(decodeSegment);
-  if (section === "events" && (parts[0] === "nights" || parts[0] === "schedule")) {
+  if (
+    section === "events" &&
+    (parts[0] === "nights" || parts[0] === "schedule")
+  ) {
     return at({ list: "schedule" });
   }
   if (parts[0] === "new") {
     if (section === "events" && parts[1] === "once") {
-      return at({ isNew: true, tab: normalizeEventTab(parts[2]), kind: "once" });
+      return at({
+        isNew: true,
+        tab: normalizeEventTab(parts[2]),
+        kind: "once",
+      });
     }
     return at({ isNew: true, tab: normalizeEventTab(parts[1]) });
   }
@@ -355,7 +385,9 @@ export function menuTabPath(basePath, tab) {
 
 /** A What's on list: the Schedule (`/events/schedule`), or Events, Pop-ups or Deals. */
 export function eventListPath(list = "events") {
-  return list === "nights" || list === "schedule" ? "/events/schedule" : eventSectionBase(list);
+  return list === "nights" || list === "schedule"
+    ? "/events/schedule"
+    : eventSectionBase(list);
 }
 
 /**
@@ -364,7 +396,9 @@ export function eventListPath(list = "events") {
  */
 export function eventNewPath(tab, options = {}) {
   const once = options === true || Boolean(options?.once);
-  const base = once ? "/events/new/once" : `${eventSectionBase(options?.section)}/new`;
+  const base = once
+    ? "/events/new/once"
+    : `${eventSectionBase(options?.section)}/new`;
   return withEventTab(base, tab);
 }
 
@@ -386,7 +420,11 @@ export function eventItemPath(id, tab, section) {
 export function eventTabPath(basePath, tab) {
   const parsed = parseShellPath(basePath);
   if (parsed.page !== "events") return eventListPath();
-  if (parsed.isNew) return eventNewPath(tab, { once: parsed.kind === "once", section: parsed.section });
+  if (parsed.isNew)
+    return eventNewPath(tab, {
+      once: parsed.kind === "once",
+      section: parsed.section,
+    });
   if (!parsed.slug) return eventListPath(parsed.section);
   return eventItemPath(parsed.slug, tab, parsed.section);
 }
@@ -530,7 +568,11 @@ export function shouldReplaceNav(fromPath, toPath) {
 export function editorClosePath(currentPath, historyReturnTo, fallback) {
   const current = pathOnly(currentPath);
   const origin = sanitizeReturnTo(historyReturnTo);
-  if (origin && origin !== current && editorKey(origin) !== editorKey(current)) {
+  if (
+    origin &&
+    origin !== current &&
+    editorKey(origin) !== editorKey(current)
+  ) {
     return origin;
   }
   return pathOnly(fallback || "/");
@@ -556,7 +598,11 @@ export function shellCrumbs(
     const crumb = { label: sectionLabel };
     if (nested && sectionHref) crumb.href = sectionHref;
     crumbs.push(crumb);
-  } else if (route.page === "home" && sectionLabel && sectionLabel !== homeLabel) {
+  } else if (
+    route.page === "home" &&
+    sectionLabel &&
+    sectionLabel !== homeLabel
+  ) {
     crumbs.push({ label: sectionLabel });
   }
   const leafLabel =

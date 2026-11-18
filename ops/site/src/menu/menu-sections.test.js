@@ -3,7 +3,9 @@ import { describe, it } from "vitest";
 import {
   countSectionItems,
   flattenMenuSections,
+  moveId,
   nestMenuSections,
+  planSectionOrder,
   removeItemFromSections,
   sectionPathLabel,
   upsertItemInSections,
@@ -76,5 +78,54 @@ describe("upsertItemInSections", () => {
     ];
     const next = removeItemFromSections(tree, "10");
     assert.deepEqual(next[0].items, []);
+  });
+});
+
+describe("planSectionOrder", () => {
+  const siblings = [
+    { _id: "a", orderRank: 3 },
+    { _id: "b", orderRank: 7 },
+    { _id: "c", orderRank: 9 },
+  ];
+
+  it("gives the siblings their own numbers in the new order, and returns only the ones that change", () => {
+    assert.deepEqual(planSectionOrder(siblings, ["c", "a", "b"]), [
+      { id: "c", orderRank: 3 },
+      { id: "a", orderRank: 7 },
+      { id: "b", orderRank: 9 },
+    ]);
+    assert.deepEqual(planSectionOrder(siblings, ["b", "a", "c"]), [
+      { id: "b", orderRank: 3 },
+      { id: "a", orderRank: 7 },
+    ]);
+    assert.deepEqual(planSectionOrder(siblings, ["a", "b", "c"]), [], "nothing moved");
+  });
+
+  it("numbers siblings that share a number from the smallest up", () => {
+    const tied = [
+      { _id: "a", orderRank: 2 },
+      { _id: "b", orderRank: 2 },
+      { _id: "c" },
+    ];
+    assert.deepEqual(planSectionOrder(tied, ["b", "a", "c"]), [
+      { id: "b", orderRank: 0 },
+      { id: "a", orderRank: 1 },
+      { id: "c", orderRank: 2 },
+    ]);
+  });
+
+  it("refuses a list that isn't exactly the siblings", () => {
+    assert.throws(() => planSectionOrder(siblings, ["a", "b"]), /Reload/);
+    assert.throws(() => planSectionOrder(siblings, ["a", "b", "x"]), /Reload/);
+    assert.throws(() => planSectionOrder(siblings, ["a", "a", "b"]), /Reload/);
+  });
+});
+
+describe("moveId", () => {
+  it("moves one id to a new place", () => {
+    assert.deepEqual(moveId(["a", "b", "c"], 0, 2), ["b", "c", "a"]);
+    assert.deepEqual(moveId(["a", "b", "c"], 2, 0), ["c", "a", "b"]);
+    assert.deepEqual(moveId(["a", "b", "c"], 1, 9), ["a", "c", "b"]);
+    assert.deepEqual(moveId(["a", "b", "c"], 5, 0), ["a", "b", "c"]);
   });
 });

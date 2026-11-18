@@ -1,15 +1,13 @@
 <script lang="ts">
-	import { EditorPlaceholder, EditorReveal, editorZoom } from "../ui";
-	import { onDestroy, onMount, tick, untrack } from "svelte";
+	import { onDestroy, onMount, tick } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
 		BusyOverlay,
 		Button,
-		EditorActionBar,
+		EditorShell,
 		EditorBackBar,
 		HelpDrawer,
-		PageHelp,
 		Segmented,
 	} from "../ui";
 	import { editorHeaderActions } from "./editor-header-actions";
@@ -19,6 +17,8 @@
 	import { onWebsiteJobEvent } from "./website-jobs.svelte";
 	import EditorHeader from "./EditorHeader.svelte";
 	import EventsList from "./EventsList.svelte";
+	import PopupMenus from "./PopupMenus.svelte";
+	import { categoryOf } from "./event-category";
 	import EventFields from "./tabs/EventFields.svelte";
 	import AddWizard from "./AddWizard.svelte";
 	import GalleryTab from "./tabs/GalleryTab.svelte";
@@ -27,7 +27,7 @@
 	import DiscardDialog from "./dialogs/DiscardDialog.svelte";
 	import ReplaceNightDialog from "./dialogs/ReplaceNightDialog.svelte";
 	import ScopeDialog from "./dialogs/ScopeDialog.svelte";
-	import UpdateWebsiteDialog from "./dialogs/UpdateWebsiteDialog.svelte";
+	import UpdateWebsiteDialog from "../ui/UpdateWebsiteDialog.svelte";
 	import { formatDate } from "./event-labels";
 	import { getApprovedArtists, getMe } from "../app/api";
 	import {
@@ -74,6 +74,15 @@
 	/** One Help drawer for the lists and the editor; a field's ? opens its topic. */
 	const help = provideHelp(() => (editor.editing ? "Events" : listTitle), EVENTS_HELP);
 
+	/** A saved pop-up kitchen series has menus (#305): a night or a new one doesn't. */
+	const hasMenus = $derived(
+		Boolean(editor.eventId) &&
+			!editor.route.isNew &&
+			!editor.editingOnce &&
+			!editor.editingOccurrence &&
+			categoryOf(editor.current) === "popup",
+	);
+
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const hrefFor = (id: string) => editor.tabPath(id);
 		// Everything new is one form: nights and photos come after the first save.
@@ -87,20 +96,22 @@
 		}
 		return [
 			{ id: "details", label: "Details", href: hrefFor("details") },
+			// A pop-up kitchen's menus have a tab of their own, so they're easy to find
+			...(hasMenus ? [{ id: "menus", label: "Menus", href: hrefFor("menus") }] : []),
 			{ id: "schedule", label: "Schedule", href: hrefFor("schedule") },
 			{ id: "ops", label: "Ops", href: hrefFor("ops") },
 			{ id: "gallery", label: "Images", href: hrefFor("gallery") },
 		];
 	});
 
-	/** The form mounts once the editor has come forward; a page opened straight on an editor has no intro. */
-	const reveal = new EditorReveal(untrack(() => editor.editing));
+	/** The form mounts once the editor has come forward (EditorShell); a page opened straight on an editor has no intro. */
+	let settled = $state(false);
 
 	/** A new form starts in its name, or its date when the series is already picked. */
 	async function focusFirstField() {
 		await tick();
 		// The form mounts once the editor has come forward.
-		for (let wait = 0; !reveal.settled && wait < 40; wait += 1) {
+		for (let wait = 0; !settled && wait < 40; wait += 1) {
 			await new Promise((done) => setTimeout(done, 25));
 		}
 		await tick();
@@ -125,6 +136,12 @@
 
 	$effect(() => {
 		if (routeList) listOrigin = routeList;
+	});
+
+	// Only a pop-up kitchen has a Menus tab: anything else opened there shows Details.
+	$effect(() => {
+		if (editor.tab !== "menus" || !editor.eventId || !editor.current || hasMenus) return;
+		navigate(editor.tabPath("details"), { replace: true });
 	});
 
 	// A special event or a night has no Schedule tab: its date is under When on Details.
@@ -362,263 +379,254 @@
 				editor.publishAfterSave = false;
 			}}
 		/>
-	{:else if editor.editing}
-		<form
-			class="editor"
-			novalidate
-			aria-busy={editor.busy || undefined}
-			transition:editorZoom
-			onintroend={reveal.introend}
-			onoutrostart={reveal.outrostart}
-			onsubmit={editor.onSave}
-		>
-			{#if !reveal.settled}
-				<EditorPlaceholder />
-			{:else}
-				<EditorBackBar label={listTitle} onback={requestClose}>
-					{#snippet tools()}<PageHelp iconOnly />{/snippet}
-				</EditorBackBar>
-				<div class="split split--full">
-					<div class="panel" class:dirty={editor.formDirty}>
-						<EditorHeader
-							form={editor.form}
-							current={editor.current}
-							eventId={editor.eventId}
-							occurrenceDate={editor.occurrenceDate}
-							busy={editor.busy}
-							dirty={editor.formDirty}
-							isNew={Boolean(editor.route.isNew)}
-							creatingNight={editor.creatingNight}
-							creatingOnce={editor.creatingOnce}
-							editingOnce={editor.editingOnce}
-							parentSeriesName={editor.parentSeriesName}
-							calendarSyncing={editor.calendarSyncing}
-							localOps={editor.localOps}
-							onsynccalendar={() => void editor.onSyncCalendar()}
-							onputonwebsite={editor.openPutOnWebsite}
-							onreload={requestReload}
-							onclose={requestClose}
-						/>
-
-						{#if tabs.length > 1}
-							<div class="tabs">
-								<Segmented
-									value={editor.tab}
-									items={tabs}
-									tone="soft"
-									size="sm"
-									ariaLabel="Event sections"
-								/>
-							</div>
-						{/if}
-
-						<div class="tab-scroll scrollbar-fade">
-							<div class="tab-body">
-								{#key editor.tab}
-									<div
-										class="tab-panel"
-										in:fly={{
-											x: tabSlide * 14,
-											duration: 260,
-											opacity: 0,
-											easing: easeOut,
-										}}
-									>
-										{#if editor.tab !== "gallery" || editor.route.isNew}
-											<EventFields
-												part={editor.route.isNew ? "all" : editor.tab === "schedule" || editor.tab === "ops" ? editor.tab : "details"}
-												form={editor.form}
-												errors={editor.errors}
-												current={editor.current}
-												parentSeries={editor.parentSeries}
-												eventId={editor.eventId}
-												occurrenceDate={editor.occurrenceDate}
-												busy={editor.busy}
-												creatingNight={editor.creatingNight}
-												creatingOnce={editor.creatingOnce}
-												editingOnce={editor.editingOnce}
-												editingOccurrence={editor.editingOccurrence}
-												approvedArtists={editor.approvedArtists}
-												webAddressChanged={editor.webAddressChanged}
-												framingUrl={editor.framingUrl}
-												previewDates={editor.previewDates}
-												onoverride={editor.overrideField}
-												onuseseries={editor.useSeriesValue}
-												onoverridephoto={editor.overridePhoto}
-												onuseseriesphoto={() => void editor.useSeriesPhoto()}
-												onpickphoto={editor.acceptPhotoFile}
-												onclearphoto={() => (editor.pendingPhoto ? editor.clearPendingPhoto() : void editor.onClearImage())}
-											/>
-											{#if editor.tab === "schedule" && !editor.route.isNew}
-												<ScheduleTab
-													form={editor.form}
-													current={editor.current}
-													eventId={editor.eventId}
-													previewDates={editor.previewDates}
-													busy={editor.busy}
-													onaddnight={editor.addNightToSeries}
-												/>
-											{/if}
-										{:else if editor.tab === "gallery"}
-											<GalleryTab
-												gallery={editor.gallery}
-												eventId={editor.eventId}
-												busy={editor.busy}
-												logo={editor.showsLogo ? { url: editor.current?.logo?.url || "" } : null}
-												onpicklogo={editor.acceptLogoFile}
-												onclearlogo={() => void editor.onClearLogo()}
-												name={editor.current?.name || ""}
-												colour={editor.current?.accentColor || ""}
-												oncolour={(hex) => void editor.onAccentColor(hex)}
-											/>
-										{/if}
-										{#if editor.websiteJob?.state === "failed" && !editor.formDirty}
-											<div class="job-failed" role="alert">
-												<p>
-													Saved, but the website did not update: {editor.websiteJob.error ||
-														"something went wrong."}
-												</p>
-												<Button
-													variant="outline"
-													size="sm"
-													type="button"
-													busy={editor.retrying}
-													disabled={editor.retrying}
-													onclick={() => void editor.onRetryWebsiteJob()}
-												>
-													{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
-													Try again
-												</Button>
-											</div>
-										{/if}
-										{#if editor.warnings.length}
-											<ul class="warnings">
-												{#each editor.warnings as warning (warning)}
-													<li>{warning}</li>
-												{/each}
-											</ul>
-										{/if}
-										{#if editor.error}<p class="error">{editor.error}</p>{/if}
-									</div>
-								{/key}
-							</div>
-						</div>
-
-						<EditorActionBar
-							{saveLabel}
-							saving={editor.saving && editor.intent === "save"}
-							disabled={editor.busy}
-							dirty={editor.formDirty}
-							errorCount={editor.errors.count}
-							onerrors={() => void editor.showErrors()}
-							overflow={[
-								// Phones: the header's tools, here instead (see EditorHeader).
-								{
-									label: "Update calendar",
-									phoneOnly: true,
-									disabled: headerActions.calendar.disabled || editor.calendarSyncing,
-									reason: headerActions.calendar.reason,
-									onselect: () => void editor.onSyncCalendar(),
-								},
-								{
-									label: "Reload",
-									phoneOnly: true,
-									disabled: headerActions.reload.disabled,
-									reason: headerActions.reload.reason,
-									onselect: requestReload,
-								},
-								// Nights always offer this, disabled when nothing overrides the series;
-								// a series never has it.
-								...(editor.editingOccurrence
-									? [
-											{
-												label: "Use series values for everything",
-												disabled: editor.busy || !(editor.form.defaultsUnlocked || editor.form.ownPhoto),
-												reason:
-													editor.form.defaultsUnlocked || editor.form.ownPhoto
-														? undefined
-														: "Already follows the series",
-												onselect: () => void editor.useSeriesDefaults(),
-											},
-										]
-									: []),
-								{
-									label: deleteLabel,
-									tone: "destructive" as const,
-									disabled: editor.busy || !editor.eventId,
-									reason: editor.eventId ? undefined : "Not saved yet",
-									onselect: editor.requestDelete,
-								},
-							]}
-						/>
-					</div>
-				</div>
-
-				<DiscardDialog
-					open={discardOpen}
-					kind={discardKind}
-					oncancel={cancelDiscard}
-					onconfirm={confirmDiscard}
-				/>
-
-				<ScopeDialog
-					open={editor.saveScopeOpen}
-					title="Which nights should change?"
-					message="Past nights stay as they were."
-					onchoose={(scope) => editor.saveOccurrenceWithScope(scope)}
-					onclose={() => (editor.saveScopeOpen = false)}
-				/>
-
-				<ReplaceNightDialog
-					prompt={editor.replacePrompt}
-					eventName={editor.form.name.trim() || "this event"}
-					replacing={editor.replacing}
-					onchoose={(replace) => void editor.chooseConflict(replace)}
-					onclose={() => {
-						editor.replacePrompt = null;
-						editor.publishAfterSave = false;
-					}}
-				/>
-
-				<ScopeDialog
-					open={editor.deleteScopeOpen}
-					title="Which nights should be deleted?"
-					message="Past nights stay as they were."
-					alsoWebsite={editor.onWebsite}
-					disabled={editor.busy}
-					destructive
-					allBusy={editor.saving && editor.intent === "delete"}
-					onchoose={(scope) => void editor.performDelete(scope)}
-					onclose={editor.cancelDelete}
-				/>
-
-				<DeleteEventDialog
-					open={editor.deleteOpen}
-					eventName={editor.form.name.trim() || editor.current?.name || "this event"}
-					kind={editor.editingOccurrence
-						? "night"
-						: editor.editingOnce
-							? "event"
-							: "series"}
-					nightDate={editor.occurrenceDate}
-					seriesName={editor.parentSeriesName}
-					onWebsite={editor.onWebsite}
-					busy={editor.busy}
-					deleting={editor.saving && editor.intent === "delete"}
-					oncancel={editor.cancelDelete}
-					onconfirm={() => void editor.performDelete("series")}
-				/>
-
-				<UpdateWebsiteDialog
-					open={editor.putOpen}
-					putting={editor.putting}
-					error={editor.putError}
-					onclose={() => (editor.putOpen = false)}
-					onconfirm={() => void editor.confirmPutOnWebsite()}
-				/>
-			{/if}
-		</form>
 	{/if}
+	{#snippet editorHeader()}
+			<EditorHeader
+				form={editor.form}
+				current={editor.current}
+				eventId={editor.eventId}
+				occurrenceDate={editor.occurrenceDate}
+				busy={editor.busy}
+				dirty={editor.formDirty}
+				isNew={Boolean(editor.route.isNew)}
+				creatingNight={editor.creatingNight}
+				creatingOnce={editor.creatingOnce}
+				editingOnce={editor.editingOnce}
+				parentSeriesName={editor.parentSeriesName}
+				calendarSyncing={editor.calendarSyncing}
+				localOps={editor.localOps}
+				onsynccalendar={() => void editor.onSyncCalendar()}
+				onputonwebsite={editor.openPutOnWebsite}
+				onreload={requestReload}
+				onclose={requestClose}
+			/>
+	{/snippet}
+	{#snippet editorTabs()}
+					<Segmented
+						value={editor.tab}
+						items={tabs}
+						tone="soft"
+						size="sm"
+						ariaLabel="Event sections"
+					/>
+	{/snippet}
+	<EditorShell
+		open={editor.editing && !editor.missing && !editor.route.isNew}
+		form
+		onsubmit={editor.onSave}
+		busy={editor.busy}
+		backLabel={listTitle}
+		onclose={requestClose}
+		dirty={editor.formDirty}
+		header={editorHeader}
+		tabs={tabs.length > 1 ? editorTabs : undefined}
+		bind:settled
+		actions={{
+
+				saveLabel,
+				saving: editor.saving && editor.intent === "save",
+				disabled: editor.busy,
+				dirty: editor.formDirty,
+				errorCount: editor.errors.count,
+				onerrors: () => void editor.showErrors(),
+				overflow: [
+					// Phones: the header's tools, here instead (see EditorHeader).
+					{
+						label: "Update calendar",
+						phoneOnly: true,
+						disabled: headerActions.calendar.disabled || editor.calendarSyncing,
+						reason: headerActions.calendar.reason,
+						onselect: () => void editor.onSyncCalendar(),
+					},
+					{
+						label: "Reload",
+						phoneOnly: true,
+						disabled: headerActions.reload.disabled,
+						reason: headerActions.reload.reason,
+						onselect: requestReload,
+					},
+					// Nights always offer this, disabled when nothing overrides the series;
+					// a series never has it.
+					...(editor.editingOccurrence
+						? [
+								{
+									label: "Use series values for everything",
+									disabled: editor.busy || !(editor.form.defaultsUnlocked || editor.form.ownPhoto),
+									reason:
+										editor.form.defaultsUnlocked || editor.form.ownPhoto
+											? undefined
+											: "Already follows the series",
+									onselect: () => void editor.useSeriesDefaults(),
+								},
+							]
+						: []),
+					{
+						label: deleteLabel,
+						tone: "destructive" as const,
+						disabled: editor.busy || !editor.eventId,
+						reason: editor.eventId ? undefined : "Not saved yet",
+						onselect: editor.requestDelete,
+					},
+				],
+		}}
+	>
+				<div class="tab-body">
+					{#key editor.tab}
+						<div
+							class="tab-panel"
+							in:fly={{
+								x: tabSlide * 14,
+								duration: 260,
+								opacity: 0,
+								easing: easeOut,
+							}}
+						>
+							{#if editor.tab === "menus" && hasMenus}
+								<PopupMenus eventId={editor.eventId} />
+							{:else if editor.tab !== "gallery" || editor.route.isNew}
+								<EventFields
+									part={editor.route.isNew ? "all" : editor.tab === "schedule" || editor.tab === "ops" ? editor.tab : "details"}
+									form={editor.form}
+									errors={editor.errors}
+									current={editor.current}
+									parentSeries={editor.parentSeries}
+									eventId={editor.eventId}
+									occurrenceDate={editor.occurrenceDate}
+									busy={editor.busy}
+									creatingNight={editor.creatingNight}
+									creatingOnce={editor.creatingOnce}
+									editingOnce={editor.editingOnce}
+									editingOccurrence={editor.editingOccurrence}
+									approvedArtists={editor.approvedArtists}
+									webAddressChanged={editor.webAddressChanged}
+									framingUrl={editor.framingUrl}
+									previewDates={editor.previewDates}
+									onoverride={editor.overrideField}
+									onuseseries={editor.useSeriesValue}
+									onoverridephoto={editor.overridePhoto}
+									onuseseriesphoto={() => void editor.useSeriesPhoto()}
+									onpickphoto={editor.acceptPhotoFile}
+									onclearphoto={() => (editor.pendingPhoto ? editor.clearPendingPhoto() : void editor.onClearImage())}
+								/>
+								{#if editor.tab === "schedule" && !editor.route.isNew}
+									<ScheduleTab
+										form={editor.form}
+										current={editor.current}
+										eventId={editor.eventId}
+										previewDates={editor.previewDates}
+										busy={editor.busy}
+										onaddnight={editor.addNightToSeries}
+									/>
+								{/if}
+							{:else if editor.tab === "gallery"}
+								<GalleryTab
+									gallery={editor.gallery}
+									eventId={editor.eventId}
+									busy={editor.busy}
+									logo={editor.showsLogo ? { url: editor.current?.logo?.url || "" } : null}
+									onpicklogo={editor.acceptLogoFile}
+									onclearlogo={() => void editor.onClearLogo()}
+									name={editor.current?.name || ""}
+									colour={editor.current?.accentColor || ""}
+									oncolour={(hex) => void editor.onAccentColor(hex)}
+								/>
+							{/if}
+							{#if editor.websiteJob?.state === "failed" && !editor.formDirty}
+								<div class="job-failed" role="alert">
+									<p>
+										Saved, but the website did not update: {editor.websiteJob.error ||
+											"something went wrong."}
+									</p>
+									<Button
+										variant="outline"
+										size="sm"
+										type="button"
+										busy={editor.retrying}
+										disabled={editor.retrying}
+										onclick={() => void editor.onRetryWebsiteJob()}
+									>
+										{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
+										Try again
+									</Button>
+								</div>
+							{/if}
+							{#if editor.warnings.length}
+								<ul class="warnings">
+									{#each editor.warnings as warning (warning)}
+										<li>{warning}</li>
+									{/each}
+								</ul>
+							{/if}
+							{#if editor.error}<p class="error">{editor.error}</p>{/if}
+						</div>
+					{/key}
+				</div>
+		{#snippet after()}
+
+	<DiscardDialog
+		open={discardOpen}
+		kind={discardKind}
+		oncancel={cancelDiscard}
+		onconfirm={confirmDiscard}
+	/>
+
+	<ScopeDialog
+		open={editor.saveScopeOpen}
+		title="Which nights should change?"
+		message="Past nights stay as they were."
+		onchoose={(scope) => editor.saveOccurrenceWithScope(scope)}
+		onclose={() => (editor.saveScopeOpen = false)}
+	/>
+
+	<ReplaceNightDialog
+		prompt={editor.replacePrompt}
+		eventName={editor.form.name.trim() || "this event"}
+		replacing={editor.replacing}
+		onchoose={(replace) => void editor.chooseConflict(replace)}
+		onclose={() => {
+			editor.replacePrompt = null;
+			editor.publishAfterSave = false;
+		}}
+	/>
+
+	<ScopeDialog
+		open={editor.deleteScopeOpen}
+		title="Which nights should be deleted?"
+		message="Past nights stay as they were."
+		alsoWebsite={editor.onWebsite}
+		disabled={editor.busy}
+		destructive
+		allBusy={editor.saving && editor.intent === "delete"}
+		onchoose={(scope) => void editor.performDelete(scope)}
+		onclose={editor.cancelDelete}
+	/>
+
+	<DeleteEventDialog
+		open={editor.deleteOpen}
+		eventName={editor.form.name.trim() || editor.current?.name || "this event"}
+		kind={editor.editingOccurrence
+			? "night"
+			: editor.editingOnce
+				? "event"
+				: "series"}
+		nightDate={editor.occurrenceDate}
+		seriesName={editor.parentSeriesName}
+		onWebsite={editor.onWebsite}
+		busy={editor.busy}
+		deleting={editor.saving && editor.intent === "delete"}
+		oncancel={editor.cancelDelete}
+		onconfirm={() => void editor.performDelete("series")}
+	/>
+
+	<UpdateWebsiteDialog
+		open={editor.putOpen}
+		putting={editor.putting}
+		error={editor.putError}
+		onclose={() => (editor.putOpen = false)}
+		onconfirm={() => void editor.confirmPutOnWebsite()}
+	/>
+		{/snippet}
+	</EditorShell>
 	<!-- The list shows skeleton rows while it loads; the overlay is for the editor and saves. -->
 	<BusyOverlay active={editor.busy && (editor.editing || !editor.loading)} label={editor.busyLabel} />
 </div>
@@ -636,8 +644,7 @@
 		overflow: hidden;
 	}
 
-	.missing,
-	.editor {
+	.missing {
 		position: absolute;
 		inset: 0;
 		z-index: 1;
@@ -649,60 +656,6 @@
 		gap: var(--space-3);
 		align-content: start;
 		padding: var(--page-gutter);
-	}
-
-	.editor {
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
-		overflow: hidden;
-	}
-
-	.split {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		grid-template-areas: "panel";
-		column-gap: 0;
-		row-gap: var(--space-4);
-		flex: 1;
-		min-height: 0;
-		height: 100%;
-		padding: var(--space-4) var(--page-gutter) var(--space-4);
-	}
-
-	.panel {
-		grid-area: panel;
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-		min-height: 0;
-		height: 100%;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-xl);
-		background: var(--panel-bg);
-		box-shadow: var(--shadow-sm);
-		overflow: hidden;
-		transition: border-color var(--t-fast) var(--ease-in-out);
-	}
-
-	.panel.dirty {
-		border-color: color-mix(in srgb, var(--destructive) 32%, var(--border));
-	}
-
-	.tabs {
-		flex-shrink: 0;
-		padding: var(--space-2) var(--card-pad-lg) 0;
-		background: transparent;
-		border-bottom: 1px solid var(--border);
-	}
-
-	/* Section cards sit on the page colour, so each group reads as one block. */
-	.tab-scroll {
-		position: relative;
-		flex: 1;
-		min-height: 0;
-		overflow: auto;
-		overscroll-behavior: contain;
 	}
 
 	.tab-body {
@@ -752,50 +705,8 @@
 	}
 
 	@media (max-width: 900px) {
-		.split {
-			padding: 0;
-		}
-
-		.panel {
-			border-radius: 0;
-			border-left: none;
-			border-right: none;
-		}
-
-		.tabs,
 		.tab-body {
-			padding-left: max(var(--page-gutter), 1.125rem);
-			padding-right: max(var(--page-gutter), 1.125rem);
-		}
-
-		.tab-body {
-			padding-top: var(--space-4);
-			padding-bottom: max(var(--page-gutter), 1.125rem);
-		}
-	}
-
-	/* Phones: the whole editor scrolls, title and all, between the top bar and
-	   the Save bar, instead of only the part under a pinned header. */
-	@media (max-width: 900px) {
-		.panel {
-			overflow-x: hidden;
-			overflow-y: auto;
-			overscroll-behavior: contain;
-		}
-
-		.tab-scroll {
-			flex: none;
-			min-height: auto;
-			overflow: visible;
-		}
-
-		/* Sticks under the top bar while the editor scrolls. */
-		.tabs {
-			position: sticky;
-			top: 0;
-			z-index: 3;
-			/* The panel's own colour, solid, so fields don't show through. */
-			background: linear-gradient(var(--panel-bg), var(--panel-bg)), var(--background);
+			padding: var(--space-4) max(var(--page-gutter), 1.125rem) max(var(--page-gutter), 1.125rem);
 		}
 	}
 </style>
