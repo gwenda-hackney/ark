@@ -2,7 +2,7 @@
 /**
  * Ingest an LWC customer price-list CSV into ops/site/scripts/data/lwc-price-list.json
  * and patch the supplier links (Price / Pack / SKU) for matching codes, through
- * the menu repository (Baserow or D1, wherever the menu lives).
+ * the menu repository (the ops D1 database).
  *
  * Usage:
  *   npm run ingest:lwc-price-list -- [csv]

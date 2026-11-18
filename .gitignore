@@ -11,9 +11,6 @@ node_modules
 .env.secrets
 .env.secrets.bak
 .baserow-jwt.json
-.baserow-ops-dev.json
-.baserow-web-dev.json
-.baserow-web-staging.json
 # Google service-account key downloads (store in Ark/Ops SM, never commit)
 gwenda-ops-*.json
 *-service-account*.json

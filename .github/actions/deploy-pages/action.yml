@@ -73,10 +73,6 @@ inputs:
     description: Public address of a non-live build (PUBLIC_SITE_ORIGIN). Empty = prod's preview.
     required: false
     default: ""
-  baserow-ops-api-key:
-    description: Ops Baserow token for the featured artist at build time
-    required: false
-    default: ""
   snapshot-site:
     description: >
       preview or production to record what this build was made
@@ -108,8 +104,7 @@ runs:
         SANITY_DATASET: ${{ inputs.sanity-dataset }}
         SANITY_PERSPECTIVE: ${{ inputs.sanity-perspective }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
-        BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
-        # Artists come from ops D1 once they have moved (#127).
+        # Artists come from ops D1 (#127).
         SITE_ENV: ${{ inputs.secrets-profile }}
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
@@ -132,7 +127,6 @@ runs:
         SANITY_DATASET: ${{ inputs.sanity-dataset }}
         SANITY_PERSPECTIVE: ${{ inputs.sanity-perspective }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
-        BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
         SITE_ENV: ${{ inputs.secrets-profile }}
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
@@ -206,7 +200,7 @@ runs:
       if: inputs.snapshot-site != '' && inputs.skip-build != 'true'
       shell: bash
       run: node scripts/site-build-snapshot.mjs save --in "$RUNNER_TEMP/site-snapshot.json" --site "${{ inputs.snapshot-site }}"
-      # Which environment's config database (Baserow or D1, #127) to write.
-      # The job env already has BASEROW_CONFIG_API_KEY and the Cloudflare token.
+      # Which environment's D1 config database to write (#127).
+      # The job env already has the Cloudflare token.
       env:
         SITE_ENV: ${{ inputs.secrets-profile }}

@@ -4,7 +4,7 @@
  * For script credentials that no app runtime gets (so they stay out of the
  * app manifests in scripts/lib/bitwarden-sm.mjs).
  *
- *   node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+ *   node scripts/sm-export.mjs SANITY_API_TOKEN__PRODUCTION SANITY_API_TOKEN__DEV
  *
  * On release `NAME__PRODUCTION` wins over `NAME`, elsewhere `NAME__DEV` (the
  * production GitHub environment only accepts release, #61). Fails, naming the

@@ -147,7 +147,7 @@ describe("data-move CLI", () => {
           "--from",
           "d1:dev",
           "--to",
-          "baserow:dev",
+          "postgres:dev",
         ]),
       /--to must be d1/,
     );
@@ -353,6 +353,6 @@ describe("the registry under plain Node", () => {
       ],
       { encoding: "utf8" },
     );
-    assert.equal(out.trim(), "users,config,guests,artists,menu,events");
+    assert.equal(out.trim(), "users,config,guests,artists,menu,events,venue");
   });
 });

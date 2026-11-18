@@ -23,6 +23,7 @@ import { isBlankArtist } from "../../../shared/artists/artist-model.js";
 import { d1ArtistRepository } from "../../../shared/artists/d1-artists.js";
 import { MENU_D1_TABLES, d1MenuRepository } from "../../../ops/site/src/menu/server/adapters/d1-menu.js";
 import { EVENT_D1_TABLES, d1EventRepository } from "../../../ops/site/src/events/server/adapters/d1-events.js";
+import { VENUE_D1_TABLES, d1VenueRepository } from "../../../ops/site/src/venue/server/adapters/d1-venue.js";
 
 export const FEATURES = {
   users: {
@@ -79,6 +80,14 @@ export const FEATURES = {
     tables: EVENT_D1_TABLES,
     detach: detachEvent,
     repository: ({ db }) => d1EventRepository(db),
+  },
+  // Opening hours, party facts and the venue's gallery (#240, #291). Not
+  // freezable: only the dev copy moves it.
+  venue: {
+    role: "ops",
+    freeze: false,
+    tables: VENUE_D1_TABLES,
+    repository: ({ db }) => d1VenueRepository(db),
   },
 };
 

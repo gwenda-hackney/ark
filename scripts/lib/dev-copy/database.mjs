@@ -1,22 +1,22 @@
 /**
  * The backend database behind ops and the website, for the production → dev
  * copy. The copy names databases by role ("ops", "website"), never by
- * provider, so moving off Baserow means adding a provider here and switching
- * DATABASE_PROVIDER; nothing that starts a copy changes.
+ * provider, so a change of storage means adding a provider here and
+ * switching DATABASE_PROVIDER; nothing that starts a copy changes.
  *
  * A provider:
- *   id         short name ("baserow")
- *   label      what logs show ("Baserow")
+ *   id         short name ("d1")
+ *   label      what logs show ("D1")
  *   databases  the roles it can copy, in copy order
  *   copy(database, { dryRun })  replaces the dev copy of one database with
  *              production's. Only reads production. Throws on failure.
  */
-import { baserow } from "./baserow.mjs";
+import { d1 } from "./d1.mjs";
 
-export const DATABASE_PROVIDERS = { baserow };
+export const DATABASE_PROVIDERS = { d1 };
 
-/** The provider the copy uses today. */
-export const DATABASE_PROVIDER = "baserow";
+/** The provider the copy uses. */
+export const DATABASE_PROVIDER = "d1";
 
 /** @param {string} [id] */
 export function databaseProvider(id = DATABASE_PROVIDER) {

@@ -25,8 +25,8 @@ import {
 
 describe("parseSecretKey", () => {
   it("splits env overrides and leaves shared names alone", () => {
-    assert.deepEqual(parseSecretKey("BASEROW_OPS_API_KEY__DEV"), {
-      name: "BASEROW_OPS_API_KEY",
+    assert.deepEqual(parseSecretKey("SITE_PASSWORD__DEV"), {
+      name: "SITE_PASSWORD",
       env: "dev",
     });
     assert.deepEqual(parseSecretKey("SANITY_API_TOKEN"), {
@@ -47,8 +47,8 @@ describe("parseSecretKey", () => {
 describe("resolveSecretsForEnv", () => {
   const raw = new Map([
     ["SANITY_API_TOKEN", "shared"],
-    ["BASEROW_OPS_API_KEY__DEV", "ops-dev"],
-    ["BASEROW_OPS_API_KEY__PRODUCTION", "ops-prod"],
+    ["SITE_PASSWORD__DEV", "ops-dev"],
+    ["SITE_PASSWORD__PRODUCTION", "ops-prod"],
     ["FORMS_ADMIN_SECRET", "shared-forms"],
     ["FORMS_ADMIN_SECRET__PRODUCTION", "prod-forms"],
     ["EMPTY__DEV", ""],
@@ -60,19 +60,19 @@ describe("resolveSecretsForEnv", () => {
     assert.equal(prod.get("SANITY_API_TOKEN"), "shared");
     const dev = resolveSecretsForEnv(raw, "dev");
     assert.equal(dev.get("FORMS_ADMIN_SECRET"), "shared-forms");
-    assert.equal(dev.get("BASEROW_OPS_API_KEY"), "ops-dev");
+    assert.equal(dev.get("SITE_PASSWORD"), "ops-dev");
   });
 
   it("treats a developer's machine as dev", () => {
     for (const name of ["local", "development", "dev"]) {
-      assert.equal(resolveSecretsForEnv(raw, name).get("BASEROW_OPS_API_KEY"), "ops-dev");
+      assert.equal(resolveSecretsForEnv(raw, name).get("SITE_PASSWORD"), "ops-dev");
     }
   });
 
   it("keeps suffixed names, so another env's value can be asked for by name", () => {
     const prod = resolveSecretsForEnv(raw, "production");
-    assert.equal(prod.get("BASEROW_OPS_API_KEY"), "ops-prod");
-    assert.equal(prod.get("BASEROW_OPS_API_KEY__DEV"), "ops-dev");
+    assert.equal(prod.get("SITE_PASSWORD"), "ops-prod");
+    assert.equal(prod.get("SITE_PASSWORD__DEV"), "ops-dev");
   });
 
   it("ignores empty values", () => {
@@ -87,38 +87,23 @@ describe("resolveSecretsForEnv", () => {
 });
 
 describe("pickAppSecrets", () => {
-  it("renames each app's own Baserow token to BASEROW_API_KEY", () => {
+  it("gives each app a secret under its own runtime name", () => {
     const resolved = new Map([
-      ["BASEROW_OPS_API_KEY", "ops"],
       ["BASEROW_WEBSITE_API_KEY", "web"],
       ["GOOGLE_SERVICE_ACCOUNT_JSON", "{}"],
     ]);
     const ops = pickAppSecrets("ops", resolved).values;
-    assert.equal(ops.get("BASEROW_API_KEY"), "ops");
-    assert.equal(ops.get("BASEROW_WEBSITE_API_KEY"), "web");
     assert.equal(ops.get("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON"), "{}");
+    assert.equal(ops.get("GMAIL_SERVICE_ACCOUNT_JSON"), "{}");
+    assert.equal(ops.has("BASEROW_API_KEY"), false, "ops has no Baserow token any more");
     const web = pickAppSecrets("web", resolved).values;
     assert.equal(web.get("BASEROW_API_KEY"), "web");
-    assert.equal(web.get("BASEROW_OPS_API_KEY"), "ops");
     assert.equal(web.get("GMAIL_SERVICE_ACCOUNT_JSON"), "{}");
   });
 
   it("reports missing keys by runtime name", () => {
     const { missing } = pickAppSecrets("ark", new Map([["CLOUDFLARE_ACCOUNT_ID", "a"]]));
     assert.deepEqual(missing, ["CLOUDFLARE_API_TOKEN"]);
-  });
-
-  it("gives production ops the dev ops token under its suffixed name", () => {
-    const resolved = resolveSecretsForEnv(
-      new Map([
-        ["BASEROW_OPS_API_KEY__PRODUCTION", "ops-prod"],
-        ["BASEROW_OPS_API_KEY__DEV", "ops-dev"],
-      ]),
-      "production",
-    );
-    const ops = pickAppSecrets("ops", resolved).values;
-    assert.equal(ops.get("BASEROW_API_KEY"), "ops-prod");
-    assert.equal(ops.get("BASEROW_OPS_API_KEY__DEV"), "ops-dev");
   });
 });
 
