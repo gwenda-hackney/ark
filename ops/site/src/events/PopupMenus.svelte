@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * A pop-up kitchen's menus (#305), on its Details: each with its days,
+	 * A pop-up kitchen's menus (#305), on its own Menus tab: each with its days,
 	 * dates and status, and Open menu. Add menu starts one on Menu → Menus
 	 * with the pop-up's name, nights and cooking days filled in. Events read
 	 * menus only through the menu module's contract (/api/events/:id/menus,
