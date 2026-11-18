@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clearBaserowTableIdCache,
-  FORM_SUBMISSIONS_TABLE_NAME,
   resolveRsvpTableId,
   RSVP_TABLE_NAME,
   SUBSCRIBE_TABLE_NAME,

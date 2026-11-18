@@ -18,11 +18,9 @@ import type { Env } from "../src/types";
 import { fakeMailchimp } from "./fake-mailchimp";
 
 const env: Env = {
-  BASEROW_API_KEY: "baserow-key",
   MAILCHIMP_API_KEY: "mailchimp-key-us2",
   SYNC_SECRET: "sync-secret",
   MAILCHIMP_AUDIENCE_ID: "e2c69d5d31",
-  BASEROW_API_URL: "https://api.baserow.io",
 };
 
 describe("helpers", () => {

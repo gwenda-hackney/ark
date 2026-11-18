@@ -3,9 +3,8 @@
 Captive portal for the UDR7 guest Wi‑Fi. Guests enter an email, kept with the website's
 own sign-up for Wi‑Fi and service messages. Only a guest who ticks "Send me what’s on at
 Gwenda" (unticked by default) goes on the mailing list (`marketing`). Saved
-with the website's own sign-up (`shared/guests`: tag `wifi`, unsynced), in Baserow
-`Subscribers` until `store:guests` says D1 (#127),
-then authorizes the device through Ubiquiti’s **Site Manager cloud proxy**
+with the website's own sign-up (`shared/guests`: tag `wifi`, unsynced), in the website
+D1 database (#127), then authorizes the device through Ubiquiti’s **Site Manager cloud proxy**
 (`api.ui.com`). The existing Mailchimp sync Worker picks up new rows hourly.
 
 No LAN host required while the console is online at [unifi.ui.com](https://unifi.ui.com).

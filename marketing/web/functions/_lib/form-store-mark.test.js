@@ -13,7 +13,7 @@ const {
 const { reportFormError } =
   await import("../../../../shared/forms/form-alert.js");
 
-const baserowError = (status, message) =>
+const storeError = (status, message) =>
   Object.assign(new Error(message), { status });
 
 let repo;
@@ -31,7 +31,7 @@ describe("markFormSubmissionEmailSent", () => {
     const update = vi
       .spyOn(repo, "update")
       .mockRejectedValueOnce(
-        baserowError(502, "Baserow 500: <!doctype html><h1>Server Error</h1>"),
+        storeError(502, "D1 500: <!doctype html><h1>Server Error</h1>"),
       )
       .mockImplementation(real);
     const result = await markFormSubmissionEmailSent(
@@ -49,7 +49,7 @@ describe("markFormSubmissionEmailSent", () => {
   it("does not retry a client error and reports it", async () => {
     const update = vi
       .spyOn(repo, "update")
-      .mockRejectedValue(baserowError(400, "Baserow 400: bad field"));
+      .mockRejectedValue(storeError(400, "D1 400: bad field"));
     const result = await markFormSubmissionEmailSent(env, "1", "receipt");
     expect(result.ok).toBe(false);
     expect(update).toHaveBeenCalledTimes(1);
@@ -80,7 +80,7 @@ describe("saveFormEditLink", () => {
 
   it("reports a failed save without throwing", async () => {
     vi.spyOn(repo, "update").mockRejectedValue(
-      baserowError(400, "Baserow 400: bad field"),
+      storeError(400, "D1 400: bad field"),
     );
     const result = await saveFormEditLink(env, "1", link);
     expect(result.ok).toBe(false);
@@ -95,7 +95,7 @@ describe("saveFormEditLink", () => {
 describe("readableUpstreamDetail", () => {
   it("replaces HTML error pages with a short line", () => {
     expect(readableUpstreamDetail(500, "<!doctype html><html>...</html>")).toBe(
-      "Baserow server error (500).",
+      "Server error (500).",
     );
     expect(readableUpstreamDetail(400, "field missing")).toBe("field missing");
   });

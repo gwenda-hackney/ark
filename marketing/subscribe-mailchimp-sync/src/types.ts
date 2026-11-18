@@ -1,19 +1,12 @@
 import type { SubscriberRepository } from "../../../shared/guests/subscriber-repository.js";
 
 export type Env = {
-  /** The Website Baserow token, while subscribers are on Baserow (#127). */
-  BASEROW_API_KEY: string;
   MAILCHIMP_API_KEY: string;
   /** Bearer secret for manual POST / sync runs. */
   SYNC_SECRET: string;
   /** Mailchimp Audience (list) ID. */
   MAILCHIMP_AUDIENCE_ID?: string;
-  /** Optional. Only needed if the token can see more than one Subscribers table. */
-  BASEROW_DATABASE_ID?: string;
-  BASEROW_SUBSCRIBE_TABLE_NAME?: string;
-  /** Baserow table for durable sync-run history. */
-  BASEROW_API_URL?: string;
-  /** The website D1 database (#127): subscribers once guests move, and the write freeze (#191). */
+  /** The website D1 database (#127): subscribers, and the write freeze (#191). */
   WEBSITE_DB?: unknown;
   /** Local runs only (scripts/run-local.ts): no binding, so D1 is reached over the API. */
   SITE_ENV?: string;

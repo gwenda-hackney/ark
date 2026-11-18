@@ -26,10 +26,10 @@ async function reportStoreFailure(env, extra) {
 
 export const MARK_RETRY_DELAY_MS = 750;
 
-/** Baserow's 5xx pages are HTML; an alert should say what happened, not paste the page. */
+/** An upstream's 5xx page may be HTML; an alert should say what happened, not paste the page. */
 export function readableUpstreamDetail(status, detail) {
   const text = String(detail || "");
-  if (/<html|<!doctype/i.test(text)) return `Baserow server error (${status}).`;
+  if (/<html|<!doctype/i.test(text)) return `Server error (${status}).`;
   return text.slice(0, 300);
 }
 
@@ -350,7 +350,7 @@ export async function markFormSubmissionEmailSent(env, rowId, kind, sentAt) {
     try {
       await stamp();
     } catch (error) {
-      // Baserow occasionally answers 5xx for a moment; the email already went
+      // The database may answer 5xx for a moment; the email already went
       // out, so one retry saves a false "Not sent" in ops and a needless alert.
       if (!(error?.status >= 500)) throw error;
       await new Promise((resolve) => setTimeout(resolve, MARK_RETRY_DELAY_MS));
@@ -376,7 +376,7 @@ export async function saveFormEditLink(env, rowId, editUrl) {
     return { ok: false, error: "Missing submission." };
   const repo = formSubmissionRepository(env);
   try {
-    // Baserow's column arrives by a pre-deploy migration; a database without it yet is fine.
+    // A storage without the column yet is fine.
     if (!(await repo.capabilities()).editLink) {
       log.event("warn", "form_edit_link_column_missing", {
         rowId: String(rowId),

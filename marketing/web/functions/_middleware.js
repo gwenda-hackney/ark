@@ -46,7 +46,7 @@ export const WEB_WRITE_FEATURES = [
 ];
 
 // Sentry first (#35): thrown errors, and console.error from the functions
-// (a form email that failed, a Baserow write that didn't land).
+// (a form email that failed, a database write that didn't land).
 export const onRequest = [
   sentryPagesPlugin((context) => ({
     ...sentryOptions(context.env, "web"),

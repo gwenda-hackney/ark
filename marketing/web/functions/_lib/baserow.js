@@ -1,24 +1,19 @@
+/**
+ * Baserow, for RSVP and event invites only: they are the last thing on
+ * Baserow, until they move to D1 (#237). Everything else is on D1 (#234).
+ * Used by event-guests.js, rsvp.js and scripts/setup-baserow-rsvp.mjs.
+ */
 export const DEFAULT_BASEROW_API = "https://api.baserow.io";
 
 /** Same database name in Gwenda (prod) and Gwenda Dev. */
 export const WEBSITE_DATABASE_NAME = "Website";
 export const SUBSCRIBE_TABLE_NAME = "Subscribers";
 export const RSVP_TABLE_NAME = "Event Invites";
-export const FORM_SUBMISSIONS_TABLE_NAME = "Form Submissions";
 
 const tableIdCache = new Map();
 
 export function clearBaserowTableIdCache() {
   tableIdCache.clear();
-}
-
-/** @deprecated Use clearBaserowTableIdCache */
-export function clearRsvpTableIdCache() {
-  clearBaserowTableIdCache();
-}
-
-export function isProductionSite(env) {
-  return env.SITE_ENV?.trim().toLowerCase() === "production";
 }
 
 export function rsvpTableName(env) {

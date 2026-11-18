@@ -28,17 +28,12 @@ async function main() {
   const { dryRun, all, limit } = parseArgs(process.argv.slice(2));
 
   const env: Env = {
-    BASEROW_API_KEY: process.env.BASEROW_API_KEY ?? "",
     MAILCHIMP_API_KEY: process.env.MAILCHIMP_API_KEY ?? "",
     SYNC_SECRET: process.env.SUBSCRIBE_MAILCHIMP_SYNC_SECRET ?? "",
     MAILCHIMP_AUDIENCE_ID:
       process.env.MAILCHIMP_AUDIENCE_ID ||
       process.env.SUBSCRIBE_MAILCHIMP_AUDIENCE_ID ||
       "e2c69d5d31",
-    BASEROW_DATABASE_ID:
-      process.env.BASEROW_DATABASE_ID ||
-      process.env.SUBSCRIBE_MAILCHIMP_BASEROW_DATABASE_ID,
-    BASEROW_API_URL: process.env.BASEROW_API_URL,
     // Subscribers live in this environment's website D1 database, over the API.
     SITE_ENV: process.env.SITE_ENV,
     CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
