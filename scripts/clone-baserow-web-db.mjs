@@ -9,7 +9,7 @@
  *
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
  * Source rows use the same JWT. Source and target are found by name
- * (scripts/lib/migrations.mjs DATABASES): Gwenda / Website → Gwenda Dev.
+ * (scripts/lib/baserow-clone.mjs DATABASES): Gwenda / Website → Gwenda Dev.
  *
  * Env overrides:
  *   BASEROW_WEB_DEV_WORKSPACE_NAME       (default "Gwenda Dev")
@@ -18,10 +18,10 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
-import { findDatabase } from "./lib/migrations.mjs";
 import {
   copyRows,
   fieldCreateBody,
+  findDatabase,
   findOrCreateDatabase,
   findWorkspaceByName,
   jwtRequest,

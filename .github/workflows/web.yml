@@ -116,12 +116,6 @@ jobs:
         if: matrix.site == 'live'
         run: npm run sync:brand -- --check
 
-      # Baserow schema changes need a user login (database tokens only touch rows).
-      - name: Baserow login for migrations
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
-
       # D1 schema first (db/<role>/migrations, #191): it only adds, and skips databases not created yet.
       - name: D1 schema migrations
         run: node scripts/d1-migrate.mjs --env dev
@@ -235,12 +229,6 @@ jobs:
 
       - name: Brand colour tokens in sync
         run: npm run sync:brand -- --check
-
-      # Baserow schema changes need a user login (database tokens only touch rows).
-      - name: Baserow login for migrations
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
 
       # D1 schema first (db/<role>/migrations, #191): it only adds, and skips databases not created yet.
       - name: D1 schema migrations
