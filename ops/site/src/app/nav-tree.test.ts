@@ -174,6 +174,8 @@ describe("matchActiveRoute", () => {
 		assert.equal(page("/web/dev"), "dev-tools");
 		assert.equal(page("/web/dev/settings"), "dev-tools");
 		assert.equal(page("/email"), "email");
+		assert.equal(page("/email/sent"), "email");
+		assert.equal(page("/email/settings"), "email");
 		assert.equal(page("/venue"), "venue");
 		assert.equal(page("/venue/gallery"), "photos");
 		assert.equal(page("/users"), "users");

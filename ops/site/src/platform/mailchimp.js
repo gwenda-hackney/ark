@@ -100,6 +100,48 @@ export async function getAudience(env) {
   };
 }
 
+/**
+ * Every campaign sent to the audience, newest first, with its numbers:
+ * unique opens and clicks (and their rates, 0 to 1), unsubscribes, bounces.
+ * Reads Mailchimp's reports; changes nothing. Opens count Apple Mail's
+ * automatic opens too, so they run high.
+ */
+export async function listSentReports(env, { count = 200 } = {}) {
+  const fields = [
+    "reports.id",
+    "reports.list_id",
+    "reports.subject_line",
+    "reports.send_time",
+    "reports.emails_sent",
+    "reports.unsubscribed",
+    "reports.bounces",
+    "reports.opens.unique_opens",
+    "reports.opens.open_rate",
+    "reports.clicks.unique_subscriber_clicks",
+    "reports.clicks.click_rate",
+  ].join(",");
+  const payload = await call(env, "GET", `/reports?count=${count}&fields=${fields}`);
+  const listId = mailchimpAudienceId(env);
+  return (payload?.reports || [])
+    .filter((report) => report?.list_id === listId)
+    .map((report) => {
+      const bounces = report.bounces || {};
+      return {
+        id: String(report.id || ""),
+        subject: String(report.subject_line || ""),
+        sentAt: report.send_time ? new Date(report.send_time).toISOString() : "",
+        emailsSent: Number(report.emails_sent) || 0,
+        opens: Number(report.opens?.unique_opens) || 0,
+        openRate: Number(report.opens?.open_rate) || 0,
+        clicks: Number(report.clicks?.unique_subscriber_clicks) || 0,
+        clickRate: Number(report.clicks?.click_rate) || 0,
+        unsubscribed: Number(report.unsubscribed) || 0,
+        bounces: (Number(bounces.hard_bounces) || 0) + (Number(bounces.soft_bounces) || 0),
+      };
+    })
+    .sort((a, b) => b.sentAt.localeCompare(a.sentAt));
+}
+
 function campaignOf(payload) {
   return {
     id: String(payload?.id || ""),
