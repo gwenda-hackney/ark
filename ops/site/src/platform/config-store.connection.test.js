@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
+import { D1_DATABASES } from "../../../../shared/d1-databases.js";
 import { opsConnectionInfo, siteEnvName } from "./config-store.js";
 
 describe("siteEnvName", () => {
@@ -15,12 +16,12 @@ describe("siteEnvName", () => {
 
 describe("opsConnectionInfo", () => {
   it("labels local clone clearly", () => {
-    const info = opsConnectionInfo({ SITE_ENV: "local" }, "560292");
+    const info = opsConnectionInfo({ SITE_ENV: "local" });
     assert.equal(info.envLabel, "Dev · this machine");
     assert.equal(opsConnectionInfo({ SITE_ENV: "dev" }).envLabel, "Dev");
-    assert.equal(info.databaseId, "560292");
+    assert.equal(info.databaseId, D1_DATABASES.dev.ops.id);
     assert.equal(info.isProductionDb, false);
-    assert.equal(info.databaseLabel, "Gwenda Ops (dev)");
+    assert.equal(info.databaseLabel, "D1 gwenda-ops (dev)");
     assert.equal(info.risk, null);
   });
 
@@ -28,8 +29,8 @@ describe("opsConnectionInfo", () => {
     const info = opsConnectionInfo({ SITE_ENV: "production" });
     assert.equal(info.envLabel, "Production");
     assert.equal(info.isProductionDb, true);
-    assert.equal(info.databaseLabel, "Gwenda Ops");
-    assert.equal(info.databaseId, null);
+    assert.equal(info.databaseLabel, "D1 gwenda-ops");
+    assert.equal(info.databaseId, D1_DATABASES.production.ops.id);
     assert.equal(info.risk, null);
   });
 

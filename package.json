@@ -53,7 +53,6 @@
     "setup:baserow-rsvp": "node scripts/with-env.mjs node scripts/setup-baserow-rsvp.mjs",
     "setup:baserow-form-submissions": "node scripts/with-env.mjs node scripts/setup-baserow-form-submissions.mjs",
     "setup:baserow-ops": "node scripts/with-ops-env.mjs node ops/site/scripts/setup-baserow.mjs",
-    "setup:baserow-config": "node scripts/setup-baserow-config.mjs",
     "sync:print-menu-sections": "node scripts/with-ops-env.mjs node scripts/sync-print-menu-sections.mjs",
     "enrich:ops-inventory": "node scripts/with-ops-env.mjs node ops/site/scripts/enrich-inventory-suppliers.mjs",
     "ingest:lwc-price-list": "node scripts/with-ops-env.mjs node ops/site/scripts/ingest-lwc-price-list.mjs",

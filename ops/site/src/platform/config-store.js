@@ -11,11 +11,10 @@ import {
   isLocalMachine,
   resetConfigCacheForTests,
   setSetting,
-  valuesFromRows,
 } from "../../../../shared/config.js";
-import { OPS_DATABASE_NAME } from "../../../../shared/baserow.js";
+import { D1_DATABASES } from "../../../../shared/d1-databases.js";
 
-export { CONFIG_CACHE_TTL_MS, resetConfigCacheForTests, valuesFromRows };
+export { CONFIG_CACHE_TTL_MS, resetConfigCacheForTests };
 
 const SERVICE = "ops";
 
@@ -53,12 +52,12 @@ const DRINK_TYPES = Object.keys(POUR_TARGET_KEYS);
 export const siteEnvName = environmentOf;
 
 /**
- * Human labels for shell chrome (which Baserow world this request hits).
- * The token decides the workspace (BASEROW_OPS_API_KEY__PRODUCTION only
- * exists on production), so the env names the database; `databaseId` is only
- * the id the token resolved to, for display and links.
+ * Human labels for shell chrome: which environment this request runs in and
+ * which D1 ops database its edits go to. The environment decides the
+ * database (production's account only exists on production); `databaseId`
+ * is the D1 id, for display.
  */
-export function opsConnectionInfo(env = {}, databaseId = null) {
+export function opsConnectionInfo(env = {}) {
   const siteEnv = siteEnvName(env);
   // npm run ops:prod: a local copy with production powers. Always flagged.
   const localLive = String(env.OPS_LOCAL_LIVE || "") === "1";
@@ -71,14 +70,16 @@ export function opsConnectionInfo(env = {}, databaseId = null) {
       : siteEnv === "production"
         ? "Production"
         : siteEnv;
+  const database = D1_DATABASES[siteEnv]?.ops;
+  const name = database?.name || "gwenda-ops";
 
   return {
     siteEnv,
     envLabel: localLive
       ? "LOCAL COPY ON LIVE DATA: changes affect the real website"
       : envLabel,
-    databaseId: databaseId || null,
-    databaseLabel: isProductionDb ? OPS_DATABASE_NAME : `${OPS_DATABASE_NAME} (dev)`,
+    databaseId: database?.id || null,
+    databaseLabel: isProductionDb ? `D1 ${name}` : `D1 ${name} (dev)`,
     isProductionDb,
     risk: localLive ? "local_live" : null,
   };

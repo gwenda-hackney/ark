@@ -1,11 +1,9 @@
 /**
  * What every ConfigRepository adapter must do (config-repository.js): the
- * same cases on memory, Baserow (a fake Config table) and D1 (SQLite with
- * the real migrations), plus the shared copy round trip.
+ * same cases on memory and D1 (SQLite with the real migrations), plus the shared copy round trip.
  */
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "vitest";
-import { baserowConfigRepository } from "./config-adapters/baserow-config.js";
 import { d1ConfigRepository } from "./config-adapters/d1-config.js";
 import { memoryConfigRepository } from "./config-adapters/memory-config.js";
 import { resetConfigCacheForTests } from "./config.js";
@@ -13,46 +11,7 @@ import { configRepository } from "./config-repository.js";
 import { createTestD1 } from "./testing/d1-sqlite.js";
 import { repositoryContract } from "./testing/repository-contract.js";
 
-const realFetch = globalThis.fetch;
-
-/** A Baserow that holds one Config table, enough for the Baserow adapter. */
-function fakeBaserow() {
-  let rows = [];
-  let nextId = 1;
-  const json = (body, status = 200) =>
-    new Response(body == null ? null : JSON.stringify(body), { status });
-  globalThis.fetch = async (url, init = {}) => {
-    const path = new URL(String(url)).pathname;
-    if (path.endsWith("/all-tables/"))
-      return json([{ id: 5, name: "Config", database_id: 1 }]);
-    const id = Number(path.match(/\/table\/5\/(\d+)\/$/)?.[1]);
-    const method = init.method || "GET";
-    if (method === "GET") return json({ results: rows, next: null });
-    if (method === "DELETE") {
-      rows = rows.filter((row) => row.id !== id);
-      return json(null, 204);
-    }
-    const fields = JSON.parse(init.body);
-    const scoped = {
-      ...fields,
-      Env: { value: fields.Env },
-      Service: { value: fields.Service },
-    };
-    if (method === "POST") {
-      const row = { id: nextId++, ...scoped };
-      rows.push(row);
-      return json(row);
-    }
-    const row = rows.find((r) => r.id === id);
-    Object.assign(row, scoped);
-    return json(row);
-  };
-  resetConfigCacheForTests();
-  return baserowConfigRepository({ BASEROW_CONFIG_API_KEY: "k" });
-}
-
 afterEach(() => {
-  globalThis.fetch = realFetch;
   resetConfigCacheForTests();
 });
 
@@ -61,7 +20,6 @@ const slot = (name, env, service) => ({ name, env, service });
 repositoryContract("ConfigRepository", {
   adapters: {
     memory: () => memoryConfigRepository(),
-    baserow: () => fakeBaserow(),
     d1: () => d1ConfigRepository(createTestD1("config")),
   },
   seed: async (repo) => {
@@ -161,7 +119,7 @@ describe("ConfigRepository on D1", () => {
     assert.equal((await one.exportAll()).config_values.length, 1);
   });
 
-  it("an import keeps Baserow's ids, and later rows count on from them", async () => {
+  it("an import keeps the copy's ids, and later rows count on from them", async () => {
     const repo = d1ConfigRepository(createTestD1("config"));
     await repo.importAll({
       config_values: [
@@ -174,17 +132,13 @@ describe("ConfigRepository on D1", () => {
 });
 
 describe("configRepository", () => {
-  it("stays on Baserow while D1 can't be reached", async () => {
-    const repo = configRepository({
-      SITE_ENV: "dev",
-      BASEROW_CONFIG_API_KEY: "",
-    });
-    await assert.rejects(repo.list(), /BASEROW_CONFIG_API_KEY/);
+  it("fails as unavailable (503) when D1 can't be reached", async () => {
+    const repo = configRepository({ SITE_ENV: "dev" });
+    await assert.rejects(repo.list(), (error) => error.status === 503);
   });
 
-  it("goes to D1 once _meta says so", async () => {
+  it("reads this environment's D1 config database", async () => {
     const db = createTestD1("config");
-    db.exec("INSERT INTO _meta (key, value) VALUES ('store:config', 'd1')");
     await d1ConfigRepository(db).set({
       ...slot("sanity.project_id", "dev", "all"),
       value: "gwscpagy",

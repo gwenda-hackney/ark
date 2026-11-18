@@ -230,7 +230,7 @@ describe("weekly email: send me a test", () => {
     publishWeek(world);
     world.mailchimp.connect(world.env);
     world.env.SITE_ENV = "production";
-    world.baserow.insert("Config", { Name: "sanity.project_id", Value: "gwscpagy", Env: "production", Service: "all" });
+    world.setConfig("sanity.project_id", "gwscpagy", { env: "production", service: "all" });
     const res = await pressSendTest();
     assert.equal(res.status, 200, JSON.stringify(res.data));
     assert.deepEqual(world.mailchimp.audienceSends, []);

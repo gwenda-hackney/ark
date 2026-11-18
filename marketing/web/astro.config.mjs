@@ -236,11 +236,11 @@ function devFormsApi() {
         BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
         BASEROW_DATABASE_ID:
           process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
-        BASEROW_FORM_SUBMISSIONS_TABLE_NAME:
-          process.env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME ||
-          env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME,
-        BASEROW_CONFIG_API_KEY:
-          process.env.BASEROW_CONFIG_API_KEY || env.BASEROW_CONFIG_API_KEY,
+        // Config and form submissions are in dev's D1 databases, over the API.
+        CLOUDFLARE_API_TOKEN:
+          process.env.CLOUDFLARE_API_TOKEN || env.CLOUDFLARE_API_TOKEN,
+        CLOUDFLARE_ACCOUNT_ID:
+          process.env.CLOUDFLARE_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID,
         FORMS_ADMIN_SECRET:
           process.env.FORMS_ADMIN_SECRET || env.FORMS_ADMIN_SECRET,
         // A developer's own inbox for form emails (repo .env); hosted

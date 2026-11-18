@@ -65,7 +65,7 @@ function addDays(iso, days) {
 
 /** Turn off "saved events go on the website by themselves": they wait for Update website. */
 function waitForUpdateWebsite(world) {
-  world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+  world.setConfig("website.auto_update", "off");
 }
 
 const WEDNESDAY = 3;
@@ -346,22 +346,23 @@ function refusePublishing(message) {
 }
 
 /**
- * Until `stop()`: the settings can't be read (Baserow turns the config token
- * away, as when it is rate-limited). Nothing a request read earlier is kept.
+ * Until `stop()`: the settings can't be read (the config database turns
+ * reads away, as when it is overloaded). Nothing a request read earlier is kept.
  */
 function settingsUnreadable(world) {
-  const faked = globalThis.fetch;
+  const db = world.env.CONFIG_DB;
   resetConfigCacheForTests();
-  globalThis.fetch = async (input, init = {}) => {
-    const headers = init.headers instanceof Headers ? Object.fromEntries(init.headers) : init.headers || {};
-    const auth = headers.Authorization || headers.authorization || "";
-    return auth === `Token ${world.env.BASEROW_CONFIG_API_KEY}`
-      ? new Response(JSON.stringify({ error: "ERROR_TOO_MANY_REQUESTS" }), { status: 429 })
-      : faked(input, init);
+  world.env.CONFIG_DB = {
+    prepare() {
+      throw new Error("D1_ERROR: too many requests");
+    },
+    batch: async () => {
+      throw new Error("D1_ERROR: too many requests");
+    },
   };
   return {
     stop() {
-      globalThis.fetch = faked;
+      world.env.CONFIG_DB = db;
       resetConfigCacheForTests();
     },
   };

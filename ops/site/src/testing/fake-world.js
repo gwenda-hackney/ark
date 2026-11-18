@@ -3,8 +3,9 @@
  * faked behind one global `fetch`, so tests drive the real API handlers.
  *
  * - Baserow: the ops tables (built from platform/baserow-schema.js,
- *   the same field definitions scripts/setup-baserow.mjs uses) and Gwenda Config,
- *   each reachable only with its own token, as in real life.
+ *   the same field definitions scripts/setup-baserow.mjs uses).
+ * - Config: a D1 config database (SQLite with the real migrations); set
+ *   values with world.setConfig(name, value, { env, service }).
  * - Sanity: documents in memory, queried with groq-js (the real GROQ engine)
  *   under the raw / published / previewDrafts perspectives.
  * - Google: service-account tokens, Drive folders, Calendar events, Gmail sends.
@@ -16,6 +17,8 @@
  * with the URL, so a new outside call shows up as a failing test.
  */
 import { evaluate, parse } from "groq-js";
+import { resetConfigCacheForTests } from "../../../../shared/config.js";
+import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import {
   GUEST_ARTIST_FIELDS,
   artistFields,
@@ -328,11 +331,6 @@ function opsTables() {
   // eventDateFields names the target as a placeholder id until setup creates it.
   for (const field of tables.at(-1).fields) if (field.type === "link_row") field.link_row_table_id = events.id;
   return tables;
-}
-
-function configTables() {
-  const texts = ["Value", "Env", "Service"].map((name) => ({ name, body: { name, type: "text" } }));
-  return [makeTable("Config", 9, texts)];
 }
 
 // ----------------------------------------------------------------- Sanity
@@ -818,16 +816,23 @@ export async function createFakeWorld() {
   const suffix = crypto.randomUUID();
   const mailchimp = new FakeMailchimp(suffix);
   const opsToken = `ops-${suffix}`;
-  const configToken = `config-${suffix}`;
   baserow.addWorkspace(opsToken, opsTables());
-  baserow.addWorkspace(configToken, configTables());
-  for (const [name, value] of [
-    ["google.drive_events_folder_id", DRIVE_EVENTS_ROOT],
-    ["google.calendar_id", CALENDAR_ID],
-    ["sanity.project_id", SANITY_PROJECT_ID],
-  ]) {
-    baserow.insert("Config", { Name: name, Value: value, Env: "dev", Service: name.startsWith("sanity") ? "all" : "ops" });
+  const configDb = createTestD1("config");
+  /**
+   * Set a config value, as an admin would in Developer tools (dev, ops unless
+   * given). Synchronous, so a test can set one anywhere.
+   */
+  function setConfig(name, value, { env: envName = "dev", service = "ops" } = {}) {
+    const sql = (text) => `'${String(text).replaceAll("'", "''")}'`;
+    configDb.exec(
+      `INSERT INTO config_values (name, value, env, service) VALUES (${sql(name)}, ${sql(value)}, ${sql(envName)}, ${sql(service)})
+       ON CONFLICT (name, env, service) DO UPDATE SET value = excluded.value`,
+    );
+    resetConfigCacheForTests();
   }
+  setConfig("google.drive_events_folder_id", DRIVE_EVENTS_ROOT);
+  setConfig("google.calendar_id", CALENDAR_ID);
+  setConfig("sanity.project_id", SANITY_PROJECT_ID, { service: "all" });
   baserow.insert("Users", { Name: "Editor", Email: "editor@gwenda.co.uk", Active: true });
 
   const serviceAccount = await testServiceAccount();
@@ -836,7 +841,7 @@ export async function createFakeWorld() {
     SANITY_PROJECT_ID,
     SANITY_API_TOKEN: `sanity-${suffix}`,
     BASEROW_API_KEY: opsToken,
-    BASEROW_CONFIG_API_KEY: configToken,
+    CONFIG_DB: configDb,
     GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: serviceAccount,
     GOOGLE_OAUTH_CLIENT_ID: "client-id",
     GOOGLE_OAUTH_CLIENT_SECRET: "client-secret",
@@ -868,6 +873,7 @@ export async function createFakeWorld() {
   return {
     env,
     baserow,
+    setConfig,
     sanity,
     google,
     mailchimp,

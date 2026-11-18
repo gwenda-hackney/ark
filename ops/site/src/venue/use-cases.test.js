@@ -107,7 +107,7 @@ describe("opening hours: ops to the website", () => {
   });
 
   it("with website.auto_update off, the hours wait on the preview for Update website", async () => {
-    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    world.setConfig("website.auto_update", "off");
     const res = await save(GWENDA);
     assert.equal(res.status, 200, JSON.stringify(res.data));
     assert.equal(res.data.published, false);
@@ -242,7 +242,7 @@ describe("party facts: ops to the party page", () => {
   });
 
   it("with website.auto_update off, they wait on the preview for Update website", async () => {
-    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    world.setConfig("website.auto_update", "off");
     const res = await saveParties(FACTS);
     assert.equal(res.status, 200, JSON.stringify(res.data));
     assert.equal(res.data.published, false);

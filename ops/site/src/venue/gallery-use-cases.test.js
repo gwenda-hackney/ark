@@ -253,7 +253,7 @@ describe("publish: the gallery goes on the website with the venue's details", ()
   ];
 
   it("with website.auto_update off, a change waits on the preview for Update website", async () => {
-    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    world.setConfig("website.auto_update", "off");
     const res = await add("terrace", { description: "The terrace" });
     assert.equal(res.status, 200, JSON.stringify(res.data));
     assert.equal(res.data.published, false);

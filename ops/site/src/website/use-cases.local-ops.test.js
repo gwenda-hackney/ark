@@ -128,7 +128,7 @@ describe("dev's automatic website updates wait while local ops runs", () => {
   });
 
   it("Update website still works while paused", async () => {
-    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    world.setConfig("website.auto_update", "off");
     const event = await saveEvent();
     for (let step = 0; step < 20 && !(await tabStep(event.id)).done; step += 1);
     await localOpsChecksIn();

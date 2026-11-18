@@ -586,7 +586,7 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
   });
 
   it("with website.auto_update off, a saved menu waits on the preview for Update website", async () => {
-    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    world.setConfig("website.auto_update", "off");
     resetConfigCacheForTests();
     const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
     const plates = await ops.section("Small plates", { menuId: dinner.id });

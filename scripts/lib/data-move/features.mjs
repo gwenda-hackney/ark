@@ -19,7 +19,6 @@
  */
 import { baserowUserRepository } from "../../../ops/site/src/users/server/adapters/baserow-users.js";
 import { d1UserRepository } from "../../../ops/site/src/users/server/adapters/d1-users.js";
-import { baserowConfigRepository } from "../../../shared/config-adapters/baserow-config.js";
 import { d1ConfigRepository } from "../../../shared/config-adapters/d1-config.js";
 import { sameSlot } from "../../../shared/config-model.js";
 import { baserowGuests, d1Guests } from "../../../shared/guests/guests-copy.js";
@@ -56,7 +55,6 @@ export const FEATURES = {
     freeze: false,
     keep: firstOfEachSlot,
     adapters: {
-      baserow: ({ env }) => baserowConfigRepository(env),
       d1: ({ db }) => d1ConfigRepository(db),
     },
   },

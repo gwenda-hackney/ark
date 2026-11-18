@@ -1,45 +1,28 @@
 /**
  * The one way to read configuration. Every app and script imports from here,
- * never from config-db.js (shared/config.test.js enforces it).
+ * never from the config repository (shared/config.test.js enforces it).
  *
  * Where a value comes from, in order:
  *   1. A developer's machine: settings with `local` read that developer's own
  *      value from .env. `required` ones must be set, so a fresh machine fails
  *      loudly until the developer fills it in (e.g. their email for form
  *      notifications; .env.example lists them).
- *   2. This environment's Gwenda Config database (production's in the Gwenda
- *      workspace, dev's in Gwenda Dev; a developer's machine reads dev's): the
- *      environment's row, else the "all" row.
+ *   2. This environment's config database (D1 gwenda-config; a developer's
+ *      machine reads dev's): the environment's row, else the "all" row.
  *
  * Machine state (build snapshots, scheduler state, secret fingerprints) also
  * lives in the config database; readState/writeState are its only doors.
  *
- * The database is Baserow or D1, whichever `store:config` names (#127): all
- * storage goes through the config repository (config-repository.js).
+ * The database is this environment's D1 config database (#127): all storage
+ * goes through the config repository (config-repository.js).
  */
-import {
-  CONFIG_DATABASE_NAME,
-  CONFIG_ENVS,
-  CONFIG_TABLE_NAME,
-  resetConfigCacheForTests as resetBaserowConfigCache,
-  valuesFromRows,
-} from "./config-db.js";
 import { resetD1ConfigCacheForTests } from "./config-adapters/d1-config.js";
 import { CONFIG_CACHE_TTL_MS, environmentOf, isLocalMachine, valuesFromRecords } from "./config-model.js";
 import { configRepository } from "./config-repository.js";
 
-export {
-  CONFIG_CACHE_TTL_MS,
-  CONFIG_DATABASE_NAME,
-  CONFIG_ENVS,
-  CONFIG_TABLE_NAME,
-  environmentOf,
-  isLocalMachine,
-  valuesFromRows,
-};
+export { CONFIG_CACHE_TTL_MS, environmentOf, isLocalMachine };
 
 export function resetConfigCacheForTests() {
-  resetBaserowConfigCache();
   resetD1ConfigCacheForTests();
 }
 

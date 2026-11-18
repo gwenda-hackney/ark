@@ -707,7 +707,7 @@ describe("2026-11-10-z-promotions-on-website", () => {
     const db = createTestD1("ops");
     const { cocktail } = await seedLive(db);
     await migrate(categories, db);
-    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    world.setConfig("website.auto_update", "off");
     resetConfigCacheForTests();
     const lines = await migrate(onWebsite, db);
     assert.ok(all(categoriesOf(cocktail.slug, "previewDrafts"), "promotion"));
