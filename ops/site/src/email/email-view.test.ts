@@ -25,9 +25,9 @@ describe("weekly email page: the preview", () => {
 	it("opens the email's links in a new tab, not inside the frame", () => {
 		assert.match(
 			previewDocument('<html><head lang="en"><title>x</title></head><body></body></html>'),
-			/^<html><head lang="en"><base target="_blank">.*<title>x<\/title><\/head><body><\/body><\/html>$/,
+			/^<html><head lang="en"><base target="_blank">[\s\S]*<title>x<\/title><\/head><body><\/body><\/html>$/,
 		);
-		assert.match(previewDocument("<p>hi</p>"), /^<base target="_blank">.*<p>hi<\/p>$/);
+		assert.match(previewDocument("<p>hi</p>"), /^<base target="_blank">[\s\S]*<p>hi<\/p>$/);
 	});
 
 	it("shows the email as Gmail does: no web fonts, only the faces on this computer", () => {
@@ -40,7 +40,12 @@ describe("weekly email page: the preview", () => {
 		assert.match(frame, /<head><base target="_blank"><meta http-equiv="Content-Security-Policy" content="font-src 'none'">/);
 		// The email's own rules stay, as Gmail keeps them.
 		assert.match(frame, /<style>[\s\S]*@media[\s\S]*<\/style>/);
-		assert.equal(frame.replace(/<base[^>]*><meta[^>]*>/, ""), html.replace(/<link\b[^>]*>/, ""));
+		// Only ops' own scrollbar is added, in a style of its own.
+		assert.match(frame, /<style data-ops-preview>[\s\S]*scrollbar-width:thin/);
+		assert.equal(
+			frame.replace(/<base[^>]*><meta[^>]*><style data-ops-preview>[\s\S]*?<\/style>/, ""),
+			html.replace(/<link\b[^>]*>/, ""),
+		);
 	});
 
 	it("names days the short way", () => {

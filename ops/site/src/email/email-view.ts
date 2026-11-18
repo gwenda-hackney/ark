@@ -2,13 +2,28 @@
 import type { WeeklyEmailRun, WeeklyEmailSettings, WeeklyEmailStatus } from "./email-api";
 
 /**
+ * The frame's scrollbar, like ops' own (ui/theme/base.css): thin, no arrows,
+ * no track, and the thumb only while the pointer is over the email. The frame
+ * can't see ops' CSS, so the colour is a fixed muted grey on either theme.
+ */
+const PREVIEW_SCROLLBAR = `<style data-ops-preview>
+html{scrollbar-width:thin;scrollbar-color:transparent transparent}
+html:hover{scrollbar-color:rgba(150,150,150,.5) transparent}
+::-webkit-scrollbar{width:8px;height:8px;background:transparent}
+::-webkit-scrollbar-button{display:none;width:0;height:0}
+::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+::-webkit-scrollbar-thumb{background:transparent}
+html:hover::-webkit-scrollbar-thumb{background:rgba(150,150,150,.5)}
+</style>`;
+
+/**
  * The email inside its preview frame, as Gmail shows it: Gmail drops the
  * email's <link>s and loads no web fonts, so its faces are the ones on the
  * reader's computer (shared/email/shell.js FONTS). Only Apple Mail loads the
  * website's fonts. Links open in a new tab, never inside the frame.
  */
 export function previewDocument(html: string): string {
-	const top = `<base target="_blank"><meta http-equiv="Content-Security-Policy" content="font-src 'none'">`;
+	const top = `<base target="_blank"><meta http-equiv="Content-Security-Policy" content="font-src 'none'">${PREVIEW_SCROLLBAR}`;
 	const email = html.replace(/<link\b[^>]*>/gi, "");
 	return /<head[^>]*>/i.test(email) ? email.replace(/<head[^>]*>/i, (head) => `${head}${top}`) : `${top}${email}`;
 }
