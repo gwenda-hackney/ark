@@ -62,6 +62,41 @@ function itemCounts(sections, items) {
 }
 
 /**
+ * A menu's items as the website lays them out: each chapter, in order, with
+ * its own items and then each group's. An item is in a section that is its
+ * own, or that one of its print or website placements names. Every section
+ * is there, empty or not, so an item can be added to it.
+ * @returns {import("../types").MenuItemChapter[]}
+ */
+export function menuItemGroups(chapters, items) {
+  const itemsIn = (section) =>
+    items
+      .filter(
+        (item) =>
+          item.sectionId === section._id ||
+          (item.placements || []).some((row) => row.channel !== "pos" && String(row.sectionId) === section._id),
+      )
+      .map((item) => ({
+        id: item._id,
+        name: item.name,
+        description: item.description || "",
+        prices: item.prices || [],
+        drinkType: item.drinkType || "",
+      }));
+  const block = (section) => ({
+    sectionId: section._id,
+    title: section.title || "",
+    subtitle: section.subtitle || "",
+    items: itemsIn(section),
+  });
+  return chapters
+    .map((chapter) => ({
+      ...block(chapter),
+      groups: (chapter.subsections || []).map(block),
+    }));
+}
+
+/**
  * A menu record → the menu ops shows: its fields, what it says about its
  * dates and days, and its status on `today`.
  */
@@ -120,7 +155,7 @@ export async function listMenus(env, { today = londonToday() } = {}) {
   };
 }
 
-/** One menu with its sections (chapters and their groups, each with its items), and the rest of `listMenus`. */
+/** One menu with its sections (chapters and their groups, each with its items), its items by section, and the rest of `listMenus`. */
 export async function getMenu(env, id, { today = londonToday() } = {}) {
   const [{ menus, sections, items }, popups] = await Promise.all([loadMenuTree(env), popupChoices(env, today)]);
   const record = menus.find((menu) => menu.id === Number(id));
@@ -131,6 +166,7 @@ export async function getMenu(env, id, { today = londonToday() } = {}) {
   return {
     menu: mapMenu(record, { today, popupNames, items: counts.get(record.id) ?? 0, chapters: chapters.length }),
     sections: chapters,
+    items: menuItemGroups(chapters, items),
     menus: [...menus].sort(byOrder).map((menu) => mapMenu(menu, { today, popupNames })),
     popups,
   };
