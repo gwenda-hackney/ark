@@ -448,8 +448,16 @@ export function formatPrices(item: Parameters<typeof normalizePrices>[0]): strin
   return normalizePrices(item)
     .map((row) => row.price)
     .filter(Boolean)
-    .map((price) => `£${price}`)
+    .map((price) => `£${poundsLabel(price)}`)
     .join(" / ");
+}
+
+/** A price as a person reads it: whole pounds as they are ("14"), pence always two digits ("4.50"). */
+export function poundsLabel(price: string): string {
+  const raw = String(price ?? "").trim();
+  const number = Number(raw);
+  if (!raw || !Number.isFinite(number)) return raw;
+  return Number.isInteger(number) ? String(number) : number.toFixed(2);
 }
 export const UNITS = [
   "ml",

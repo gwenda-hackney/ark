@@ -9,19 +9,17 @@
  */
 import { moveId } from "./menu-sections.js";
 
-type Rect = { top: number; bottom: number; left: number; right: number };
+type Rect = { top: number; bottom: number };
 
 /**
- * Where a pointer at (x, y) would put a section among siblings laid out in
- * reading order (`rects`, rows that may hold several side by side): before
- * the first one it is above, or level with and left of the middle of.
+ * Where a pointer at height `y` would put a section among siblings stacked
+ * in one column (`rects`, in order): before the first one it is above, or
+ * over the upper half of. The page lays sections in one column at every
+ * width, so only the height counts.
  */
-export function dropIndex(x: number, y: number, rects: Rect[]): number {
+export function dropIndex(y: number, rects: Rect[]): number {
 	for (const [index, rect] of rects.entries()) {
-		if (y < rect.top) return index;
-		if (y > rect.bottom) continue;
-		const sideBySide = rects.some((other, i) => i !== index && Math.abs(other.top - rect.top) < 2);
-		if (sideBySide ? x < (rect.left + rect.right) / 2 : y < (rect.top + rect.bottom) / 2) return index;
+		if (y < (rect.top + rect.bottom) / 2) return index;
 	}
 	return rects.length;
 }
@@ -110,7 +108,7 @@ export function startSectionDrag(
 	const ghost = section ? liftedCopy(section, x, y) : null;
 
 	const place = () => {
-		at = dropIndex(x, y, siblings().map((el) => el.getBoundingClientRect()));
+		at = dropIndex(y, siblings().map((el) => el.getBoundingClientRect()));
 		onover(at === from || at === from + 1 ? null : at);
 	};
 	const tickScroll = () => {

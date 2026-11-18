@@ -530,12 +530,12 @@
 <ConfirmDialog {confirm} />
 
 <style>
-	/* A menu of one section takes the page's width, up to a readable line;
-	   two or more sit side by side when there's room. */
+	/* One column at every width, up to a readable line: the sections stack
+	   in their order, whatever the window's size. */
 	.chapters {
 		max-width: 64rem;
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+		grid-template-columns: 1fr;
 		gap: var(--space-3);
 		align-items: start;
 	}
