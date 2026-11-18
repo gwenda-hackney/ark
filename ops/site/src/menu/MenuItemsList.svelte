@@ -309,7 +309,7 @@
 		editor.cancel();
 	}
 
-	/** The dialog's ⋯: the item's full page, and taking it off this menu. */
+	/** The dialog's ⋯: the item's full page. Take off is a button of its own. */
 	function itemActions(item: MenuPageItem | null): OverflowItem[] {
 		if (!item) return [];
 		return [
@@ -320,7 +320,6 @@
 					if (!editor.target) navigate(menuItemPath(item.name));
 				},
 			},
-			{ label: "Take off this menu", tone: "destructive", disabled: busy, onselect: () => void remove(item) },
 		];
 	}
 
@@ -376,7 +375,17 @@
 					dirty={editor.dirty}
 					overflow={itemActions(item)}
 					onsave={() => void submitItem()}
-				/>
+				>
+					{#snippet start()}
+						{#if item}
+							<!-- In plain sight, phones too; it asks first (remove). -->
+							<Button variant="ghost" size="sm" type="button" class="take-off" disabled={editor.saving || busy} onclick={() => void remove(item)}>
+								{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
+								Take off this menu
+							</Button>
+						{/if}
+					{/snippet}
+				</EditorActionBar>
 			</div>
 		{/snippet}
 	</Dialog>
@@ -849,12 +858,12 @@
 		color: var(--fg-muted);
 	}
 
-	/* Phones: the pencil opens the item, whose ⋯ has Take off. The fields go full width. */
-	@media (max-width: 900px) {
-		.remove {
-			display: none;
-		}
+	.item-dialog-bar :global(.take-off) {
+		color: var(--danger);
+	}
 
+	/* Phones: the pencil and the bin are always there (no hover). The fields go full width. */
+	@media (max-width: 900px) {
 		.fields {
 			grid-template-columns: 1fr;
 		}
