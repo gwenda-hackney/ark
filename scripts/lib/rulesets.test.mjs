@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "vitest";
-import { applyRuleset, formatDiff, rulesetDiff } from "./rulesets.mjs";
+import { applyRuleset, formatDiff, parseApplyArgs, rulesetDiff } from "./rulesets.mjs";
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const RELEASE = JSON.parse(read(".github/rulesets/release.json"));
@@ -225,5 +225,20 @@ describe("the main ruleset", () => {
     for (const workflow of [".github/workflows/apps.yml", ".github/workflows/web.yml"]) {
       assert.match(read(workflow), /branches-ignore:\n\s+- "gh-readonly-queue\/\*\*"/, workflow);
     }
+  });
+});
+
+describe("npm run rulesets:apply's arguments", () => {
+  it("applies the one file named, with no other arguments", () => {
+    assert.deepEqual(parseApplyArgs([".github/rulesets/main.json"]).files, [".github/rulesets/main.json"]);
+  });
+
+  it("takes files, --dry-run and --repo in any order", () => {
+    assert.deepEqual(parseApplyArgs(["a.json", "--dry-run", "--repo", "o/r", "b.json"]), {
+      dryRun: true,
+      repo: "o/r",
+      files: ["a.json", "b.json"],
+    });
+    assert.deepEqual(parseApplyArgs(["--repo", "o/r"]), { dryRun: false, repo: "o/r", files: [] });
   });
 });

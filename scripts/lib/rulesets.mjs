@@ -93,3 +93,17 @@ export function applyRuleset({ api, repo, ruleset, dryRun = false, log = console
   else api("POST", `repos/${repo}/rulesets`, ruleset);
   return { action: verb, changes };
 }
+
+/**
+ * rulesets-apply's arguments: `--dry-run`, `--repo owner/name`, and any
+ * ruleset files to apply (none: every file in .github/rulesets).
+ */
+export function parseApplyArgs(args) {
+  const repoAt = args.indexOf("--repo");
+  return {
+    dryRun: args.includes("--dry-run"),
+    repo: repoAt >= 0 ? args[repoAt + 1] || "" : "",
+    // Not the value after --repo, when there is one
+    files: args.filter((arg, i) => !arg.startsWith("--") && !(repoAt >= 0 && i === repoAt + 1)),
+  };
+}
