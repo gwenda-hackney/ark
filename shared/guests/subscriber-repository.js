@@ -6,7 +6,8 @@
  *
  *   listByEmail(email)            SubscriberRecord[], any case; at most one on D1
  *   listUnsynced({ limit, all })  up to `limit` unsynced records (every record with
- *                                 `all`), by id
+ *                                 `all`), by id; only marketing ones, ever
+ *   latestMarketingOff()          the latest marketingOffOn, or null
  *   create(fields)                SubscriberRecord; throws code "duplicate" when the
  *                                 email is there already
  *   update(id, fields)            SubscriberRecord, or null when missing; only the

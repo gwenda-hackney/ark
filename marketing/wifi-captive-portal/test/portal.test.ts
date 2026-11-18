@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { memorySubscriberRepository } from "../../../shared/guests/adapters/memory-subscribers.js";
-import { memoryWifiGuestRepository } from "../../../shared/guests/adapters/memory-wifi-guests.js";
 import { handlePortalRequest, subscribeEmail } from "../src/handler.js";
 import type { Env } from "../src/types.js";
 import { authorizeGuest } from "../src/unifi.js";
@@ -30,6 +29,7 @@ describe("sign-up", () => {
     const result = await subscribeEmail(repoEnv, {
       email: "Guest@Example.com",
       tag: "wifi",
+      marketing: true,
     });
     expect(result.ok).toBe(true);
     expect(await repo.listByEmail("guest@example.com")).toMatchObject([
@@ -45,36 +45,46 @@ describe("sign-up", () => {
       signedUpOn: "2026-07-04",
       synced: true,
     });
-    await subscribeEmail(repoEnv, { email: "guest@example.com", tag: "wifi" });
+    await subscribeEmail(repoEnv, {
+      email: "guest@example.com",
+      tag: "wifi",
+      marketing: true,
+    });
     expect(await repo.listByEmail("guest@example.com")).toMatchObject([
       { tags: ["prelaunch", "wifi"], signedUpOn: "2026-07-04", synced: false },
     ]);
   });
 
-  it("no-ops when the email already has the wifi tag", async () => {
+  it("a tick from someone already tagged wifi records their consent again", async () => {
     const { repo, env: repoEnv } = withRepo();
     await repo.create({
       email: "guest@example.com",
       tags: ["prelaunch", "wifi"],
       signedUpOn: "2026-07-04",
+      marketing: false,
+      marketingOffOn: "2026-10-01",
       synced: true,
     });
-    const update = vi.spyOn(repo, "update");
-    await subscribeEmail(repoEnv, { email: "guest@example.com", tag: "wifi" });
-    expect(update).not.toHaveBeenCalled();
+    await subscribeEmail(repoEnv, {
+      email: "guest@example.com",
+      tag: "wifi",
+      marketing: true,
+    });
+    expect(await repo.listByEmail("guest@example.com")).toMatchObject([
+      { tags: ["prelaunch", "wifi"], marketing: true, marketingOffOn: null, synced: false },
+    ]);
   });
 });
 
 describe("marketing consent", () => {
   const guestEnv = () => {
     const subscriberRepository = memorySubscriberRepository();
-    const wifiGuestRepository = memoryWifiGuestRepository();
     return {
       subscribers: subscriberRepository,
-      wifiGuests: wifiGuestRepository,
-      env: { ...env, subscriberRepository, wifiGuestRepository } as Env,
+      env: { ...env, subscriberRepository } as Env,
     };
   };
+  const today = new Date().toISOString().slice(0, 10);
   const authorize = async () => ({ ok: true as const });
   const submit = (testEnv: Env, fields: Record<string, string>) =>
     handlePortalRequest(
@@ -102,56 +112,71 @@ describe("marketing consent", () => {
     expect(html).not.toContain("The occasional note from Gwenda");
   });
 
-  it("without the box: gets online, kept as a Wi-Fi guest, not on the mailing list", async () => {
-    const { env: testEnv, subscribers, wifiGuests } = guestEnv();
+  it("without the box: gets online, kept with today's visit, not on the mailing list", async () => {
+    const { env: testEnv, subscribers } = guestEnv();
     const post = await submit(testEnv, { email: "Guest@Example.com" });
     expect(post.status).toBe(200);
     expect(await post.text()).toContain("Connected");
-    expect(await wifiGuests.getByEmail("guest@example.com")).toMatchObject({
-      email: "guest@example.com",
-    });
-    expect(await subscribers.count()).toBe(0);
+    expect(await subscribers.listByEmail("guest@example.com")).toMatchObject([
+      { tags: ["wifi"], marketing: false, marketingOn: null, lastSeenOn: today },
+    ]);
+    expect(await subscribers.listUnsynced({ all: true })).toEqual([]);
   });
 
-  it("with the box: kept as a Wi-Fi guest and on the mailing list, tagged wifi", async () => {
-    const { env: testEnv, subscribers, wifiGuests } = guestEnv();
+  it("with the box: on the mailing list, tagged wifi, to sync", async () => {
+    const { env: testEnv, subscribers } = guestEnv();
     const post = await submit(testEnv, {
       email: "guest@example.com",
       marketing: "yes",
     });
     expect(post.status).toBe(200);
-    expect(await wifiGuests.count()).toBe(1);
-    expect(await subscribers.listByEmail("guest@example.com")).toMatchObject([
-      { tags: ["wifi"], synced: false },
+    expect(await subscribers.listUnsynced()).toMatchObject([
+      {
+        email: "guest@example.com",
+        tags: ["wifi"],
+        marketing: true,
+        marketingOn: today,
+        lastSeenOn: today,
+        synced: false,
+      },
     ]);
   });
 
-  it("without the box leaves an existing subscriber as they were", async () => {
+  it("without the box leaves an existing subscriber as they were, but for the visit", async () => {
     const { env: testEnv, subscribers } = guestEnv();
     await subscribers.create({
       email: "guest@example.com",
       tags: ["prelaunch"],
       signedUpOn: "2026-07-04",
+      marketingOn: "2026-07-04",
       synced: true,
     });
     await submit(testEnv, { email: "guest@example.com" });
     expect(await subscribers.listByEmail("guest@example.com")).toMatchObject([
-      { tags: ["prelaunch"], signedUpOn: "2026-07-04", synced: true },
+      {
+        tags: ["prelaunch"],
+        signedUpOn: "2026-07-04",
+        marketing: true,
+        marketingOn: "2026-07-04",
+        lastSeenOn: today,
+        synced: true,
+      },
     ]);
   });
 
-  it("gets the guest online when the Wi-Fi guest can't be saved, and logs it", async () => {
-    const { env: testEnv, wifiGuests } = guestEnv();
-    vi.spyOn(wifiGuests, "recordVisit").mockRejectedValue(
-      new Error("D1_ERROR: no such table: wifi_guests"),
+  it("gets the guest online when the sign-up can't be saved, and logs it", async () => {
+    const { env: testEnv, subscribers } = guestEnv();
+    vi.spyOn(subscribers, "listByEmail").mockRejectedValue(
+      new Error("D1_ERROR: no such column: marketing"),
     );
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const post = await submit(testEnv, { email: "guest@example.com" });
     expect(post.status).toBe(200);
     expect(await post.text()).toContain("Connected");
     expect(logged).toHaveBeenCalledWith(
-      "[wifi-captive-portal] Wi-Fi guest not saved; guest let on anyway",
-      expect.stringContaining("no such table"),
+      "[wifi-captive-portal] Sign-up not saved; guest let on anyway",
+      502,
+      expect.any(String),
     );
     logged.mockRestore();
   });
@@ -262,6 +287,7 @@ describe("handler", () => {
     expect(subscribe).toHaveBeenCalledWith(env, {
       email: "guest@example.com",
       tag: "wifi",
+      marketing: true,
     });
     expect(authorize).toHaveBeenCalledWith(
       env,

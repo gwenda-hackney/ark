@@ -2,11 +2,6 @@ import { frozenFeatures } from "../../../shared/write-freeze.js";
 import { d1SubscriberRepository } from "../../../shared/guests/adapters/d1-subscribers.js";
 import type { SubscriberRepository } from "../../../shared/guests/subscriber-repository.js";
 import {
-  wifiGuestRepository,
-  type WifiGuestRepository,
-} from "../../../shared/guests/wifi-guest-repository.js";
-import { recordWifiGuest } from "../../../shared/guests/wifi-guests.js";
-import {
   normalizeEmail,
   subscribe as subscribeGuest,
   type SubscribeResult,
@@ -16,27 +11,22 @@ import type { Env } from "./types.js";
 import { resolveRedirectUrl, resolveSubscribeTag } from "./types.js";
 import { authorizeGuest } from "./unifi.js";
 
-/** The guests sign-up (the website's too), on D1; Baserow is retired (#234). Tests hand in a repository. */
+/**
+ * The guests sign-up (the website's too), on D1; Baserow is retired (#234).
+ * Every guest is kept, seen today; `marketing` (the newsletter box) decides
+ * the mailing list, and unticked never changes an address's consent. Tests
+ * hand in a repository.
+ */
 export function subscribeEmail(
   env: Env & { subscriberRepository?: SubscriberRepository },
-  input: { email: string; tag: string },
+  input: { email: string; tag: string; marketing: boolean },
 ): Promise<SubscribeResult> {
-  const repo =
-    env.subscriberRepository ?? d1SubscriberRepository(env.WEBSITE_DB);
-  return subscribeGuest(repo, input);
-}
-
-/** Every guest who gets online, for Wi-Fi and service messages (not marketing). Tests hand in a repository. */
-export function recordGuest(
-  env: Env & { wifiGuestRepository?: WifiGuestRepository },
-  input: { email: string },
-) {
-  return recordWifiGuest(wifiGuestRepository(env), input);
+  const repo = env.subscriberRepository ?? d1SubscriberRepository(env.WEBSITE_DB);
+  return subscribeGuest(repo, { ...input, visit: true });
 }
 
 export type HandlerDeps = {
   subscribe?: typeof subscribeEmail;
-  record?: typeof recordGuest;
   authorize?: typeof authorizeGuest;
 };
 
@@ -80,27 +70,16 @@ function marketingConsent(form: Record<string, string>): boolean {
   return Boolean(form.marketing?.trim());
 }
 
-function logNotSaved(what: string, detail: unknown[]): void {
-  console.error(
-    `[wifi-captive-portal] ${what} not saved; guest let on anyway`,
-    ...detail,
-  );
-}
-
 /**
- * Keep the guest's email as a Wi-Fi guest and, only when they ticked the box,
- * sign them up to the newsletter (tag `wifi`). An unticked box never changes
- * an existing subscriber. Getting online never waits on either: one that
+ * Keep the guest's email, seen today, with their answer to the newsletter
+ * box (only a tick puts them on the mailing list). Getting online never waits on it: a sign-up that
  * can't be saved is logged (so it reaches Sentry) and the guest goes on.
- * While guests are frozen for a data move (#191) neither is kept, or it
+ * While subscribers are frozen for a data move (#191) it isn't kept, or it
  * would be lost between the copy and the switch.
  */
 async function saveSignUp(
   env: Env,
-  {
-    subscribe,
-    record,
-  }: { subscribe: typeof subscribeEmail; record: typeof recordGuest },
+  subscribe: typeof subscribeEmail,
   email: string,
   marketing: boolean,
 ): Promise<void> {
@@ -109,43 +88,24 @@ async function saveSignUp(
       console.log("wifi portal: guests frozen, sign-up not saved");
       return;
     }
+    const saved = await subscribe(env, {
+      email,
+      tag: resolveSubscribeTag(env),
+      marketing,
+    });
+    if (!saved.ok) {
+      console.error(
+        "[wifi-captive-portal] Sign-up not saved; guest let on anyway",
+        saved.status,
+        saved.error,
+      );
+    }
   } catch (err) {
-    logNotSaved("Sign-up", [
+    console.error(
+      "[wifi-captive-portal] Sign-up not saved; guest let on anyway",
       err instanceof Error ? err.stack || err.message : err,
-    ]);
-    return;
-  }
-
-  const saves: Promise<void>[] = [
-    (async () => {
-      try {
-        const saved = await record(env, { email });
-        if (!saved.ok) logNotSaved("Wi-Fi guest", [saved.error]);
-      } catch (err) {
-        logNotSaved("Wi-Fi guest", [
-          err instanceof Error ? err.stack || err.message : err,
-        ]);
-      }
-    })(),
-  ];
-  if (marketing) {
-    saves.push(
-      (async () => {
-        try {
-          const saved = await subscribe(env, {
-            email,
-            tag: resolveSubscribeTag(env),
-          });
-          if (!saved.ok) logNotSaved("Sign-up", [saved.status, saved.error]);
-        } catch (err) {
-          logNotSaved("Sign-up", [
-            err instanceof Error ? err.stack || err.message : err,
-          ]);
-        }
-      })(),
     );
   }
-  await Promise.all(saves);
 }
 
 export async function handlePortalRequest(
@@ -154,7 +114,6 @@ export async function handlePortalRequest(
   deps: HandlerDeps = {},
 ): Promise<Response> {
   const subscribe = deps.subscribe ?? subscribeEmail;
-  const record = deps.record ?? recordGuest;
   const authorize = deps.authorize ?? authorizeGuest;
   const url = new URL(request.url);
   const path = normalizePath(url.pathname);
@@ -216,7 +175,7 @@ export async function handlePortalRequest(
       );
     }
 
-    await saveSignUp(env, { subscribe, record }, email, marketingConsent(form));
+    await saveSignUp(env, subscribe, email, marketingConsent(form));
 
     const auth = await authorize(env, {
       mac,
