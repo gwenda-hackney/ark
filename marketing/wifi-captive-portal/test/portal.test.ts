@@ -262,7 +262,7 @@ describe("handler", () => {
       expect(html).toContain('alt="Gwenda Social"');
       expect(html).toContain('src="/logo.svg"');
       expect(html).toContain("Protest Strike");
-      expect(html).toContain("Enter our world");
+      expect(html).toContain("Get online");
       expect(html).toContain("Guest Wi‑Fi");
       expect(html).toContain('value="aa:bb:cc:dd:ee:ff"');
 
