@@ -29,6 +29,7 @@ export { default as Switch } from "./Switch.svelte";
 export { default as TextField } from "./TextField.svelte";
 export { default as TimeField } from "./TimeField.svelte";
 export { default as TextArea } from "./TextArea.svelte";
+export { default as InlineEdit } from "./InlineEdit.svelte";
 export { default as NativeSelect } from "./NativeSelect.svelte";
 export { default as ComboBox } from "./ComboBox.svelte";
 export { default as MultiSelect } from "./MultiSelect.svelte";

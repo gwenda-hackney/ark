@@ -42,3 +42,38 @@ export function withQuickEdit(item: MenuItem, edit: QuickEdit): MenuItem {
 export function offMenu(item: MenuItem, here: Iterable<string>): { action: "delete" } | { action: "update"; item: MenuItem } {
 	return offMenuRule(item, here);
 }
+
+/** Names as a person says them: "A", "A and B", "A, B and 3 more". */
+export function nameList(names: string[], most = 3): string {
+	if (names.length <= 1) return names[0] || "";
+	if (names.length <= most) return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+	const rest = names.length - (most - 1);
+	return `${names.slice(0, most - 1).join(", ")} and ${rest} more`;
+}
+
+/**
+ * What Remove section says before it asks, from what the server says it
+ * takes (api.previewSectionRemoval). Null when the section is empty: it
+ * goes without asking.
+ */
+export function sectionRemovalQuestion(
+	removal: { title: string; groups: string[]; deleted: string[]; takenOff: string[] },
+	menuName: string,
+): { title: string; message: string; action: string } | null {
+	const { groups, deleted, takenOff } = removal;
+	if (!groups.length && !deleted.length && !takenOff.length) return null;
+	const lines: string[] = [];
+	if (groups.length) lines.push(`${nameList(groups)} ${groups.length === 1 ? "goes" : "go"} with it.`);
+	if (deleted.length) {
+		lines.push(
+			`${nameList(deleted)} ${deleted.length === 1 ? "isn't" : "aren't"} on any other menu, so ${deleted.length === 1 ? "it's" : "they're"} deleted, with ${deleted.length === 1 ? "its recipe" : "their recipes"}.`,
+		);
+	}
+	if (takenOff.length) lines.push(`${nameList(takenOff)} ${takenOff.length === 1 ? "stays on its" : "stay on their"} other menus.`);
+	if (deleted.length) lines.push("This can't be undone.");
+	return {
+		title: `Remove ${removal.title} from ${menuName}?`,
+		message: lines.join(" "),
+		action: deleted.length ? "Remove and delete" : "Remove",
+	};
+}

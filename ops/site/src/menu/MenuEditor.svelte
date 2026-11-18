@@ -1,8 +1,8 @@
 <script lang="ts">
 	/**
 	 * A menu's page (#305): its name, drinks or food, dates, days and pop-up
-	 * kitchen, and under them its sections (chapters and their groups), which
-	 * used to be Configuration › Menu sections. /menus/new starts a menu;
+	 * kitchen (Details), and what's on it (Items): its sections and their
+	 * items, laid out and shaped as on the website (MenuItemsList). /menus/new starts a menu;
 	 * /menus/new?popup=<id> starts it from a pop-up kitchen's name, nights and
 	 * cooking days (Events → Add menu), for the owner to narrow down.
 	 */
@@ -30,7 +30,6 @@
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { toast } from "../ui/toast.svelte";
 	import { beginLeave, clearUnsavedGuard, setUnsavedGuard, takeBlockedNav } from "../ui/unsaved.svelte";
-	import SectionsPanel from "./SectionsPanel.svelte";
 	import MenuItemsList from "./MenuItemsList.svelte";
 	import MenuDaysPicker from "./MenuDaysPicker.svelte";
 	import { MENU_STATUS_TONES, blankMenu, menuDraft, menuPayload, popupDraft, sameMenu } from "./menu-form";
@@ -60,12 +59,13 @@
 	let deleteOpen = $state(false);
 
 	const dirty = $derived(!sameMenu(draft, initial));
-	/** Which part of the page shows: what's on it, its details, or its sections. */
+	/** An item open on the page with changes not yet saved (MenuItemsList). */
+	let itemDirty = $state(false);
+	/** Which part of the page shows: what's on it, or its details. */
 	let tab = $state("items");
 	const tabItems = $derived([
 		{ id: "items", label: "Items" },
 		{ id: "details", label: dirty ? "Details •" : "Details" },
-		{ id: "sections", label: "Sections" },
 	]);
 	// Another menu opens on its items.
 	$effect(() => {
@@ -149,7 +149,7 @@
 			if (isNew) {
 				const { menu: made } = await api.createMenu(body);
 				initial = { ...draft, days: [...draft.days] };
-				toast.ok(`${made.name} added. Now give it its sections.`);
+				toast.ok(`${made.name} added. Now give it its sections, under Items.`);
 				navigate(menuPagePath(made.id), { replace: true, force: true });
 				return;
 			}
@@ -203,11 +203,24 @@
 
 	// Unsaved changes: leaving asks first, like any editor.
 	$effect(() => {
-		setUnsavedGuard(dirty && !saving, () => (discardOpen = true));
+		setUnsavedGuard((dirty || itemDirty) && !saving, () => (discardOpen = true));
+	});
+
+	// Esc closes the menu, as it closes an event (leaving asks first when there are changes).
+	$effect(() => {
+		if (typeof window === "undefined") return;
+		function onKey(e: KeyboardEvent) {
+			if (e.key !== "Escape" || e.defaultPrevented || saving || discardOpen || deleteOpen) return;
+			if (document.querySelector("[role=dialog], [role=menu], dialog[open]")) return;
+			e.preventDefault();
+			back();
+		}
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
 	});
 
 	$effect(() => {
-		if (!dirty || typeof window === "undefined") return;
+		if (!(dirty || itemDirty) || typeof window === "undefined") return;
 		const onBeforeUnload = (e: BeforeUnloadEvent) => {
 			e.preventDefault();
 			e.returnValue = "";
@@ -248,7 +261,13 @@
 <div class="editor">
 <EditorBackBar label="Menus" onback={back} />
 <div class="page scrollbar-fade">
-	<PageHeader eyebrow="Menu" {title} {subtitle} />
+	<PageHeader eyebrow="Menu" {title} {subtitle}>
+		{#snippet actions()}
+			<Button class="close-btn" variant="ghost" size="sm" type="button" aria-label={dirty || itemDirty ? "Close with unsaved changes" : "Close"} title="Close (Esc)" onclick={back}>
+				{#snippet icon()}<Icon name="close" size={16} />{/snippet}
+			</Button>
+		{/snippet}
+	</PageHeader>
 	{#if menu && !error}
 		<!-- One part at a time, like the other editors' tabs: the page was three long parts in a row. -->
 		<div class="tabs">
@@ -266,8 +285,15 @@
 		<Skeleton rows={5} lines={1} label="Loading the menu…" />
 	{:else}
 		{#if menu && tab === "items"}
-			<FormSection title="Items" description="Laid out as on the website. Click an item to change it.">
-				<MenuItemsList chapters={items} menuName={menu.name} onchanged={refreshSections} />
+			<FormSection title="Items" description="Laid out as on the website. Click a name, a line or an item to change it; drag a section by its handle to move it.">
+				<MenuItemsList
+					chapters={items}
+					menuName={menu.name}
+					menuId={menu.id}
+					menus={menus.map(({ id, name }) => ({ id, name }))}
+					bind:dirty={itemDirty}
+					onchanged={refreshSections}
+				/>
 			</FormSection>
 		{/if}
 
@@ -322,18 +348,6 @@
 		</Card>
 		{/if}
 
-		{#if menu && tab === "sections"}
-		<FormSection
-			title="Sections"
-			description="Chapters and their groups, in the order guests see them. The print menu uses the same order."
-		>
-			{#if menu}
-				<SectionsPanel {sections} menuId={menu.id} menus={menus.map(({ id, name }) => ({ id, name }))} busy={saving} onchanged={refreshSections} />
-			{:else}
-				<p class="muted">Add the menu first, then its sections go here.</p>
-			{/if}
-		</FormSection>
-		{/if}
 	{/if}
 </div>
 {#if !error && !(loading && !menu && !isNew)}
@@ -417,10 +431,11 @@
 		gap: var(--space-4);
 	}
 
-	.muted {
-		margin: 0;
-		font-size: var(--text-sm);
-		color: var(--fg-muted);
+	/* Phones close with Menus in the bar above. */
+	@media (max-width: 900px) {
+		.page :global(.close-btn) {
+			display: none;
+		}
 	}
 
 	/* The bar spans the page under the gutter, as in the other editors. */

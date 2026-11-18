@@ -3,10 +3,13 @@
 	 * Menu → Menus (#305): every menu, with its type, dates, days, pop-up
 	 * kitchen, number of items and status. A row opens the menu's page
 	 * (MenuEditor), where its details and sections are; Add menu starts one.
+	 * Like Events and Drinks, the list stays mounted under the menu, which
+	 * comes forward over it (editorZoom); closing it steps back to the list
+	 * where it was scrolled. /menus/<id> still opens a menu directly.
 	 */
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import type { ColDef, ICellRendererParams, RowClickedEvent } from "ag-grid-community";
-	import { Button, DataGrid, EmptyState, PageHeader, Skeleton } from "../ui";
+	import { Button, DataGrid, EditorPlaceholder, EditorReveal, EmptyState, PageHeader, Skeleton, editorZoom } from "../ui";
 	import BadgeCell from "../ui/BadgeCell.svelte";
 	import { hasRangeSelection, svelteCell } from "../ui/grid";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
@@ -23,6 +26,9 @@
 	const route = $derived(parseShellPath(path));
 	const editing = $derived(Boolean(route.isNew || route.slug));
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+
+	/** The menu mounts once its pane has come forward over the list. */
+	const reveal = new EditorReveal(untrack(() => editing));
 
 	let menus = $state<Menu[]>([]);
 	let loading = $state(true);
@@ -45,9 +51,10 @@
 		if (route.moved) navigate("/menus", { replace: true, force: true });
 	});
 
-	// The list loads when it shows, and again on the way back from a menu.
+	// The list loads once (under a menu opened by its address too), and
+	// again on the way back from a menu, keeping its rows and scroll.
 	$effect(() => {
-		if (!editing) void load();
+		if (!editing || untrack(() => !menus.length && !error)) void load();
 	});
 
 	const columnDefs = $derived.by((): ColDef<Menu>[] => {
@@ -130,10 +137,8 @@
 	}
 </script>
 
-{#if editing}
-	<MenuEditor {path} />
-{:else}
-	<div class="page">
+<div class="menus-root">
+	<div class="page" class:parked={editing} inert={editing}>
 		<PageHeader title="Menus" subtitle="Every menu guests can see: the drinks, and each pop-up kitchen's food.">
 			{#snippet actions()}
 				<Button type="button" onclick={() => navigate(newMenuPath())}>
@@ -171,9 +176,58 @@
 			</div>
 		{/if}
 	</div>
-{/if}
+	{#if editing}
+		<div class="detail" transition:editorZoom onintroend={reveal.introend} onoutrostart={reveal.outrostart}>
+			{#if !reveal.settled}
+				<EditorPlaceholder />
+			{:else}
+				<MenuEditor {path} />
+			{/if}
+		</div>
+	{/if}
+</div>
 
 <style>
+	.menus-root {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
+		height: 100%;
+		overflow: hidden;
+	}
+
+	/* Steps back and dims while a menu comes forward over it; it keeps its scroll. */
+	.page {
+		transition:
+			transform 440ms var(--ease),
+			opacity 440ms var(--ease);
+	}
+
+	.page.parked {
+		pointer-events: none;
+		transform: scale(0.97);
+		opacity: 0.35;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.page {
+			transition: none;
+		}
+	}
+
+	.detail {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		overflow: hidden;
+		background: var(--ambient), var(--background);
+	}
+
 	.page {
 		position: relative;
 		flex: 1;
