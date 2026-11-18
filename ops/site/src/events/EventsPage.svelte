@@ -774,4 +774,28 @@
 		}
 	}
 
+	/* Phones: the whole editor scrolls, title and all, between the top bar and
+	   the Save bar, instead of only the part under a pinned header. */
+	@media (max-width: 900px) {
+		.panel {
+			overflow-x: hidden;
+			overflow-y: auto;
+			overscroll-behavior: contain;
+		}
+
+		.tab-scroll {
+			flex: none;
+			min-height: auto;
+			overflow: visible;
+		}
+
+		/* Sticks under the top bar while the editor scrolls. */
+		.tabs {
+			position: sticky;
+			top: 0;
+			z-index: 3;
+			/* The panel's own colour, solid, so fields don't show through. */
+			background: linear-gradient(var(--panel-bg), var(--panel-bg)), var(--background);
+		}
+	}
 </style>

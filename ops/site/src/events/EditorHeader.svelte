@@ -226,7 +226,7 @@
 			{/if}
 		</p>
 	{:else if !isNew && !editingOnce && !editingNight}
-		<p class="head-note">Its nights take these details unless a night overrides them.</p>
+		<p class="head-note series-note">Its nights take these details unless a night overrides them.</p>
 	{/if}
 	{#if localOps && eventId}
 		<p class="head-note local-note">
@@ -456,6 +456,11 @@
 		.head-tools :global(.close-btn),
 		.head-tools :global(.photo-expand),
 		.head-tools :global(.desk-tool) {
+			display: none;
+		}
+
+		/* Phones: a shorter header. The fields marked From series say the same. */
+		.series-note {
 			display: none;
 		}
 

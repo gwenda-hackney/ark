@@ -60,6 +60,18 @@
 	let deleteOpen = $state(false);
 
 	const dirty = $derived(!sameMenu(draft, initial));
+	/** Which part of the page shows: what's on it, its details, or its sections. */
+	let tab = $state("items");
+	const tabItems = $derived([
+		{ id: "items", label: "Items" },
+		{ id: "details", label: dirty ? "Details •" : "Details" },
+		{ id: "sections", label: "Sections" },
+	]);
+	// Another menu opens on its items.
+	$effect(() => {
+		void menuId;
+		tab = "items";
+	});
 	const canSave = $derived(!saving && Boolean(draft.name.trim()) && (isNew || dirty));
 	const popupOptions = $derived([
 		{ value: "", label: "None" },
@@ -237,6 +249,12 @@
 <EditorBackBar label="Menus" onback={back} />
 <div class="page scrollbar-fade">
 	<PageHeader eyebrow="Menu" {title} {subtitle} />
+	{#if menu && !error}
+		<!-- One part at a time, like the other editors' tabs: the page was three long parts in a row. -->
+		<div class="tabs">
+			<Segmented bind:value={tab} items={tabItems} tone="soft" size="sm" ariaLabel="Menu sections" />
+		</div>
+	{/if}
 
 	{#if error}
 		<EmptyState tone="error" title="Couldn't load this menu" text={error}>
@@ -247,12 +265,13 @@
 	{:else if loading && !menu && !isNew}
 		<Skeleton rows={5} lines={1} label="Loading the menu…" />
 	{:else}
-		{#if menu}
+		{#if menu && tab === "items"}
 			<FormSection title="Items" description="Laid out as on the website. Click an item to change it.">
 				<MenuItemsList chapters={items} menuName={menu.name} onchanged={refreshSections} />
 			</FormSection>
 		{/if}
 
+		{#if !menu || tab === "details"}
 		<Card>
 			<form class="menu-form" novalidate onsubmit={save}>
 				<FormSection title="The menu" description="What it's called, and when guests can order from it.">
@@ -301,7 +320,9 @@
 				<button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
 			</form>
 		</Card>
+		{/if}
 
+		{#if menu && tab === "sections"}
 		<FormSection
 			title="Sections"
 			description="Chapters and their groups, in the order guests see them. The print menu uses the same order."
@@ -312,6 +333,7 @@
 				<p class="muted">Add the menu first, then its sections go here.</p>
 			{/if}
 		</FormSection>
+		{/if}
 	{/if}
 </div>
 {#if !error && !(loading && !menu && !isNew)}
@@ -379,6 +401,17 @@
 		align-content: start;
 	}
 
+	.tabs {
+		margin-top: calc(var(--space-2) * -1);
+		border-bottom: 1px solid var(--border);
+	}
+
+	/* The tab strip is the rule above whichever part shows. */
+	.tabs + :global(.form-section) {
+		padding-top: 0;
+		border-top: 0;
+	}
+
 	.menu-form {
 		display: grid;
 		gap: var(--space-4);
@@ -399,6 +432,16 @@
 	@media (max-width: 900px) {
 		.page {
 			padding-inline: max(var(--page-gutter), 1.125rem);
+		}
+
+		/* Sticks under the top bar while the page scrolls. */
+		.tabs {
+			position: sticky;
+			top: calc(var(--page-gutter) * -1);
+			z-index: 3;
+			margin-inline: calc(max(var(--page-gutter), 1.125rem) * -1);
+			padding-inline: max(var(--page-gutter), 1.125rem);
+			background: var(--ambient), var(--background);
 		}
 
 		.page :global(.card) {
