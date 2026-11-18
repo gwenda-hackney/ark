@@ -50,7 +50,8 @@ export const siteConfig = {
     },
     wifiTerms: {
       title: "Wi-Fi terms · Gwenda",
-      description: "The terms for using Gwenda's free guest Wi-Fi in Hackney Wick.",
+      description:
+        "The terms for using Gwenda's free guest Wi-Fi in Hackney Wick.",
     },
     contact: {
       title: "Contact · Gwenda",
