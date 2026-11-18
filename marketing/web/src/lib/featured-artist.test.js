@@ -13,14 +13,20 @@ import {
 describe("opsArtistEnv", () => {
   it("reads the ops database: the binding, or the D1 API with a Cloudflare token", () => {
     const OPS_DB = {};
-    expect(opsArtistEnv({ OPS_DB, SITE_ENV: "dev" })).toMatchObject({ OPS_DB, SITE_ENV: "dev" });
+    expect(opsArtistEnv({ OPS_DB, SITE_ENV: "dev" })).toMatchObject({
+      OPS_DB,
+      SITE_ENV: "dev",
+    });
     expect(
       opsArtistEnv({
         CLOUDFLARE_API_TOKEN: "cf",
         CLOUDFLARE_ACCOUNT_ID: "acct",
         SANITY_PROJECT_ID: "gwscpagy",
       }),
-    ).toMatchObject({ CLOUDFLARE_API_TOKEN: "cf", SANITY_PROJECT_ID: "gwscpagy" });
+    ).toMatchObject({
+      CLOUDFLARE_API_TOKEN: "cf",
+      SANITY_PROJECT_ID: "gwscpagy",
+    });
     expect(opsArtistEnv({})).toBeNull();
   });
 });

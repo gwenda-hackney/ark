@@ -44,7 +44,10 @@ export const CHECKS = {
   },
   async opsArtists(env) {
     const opsEnv = opsArtistEnv(env);
-    if (!opsEnv) throw new Error("No OPS_DB, and no CLOUDFLARE_API_TOKEN to reach the ops database.");
+    if (!opsEnv)
+      throw new Error(
+        "No OPS_DB, and no CLOUDFLARE_API_TOKEN to reach the ops database.",
+      );
     const artists = await listArtists(opsEnv);
     return `${artists.length} artists`;
   },

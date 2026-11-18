@@ -89,7 +89,10 @@ describe("resolveFormNotifyTo", () => {
     ];
     const form = { notifyEmail: "play@gwenda.co.uk" };
     expect(
-      await resolveFormNotifyTo(withRecords({ SITE_ENV: "dev" }, records), form),
+      await resolveFormNotifyTo(
+        withRecords({ SITE_ENV: "dev" }, records),
+        form,
+      ),
     ).toBe("alerts@gwenda.co.uk");
     expect(
       await resolveFormNotifyTo(
