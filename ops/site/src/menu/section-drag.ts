@@ -43,24 +43,8 @@ function scroller(element: HTMLElement): HTMLElement | null {
  * A lifted copy of the section under the pointer while it's dragged, so it's
  * plain what is moving: the section's top, at its own width, tilted a touch.
  */
-/** The first solid background behind an element: the card it sits on. */
-function solidBackground(element: HTMLElement): string {
-	for (let node: HTMLElement | null = element; node; node = node.parentElement) {
-		const colour = getComputedStyle(node).backgroundColor;
-		if (colour && colour !== "transparent" && !/rgba\(.*,\s*0\)$/.test(colour)) {
-			return colour;
-		}
-	}
-	return "transparent";
-}
-
 function liftedCopy(section: HTMLElement, x: number, y: number) {
 	const box = section.getBoundingClientRect();
-	const page =
-		getComputedStyle(document.documentElement).getPropertyValue("--background").trim() ||
-		getComputedStyle(document.body).backgroundColor ||
-		"#111";
-	const card = solidBackground(section);
 	const ghost = section.cloneNode(true) as HTMLElement;
 	ghost.removeAttribute("data-section");
 	ghost.classList.remove("dragged", "drop-before", "drop-after");
@@ -79,8 +63,8 @@ function liftedCopy(section: HTMLElement, x: number, y: number) {
 		pointerEvents: "none",
 		opacity: "0.95",
 		borderRadius: "var(--radius-lg)",
-		// The card's colour over the page's, so nothing shows through
-		background: `linear-gradient(${card}, ${card}), ${page}`,
+		// Solid, like a popover, so the page doesn't show through
+		background: "var(--popover, #1a1a1d)",
 		color: getComputedStyle(section).color,
 		outline: "1px solid var(--primary)",
 		boxShadow: "0 18px 40px rgb(0 0 0 / 0.45)",
