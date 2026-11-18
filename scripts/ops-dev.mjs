@@ -11,6 +11,9 @@
  *   npm run ops:dev
  *   npm run ops:prod    debug against PRODUCTION (see below)
  *
+ * OPS_DEV_PORT and OPS_FUNCTIONS_PORT move the app and the Functions off
+ * 5174 and 8788, so an agent can run a branch beside the owner's copy.
+ *
  * Plain `dev` works exactly like hosted ops (Save, Update website) against
  * copies: the dev D1 databases (over the Cloudflare API) and the Gwenda Dev
  * Sanity project (drafts and
@@ -290,12 +293,14 @@ async function main() {
     return child;
   }
 
+  const appPort = process.env.OPS_DEV_PORT || "5174";
+  const functionsPort = process.env.OPS_FUNCTIONS_PORT || "8788";
   // Wrangler (:8788) serves Functions and public/ (the gate, icons); Vite
   // (:5174) serves the live app with HMR and proxies /api to Wrangler.
   console.log(`
 Ops local:
-  SPA (HMR):       http://localhost:5174/
-  Pages + auth:    http://localhost:8788/
+  SPA (HMR):       http://localhost:${appPort}/
+  Pages + auth:    http://localhost:${functionsPort}/
   Auth:            ${
     LIVE
       ? "Google sign-in + ops users list (same as production)"
@@ -305,7 +310,11 @@ Ops local:
 
   run(
     "npx",
-    ["wrangler", "pages", "dev", "public", "--ip", "0.0.0.0", "--port", "8788"],
+    [
+      "wrangler", "pages", "dev", "public", "--ip", "0.0.0.0", "--port", functionsPort,
+      // A second copy needs its own debugger port too.
+      ...(functionsPort === "8788" ? [] : ["--inspector-port", String(Number(functionsPort) + 1000)]),
+    ],
     OPS_DIR,
     "wrangler",
   );
