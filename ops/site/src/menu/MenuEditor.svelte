@@ -415,6 +415,13 @@
 		align-content: start;
 	}
 
+	/* A wide screen doesn't stretch the form: everything keeps the items'
+	   width (MenuItemsList's 64rem), left-aligned under the title. */
+	.page > :global(*) {
+		width: 100%;
+		max-width: 64rem;
+	}
+
 	.tabs {
 		margin-top: calc(var(--space-2) * -1);
 		border-bottom: 1px solid var(--border);
