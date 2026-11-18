@@ -536,9 +536,13 @@
 		margin-top: var(--space-3);
 	}
 
-	/* Dragging: the section being moved fades; a bar shows where it lands. */
+	/* Dragging: a copy follows the pointer (section-drag.ts); the section's
+	   own place shows as a dashed gap, and a bar shows where it lands. */
 	.dragged {
-		opacity: 0.45;
+		opacity: 0.35;
+		outline: 1px dashed var(--border-strong, var(--fg-muted));
+		outline-offset: 2px;
+		border-radius: var(--radius-lg);
 	}
 
 	.dragging-any {
@@ -552,10 +556,10 @@
 		position: absolute;
 		left: 0;
 		right: 0;
-		height: 3px;
+		height: 4px;
 		border-radius: 2px;
 		background: var(--primary);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 30%, transparent);
 		pointer-events: none;
 	}
 

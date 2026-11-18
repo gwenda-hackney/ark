@@ -5,7 +5,8 @@
 	 * (InlineEdit). Beside it, a handle to drag it among its siblings (arrow
 	 * keys move it too) and a ⋯ menu: move up or down, add a line, add a
 	 * group, move to another menu, remove. On desktop the handle and ⋯ fade
-	 * in on hover or focus; their room is always kept, so nothing moves. A
+	 * from dim to full on hover or focus (always there, so it is plain a section
+	 * can be dragged); their room is always kept, so nothing moves. A
 	 * phone has no hover, so there they always show.
 	 */
 	import { InlineEdit, OverflowMenu, type OverflowItem } from "../ui";
@@ -159,8 +160,11 @@
 		color: var(--fg-muted);
 		cursor: grab;
 		touch-action: none;
-		opacity: 0;
-		transition: opacity var(--t-fast, 120ms) ease;
+		/* Always there, quietly, so it's plain a section can be dragged */
+		opacity: 0.5;
+		transition:
+			opacity var(--t-fast, 120ms) ease,
+			background var(--t-fast, 120ms) ease;
 	}
 
 	.handle:active {
@@ -169,6 +173,7 @@
 
 	.handle:disabled {
 		cursor: default;
+		opacity: 0;
 	}
 
 	.handle:hover:not(:disabled) {
@@ -189,11 +194,17 @@
 
 	.more {
 		flex-shrink: 0;
-		opacity: 0;
+		opacity: 0.5;
 		transition: opacity var(--t-fast, 120ms) ease;
 	}
 
-	/* Fades in on hover or focus; its room is always there. */
+	/* Brightens on hover or focus, and the section's head lights up as the
+	   thing that moves. */
+	.head:has(.handle:not(:disabled)):hover {
+		border-radius: var(--radius-md);
+		background: var(--surface-2, rgb(255 255 255 / 0.03));
+	}
+
 	.head:hover .handle:not(:disabled),
 	.head:focus-within .handle:not(:disabled),
 	.head:hover .more,

@@ -39,6 +39,44 @@ function scroller(element: HTMLElement): HTMLElement | null {
 	return null;
 }
 
+/**
+ * A lifted copy of the section under the pointer while it's dragged, so it's
+ * plain what is moving: the section's top, at its own width, tilted a touch.
+ */
+function liftedCopy(section: HTMLElement, x: number, y: number) {
+	const box = section.getBoundingClientRect();
+	const ghost = section.cloneNode(true) as HTMLElement;
+	ghost.removeAttribute("data-section");
+	ghost.classList.remove("dragged", "drop-before", "drop-after");
+	ghost.setAttribute("aria-hidden", "true");
+	const offsetX = x - box.left;
+	const offsetY = Math.min(y - box.top, 40);
+	Object.assign(ghost.style, {
+		position: "fixed",
+		left: "0",
+		top: "0",
+		width: `${box.width}px`,
+		maxHeight: "11rem",
+		overflow: "hidden",
+		margin: "0",
+		zIndex: "1000",
+		pointerEvents: "none",
+		opacity: "0.95",
+		borderRadius: "var(--radius-lg)",
+		background: "var(--panel-bg, var(--surface-2))",
+		outline: "1px solid var(--primary)",
+		boxShadow: "0 18px 40px rgb(0 0 0 / 0.45)",
+		maskImage: "linear-gradient(to bottom, #000 70%, transparent)",
+		willChange: "transform",
+	});
+	document.body.append(ghost);
+	const at = (px: number, py: number) => {
+		ghost.style.transform = `translate(${px - offsetX}px, ${py - offsetY}px) rotate(-1deg)`;
+	};
+	at(x, y);
+	return { at, remove: () => ghost.remove() };
+}
+
 export function startSectionDrag(
 	event: PointerEvent,
 	{
@@ -65,6 +103,8 @@ export function startSectionDrag(
 	let y = event.clientY;
 	let at: number | null = null;
 	let frame = 0;
+	const section = siblings()[from];
+	const ghost = section ? liftedCopy(section, x, y) : null;
 
 	const place = () => {
 		at = dropIndex(x, y, siblings().map((el) => el.getBoundingClientRect()));
@@ -84,6 +124,7 @@ export function startSectionDrag(
 	const move = (e: PointerEvent) => {
 		x = e.clientX;
 		y = e.clientY;
+		ghost?.at(x, y);
 		place();
 		if (!frame) frame = requestAnimationFrame(tickScroll);
 	};
@@ -92,6 +133,7 @@ export function startSectionDrag(
 		handle.removeEventListener("pointerup", end);
 		handle.removeEventListener("pointercancel", end);
 		if (frame) cancelAnimationFrame(frame);
+		ghost?.remove();
 		onover(null);
 		if (e.type === "pointerup" && at != null && at !== from && at !== from + 1) {
 			ondrop(orderAfterDrop(ids, from, at));
