@@ -5,6 +5,7 @@ import { applyRuleset, formatDiff, rulesetDiff } from "./rulesets.mjs";
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const RELEASE = JSON.parse(read(".github/rulesets/release.json"));
+const MAIN = JSON.parse(read(".github/rulesets/main.json"));
 
 const desired = {
   name: "Release branch",
@@ -184,5 +185,45 @@ describe("the release ruleset", () => {
     const pr = read(".github/workflows/pr.yml");
     assert.match(pr, /branches: \[main, release\]/);
     assert.match(pr, /^ {4}name: Release checks$/m);
+  });
+});
+
+describe("the main ruleset", () => {
+  const rule = (type) => MAIN.rules.find((r) => r.type === type);
+
+  it("protects main: PRs only, squash-merged, no force pushes, no deletion, no bypass", () => {
+    assert.equal(MAIN.enforcement, "active");
+    assert.deepEqual(MAIN.conditions.ref_name.include, ["refs/heads/main"]);
+    assert.deepEqual(MAIN.bypass_actors, []);
+    assert.ok(rule("deletion") && rule("non_fast_forward"));
+    assert.equal(rule("pull_request").parameters.required_approving_review_count, 0);
+    assert.deepEqual(rule("pull_request").parameters.allowed_merge_methods, ["squash"]);
+  });
+
+  it("lands PRs through a merge queue that squashes, one at a time if need be, without waiting", () => {
+    const queue = rule("merge_queue").parameters;
+    assert.equal(queue.merge_method, "SQUASH");
+    assert.equal(queue.min_entries_to_merge, 1);
+    assert.equal(queue.min_entries_to_merge_wait_minutes, 0);
+    // The queue tests each PR on top of those ahead: no "update branch" needed
+    assert.equal(rule("required_status_checks").parameters.strict_required_status_checks_policy, false);
+  });
+
+  it("requires Release checks, which PR checks also runs for the queue", () => {
+    assert.deepEqual(
+      rule("required_status_checks").parameters.required_status_checks.map((check) => check.context),
+      ["Release checks"],
+    );
+    const pr = read(".github/workflows/pr.yml");
+    assert.match(pr, /^ {2}merge_group:\n {4}types: \[checks_requested\]$/m);
+    assert.match(pr, /^ {4}name: Release checks$/m);
+    // Queue entries don't cancel each other: each has its own ref
+    assert.match(pr, /group: pr-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}/);
+  });
+
+  it("keeps the queue's own branches out of the preview deploys", () => {
+    for (const workflow of [".github/workflows/apps.yml", ".github/workflows/web.yml"]) {
+      assert.match(read(workflow), /branches-ignore:\n\s+- "gh-readonly-queue\/\*\*"/, workflow);
+    }
   });
 });
