@@ -259,7 +259,7 @@ describe("handler", () => {
     );
       expect(page.status).toBe(200);
       const html = await page.text();
-      expect(html).toContain('alt="Gwenda"');
+      expect(html).toContain('alt="Gwenda Social"');
       expect(html).toContain('src="/logo.svg"');
       expect(html).toContain("Cormorant Garamond");
       expect(html).toContain("Enter our world");
