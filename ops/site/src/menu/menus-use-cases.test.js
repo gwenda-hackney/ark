@@ -29,6 +29,9 @@ import {
 } from "../../functions/api/menu/sections/[id].js";
 import { onRequestPost as orderSections } from "../../functions/api/menu/sections/order.js";
 import { onRequestGet as menuWebsiteStatus, onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
+import { onRequestPost as followMenu } from "../../functions/api/menu/website/follow.js";
+import { readState } from "../website/server/site-pending.js";
+import { resetConfigCacheForTests } from "../../../../shared/config.js";
 import { onRequestGet as listMenus, onRequestPost as addMenu } from "../../functions/api/menus/index.js";
 import {
   onRequestDelete as deleteMenu,
@@ -163,6 +166,10 @@ function owner(world) {
     },
     async updateWebsite() {
       return ok(await callApi(world, publishMenu, { method: "POST", path: "/api/menu/publish" }));
+    },
+    /** What Save menu (and Items' saves) do last: the menu after its saves. */
+    async followSaves() {
+      return ok(await callApi(world, followMenu, { method: "POST", path: "/api/menu/website/follow" }));
     },
     /** What a menu's page asks before it offers Update website: what it would change, by menu. */
     async websiteChanges() {
@@ -554,6 +561,63 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     await ops.updateWebsite();
     assert.equal(published(world, "chez-pickle").kind, "bar");
     assert.equal("popupSeries" in published(world, "chez-pickle"), false);
+  });
+
+  it("a saved menu goes on the website by itself, like a saved event, details and all", async () => {
+    const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    const pickles = await ops.item({ name: "Fried pickles", price: "9", sectionId: plates._id, placements: [{ channel: "digital", sectionId: plates._id }] });
+
+    const saved = await ops.followSaves();
+    assert.deepEqual([saved.released, saved.published > 0], [true, true]);
+    const live = (slug) => world.sanity.view("published").find((doc) => doc._type === "menuItem" && doc.name === slug);
+    assert.ok(live("Fried pickles"), "on the website, no Update website pressed");
+    assert.ok(published(world, "small-plates"));
+    assert.deepEqual(await ops.websiteChanges(), { menus: {}, other: 0 });
+
+    // Its details alone (#330), then a drink.
+    await ops.editMenu(dinner, { endsOn: "2026-11-30" });
+    await ops.saveItem(withQuickEdit(await ops.getItem(pickles._id), { name: "Fried pickles", description: "Dill", price: "9" }));
+    await ops.followSaves();
+    const menuDoc = world.sanity.view("published").find((doc) => doc._id === `menu-${dinner.id}`);
+    assert.equal(menuDoc.endsOn, "2026-11-30");
+    assert.equal(live("Fried pickles").description, "Dill");
+    assert.equal((await readState(world.env, "production")).runId ?? null, null, "the website's tick builds /menu once edits are quiet, not each save");
+  });
+
+  it("with website.auto_update off, a saved menu waits on the preview for Update website", async () => {
+    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    resetConfigCacheForTests();
+    const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    await ops.item({ name: "Fried pickles", price: "9", sectionId: plates._id, placements: [{ channel: "digital", sectionId: plates._id }] });
+
+    const saved = await ops.followSaves();
+    assert.deepEqual([saved.released, saved.published], [false, 0]);
+    const named = (view) => world.sanity.view(view).find((doc) => doc._type === "menuItem" && doc.name === "Fried pickles");
+    assert.ok(named("drafts"), "on the preview");
+    assert.equal(named("published"), undefined, "not on the website");
+    const waiting = (await callApi(world, menuWebsiteStatus, { path: "/api/menu/publish" })).data;
+    assert.equal(waiting.follows, false, "the page knows saves wait");
+    assert.ok(waiting.menus[dinner.id] > 0, "the page says it's waiting");
+
+    await ops.updateWebsite();
+    assert.ok(named("published"), "Update website puts it there");
+  });
+
+  it("Update website puts a change to a menu's details alone on the website (#330)", async () => {
+    const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    await ops.item({ name: "Fried pickles", price: "9", sectionId: plates._id, placements: [{ channel: "digital", sectionId: plates._id }] });
+    await ops.updateWebsite();
+    const live = () => world.sanity.view("published").find((doc) => doc._id === `menu-${dinner.id}`);
+    assert.equal(live().endsOn ?? null, null);
+
+    await ops.editMenu(dinner, { endsOn: "2026-11-30", days: ["fri", "sat"] });
+    assert.ok((await ops.websiteChanges()).menus[dinner.id] > 0, "the page says the website doesn't show it");
+    await ops.updateWebsite();
+    assert.deepEqual([live().endsOn, live().days], ["2026-11-30", ["fri", "sat"]]);
+    assert.deepEqual(await ops.websiteChanges(), { menus: {}, other: 0 });
   });
 
   it("a menu's page knows whether the website shows it: what Update website would change, by menu", async () => {

@@ -22,16 +22,29 @@ describe("menuWebsiteStatus: a menu's Update website and what it says beside it"
 		assert.equal(status({ dirty: true }).reason, "Save the menu first");
 	});
 
-	it("has nothing to do when the website shows the menu, or it's on its way", () => {
+	it("has nothing to do when the website shows the menu, or it's being built", () => {
 		assert.deepEqual(status({}), {
 			badge: { label: "On the website", tone: "success", title: "The website shows this menu as saved." },
 			disabled: true,
 			reason: "The website already shows this menu",
 		});
-		const sent = status({ site: { waiting: true, updating: false, failed: false } });
-		assert.deepEqual([sent.badge?.label, sent.disabled, sent.reason], ["Waiting for the website", true, "It's on its way to the website"]);
-		assert.equal(status({ site: { waiting: true, updating: true, failed: false } }).badge?.label, "Updating the website");
-		assert.equal(status({ site: { waiting: true, updating: false, failed: true } }).badge?.tone, "danger");
+		const building = status({ site: { waiting: true, updating: true, failed: false } });
+		assert.deepEqual([building.badge?.label, building.disabled, building.reason], ["Updating the website", true, "It's on its way to the website"]);
+	});
+
+	it("after a save, says it goes on the website by itself, and Update website does it now", () => {
+		const saved = status({ changes: { menus: {}, other: 0, follows: true }, site: { waiting: true, updating: false, failed: false } });
+		assert.deepEqual([saved.badge?.label, saved.disabled], ["Goes on the website by itself", false]);
+		const sent = status({ changes: { menus: {}, other: 0, follows: false }, site: { waiting: true, updating: false, failed: false } });
+		assert.equal(sent.badge?.label, "Waiting for the website");
+		assert.equal(status({ changes: { menus: { 2: 1 }, other: 0, follows: false } }).badge?.label, "Not on the website yet", "saves wait for Update website");
+		const failed = status({ site: { waiting: true, updating: false, failed: true } });
+		assert.deepEqual([failed.badge?.tone, failed.disabled], ["danger", false]);
+	});
+
+	it("is honest that nothing builds by itself while local ops runs", () => {
+		const paused = status({ site: { waiting: true, updating: false, failed: false, paused: true } });
+		assert.deepEqual([paused.badge?.label, paused.disabled], ["Waits while local ops runs", false]);
 	});
 
 	it("waits while it asks, and lets it be pressed when asking failed", () => {
@@ -43,9 +56,10 @@ describe("menuWebsiteStatus: a menu's Update website and what it says beside it"
 describe("menuSiteBuild", () => {
 	it("is waiting only for menu documents", () => {
 		const item = (type: string, kind = "document") => ({ type, kind });
-		assert.deepEqual(menuSiteBuild(null), { waiting: false, updating: false, failed: false });
+		assert.deepEqual(menuSiteBuild(null), { waiting: false, updating: false, failed: false, paused: false });
 		assert.equal(menuSiteBuild({ items: [item("eventSeries")], updating: true, failed: false }).waiting, false);
-		assert.deepEqual(menuSiteBuild({ items: [item("menuItem")], updating: true, failed: false }), { waiting: true, updating: true, failed: false });
+		assert.deepEqual(menuSiteBuild({ items: [item("menuItem")], updating: true, failed: false }), { waiting: true, updating: true, failed: false, paused: false });
+		assert.equal(menuSiteBuild({ items: [item("menu")], updating: false, failed: false, paused: { since: "", by: "" } }).paused, true);
 		assert.equal(menuSiteBuild({ items: [item("menus", "menus")], updating: false, failed: false }).waiting, true);
 	});
 });

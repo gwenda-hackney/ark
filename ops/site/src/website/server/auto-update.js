@@ -1,7 +1,7 @@
 /**
  * Whether what staff save goes on the website by itself (#240): saved
- * events (events/server/website-jobs.js) and opening hours
- * (hours/server/hours-website.js). The setting `website.auto_update` set to
+ * events (events/server/website-jobs.js), opening hours
+ * (hours/server/hours-website.js) and menus (menu/server/menu-website.js). The setting `website.auto_update` set to
  * "off" stops them at the preview, waiting for Update website.
  */
 import { getSetting } from "../../../../../shared/config.js";

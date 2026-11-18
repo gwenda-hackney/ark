@@ -266,6 +266,13 @@ export function publishMenu() {
   }>("/api/menu/publish", { method: "POST" });
 }
 
+/** After menu saves: the menu goes on the website by itself, unless the setting says to wait (`released`). */
+export function followMenuWebsite() {
+  return request<{ missing: string[]; released: boolean; published: number; warnings: string[] }>("/api/menu/website/follow", {
+    method: "POST",
+  });
+}
+
 /** What the menu's Update website would change now, by menu (a menu's page says whether the website shows it). */
 export function getMenuWebsiteChanges() {
   return request<import("../menu/menu-website-status").MenuWebsiteChanges>("/api/menu/publish");

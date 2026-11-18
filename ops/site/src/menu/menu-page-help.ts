@@ -4,11 +4,11 @@ import type { PageHelpTopic } from "../ui/types";
 export const MENU_PAGE_HELP: PageHelpTopic[] = [
 	{
 		title: "Saving",
-		body: "Nothing on this page is written until you press Save menu: item changes, new items, items taken off, sections renamed, added, moved or removed, and the Details. The bar at the bottom says Unsaved changes until then. Leaving the menu with changes asks whether to discard them. Saving doesn't put it on the website: Update website does.",
+		body: "Nothing on this page is written until you press Save menu: item changes, new items, items taken off, sections renamed, added, moved or removed, and the Details. The bar at the bottom says Unsaved changes until then. Leaving the menu with changes asks whether to discard them. Once saved, it goes on the website by itself within about 10 minutes; Update website does it straight away.",
 	},
 	{
 		title: "Update website",
-		body: "Saving doesn't change the website. Update website, at the top, puts every menu on gwenda.co.uk as saved; the menu page shows it in about 2 minutes. Beside it: Not on the website yet (saved changes the website doesn't show), Waiting for the website (sent, the menu page is updating) or On the website. Save the menu first: it can't be pressed with unsaved changes.",
+		body: "A saved menu goes on gwenda.co.uk by itself: within about 10 minutes of the last change, once edits have been quiet. Update website, at the top, does it straight away; the menu page shows it in about 2 minutes. Beside it: Goes on the website by itself (in a few minutes), Updating the website, On the website, or Not on the website yet when saves are set to wait for Update website. Save the menu first: it can't be pressed with unsaved changes.",
 	},
 	{
 		title: "What the marks mean",

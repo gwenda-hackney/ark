@@ -42,6 +42,7 @@
 	import { MENU_PAGE_HELP } from "./menu-page-help";
 	import { apiSavePort } from "./menu-page-save";
 	import { menuSiteBuild, menuWebsiteStatus, type MenuWebsiteChanges } from "./menu-website-status";
+	import { followMenuSaves, publishedToasts } from "./menu-website-follow";
 	import { getSitePendingState, refreshSitePending } from "../website/site-pending.svelte";
 	import { SECTION_KIND_ITEMS, type Menu, type MenuPopupRun, type MenuSection } from "./types";
 
@@ -118,8 +119,8 @@
 	async function checkWebsite() {
 		checkingWebsite = true;
 		try {
-			const { menus: byMenu, other } = await api.getMenuWebsiteChanges();
-			websiteChanges = { menus: byMenu || {}, other: other || 0 };
+			const { menus: byMenu, other, follows } = await api.getMenuWebsiteChanges();
+			websiteChanges = { menus: byMenu || {}, other: other || 0, follows };
 		} catch {
 			websiteChanges = null;
 		} finally {
@@ -135,20 +136,7 @@
 		try {
 			const data = await api.publishMenu();
 			putOpen = false;
-			for (const warning of data.warnings || []) toast.info(warning);
-			const missing = data.sync?.missing || [];
-			if (missing.length) {
-				toast.error(`${missing.length} need a menu section before they can go on the website: ${missing.join(", ")}.`);
-			}
-			if (!data.published) {
-				if (!missing.length) toast.ok("The website already shows this menu.");
-			} else {
-				toast.ok(
-					data.building
-						? "Menu on the website. The menu page shows it in about 2 minutes."
-						: "Menu on the website. The menu page shows it after the next website update.",
-				);
-			}
+			publishedToasts(data);
 			await refreshSitePending();
 			void checkWebsite();
 		} catch (err) {
@@ -211,6 +199,8 @@
 				return;
 			}
 			const result = await page.save(apiSavePort(menuId));
+			// What was saved goes on the website by itself (or waits, as the setting says).
+			const followed = result.done.length ? await followMenuSaves() : null;
 			try {
 				const data = await api.getMenuPage(menuId);
 				menu = data.menu;
@@ -223,7 +213,8 @@
 				toast.error(err instanceof Error ? `Saved, but couldn't load the menu again: ${err.message}` : "Couldn't load the menu again.");
 			}
 			if (result.failed) toast.error(saveReport(result));
-			else toast.ok("Menu saved. Update website puts it on the website.");
+			else if (followed && !followed.released) toast.ok("Menu saved. Update website puts it on the website.");
+			else toast.ok("Menu saved. It goes on the website by itself in a few minutes.");
 			void checkWebsite();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Couldn't save the menu.");
@@ -239,6 +230,7 @@
 		try {
 			await api.deleteMenu(menu.id);
 			toast.ok(`${menu.name} deleted.`);
+			void followMenuSaves();
 			beginLeave();
 			navigate(menusListPath(), { replace: true, force: true });
 		} catch (err) {
@@ -489,7 +481,7 @@
 	open={putOpen}
 	{putting}
 	error={putError}
-	message="Every menu goes on gwenda.co.uk as saved, for everyone. The menu page shows it in about 2 minutes."
+	message="Every menu goes on gwenda.co.uk as saved, for everyone, now: the menu page shows it in about 2 minutes. Saved menus also go by themselves, a few minutes after the last change."
 	onclose={() => (putOpen = false)}
 	onconfirm={() => void putOnWebsite()}
 />
