@@ -51,7 +51,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Schedule tab",
-		body: "Repeats, Every and On set how often a series runs. For Monthly, a blank Day of month follows the first night. First night can stay blank until it's fixed: the website says to check back soon. Last night is needed once there's a first night. Upcoming nights lists the dates the pattern makes, each with what it changes from the series. For Doesn't repeat, add each night on its own date with Add night. On a night or special event, the date is on Details under the name: changing a night's Date moves that night only.",
+		body: "Repeats, Every and On set how often a series runs. For Monthly, a blank Day of month follows the first night. First night can stay blank until it's fixed: the website says to check back soon. Last night is needed once there's a first night. Upcoming nights shows the dates the pattern makes as a calendar, two months at a time (on a phone, a list by week). Each night shows its time; a night that differs from the series is marked: Added (put in by hand), Own time, Own details (its own name, guest, offer, description or photo) or Skipped. Click a night to edit it. For Doesn't repeat, add each night on its own date with Add night. On a night or special event, the date is on Details under the name: changing a night's Date moves that night only.",
 	},
 	{
 		title: "Night schedule",
