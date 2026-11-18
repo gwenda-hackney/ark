@@ -269,9 +269,12 @@
 <ConfirmDialog {confirm} />
 
 <style>
+	/* A menu of one chapter takes the page's width, up to a readable line;
+	   two or more sit side by side when there's room. */
 	.chapters {
+		max-width: 64rem;
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
 		gap: var(--space-3);
 		align-items: start;
 	}
@@ -358,12 +361,10 @@
 		font-weight: 500;
 	}
 
+	/* The whole line, as guests read it. */
 	.description {
 		font-size: var(--text-sm);
 		color: var(--fg-muted);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 
 	.price {
