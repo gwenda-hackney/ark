@@ -148,15 +148,22 @@
 		color: var(--subtle-foreground);
 	}
 
+	/*
+	 * Editing looks like hovering, plus a gold edge: the same box, the same
+	 * colour and weight of text, the same background. No ring outside the box
+	 * and no change of size, so nothing on the page moves (controls never
+	 * move). An input's height is set the same as one line of the button's,
+	 * since browsers size inputs their own way.
+	 */
 	.inline-edit-input {
-		border-color: var(--input);
-		background: var(--sunken);
-		color: var(--field-foreground);
+		appearance: none;
+		height: calc(1lh + 0.25rem + 2px);
+		border-color: var(--ring);
+		background: var(--surface-2);
 		outline: none;
 	}
 
-	.inline-edit-input:focus {
-		border-color: var(--ring);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 35%, transparent);
+	.inline-edit {
+		min-height: calc(1lh + 0.25rem + 2px);
 	}
 </style>
