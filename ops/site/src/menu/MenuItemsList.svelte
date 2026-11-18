@@ -611,9 +611,10 @@
 		display: grid;
 	}
 
+	/* The pencil and bin sit on the name's line, level with the price. */
 	.row {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		border-radius: var(--radius-md);
 	}
 
@@ -664,8 +665,12 @@
 		flex-shrink: 0;
 		display: inline-grid;
 		place-items: center;
-		width: 2rem;
-		height: 2rem;
+		width: 1.75rem;
+		height: 1.75rem;
+		/* Centred on the name's first line: the item's top padding, plus half
+		   a line, less half the button. */
+		margin-top: calc(var(--space-2) + 0.5lh - 0.875rem);
+		font-size: var(--text-sm);
 		border: 0;
 		border-radius: var(--radius-md);
 		background: none;
