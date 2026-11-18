@@ -22,7 +22,12 @@ import {
 import { menuItemPayload } from "./item-payload.ts";
 import { offMenu, withQuickEdit } from "./menu-page-items.ts";
 import { onRequestPost as createSection } from "../../functions/api/menu/sections.js";
-import { onRequestPatch as editSection } from "../../functions/api/menu/sections/[id].js";
+import {
+  onRequestDelete as deleteSection,
+  onRequestGet as sectionRemoval,
+  onRequestPatch as editSection,
+} from "../../functions/api/menu/sections/[id].js";
+import { onRequestPost as orderSections } from "../../functions/api/menu/sections/order.js";
 import { onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
 import { onRequestGet as listMenus, onRequestPost as addMenu } from "../../functions/api/menus/index.js";
 import {
@@ -95,6 +100,28 @@ function owner(world) {
         body,
       });
       return status === 200 ? ok(res).section : refused(res, status);
+    },
+    /** Drag a section, or Move up/down in its ⋯ menu: the siblings in their new order. */
+    async orderSections(sections, status = 200) {
+      const res = await callApi(world, orderSections, {
+        method: "POST",
+        path: "/api/menu/sections/order",
+        body: { ids: sections.map((section) => section._id) },
+      });
+      return status === 200 ? ok(res) : refused(res, status);
+    },
+    /** What Remove section will say before it asks. */
+    async sectionRemoval(section) {
+      return ok(await callApi(world, sectionRemoval, { path: `/api/menu/sections/${section._id}`, params: { id: section._id } }))
+        .removal;
+    },
+    async removeSection(section, { withItems = true } = {}, status = 200) {
+      const res = await callApi(world, deleteSection, {
+        method: "DELETE",
+        path: `/api/menu/sections/${section._id}${withItems ? "?with=items" : ""}`,
+        params: { id: section._id },
+      });
+      return status === 200 ? ok(res) : refused(res, status);
     },
     async item(body) {
       return ok(await callApi(world, createItem, { method: "POST", path: "/api/menu", body }), 201).item;
@@ -267,6 +294,76 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
 
     await ops.item({ name: "Onion rings", price: "7", prices: [{ name: "", price: "7" }], sectionId: sides._id });
     assert.deepEqual(await sideNames(food), ["Onion rings"]);
+  });
+
+  it("on a menu's page: rename a section and its line in place, and drag sections into a new order", async () => {
+    const food = await ops.addMenu({ name: "Chez Pickle", kind: "kitchen", popupSeriesId: String(pickle.id) });
+    const burgers = await ops.section("Burgers", { menuId: food.id });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    const dips = await ops.section("Dips", { menuId: food.id });
+    const smash = await ops.section("Smash", { parentId: burgers._id });
+    const veggie = await ops.section("Veggie", { parentId: burgers._id });
+    const formulas = await ops.section("Our Formulas", { menuId: drinks.id });
+    const page = async () =>
+      (await ops.open(food)).items.map((chapter) => [chapter.title, chapter.subtitle, chapter.groups.map((group) => [group.title, group.subtitle])]);
+
+    await ops.editSection(smash, { title: "Smashed" });
+    await ops.editSection(smash, { subtitle: "For a single patty, take off £2.50" });
+    await ops.editSection(burgers, { subtitle: "All day" });
+    assert.deepEqual((await page())[0], ["Burgers", "All day", [["Smashed", "For a single patty, take off £2.50"], ["Veggie", ""]]], "a group keeps its line");
+
+    await ops.orderSections([dips, burgers, sides]);
+    await ops.orderSections([veggie, smash]);
+    assert.deepEqual(
+      (await page()).map(([title, , groups]) => [title, groups.map(([group]) => group)]),
+      [["Dips", []], ["Burgers", ["Veggie", "Smashed"]], ["Sides", []]],
+    );
+    assert.deepEqual((await ops.open(drinks)).items.map((chapter) => chapter.title), ["Our Formulas"], "other menus stay as they were");
+
+    assert.match(await ops.orderSections([dips, burgers], 400), /Reload/, "not every chapter");
+    assert.match(await ops.orderSections([dips, burgers, sides, formulas], 400), /Reload/, "another menu's chapter");
+    assert.match(await ops.orderSections([smash, dips], 400), /Reload/, "a group among chapters");
+  });
+
+  it("on a menu's page: remove a section with its groups; its items come off, and ones on no other menu are deleted", async () => {
+    const food = await ops.addMenu({ name: "Chez Pickle", kind: "kitchen", popupSeriesId: String(pickle.id) });
+    const brunch = await ops.addMenu({ name: "Brunch", kind: "kitchen" });
+    const burgers = await ops.section("Burgers", { menuId: food.id });
+    const smash = await ops.section("Smash", { parentId: burgers._id });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    const extras = await ops.section("Extras", { menuId: brunch.id });
+    const og = await ops.item({ name: "OG Burger", price: "14", sectionId: smash._id, placements: [{ channel: "digital", sectionId: smash._id }] });
+    const special = await ops.item({
+      name: "Special",
+      price: "16",
+      sectionId: burgers._id,
+      placements: [
+        { channel: "digital", sectionId: burgers._id },
+        { channel: "digital", sectionId: extras._id },
+      ],
+    });
+    await ops.item({ name: "Fries", price: "6", sectionId: sides._id, placements: [{ channel: "digital", sectionId: sides._id }] });
+
+    assert.match(await ops.removeSection(burgers, { withItems: false }, 409), /groups/, "plain delete still only takes an empty one");
+    assert.deepEqual(await ops.sectionRemoval(burgers), {
+      id: burgers._id,
+      title: "Burgers",
+      groups: ["Smash"],
+      deleted: ["OG Burger"],
+      takenOff: ["Special"],
+    });
+
+    const removed = await ops.removeSection(burgers);
+    assert.deepEqual([removed.groups, removed.deleted, removed.takenOff], [1, ["OG Burger"], ["Special"]]);
+    assert.deepEqual(
+      (await ops.open(food)).items.map((chapter) => [chapter.title, chapter.items.map((item) => item.name)]),
+      [["Sides", ["Fries"]]],
+    );
+    assert.deepEqual((await ops.open(brunch)).items[0].items.map((item) => item.name), ["Special"], "Special stays on Brunch");
+    const kept = await ops.getItem(special._id);
+    assert.equal(kept.sectionId, extras._id, "its own section is now Brunch's");
+    const gone = await callApi(world, getItem, { path: `/api/menu/${og._id}`, params: { id: og._id } });
+    assert.equal(gone.status, 404, "OG Burger was on no other menu");
   });
 
   it("adds a menu: every day and ongoing unless told otherwise; refuses what makes no sense", async () => {

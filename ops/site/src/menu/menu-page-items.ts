@@ -4,6 +4,7 @@
  * editor has it (api.getItem) and save it the same way (menuItemPayload), so
  * nothing else about it changes.
  */
+import { offMenu as offMenuRule } from "./off-menu.js";
 import type { MenuItem } from "./types";
 
 export type QuickEdit = { name: string; description: string; price: string };
@@ -36,25 +37,8 @@ export function withQuickEdit(item: MenuItem, edit: QuickEdit): MenuItem {
 /**
  * Taking an item off this menu (its sections `here`): its print and website
  * places on it go, the rest stay. `delete` when that leaves it on no menu at
- * all, so the owner is asked to delete it instead.
+ * all. The rule is shared with the server (off-menu.js).
  */
-export function offMenu(
-	item: MenuItem,
-	here: Iterable<string>,
-): { action: "delete" } | { action: "update"; item: MenuItem } {
-	const sections = new Set([...here].map(String));
-	const placements = item.placements || [];
-	const guestElsewhere = placements.filter(
-		(row) => row.channel !== "pos" && row.sectionId && !sections.has(String(row.sectionId)),
-	);
-	const ownElsewhere = Boolean(item.sectionId) && !sections.has(String(item.sectionId));
-	if (!guestElsewhere.length && !ownElsewhere) return { action: "delete" };
-	return {
-		action: "update",
-		item: {
-			...item,
-			sectionId: ownElsewhere ? item.sectionId : String(guestElsewhere[0].sectionId),
-			placements: placements.filter((row) => row.channel === "pos" || !sections.has(String(row.sectionId))),
-		},
-	};
+export function offMenu(item: MenuItem, here: Iterable<string>): { action: "delete" } | { action: "update"; item: MenuItem } {
+	return offMenuRule(item, here);
 }

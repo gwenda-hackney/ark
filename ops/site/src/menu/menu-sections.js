@@ -102,3 +102,46 @@ export function upsertItemInSections(sections, item) {
 
   return insert(without);
 }
+
+/**
+ * Put sibling sections (one menu's chapters, or one chapter's groups) in the
+ * order `ids` gives, dragged or moved on a menu's page. Sections sort by
+ * their order number, so each gets one of the numbers the siblings already
+ * have, smallest first, and the siblings keep their place among every other
+ * section. Siblings that share a number (older data) are numbered from the
+ * smallest up instead. Only the sections whose number changes are returned.
+ * Refuses a list that isn't exactly the siblings.
+ *
+ * @param {{ _id: string; orderRank?: number }[]} siblings
+ * @param {string[]} ids
+ * @returns {{ id: string; orderRank: number }[]}
+ */
+export function planSectionOrder(siblings, ids) {
+  const wanted = (ids || []).map(String);
+  const byId = new Map((siblings || []).map((section) => [String(section._id), section]));
+  if (wanted.length !== byId.size || new Set(wanted).size !== wanted.length || wanted.some((id) => !byId.has(id))) {
+    const error = new Error("Those sections aren't one menu's chapters, or one chapter's groups. Reload and try again.");
+    error.status = 400;
+    throw error;
+  }
+  const numbers = [...byId.values()].map((section) => Number(section.orderRank) || 0).sort((a, b) => a - b);
+  const distinct = new Set(numbers).size === numbers.length;
+  return wanted.flatMap((id, index) => {
+    const orderRank = distinct ? numbers[index] : numbers[0] + index;
+    return (Number(byId.get(id).orderRank) || 0) === orderRank ? [] : [{ id, orderRank }];
+  });
+}
+
+/**
+ * `ids` with the one at `from` moved to `to` (both indexes into `ids`).
+ * @param {string[]} ids
+ * @param {number} from
+ * @param {number} to
+ */
+export function moveId(ids, from, to) {
+  const list = [...ids];
+  if (from < 0 || from >= list.length) return list;
+  const [id] = list.splice(from, 1);
+  list.splice(Math.max(0, Math.min(to, list.length)), 0, id);
+  return list;
+}
