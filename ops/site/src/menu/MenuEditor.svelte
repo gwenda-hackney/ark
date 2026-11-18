@@ -25,6 +25,7 @@
 		Segmented,
 		Skeleton,
 		TextField,
+		UpdateWebsiteDialog,
 	} from "../ui";
 	import { Icon } from "../app/shell";
 	import * as api from "../app/api";
@@ -40,6 +41,8 @@
 	import { MenuPageDraft, saveReport } from "./menu-page-draft.svelte";
 	import { MENU_PAGE_HELP } from "./menu-page-help";
 	import { apiSavePort } from "./menu-page-save";
+	import { menuSiteBuild, menuWebsiteStatus, type MenuWebsiteChanges } from "./menu-website-status";
+	import { getSitePendingState, refreshSitePending } from "../website/site-pending.svelte";
 	import { SECTION_KIND_ITEMS, type Menu, type MenuPopupRun, type MenuSection } from "./types";
 
 	let { path, open = true }: { path: string; /** Whether the menu shows (MenusPage keeps it mounted so it can zoom in and out). */ open?: boolean } = $props();
@@ -95,6 +98,66 @@
 		return new URLSearchParams(location.search).get("popup") || "";
 	}
 
+	// Update website (#305): saving never reaches the website; this puts every menu there.
+	let websiteChanges = $state<MenuWebsiteChanges | null>(null);
+	let checkingWebsite = $state(false);
+	let putOpen = $state(false);
+	let putting = $state(false);
+	let putError = $state("");
+	const website = $derived(
+		menuWebsiteStatus({
+			menuId,
+			dirty: dirty || itemDirty,
+			changes: websiteChanges,
+			checking: checkingWebsite,
+			site: menuSiteBuild(getSitePendingState().production),
+		}),
+	);
+
+	/** What Update website would change now; the page asks again after a save or an update. */
+	async function checkWebsite() {
+		checkingWebsite = true;
+		try {
+			const { menus: byMenu, other } = await api.getMenuWebsiteChanges();
+			websiteChanges = { menus: byMenu || {}, other: other || 0 };
+		} catch {
+			websiteChanges = null;
+		} finally {
+			checkingWebsite = false;
+		}
+	}
+
+	/** The same as Items' Update website: every menu change goes on the website, the menu page builds. */
+	async function putOnWebsite() {
+		if (putting) return;
+		putting = true;
+		putError = "";
+		try {
+			const data = await api.publishMenu();
+			putOpen = false;
+			for (const warning of data.warnings || []) toast.info(warning);
+			const missing = data.sync?.missing || [];
+			if (missing.length) {
+				toast.error(`${missing.length} need a menu section before they can go on the website: ${missing.join(", ")}.`);
+			}
+			if (!data.published) {
+				if (!missing.length) toast.ok("The website already shows this menu.");
+			} else {
+				toast.ok(
+					data.building
+						? "Menu on the website. The menu page shows it in about 2 minutes."
+						: "Menu on the website. The menu page shows it after the next website update.",
+				);
+			}
+			await refreshSitePending();
+			void checkWebsite();
+		} catch (err) {
+			putError = err instanceof Error ? err.message : "Update failed.";
+		} finally {
+			putting = false;
+		}
+	}
+
 	const namesOf = (list: Menu[]) => Object.fromEntries(list.map((entry) => [entry.id, entry.name]));
 
 	async function load(id: string, fresh: boolean) {
@@ -119,6 +182,9 @@
 			popups = data.popups || [];
 			page.load(data.menu.id, menuDraft(data.menu), data.items || [], namesOf(menus));
 			setCrumbLeaf(data.menu.name);
+			websiteChanges = null;
+			void checkWebsite();
+			void refreshSitePending();
 		} catch (err) {
 			error = err instanceof Error ? err.message : "Couldn't load this menu.";
 		} finally {
@@ -157,7 +223,8 @@
 				toast.error(err instanceof Error ? `Saved, but couldn't load the menu again: ${err.message}` : "Couldn't load the menu again.");
 			}
 			if (result.failed) toast.error(saveReport(result));
-			else toast.ok("Menu saved.");
+			else toast.ok("Menu saved. Update website puts it on the website.");
+			void checkWebsite();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Couldn't save the menu.");
 		} finally {
@@ -209,7 +276,7 @@
 	$effect(() => {
 		if (!open || typeof window === "undefined") return;
 		function onKey(e: KeyboardEvent) {
-			if (e.key !== "Escape" || e.defaultPrevented || saving || discardOpen || deleteOpen) return;
+			if (e.key !== "Escape" || e.defaultPrevented || saving || discardOpen || deleteOpen || putOpen) return;
 			if (document.querySelector("[role=dialog], [role=menu], dialog[open]")) return;
 			e.preventDefault();
 			back();
@@ -259,6 +326,29 @@
 {#snippet menuKicker()}
 	<p class="eyebrow">Menu</p>
 	{#if menu}<Badge tone={MENU_STATUS_TONES[menu.status]} label={menu.statusLabel} />{/if}
+	{#if menu && website.badge}<span class="phone-status"><Badge tone={website.badge.tone} label={website.badge.label} title={website.badge.title} /></span>{/if}
+{/snippet}
+
+{#snippet menuTools()}
+	{#if menu}
+		<!-- Beside the button on desktop; under the name's kicker on phones, where the row is short. -->
+		{#if website.badge}<span class="desk-tool"><Badge tone={website.badge.tone} label={website.badge.label} title={website.badge.title} /></span>{/if}
+		<Button
+			variant="primary"
+			size="sm"
+			type="button"
+			disabled={website.disabled || putting}
+			reason={website.reason}
+			title="Put the menus as saved on gwenda.co.uk."
+			onclick={() => {
+				putError = "";
+				putOpen = true;
+			}}
+		>
+			{#snippet icon()}<Icon name="upload" size={14} />{/snippet}
+			Update website
+		</Button>
+	{/if}
 {/snippet}
 
 {#snippet menuTabs()}
@@ -274,6 +364,7 @@
 	dirty={dirty || itemDirty}
 	busy={saving}
 	kicker={menuKicker}
+	tools={menuTools}
 	{heading}
 	placeholder={isNew && !page.details.name.trim()}
 	{subtitle}
@@ -394,6 +485,15 @@
 	onconfirm={() => void remove()}
 />
 
+<UpdateWebsiteDialog
+	open={putOpen}
+	{putting}
+	error={putError}
+	message="Every menu goes on gwenda.co.uk as saved, for everyone. The menu page shows it in about 2 minutes."
+	onclose={() => (putOpen = false)}
+	onconfirm={() => void putOnWebsite()}
+/>
+
 <HelpDrawer {help} />
 
 <style>
@@ -423,7 +523,15 @@
 		border-top: 0;
 	}
 
+	.phone-status {
+		display: none;
+	}
+
 	@media (max-width: 900px) {
+		.phone-status {
+			display: inline-flex;
+		}
+
 		.tab-body {
 			padding: var(--space-4) max(var(--page-gutter), 1.125rem) max(var(--page-gutter), 1.125rem);
 		}

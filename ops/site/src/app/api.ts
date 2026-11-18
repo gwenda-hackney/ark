@@ -266,6 +266,11 @@ export function publishMenu() {
   }>("/api/menu/publish", { method: "POST" });
 }
 
+/** What the menu's Update website would change now, by menu (a menu's page says whether the website shows it). */
+export function getMenuWebsiteChanges() {
+  return request<import("../menu/menu-website-status").MenuWebsiteChanges>("/api/menu/publish");
+}
+
 export function importRecipes(text: string) {
   return request<{ matched?: unknown[]; unmatched?: string[] }>(
     "/api/menu/import",

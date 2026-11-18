@@ -25,7 +25,7 @@
 	import DiscardDialog from "./dialogs/DiscardDialog.svelte";
 	import ReplaceNightDialog from "./dialogs/ReplaceNightDialog.svelte";
 	import ScopeDialog from "./dialogs/ScopeDialog.svelte";
-	import UpdateWebsiteDialog from "./dialogs/UpdateWebsiteDialog.svelte";
+	import UpdateWebsiteDialog from "../ui/UpdateWebsiteDialog.svelte";
 	import { formatDate } from "./event-labels";
 	import { getApprovedArtists, getMe } from "../app/api";
 	import {

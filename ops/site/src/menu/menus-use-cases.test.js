@@ -28,7 +28,7 @@ import {
   onRequestPatch as editSection,
 } from "../../functions/api/menu/sections/[id].js";
 import { onRequestPost as orderSections } from "../../functions/api/menu/sections/order.js";
-import { onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
+import { onRequestGet as menuWebsiteStatus, onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
 import { onRequestGet as listMenus, onRequestPost as addMenu } from "../../functions/api/menus/index.js";
 import {
   onRequestDelete as deleteMenu,
@@ -163,6 +163,11 @@ function owner(world) {
     },
     async updateWebsite() {
       return ok(await callApi(world, publishMenu, { method: "POST", path: "/api/menu/publish" }));
+    },
+    /** What a menu's page asks before it offers Update website: what it would change, by menu. */
+    async websiteChanges() {
+      const { menus, other } = ok(await callApi(world, menuWebsiteStatus, { path: "/api/menu/publish" }));
+      return { menus, other };
     },
   };
 }
@@ -549,6 +554,29 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     await ops.updateWebsite();
     assert.equal(published(world, "chez-pickle").kind, "bar");
     assert.equal("popupSeries" in published(world, "chez-pickle"), false);
+  });
+
+  it("a menu's page knows whether the website shows it: what Update website would change, by menu", async () => {
+    const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    const formulas = await ops.section("Our Formulas", { menuId: drinks.id });
+    const pickles = await ops.item({ name: "Fried pickles", price: "9", sectionId: plates._id, placements: [{ channel: "digital", sectionId: plates._id }] });
+    await ops.item({ name: "Negroni", price: "11", sectionId: formulas._id, placements: [{ channel: "digital", sectionId: formulas._id }] });
+
+    const before = await ops.websiteChanges();
+    assert.ok(before.menus[dinner.id] > 0 && before.menus[drinks.id] > 0, JSON.stringify(before));
+    assert.equal((await ops.websiteChanges()).menus[dinner.id], before.menus[dinner.id], "asking writes nothing");
+
+    await ops.updateWebsite();
+    assert.deepEqual(await ops.websiteChanges(), { menus: {}, other: 0 }, "the website shows every menu");
+
+    // A saved change: only its menu is waiting for Update website.
+    await ops.saveItem(withQuickEdit(await ops.getItem(pickles._id), { name: "Fried pickles", description: "Dill", price: "9" }));
+    assert.deepEqual(await ops.websiteChanges(), { menus: { [dinner.id]: 1 }, other: 0 });
+    await ops.editSection(formulas, { title: "Our formulas" });
+    assert.deepEqual(await ops.websiteChanges(), { menus: { [dinner.id]: 1, [drinks.id]: 1 }, other: 0 });
+    await ops.updateWebsite();
+    assert.deepEqual(await ops.websiteChanges(), { menus: {}, other: 0 });
   });
 
   it("Update website sends each menu with its dates, days and pop-up, and the website shows them by day (#306)", async () => {

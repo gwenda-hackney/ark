@@ -6,8 +6,16 @@ import {
   publishRelease,
 } from "../../../src/website/server/release.js";
 import { readState, updateNow } from "../../../src/website/server/site-pending.js";
+import { MENU_DOC_TYPES as MENU_TYPES, menuWebsiteChanges } from "../../../src/menu/server/menu-website.js";
 
-const MENU_TYPES = new Set(["menuItem", "menuSection"]);
+/**
+ * What Update website would change now, by menu, read without writing
+ * (menu-website.js): { menus: { <menu id>: count }, other }. A menu's page
+ * says from it whether the website shows the menu.
+ */
+export const onRequestGet = withApiHandler(async (context) => {
+  return jsonResponse({ ok: true, ...(await menuWebsiteChanges(context.env)) });
+});
 
 /**
  * The menu's Update website (#42): copy ops' menu to the preview, then put

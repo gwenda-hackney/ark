@@ -1,17 +1,20 @@
 <script lang="ts">
-	/** Confirm putting this event live on gwenda.co.uk. */
-	import { ConfirmDialog } from "../../ui";
+	/** Confirm putting something live on gwenda.co.uk: an event, a menu. */
+	import ConfirmDialog from "./ConfirmDialog.svelte";
 
 	let {
 		open,
 		putting,
-		error,
+		error = "",
+		message = "This version of the event goes on gwenda.co.uk for everyone.",
 		onclose,
 		onconfirm,
 	}: {
 		open: boolean;
 		putting: boolean;
-		error: string;
+		error?: string;
+		/** What goes on the website. */
+		message?: string;
 		onclose: () => void;
 		onconfirm: () => void;
 	} = $props();
@@ -20,7 +23,7 @@
 <ConfirmDialog
 	{open}
 	title="Update the website?"
-	message="This version of the event goes on gwenda.co.uk for everyone."
+	{message}
 	action="Update website"
 	tone="primary"
 	busy={putting}
