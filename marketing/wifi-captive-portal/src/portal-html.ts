@@ -267,6 +267,11 @@ const SHARED_STYLES = `
     font-size: 0.86rem;
     line-height: 1.55;
   }
+  .consent a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
   .error {
     color: var(--error);
     font-size: 0.92rem;
@@ -404,7 +409,7 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
           <span>Send me what’s on at Gwenda<small>Now and then, by email. Unsubscribe anytime.</small></span>
         </label>
         <button type="submit">Enter our world</button>
-        <p class="consent">We use your email for the Wi‑Fi and to contact you about your visit if we need to.</p>
+        <p class="consent">We use your email for the Wi‑Fi and to contact you about your visit if we need to. By connecting you agree to our <a href="https://gwenda.co.uk/wifi-terms" target="_blank" rel="noopener">Wi‑Fi terms</a> and <a href="https://gwenda.co.uk/privacy" target="_blank" rel="noopener">privacy policy</a>.</p>
       </form>
       <script>${BUSY_SCRIPT}</script>
     </div>

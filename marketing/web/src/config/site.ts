@@ -48,6 +48,10 @@ export const siteConfig = {
       description:
         "How Gwenda handles your email and data. Privacy policy for gwenda.co.uk.",
     },
+    wifiTerms: {
+      title: "Wi-Fi terms · Gwenda",
+      description: "The terms for using Gwenda's free guest Wi-Fi in Hackney Wick.",
+    },
     contact: {
       title: "Contact · Gwenda",
       description:

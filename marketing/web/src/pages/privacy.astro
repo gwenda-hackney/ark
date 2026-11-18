@@ -11,14 +11,16 @@ import { siteConfig } from "../config/site";
   showBooking={false}
 >
   <ChartPage class="ch-text" title="Privacy Policy">
-    <p class="ch-caps ch-text-updated" slot="head">Last updated: June 2026</p>
+    <p class="ch-caps ch-text-updated" slot="head">Last updated: November 2026</p>
 
     <section id="who-we-are">
       <h2>Who we are</h2>
       <p>
         {siteConfig.name} is a canalside {siteConfig.publicLabel.toLowerCase()} at
-        {siteConfig.location.address}. This website is operated at{" "}
-        {siteConfig.domain}.
+        {siteConfig.location.address}, run by White Post Partners Ltd (company
+        number 17258295). White Post Partners Ltd is responsible for the personal
+        data described here. For anything about your data, email
+        <a href="mailto:hello@gwenda.co.uk">hello@gwenda.co.uk</a>.
       </p>
     </section>
 
@@ -26,75 +28,124 @@ import { siteConfig } from "../config/site";
       <h2>What we collect</h2>
       <ul>
         <li>
-          <strong>Email address</strong> when you join our list, we store your email
-          to send updates about events and nights at Gwenda.
+          <strong>Mailing list.</strong> When you join our list, here or on our
+          Wi-Fi, we keep your email address and the day you signed up.
         </li>
         <li>
-          <strong>Contact form details</strong> when you apply to play or write via
-          a form on this site (name, contact details, and whatever you choose to tell
-          us). We use that to reply and plan nights.
+          <strong>Guest Wi-Fi.</strong> When you use our Wi-Fi, we keep your email
+          address and the days you first and last connected. Our Wi-Fi system also
+          records your device's network address and when it was online.
         </li>
         <li>
-          <strong>Analytics data</strong> we use Cloudflare Web Analytics to understand
-          how visitors use this site. It does not use cookies.
+          <strong>Forms.</strong> When you apply to play, plan a party or write to
+          us through a form on this site, we keep your name, contact details and
+          whatever you choose to tell us.
+        </li>
+        <li>
+          <strong>Website visits.</strong> We use Cloudflare Web Analytics to see how
+          the site is used. It doesn't use cookies or identify you.
         </li>
       </ul>
     </section>
 
     <section id="how-we-use-your-data">
-      <h2>How we use your data</h2>
-      <p>
-        We use your email to send you information about our events, nights, and
-        offers. You can unsubscribe at any time via the link in any email we
-        send.
-      </p>
-      <p>
-        We process your data on the basis of your consent (email sign-up) and
-        legitimate interest (anonymous site analytics).
-      </p>
+      <h2>How we use it, and why we're allowed to</h2>
+      <ul>
+        <li>
+          <strong>Mailing list:</strong> we email you what's on: nights, events and
+          offers. We do this because you agreed to it. Every email has an
+          unsubscribe link, and you can withdraw at any time.
+        </li>
+        <li>
+          <strong>Guest Wi-Fi:</strong> we use your email to give you access and to
+          contact you about your visit or the Wi-Fi if we need to, for example about
+          something you left behind or a problem with the network. We do this
+          because it's in our legitimate interest to run a safe network and look
+          after our guests. We don't send you marketing unless you tick the box to
+          join our list; leaving it unticked never affects your Wi-Fi.
+        </li>
+        <li>
+          <strong>Forms:</strong> we use what you send to reply and to plan with
+          you, because you asked us to.
+        </li>
+        <li>
+          <strong>Website visits:</strong> anonymous counts, to improve the site,
+          in our legitimate interest.
+        </li>
+      </ul>
+    </section>
+
+    <section id="how-long">
+      <h2>How long we keep it</h2>
+      <ul>
+        <li>Mailing list: until you unsubscribe.</li>
+        <li>Guest Wi-Fi: 12 months after your last visit, then we delete it.</li>
+        <li>Forms: as long as we need them to reply and plan, then we delete them.</li>
+      </ul>
     </section>
 
     <section id="third-parties">
-      <h2>Third parties</h2>
+      <h2>Who helps us</h2>
+      <p>These companies process data for us, only to run these services:</p>
       <ul>
         <li>
-          <strong>Baserow</strong> stores email list sign-ups and contact form submissions
-          (including pending email confirmation) (<a
-            href="https://baserow.io/privacy-policy"
-            target="_blank"
-            rel="noopener">privacy policy</a
-          >)
-        </li>
-        <li>
-          <strong>Cloudflare</strong> — website hosting and cookieless Web Analytics
+          <strong>Cloudflare</strong> hosts this website and the Wi-Fi sign-in, and
+          stores sign-ups, Wi-Fi guests and form submissions
           (<a
             href="https://www.cloudflare.com/privacypolicy/"
             target="_blank"
             rel="noopener">privacy policy</a
           >)
         </li>
+        <li>
+          <strong>Mailchimp</strong> (Intuit) sends our mailing list emails
+          (<a
+            href="https://www.intuit.com/privacy/statement/"
+            target="_blank"
+            rel="noopener">privacy statement</a
+          >)
+        </li>
+        <li>
+          <strong>Ubiquiti</strong> makes our Wi-Fi system (UniFi)
+          (<a
+            href="https://www.ui.com/legal/privacypolicy/"
+            target="_blank"
+            rel="noopener">privacy policy</a
+          >)
+        </li>
+        <li>
+          <strong>Sentry</strong> receives error reports when something on this site
+          breaks, so we can fix it
+          (<a
+            href="https://sentry.io/privacy/"
+            target="_blank"
+            rel="noopener">privacy policy</a
+          >)
+        </li>
       </ul>
       <p>
-        Our website is served through Cloudflare, a US company. Page requests
-        and anonymous analytics data may be processed outside the UK, in line
-        with their privacy policy.
+        Some of these are US companies, so your data may be processed outside the
+        UK, under the safeguards in their privacy policies. We never sell your data.
       </p>
     </section>
 
     <section id="your-rights">
       <h2>Your rights</h2>
       <p>
-        Under UK GDPR you have the right to access, correct, or delete your
-        personal data, and to withdraw consent at any time. Contact us at
-        hello@gwenda.co.uk to make a request.
+        Under UK GDPR you can ask to see, correct or delete your personal data,
+        object to how we use it, and withdraw consent at any time. Email
+        <a href="mailto:hello@gwenda.co.uk">hello@gwenda.co.uk</a>. If you're
+        unhappy with how we handle it, you can complain to the Information
+        Commissioner's Office at <a href="https://ico.org.uk" target="_blank"
+          rel="noopener">ico.org.uk</a>.
       </p>
     </section>
 
     <section id="cookies">
       <h2>Cookies</h2>
       <p>
-        This site does not use analytics cookies. Cloudflare may set essential
-        cookies for security and performance when serving the site.
+        This site doesn't use analytics or advertising cookies. Cloudflare may set
+        essential cookies for security and performance.
       </p>
     </section>
   </ChartPage>
