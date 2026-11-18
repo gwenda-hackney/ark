@@ -26,7 +26,8 @@ import { assertUniqueItemName, itemSlug } from "../item-key.js";
 import { mergeLegacyPrices, mirrorPrices, normalizePrices, parsePriceRows } from "../prices.js";
 import { parsePublishSnapshots } from "../../inventory/server/reconcile.js";
 import { normalizeLightspeedStatus } from "../../inventory/lightspeed-stock.js";
-import { flattenMenuSections, nestMenuSections } from "../menu-sections.js";
+import { flattenMenuSections, nestMenuSections, planSectionOrder } from "../menu-sections.js";
+import { offMenu } from "../off-menu.js";
 import { listPosMenus } from "./pos-menu-store.js";
 import {
   attachPlacements,
@@ -1029,6 +1030,100 @@ export async function deleteMenuSection(env, sectionId) {
   }
   await repo.remove("menu_sections", sectionId);
   return { id: String(sectionId) };
+}
+
+/**
+ * Put sibling sections in the order `ids` gives (a menu's page, dragging or
+ * Move up/down): one menu's chapters, or one chapter's groups. Written in
+ * one go, so the order is never half changed.
+ */
+export async function orderMenuSections(env, ids) {
+  const repo = menuRepository(env);
+  const wanted = Array.isArray(ids) ? ids.map(String) : [];
+  if (!wanted.length) fail(400, "Say which sections, in their new order.");
+  const [records, menus] = await Promise.all([repo.list("menu_sections"), repo.list("menus")]);
+  const { sections, byId } = mappedSections(records, recordsById(menus));
+  const first = byId.get(wanted[0]);
+  if (!first) fail(404, "Section not found.");
+  // Siblings: the same chapter's groups, or the same menu's chapters.
+  const siblings = sections.filter((section) =>
+    first.parentId ? section.parentId === first.parentId : !section.parentId && section.menuId === first.menuId,
+  );
+  const changes = planSectionOrder(siblings, wanted);
+  if (changes.length) {
+    await repo.write(
+      changes.map(({ id, orderRank }) => ({ op: "update", collection: "menu_sections", id: Number(id), fields: { order: orderRank } })),
+    );
+  }
+  return { ids: wanted, changed: changes.length };
+}
+
+/**
+ * What removing a section from its menu takes with it: its groups, and each
+ * item in them, which comes off this menu (off-menu.js). An item on another
+ * menu stays there; one on no other menu is deleted, with its recipe.
+ */
+function sectionRemoval(sections, items, sectionId) {
+  const section = flattenMenuSections(sections).find((entry) => entry._id === String(sectionId));
+  if (!section) fail(404, "Section not found.");
+  const here = new Set([section, ...(section.subsections || [])].map((entry) => entry._id));
+  const inHere = (items || []).filter(
+    (item) =>
+      here.has(String(item.sectionId)) ||
+      (item.placements || []).some((row) => row.channel !== "pos" && here.has(String(row.sectionId))),
+  );
+  const deleted = [];
+  const takenOff = [];
+  for (const item of inHere) {
+    const plan = offMenu(item, here);
+    if (plan.action === "delete") deleted.push(item);
+    else takenOff.push({ item, after: plan.item });
+  }
+  return { section, groups: section.subsections || [], deleted, takenOff };
+}
+
+/** What removing a section would do, for the page to say before it asks. */
+export async function previewSectionRemoval(env, sectionId) {
+  const { sections, items } = await loadMenuTree(env);
+  const { section, groups, deleted, takenOff } = sectionRemoval(sections, items, sectionId);
+  return {
+    id: section._id,
+    title: section.title,
+    groups: groups.map((group) => group.title),
+    deleted: deleted.map((item) => item.name),
+    takenOff: takenOff.map(({ item }) => item.name),
+  };
+}
+
+/**
+ * Remove a section from its menu, with its groups. Its items come off the
+ * menu first: one on another menu keeps its places there (its own section
+ * moves to one of them); one on no other menu is deleted, with its recipe.
+ * One write, so nothing is left half removed.
+ */
+export async function removeMenuSection(env, sectionId) {
+  const { sections, items, repo } = await loadMenuTree(env);
+  const { section, groups, deleted, takenOff } = sectionRemoval(sections, items, sectionId);
+  const changes = [];
+  for (const { item, after } of takenOff) {
+    if (String(after.sectionId) !== String(item.sectionId)) {
+      changes.push({ op: "update", collection: "menu_items", id: Number(item._id), fields: { sectionId: Number(after.sectionId) } });
+    }
+    const kept = new Set((after.placements || []).map((row) => row.id).filter(Boolean));
+    for (const row of item.placements || []) {
+      if (row.id && !kept.has(row.id)) changes.push({ op: "remove", collection: "menu_placements", id: Number(row.id) });
+    }
+  }
+  for (const item of deleted) changes.push({ op: "remove", collection: "menu_items", id: Number(item._id) });
+  for (const group of groups) changes.push({ op: "remove", collection: "menu_sections", id: Number(group._id) });
+  changes.push({ op: "remove", collection: "menu_sections", id: Number(section._id) });
+  await repo.write(changes);
+  return {
+    id: section._id,
+    groups: groups.length,
+    deleted: deleted.map((item) => item.name),
+    takenOff: takenOff.map(({ item }) => item.name),
+  };
 }
 
 function lightspeedMenuFields(patch) {

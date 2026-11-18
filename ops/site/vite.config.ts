@@ -2,14 +2,16 @@ import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { resolve } from "node:path";
 
-const pagesOrigin = "http://127.0.0.1:8788";
+// OPS_DEV_PORT / OPS_FUNCTIONS_PORT (scripts/ops-dev.mjs) let a second copy run beside the usual one.
+const appPort = Number(process.env.OPS_DEV_PORT) || 5174;
+const pagesOrigin = `http://127.0.0.1:${Number(process.env.OPS_FUNCTIONS_PORT) || 8788}`;
 
 // Vite serves the app with HMR and proxies /api, the sign-in gate and the
 // icons to Wrangler (Pages Functions) on :8788.
 
 function rewritePagesLocation(location: string, host: string | undefined) {
   try {
-    const incoming = `http://${host || "localhost:5174"}`;
+    const incoming = `http://${host || `localhost:${appPort}`}`;
     const url = new URL(location, incoming);
     if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
       return `${url.pathname}${url.search}${url.hash}`;
@@ -45,7 +47,7 @@ export default defineConfig({
   plugins: [svelte()],
   root: resolve(import.meta.dirname),
   server: {
-    port: 5174,
+    port: appPort,
     strictPort: true,
     proxy: {
       "/api": pagesProxy(),

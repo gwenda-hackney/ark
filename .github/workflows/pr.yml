@@ -1,7 +1,9 @@
 name: PR checks
 
 # Checks every pull request into main, and the release PR from main into
-# release (#301), for the apps it touches. Website builds and previews come
+# release (#301), for the apps it touches. The merge queue on main runs it
+# again (merge_group) on each PR as it will land, on top of the ones ahead
+# of it, so a PR never needs updating after another merges. Website builds and previews come
 # from the branch push (web.yml branch preview); this workflow adds what
 # nothing else runs: lint, and ops tests and build before merge. No secrets:
 # nothing here talks to Baserow, Sanity or Cloudflare.
@@ -9,9 +11,12 @@ name: PR checks
 on:
   pull_request:
     branches: [main, release]
+  merge_group:
+    types: [checks_requested]
 
 concurrency:
-  group: pr-${{ github.event.pull_request.number }}
+  # A PR's runs replace each other; each queue entry has a branch of its own.
+  group: pr-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -30,9 +35,13 @@ jobs:
       brand: ${{ steps.filter.outputs.brand }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # In the queue, the change is the queue entry against main as it was.
+          fetch-depth: ${{ github.event_name == 'merge_group' && 0 || 1 }}
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.event.merge_group.base_sha }}
           filters: |
             web:
               - 'marketing/web/**'

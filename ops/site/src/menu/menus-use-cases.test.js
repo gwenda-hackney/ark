@@ -22,8 +22,16 @@ import {
 import { menuItemPayload } from "./item-payload.ts";
 import { offMenu, withQuickEdit } from "./menu-page-items.ts";
 import { onRequestPost as createSection } from "../../functions/api/menu/sections.js";
-import { onRequestPatch as editSection } from "../../functions/api/menu/sections/[id].js";
-import { onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
+import {
+  onRequestDelete as deleteSection,
+  onRequestGet as sectionRemoval,
+  onRequestPatch as editSection,
+} from "../../functions/api/menu/sections/[id].js";
+import { onRequestPost as orderSections } from "../../functions/api/menu/sections/order.js";
+import { onRequestGet as menuWebsiteStatus, onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
+import { onRequestPost as followMenu } from "../../functions/api/menu/website/follow.js";
+import { readState } from "../website/server/site-pending.js";
+import { resetConfigCacheForTests } from "../../../../shared/config.js";
 import { onRequestGet as listMenus, onRequestPost as addMenu } from "../../functions/api/menus/index.js";
 import {
   onRequestDelete as deleteMenu,
@@ -96,6 +104,28 @@ function owner(world) {
       });
       return status === 200 ? ok(res).section : refused(res, status);
     },
+    /** Drag a section, or Move up/down in its ⋯ menu: the siblings in their new order. */
+    async orderSections(sections, status = 200) {
+      const res = await callApi(world, orderSections, {
+        method: "POST",
+        path: "/api/menu/sections/order",
+        body: { ids: sections.map((section) => section._id) },
+      });
+      return status === 200 ? ok(res) : refused(res, status);
+    },
+    /** What Remove section will say before it asks. */
+    async sectionRemoval(section) {
+      return ok(await callApi(world, sectionRemoval, { path: `/api/menu/sections/${section._id}`, params: { id: section._id } }))
+        .removal;
+    },
+    async removeSection(section, { withItems = true } = {}, status = 200) {
+      const res = await callApi(world, deleteSection, {
+        method: "DELETE",
+        path: `/api/menu/sections/${section._id}${withItems ? "?with=items" : ""}`,
+        params: { id: section._id },
+      });
+      return status === 200 ? ok(res) : refused(res, status);
+    },
     async item(body) {
       return ok(await callApi(world, createItem, { method: "POST", path: "/api/menu", body }), 201).item;
     },
@@ -136,6 +166,15 @@ function owner(world) {
     },
     async updateWebsite() {
       return ok(await callApi(world, publishMenu, { method: "POST", path: "/api/menu/publish" }));
+    },
+    /** What Save menu (and Items' saves) do last: the menu after its saves. */
+    async followSaves() {
+      return ok(await callApi(world, followMenu, { method: "POST", path: "/api/menu/website/follow" }));
+    },
+    /** What a menu's page asks before it offers Update website: what it would change, by menu. */
+    async websiteChanges() {
+      const { menus, other } = ok(await callApi(world, menuWebsiteStatus, { path: "/api/menu/publish" }));
+      return { menus, other };
     },
   };
 }
@@ -250,6 +289,17 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     const slaw = await ops.item({ name: "Slaw", price: "4", sectionId: sides._id });
     const sideNames = async (menu) => (await ops.open(menu)).items[0].items.map((item) => item.name);
 
+    // The page knows straight away which other menus each item is on: taking one off asks without a wait.
+    const onPage = (await ops.open(food)).items[0].items;
+    assert.deepEqual(
+      onPage.map((item) => [item.name, item.otherMenus]),
+      [
+        ["Fries", ["Brunch"]],
+        ["Slaw", []],
+      ],
+    );
+    assert.deepEqual((await ops.open(brunch)).items[0].items[0].otherMenus, ["Chez Pickle"]);
+
     await ops.saveItem(withQuickEdit(await ops.getItem(fries._id), { name: "Skin-on fries", description: "Rosemary salt", price: "£6.50" }));
     const changed = (await ops.open(food)).items[0].items.find((item) => item.id === fries._id);
     assert.deepEqual([changed.name, changed.description, changed.prices[0].price], ["Skin-on fries", "Rosemary salt", "6.50"]);
@@ -267,6 +317,76 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
 
     await ops.item({ name: "Onion rings", price: "7", prices: [{ name: "", price: "7" }], sectionId: sides._id });
     assert.deepEqual(await sideNames(food), ["Onion rings"]);
+  });
+
+  it("on a menu's page: rename a section and its line in place, and drag sections into a new order", async () => {
+    const food = await ops.addMenu({ name: "Chez Pickle", kind: "kitchen", popupSeriesId: String(pickle.id) });
+    const burgers = await ops.section("Burgers", { menuId: food.id });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    const dips = await ops.section("Dips", { menuId: food.id });
+    const smash = await ops.section("Smash", { parentId: burgers._id });
+    const veggie = await ops.section("Veggie", { parentId: burgers._id });
+    const formulas = await ops.section("Our Formulas", { menuId: drinks.id });
+    const page = async () =>
+      (await ops.open(food)).items.map((chapter) => [chapter.title, chapter.subtitle, chapter.groups.map((group) => [group.title, group.subtitle])]);
+
+    await ops.editSection(smash, { title: "Smashed" });
+    await ops.editSection(smash, { subtitle: "For a single patty, take off £2.50" });
+    await ops.editSection(burgers, { subtitle: "All day" });
+    assert.deepEqual((await page())[0], ["Burgers", "All day", [["Smashed", "For a single patty, take off £2.50"], ["Veggie", ""]]], "a group keeps its line");
+
+    await ops.orderSections([dips, burgers, sides]);
+    await ops.orderSections([veggie, smash]);
+    assert.deepEqual(
+      (await page()).map(([title, , groups]) => [title, groups.map(([group]) => group)]),
+      [["Dips", []], ["Burgers", ["Veggie", "Smashed"]], ["Sides", []]],
+    );
+    assert.deepEqual((await ops.open(drinks)).items.map((chapter) => chapter.title), ["Our Formulas"], "other menus stay as they were");
+
+    assert.match(await ops.orderSections([dips, burgers], 400), /Reload/, "not every chapter");
+    assert.match(await ops.orderSections([dips, burgers, sides, formulas], 400), /Reload/, "another menu's chapter");
+    assert.match(await ops.orderSections([smash, dips], 400), /Reload/, "a group among chapters");
+  });
+
+  it("on a menu's page: remove a section with its groups; its items come off, and ones on no other menu are deleted", async () => {
+    const food = await ops.addMenu({ name: "Chez Pickle", kind: "kitchen", popupSeriesId: String(pickle.id) });
+    const brunch = await ops.addMenu({ name: "Brunch", kind: "kitchen" });
+    const burgers = await ops.section("Burgers", { menuId: food.id });
+    const smash = await ops.section("Smash", { parentId: burgers._id });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    const extras = await ops.section("Extras", { menuId: brunch.id });
+    const og = await ops.item({ name: "OG Burger", price: "14", sectionId: smash._id, placements: [{ channel: "digital", sectionId: smash._id }] });
+    const special = await ops.item({
+      name: "Special",
+      price: "16",
+      sectionId: burgers._id,
+      placements: [
+        { channel: "digital", sectionId: burgers._id },
+        { channel: "digital", sectionId: extras._id },
+      ],
+    });
+    await ops.item({ name: "Fries", price: "6", sectionId: sides._id, placements: [{ channel: "digital", sectionId: sides._id }] });
+
+    assert.match(await ops.removeSection(burgers, { withItems: false }, 409), /groups/, "plain delete still only takes an empty one");
+    assert.deepEqual(await ops.sectionRemoval(burgers), {
+      id: burgers._id,
+      title: "Burgers",
+      groups: ["Smash"],
+      deleted: ["OG Burger"],
+      takenOff: ["Special"],
+    });
+
+    const removed = await ops.removeSection(burgers);
+    assert.deepEqual([removed.groups, removed.deleted, removed.takenOff], [1, ["OG Burger"], ["Special"]]);
+    assert.deepEqual(
+      (await ops.open(food)).items.map((chapter) => [chapter.title, chapter.items.map((item) => item.name)]),
+      [["Sides", ["Fries"]]],
+    );
+    assert.deepEqual((await ops.open(brunch)).items[0].items.map((item) => item.name), ["Special"], "Special stays on Brunch");
+    const kept = await ops.getItem(special._id);
+    assert.equal(kept.sectionId, extras._id, "its own section is now Brunch's");
+    const gone = await callApi(world, getItem, { path: `/api/menu/${og._id}`, params: { id: og._id } });
+    assert.equal(gone.status, 404, "OG Burger was on no other menu");
   });
 
   it("adds a menu: every day and ongoing unless told otherwise; refuses what makes no sense", async () => {
@@ -441,6 +561,86 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     await ops.updateWebsite();
     assert.equal(published(world, "chez-pickle").kind, "bar");
     assert.equal("popupSeries" in published(world, "chez-pickle"), false);
+  });
+
+  it("a saved menu goes on the website by itself, like a saved event, details and all", async () => {
+    const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    const pickles = await ops.item({ name: "Fried pickles", price: "9", sectionId: plates._id, placements: [{ channel: "digital", sectionId: plates._id }] });
+
+    const saved = await ops.followSaves();
+    assert.deepEqual([saved.released, saved.published > 0], [true, true]);
+    const live = (slug) => world.sanity.view("published").find((doc) => doc._type === "menuItem" && doc.name === slug);
+    assert.ok(live("Fried pickles"), "on the website, no Update website pressed");
+    assert.ok(published(world, "small-plates"));
+    assert.deepEqual(await ops.websiteChanges(), { menus: {}, other: 0 });
+
+    // Its details alone (#330), then a drink.
+    await ops.editMenu(dinner, { endsOn: "2026-11-30" });
+    await ops.saveItem(withQuickEdit(await ops.getItem(pickles._id), { name: "Fried pickles", description: "Dill", price: "9" }));
+    await ops.followSaves();
+    const menuDoc = world.sanity.view("published").find((doc) => doc._id === `menu-${dinner.id}`);
+    assert.equal(menuDoc.endsOn, "2026-11-30");
+    assert.equal(live("Fried pickles").description, "Dill");
+    assert.equal((await readState(world.env, "production")).runId ?? null, null, "the website's tick builds /menu once edits are quiet, not each save");
+  });
+
+  it("with website.auto_update off, a saved menu waits on the preview for Update website", async () => {
+    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    resetConfigCacheForTests();
+    const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    await ops.item({ name: "Fried pickles", price: "9", sectionId: plates._id, placements: [{ channel: "digital", sectionId: plates._id }] });
+
+    const saved = await ops.followSaves();
+    assert.deepEqual([saved.released, saved.published], [false, 0]);
+    const named = (view) => world.sanity.view(view).find((doc) => doc._type === "menuItem" && doc.name === "Fried pickles");
+    assert.ok(named("drafts"), "on the preview");
+    assert.equal(named("published"), undefined, "not on the website");
+    const waiting = (await callApi(world, menuWebsiteStatus, { path: "/api/menu/publish" })).data;
+    assert.equal(waiting.follows, false, "the page knows saves wait");
+    assert.ok(waiting.menus[dinner.id] > 0, "the page says it's waiting");
+
+    await ops.updateWebsite();
+    assert.ok(named("published"), "Update website puts it there");
+  });
+
+  it("Update website puts a change to a menu's details alone on the website (#330)", async () => {
+    const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    await ops.item({ name: "Fried pickles", price: "9", sectionId: plates._id, placements: [{ channel: "digital", sectionId: plates._id }] });
+    await ops.updateWebsite();
+    const live = () => world.sanity.view("published").find((doc) => doc._id === `menu-${dinner.id}`);
+    assert.equal(live().endsOn ?? null, null);
+
+    await ops.editMenu(dinner, { endsOn: "2026-11-30", days: ["fri", "sat"] });
+    assert.ok((await ops.websiteChanges()).menus[dinner.id] > 0, "the page says the website doesn't show it");
+    await ops.updateWebsite();
+    assert.deepEqual([live().endsOn, live().days], ["2026-11-30", ["fri", "sat"]]);
+    assert.deepEqual(await ops.websiteChanges(), { menus: {}, other: 0 });
+  });
+
+  it("a menu's page knows whether the website shows it: what Update website would change, by menu", async () => {
+    const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    const formulas = await ops.section("Our Formulas", { menuId: drinks.id });
+    const pickles = await ops.item({ name: "Fried pickles", price: "9", sectionId: plates._id, placements: [{ channel: "digital", sectionId: plates._id }] });
+    await ops.item({ name: "Negroni", price: "11", sectionId: formulas._id, placements: [{ channel: "digital", sectionId: formulas._id }] });
+
+    const before = await ops.websiteChanges();
+    assert.ok(before.menus[dinner.id] > 0 && before.menus[drinks.id] > 0, JSON.stringify(before));
+    assert.equal((await ops.websiteChanges()).menus[dinner.id], before.menus[dinner.id], "asking writes nothing");
+
+    await ops.updateWebsite();
+    assert.deepEqual(await ops.websiteChanges(), { menus: {}, other: 0 }, "the website shows every menu");
+
+    // A saved change: only its menu is waiting for Update website.
+    await ops.saveItem(withQuickEdit(await ops.getItem(pickles._id), { name: "Fried pickles", description: "Dill", price: "9" }));
+    assert.deepEqual(await ops.websiteChanges(), { menus: { [dinner.id]: 1 }, other: 0 });
+    await ops.editSection(formulas, { title: "Our formulas" });
+    assert.deepEqual(await ops.websiteChanges(), { menus: { [dinner.id]: 1, [drinks.id]: 1 }, other: 0 });
+    await ops.updateWebsite();
+    assert.deepEqual(await ops.websiteChanges(), { menus: {}, other: 0 });
   });
 
   it("Update website sends each menu with its dates, days and pop-up, and the website shows them by day (#306)", async () => {

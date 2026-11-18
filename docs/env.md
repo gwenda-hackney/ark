@@ -33,7 +33,7 @@ bw-unlock                                     # the login; persists for this con
 git config user.email you@gwenda.co.uk   # also where your local form emails go
 ```
 
-That's it. `npm run web:dev`, `npm run ops:dev` and the rest now load secrets themselves.
+That's it. `npm run web:dev`, `npm run ops:dev` and the rest now load secrets themselves. `npm run dev` starts the website and ops together (4321, 5174 and 8788); Ctrl+C stops both.
 
 `npm run ops:dev` signs you in as that email without Google (it binds `OPS_LOCAL_SIGN_IN`), as long as it is on the ops users list. Only a local `SITE_ENV=local` run honours it; `npm run ops:prod` and every deployed ops sign in with Google.
 

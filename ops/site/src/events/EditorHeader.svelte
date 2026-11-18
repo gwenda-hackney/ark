@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Icon } from "../app/shell";
-	import { Badge, Button, PageHelp } from "../ui";
+	import { Badge, Button, EditorCardHeader, PageHelp } from "../ui";
 	import { editorHeaderActions } from "./editor-header-actions";
 	import type { OpsEvent } from "../app/api";
 	import { eventPath } from "./event-lists";
@@ -98,7 +98,7 @@
 			: "",
 	);
 	/** The name as typed, or what's being made while it has none. */
-	const title = $derived(
+	const heading = $derived(
 		form.name.trim() ||
 			(isNew ? (creatingOnce ? "New special event" : "New series") : "Untitled"),
 	);
@@ -110,42 +110,42 @@
 	);
 </script>
 
-<header class="panel-head">
-	<!-- One wrapping row: when the buttons don't fit beside the status, they
-	     drop to their own line instead of overlapping it (#43). -->
-	<div class="head-row">
-		<div class="type-line">
-			{#if editingNight}
-				<Icon name="events" size={14} />
-			{/if}
-			<p class="eyebrow">{typeLine}</p>
-			{#if headerFlag.live && pageUrl}
-				<a class="flag-link" href={pageUrl} target="_blank" rel="noopener" title="{headerFlag.title}. Open the page.">
-					<Badge tone={headerFlag.tone} label="{headerFlag.label} ↗" />
-				</a>
-			{:else}
-				<Badge tone={headerFlag.tone} label={headerFlag.label} title={headerFlag.title} />
-			{/if}
-		</div>
-		<div class="head-tools">
-			<div class="toolbar-actions">
-				<!-- Always the same buttons in the same places; ones that don't apply
-				     are disabled with a reason rather than hidden. -->
-				<Button
-					class="desk-tool"
-					variant="outline"
-					size="sm"
-					data-compact
-					aria-label="Update calendar"
-					disabled={actions.calendar.disabled}
-					reason={actions.calendar.reason}
-					busy={calendarSyncing}
-					title="Send the upcoming nights for this series to Google Calendar."
-					onclick={() => onsynccalendar()}
-				>
-					{#snippet icon()}
-						<Icon name="calendar" size={14} />
-					{/snippet}
+{#snippet dateMeta()}
+	<p class="date-readout" class:muted={headerDate === "No date"}>{headerDate}</p>
+{/snippet}
+
+<EditorCardHeader meta={showHeaderDate ? dateMeta : undefined} {onclose} {dirty}>
+	{#snippet kicker()}
+		{#if editingNight}
+			<Icon name="events" size={14} />
+		{/if}
+		<p class="eyebrow">{typeLine}</p>
+		{#if headerFlag.live && pageUrl}
+			<a class="flag-link" href={pageUrl} target="_blank" rel="noopener" title="{headerFlag.title}. Open the page.">
+				<Badge tone={headerFlag.tone} label="{headerFlag.label} ↗" />
+			</a>
+		{:else}
+			<Badge tone={headerFlag.tone} label={headerFlag.label} title={headerFlag.title} />
+		{/if}
+	{/snippet}
+	{#snippet tools()}
+		<!-- Always the same buttons in the same places; ones that don't apply
+		     are disabled with a reason rather than hidden. -->
+			<Button
+				class="desk-tool"
+				variant="outline"
+				size="sm"
+				data-compact
+				aria-label="Update calendar"
+				disabled={actions.calendar.disabled}
+				reason={actions.calendar.reason}
+				busy={calendarSyncing}
+				title="Send the upcoming nights for this series to Google Calendar."
+				onclick={() => onsynccalendar()}
+			>
+				{#snippet icon()}
+					<Icon name="calendar" size={14} />
+	{/snippet}
 					Update calendar
 				</Button>
 				<Button
@@ -177,23 +177,8 @@
 						<Icon name="refresh" size={14} />
 					{/snippet}
 				</Button>
-				<Button
-					class="close-btn"
-					variant="ghost"
-					size="sm"
-					type="button"
-					aria-label={dirty ? "Close with unsaved changes" : "Close"}
-					title={dirty ? "Close (unsaved)" : "Close"}
-					onclick={onclose}
-				>
-					{#snippet icon()}
-						<Icon name="close" size={14} />
-					{/snippet}
-				</Button>
-			</div>
-		</div>
-	</div>
-	<div class="title-name">
+	{/snippet}
+	{#snippet title()}
 		{#if editingNight}
 			<div class="name-line">
 				<p class="night-headline">
@@ -205,19 +190,15 @@
 			{/if}
 		{:else}
 			<div class="name-line">
-				<h1 class="title-text" class:placeholder={!form.name.trim()}>{title}</h1>
+				<h1 class="title-text" class:placeholder={!form.name.trim()}>{heading}</h1>
 			</div>
 			{#if form.artist.trim()}
 				<p class="sub">{form.artist.trim()}</p>
 			{/if}
 		{/if}
-	</div>
-	{#if showHeaderDate}
-		<div class="title-meta">
-			<p class="date-readout" class:muted={headerDate === "No date"}>{headerDate}</p>
-		</div>
-	{/if}
-	{#if editingOccurrence}
+	{/snippet}
+	{#snippet notes()}
+		{#if editingOccurrence}
 		<p class="head-note">
 			{#if parentSeriesName}<span>Part of {parentSeriesName}.</span>{/if}
 			<span>Anything marked From series follows the series until you override it.</span>
@@ -234,7 +215,8 @@
 			never gwenda.co.uk.
 		</p>
 	{/if}
-</header>
+	{/snippet}
+</EditorCardHeader>
 
 <style>
 	.series-link {
@@ -249,96 +231,7 @@
 		text-decoration: underline;
 	}
 
-	.panel-head {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		align-items: start;
-		column-gap: var(--space-3);
-		row-gap: 0.2rem;
-		flex-shrink: 0;
-		padding: 0.55rem var(--card-pad-lg) 0.75rem;
-		border-bottom: 1px solid var(--border);
-	}
-
-	.head-row {
-		grid-column: 1 / -1;
-		grid-row: 1;
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-1) var(--space-3);
-		min-width: 0;
-	}
-
-	.type-line {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		min-width: 0;
-		max-width: 100%;
-		min-height: var(--control-h-sm);
-	}
-
-	.eyebrow {
-		min-width: 0;
-		margin: 0;
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--muted-foreground);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.head-tools {
-		display: flex;
-		align-items: center;
-		margin-left: auto;
-		max-width: 100%;
-	}
-
-	.toolbar-actions {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: flex-end;
-		gap: var(--space-1);
-		min-height: var(--control-h-sm);
-	}
-
-	.head-tools :global(.close-btn) {
-		color: var(--muted-foreground);
-	}
-
-	.help-slot {
-		display: contents;
-	}
-
-	.head-tools :global(.close-btn:hover:not(:disabled)) {
-		color: var(--destructive);
-		background: var(--destructive-wash);
-	}
-
-	.title-name {
-		grid-column: 1;
-		grid-row: 2;
-		display: flex;
-		flex-direction: column;
-		align-items: stretch;
-		gap: 0.15rem;
-		min-width: 0;
-	}
-
-	.name-line {
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: var(--space-2) var(--space-3);
-		min-width: 0;
-	}
+	/* The card's head is EditorCardHeader; these are an event's own parts of it. */
 
 	.night-headline {
 		margin: 0;
@@ -356,34 +249,6 @@
 		font-size: var(--text-md);
 		font-weight: 500;
 		line-height: 1.3;
-	}
-
-	.title-text {
-		margin: 0;
-		min-width: 0;
-		color: var(--foreground);
-		font-family: var(--font-display);
-		font-size: var(--text-2xl);
-		font-weight: 600;
-		letter-spacing: var(--tracking-2xl);
-		line-height: 1.3;
-		overflow-wrap: anywhere;
-	}
-
-	.title-text.placeholder {
-		color: var(--muted-foreground);
-	}
-
-	.title-meta {
-		grid-column: 2;
-		grid-row: 2;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		justify-self: stretch;
-		gap: 0.08rem;
-		padding-top: 0.12rem;
-		min-width: 0;
 	}
 
 	.date-readout {
@@ -443,54 +308,15 @@
 		padding-top: 0.2rem;
 	}
 
-	.sub {
-		margin: 0;
-		font-size: var(--text-base);
-		color: var(--muted-foreground);
-	}
-
 	@media (max-width: 900px) {
-		/* Phones: Update website stays here, beside where the event stands on
-		   the website. Help is in the top bar; Update calendar and Reload are in
-		   the bottom bar's ⋯ with Delete, so there is one toolbar. */
-		.head-tools :global(.close-btn),
-		.head-tools :global(.photo-expand),
-		.head-tools :global(.desk-tool) {
-			display: none;
-		}
-
 		/* Phones: a shorter header. The fields marked From series say the same. */
 		.series-note {
 			display: none;
 		}
-
-		/* Update website beside the status, which wraps onto two lines first. */
-		.head-row {
-			flex-wrap: nowrap;
-		}
-
-		.type-line {
-			flex: 1 1 auto;
-			flex-wrap: wrap;
-			row-gap: var(--space-1);
-		}
-
-		.head-tools {
-			flex: none;
-		}
-
-		.head-note {
-			grid-row: 3;
-		}
-
-		.panel-head {
-			padding-left: max(var(--page-gutter), 1.125rem);
-			padding-right: max(var(--page-gutter), 1.125rem);
-		}
 	}
 
 	@media (max-width: 600px) {
-		.title-text, .date-readout, .night-headline {
+		.date-readout, .night-headline {
 			font-size: var(--text-xl);
 			letter-spacing: var(--tracking-xl);
 		}

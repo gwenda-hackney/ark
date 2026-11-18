@@ -199,6 +199,30 @@ export function deleteSection(id: string) {
   });
 }
 
+/** What removing a section from its menu takes with it: its groups, and its items (deleted, or only taken off). */
+export type SectionRemoval = { id: string; title: string; groups: string[]; deleted: string[]; takenOff: string[] };
+
+export function previewSectionRemoval(id: string) {
+  return request<{ removal: SectionRemoval }>(`/api/menu/sections/${encodeURIComponent(id)}`);
+}
+
+/** Remove a section from its menu with its groups; its items come off the menu (deleted when on no other). */
+export function removeSection(id: string) {
+  return request<Omit<SectionRemoval, "title" | "groups"> & { groups: number }>(
+    `/api/menu/sections/${encodeURIComponent(id)}?with=items`,
+    { method: "DELETE", headers: { "Content-Type": "application/json" } },
+  );
+}
+
+/** One menu's chapters, or one chapter's groups, in their new order. */
+export function orderSections(ids: string[]) {
+  return request<{ ids: string[]; changed: number }>("/api/menu/sections/order", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
 /** One item, as its editor has it. */
 export function getItem(id: string) {
   return request<{ item: import("../menu/types").MenuItem }>(`/api/menu/${encodeURIComponent(id)}`);
@@ -240,6 +264,18 @@ export function publishMenu() {
     building: boolean;
     warnings: string[];
   }>("/api/menu/publish", { method: "POST" });
+}
+
+/** After menu saves: the menu goes on the website by itself, unless the setting says to wait (`released`). */
+export function followMenuWebsite() {
+  return request<{ missing: string[]; released: boolean; published: number; warnings: string[] }>("/api/menu/website/follow", {
+    method: "POST",
+  });
+}
+
+/** What the menu's Update website would change now, by menu (a menu's page says whether the website shows it). */
+export function getMenuWebsiteChanges() {
+  return request<import("../menu/menu-website-status").MenuWebsiteChanges>("/api/menu/publish");
 }
 
 export function importRecipes(text: string) {

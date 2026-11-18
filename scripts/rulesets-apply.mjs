@@ -13,17 +13,14 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { applyRuleset } from "./lib/rulesets.mjs";
+import { applyRuleset, parseApplyArgs } from "./lib/rulesets.mjs";
 
-const args = process.argv.slice(2);
-const dryRun = args.includes("--dry-run");
-const repoAt = args.indexOf("--repo");
-const files = args.filter((arg, i) => !arg.startsWith("--") && i !== repoAt + 1);
+const { dryRun, repo: repoArg, files } = parseApplyArgs(process.argv.slice(2));
 
 const gh = (ghArgs, input) =>
   execFileSync("gh", ghArgs, { encoding: "utf8", input, stdio: ["pipe", "pipe", "inherit"] });
 const repo =
-  (repoAt >= 0 && args[repoAt + 1]) ||
+  repoArg ||
   process.env.GITHUB_REPOSITORY ||
   gh(["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"]).trim();
 const api = (method, path, body) => {
