@@ -18,44 +18,39 @@ export type PortalPageInput = {
 
 const SHARED_STYLES = `
   @font-face {
-    font-family: "Cormorant Garamond";
-    font-style: normal;
+    font-family: "Protest Strike";
+    src: url("/fonts/protest-strike-latin-400-normal.woff2") format("woff2");
     font-weight: 400;
     font-display: swap;
-    src: url("/fonts/cormorant-garamond-latin-400-normal.woff2") format("woff2");
   }
   @font-face {
-    font-family: "Cormorant Garamond";
-    font-style: normal;
-    font-weight: 500;
+    font-family: "Zilla Slab";
+    src: url("/fonts/zilla-slab-latin-400-normal.woff2") format("woff2");
+    font-weight: 400;
     font-display: swap;
-    src: url("/fonts/cormorant-garamond-latin-500-normal.woff2") format("woff2");
   }
   @font-face {
-    font-family: "Cormorant Garamond";
-    font-style: normal;
+    font-family: "Zilla Slab";
+    src: url("/fonts/zilla-slab-latin-600-normal.woff2") format("woff2");
     font-weight: 600;
     font-display: swap;
-    src: url("/fonts/cormorant-garamond-latin-600-normal.woff2") format("woff2");
   }
-  @font-face {
-    font-family: "Lora";
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src: url("/fonts/lora-latin-400-normal.woff2") format("woff2");
-  }
+  /* The website's tokens (marketing/web/src/styles/chart.css). */
   :root {
-    --bg: #0d0d0d;
-    --bg-elevated: #141414;
-    --bg-card: #1a1a1a;
-    --text: #e8e4dc;
-    --muted: #8a8680;
-    --gold: #c9a84c;
-    --gold-dark: #8b6914;
-    --error: #c97a7a;
-    --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
-    --font-body: "Lora", Georgia, "Times New Roman", serif;
+    color-scheme: dark;
+    --bg: #0b0a08;
+    --bg-elevated: #27211a;
+    --bg-card: #1a1510;
+    --text: #e8dfcc;
+    --cream: #f2e8d2;
+    --muted: #c2b79f;
+    --gold: #dba63c;
+    --gold-dark: #8f7646;
+    --red-ink: #e4513f;
+    --rule: rgb(232 223 204 / 0.3);
+    --error: #e4513f;
+    --font-display: "Protest Strike", Impact, "Arial Black", sans-serif;
+    --font-body: "Zilla Slab", Georgia, serif;
     --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -63,24 +58,13 @@ const SHARED_STYLES = `
   body {
     font-family: var(--font-body);
     color: var(--text);
-    background:
-      radial-gradient(ellipse 90% 55% at 50% -18%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 58%),
-      radial-gradient(ellipse 70% 45% at 100% 110%, color-mix(in srgb, #23211b 85%, transparent), transparent 52%),
-      linear-gradient(180deg, #161310 0%, var(--bg) 42%, #0a0908 100%);
+    background: var(--bg) url("/leather.webp") repeat;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 2.25rem 1.25rem;
-  }
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.035;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
   main {
     position: relative;
@@ -89,32 +73,33 @@ const SHARED_STYLES = `
   }
   .logo {
     display: block;
-    width: min(100%, 13.5rem);
+    width: min(70%, 11.5rem);
     height: auto;
     margin: 0 auto 1.85rem;
   }
   .panel {
-    background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-    border: 1px solid color-mix(in srgb, var(--gold) 10%, transparent);
+    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+    border: 1px solid var(--rule);
     padding: 1.85rem 1.5rem 1.55rem;
     text-align: left;
   }
   .eyebrow {
-    font-family: var(--font-display);
-    font-size: 0.75rem;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
     font-weight: 600;
-    letter-spacing: 0.28em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: var(--gold);
-    margin-bottom: 0.85rem;
+    color: var(--red-ink);
+    margin-bottom: 0.6rem;
   }
   h1 {
     font-family: var(--font-display);
-    font-size: clamp(1.85rem, 6vw, 2.35rem);
-    font-weight: 500;
-    letter-spacing: 0.03em;
-    line-height: 1.2;
-    color: var(--text);
+    font-size: clamp(2.1rem, 8vw, 2.6rem);
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 1.05;
+    text-transform: uppercase;
+    color: var(--cream);
   }
   h1::after {
     content: "";
@@ -133,7 +118,7 @@ const SHARED_STYLES = `
   }
   label {
     display: block;
-    font-family: var(--font-display);
+    font-family: var(--font-body);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.18em;
@@ -165,9 +150,9 @@ const SHARED_STYLES = `
     background: var(--gold);
     color: var(--bg);
     font-family: var(--font-display);
-    font-size: 0.95rem;
-    font-weight: 500;
-    letter-spacing: 0.12em;
+    font-size: 1.15rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     padding: 0.95rem 1rem;
     cursor: pointer;
@@ -390,7 +375,7 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
 </head>
 <body>
   <main>
-    <img class="logo" src="/logo.png" width="512" height="320" alt="Gwenda" />
+    <img class="logo" src="/logo.svg" width="3824" height="3376" alt="Gwenda Social" />
     <div class="panel">
       <p class="eyebrow">Guest Wi‑Fi</p>
       <h1>Welcome aboard</h1>
@@ -433,7 +418,7 @@ export function renderSuccessPage(redirectUrl: string): string {
 </head>
 <body>
   <main class="success">
-    <img class="logo" src="/logo.png" width="512" height="320" alt="Gwenda" />
+    <img class="logo" src="/logo.svg" width="3824" height="3376" alt="Gwenda Social" />
     <div class="panel">
       <div class="seal" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6.5" /></svg>
