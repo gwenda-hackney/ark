@@ -20,13 +20,15 @@ One dataset per Sanity project (`production`). Ops and Studio write drafts; ops 
 Every change starts as a GitHub issue and goes through a pull request. Nobody commits straight to `main`.
 
 - **Branch** from `main`: `feat/<issue>-<slug>`, `fix/…`, `chore/…`, `refactor/…`, `test/…`. Pushing it deploys a branch preview of the dev website.
-- **Pull request** into `main`, using the template (`Closes #N`, how it was tested, before/after-deploy notes). [PR checks](workflows/pr.yml) run lint and tests for the website, and tests, type check and build for ops. Merge only when they're green (`main` has no ruleset, so this is by convention). Squash-merge and delete the branch.
+- **Pull request** into `main`, using the template (`Closes #N`, how it was tested, before/after-deploy notes). [PR checks](workflows/pr.yml) run lint and tests for the website, and tests, type check and build for ops. When they're green, the owner adds it to the **merge queue** (Merge when ready): the queue runs PR checks again on the PR as it will land, on top of any queued ahead of it, then squash-merges it and deletes the branch. So a PR never needs updating after another merges.
 - Merge to **`main`** → dev: both dev sites and dev ops deploy, tested against dev data.
 - **Release:** `npm run release:pr` opens (or updates) the release PR from `main` into **`release`**, titled "Release: #a #b …" and listing the PRs going out (`-- --dry-run` only prints it). The owner merges it, and the push to `release` deploys production ops, brand and Workers where their code changed, and prod's preview (release code on drafts) with the deep smoke test. The live site does not change.
 - **Production requires explicit authorization.** Do not merge a release PR or promote to live unless the user clearly asks. Default after changes: merge the PR to **`main`** and verify dev.
 - Run by hand, only from **`release`**:
 - Website: [Web promote](workflows/web-promote.yml) on `release` rebuilds gwenda.co.uk from published documents, and production Studio when its code changed. It does not move `release` or copy content.
 - Ops without a code change: [Apps](workflows/apps.yml) workflow dispatch, app `ops`, target production, branch `release`. Pushing `main` does not update gwenda-ops.
+
+**`main` is protected** by [rulesets/main.json](rulesets/main.json): changes arrive only by PR through the merge queue, which needs **Release checks** (PR checks also runs on the queue's `merge_group` event) and no approval; squash only; no force pushes or deletion; no bypass. The queue tests each PR on its own temporary `gh-readonly-queue/main/…` branch; the Apps and Web workflows skip those branches, so the queue builds no previews.
 
 **`release` is protected** by the ruleset in [rulesets/release.json](rulesets/release.json), applied with `npm run rulesets:apply` (`-- --dry-run` prints the diff): changes arrive only by PR, which needs the **Release checks** job of [PR checks](workflows/pr.yml) and no approval (one maintainer); merge commits only, since a squash or rebase would leave `main` looking unreleased; no force pushes or deletion. No workflow pushes `release` (release tags aren't branch pushes), so nothing bypasses it. Production workflows run by hand also refuse any branch but `release`.
 
