@@ -48,27 +48,40 @@ function byOrder(a, b) {
  * @returns {Map<number, number>} menu id → items
  */
 function itemCounts(sections, items) {
-  const menuOfSection = new Map(flattenMenuSections(sections).map((section) => [section._id, section.menuId]));
+  const menusOf = itemMenus(sections);
   const counts = new Map();
   for (const item of items) {
+    for (const menuId of menusOf(item)) counts.set(Number(menuId), (counts.get(Number(menuId)) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * The menus an item is on (ids): those of its own section and of each of its
+ * print or website placements (off-menu.js counts the same places).
+ * @returns {(item: object) => Set<string>}
+ */
+function itemMenus(sections) {
+  const menuOfSection = new Map(flattenMenuSections(sections).map((section) => [section._id, section.menuId]));
+  return (item) => {
     const sectionIds = new Set([
       item.sectionId,
       ...(item.placements || []).filter((row) => row.channel !== "pos").map((row) => row.sectionId),
     ]);
-    const menus = new Set([...sectionIds].map((id) => menuOfSection.get(String(id))).filter(Boolean));
-    for (const menuId of menus) counts.set(Number(menuId), (counts.get(Number(menuId)) ?? 0) + 1);
-  }
-  return counts;
+    return new Set([...sectionIds].map((id) => menuOfSection.get(String(id))).filter(Boolean).map(String));
+  };
 }
 
 /**
  * A menu's items as the website lays them out: each chapter, in order, with
  * its own items and then each group's. An item is in a section that is its
  * own, or that one of its print or website placements names. Every section
- * is there, empty or not, so an item can be added to it.
+ * is there, empty or not, so an item can be added to it. Each item says
+ * which other menus it is on (`otherMenusOf`, names), so taking it off can
+ * ask, straight away, whether that deletes it.
  * @returns {import("../types").MenuItemChapter[]}
  */
-export function menuItemGroups(chapters, items) {
+export function menuItemGroups(chapters, items, otherMenusOf = () => []) {
   const itemsIn = (section) =>
     items
       .filter(
@@ -82,6 +95,7 @@ export function menuItemGroups(chapters, items) {
         description: item.description || "",
         prices: item.prices || [],
         drinkType: item.drinkType || "",
+        otherMenus: otherMenusOf(item),
       }));
   const block = (section) => ({
     sectionId: section._id,
@@ -163,10 +177,17 @@ export async function getMenu(env, id, { today = londonToday() } = {}) {
   const popupNames = new Map(popups.map((popup) => [popup.id, popup.name]));
   const counts = itemCounts(sections, items);
   const chapters = sections.filter((chapter) => chapter.menuId === String(record.id));
+  const menusOf = itemMenus(sections);
   return {
     menu: mapMenu(record, { today, popupNames, items: counts.get(record.id) ?? 0, chapters: chapters.length }),
     sections: chapters,
-    items: menuItemGroups(chapters, items),
+    items: menuItemGroups(chapters, items, (item) => {
+      const others = [...menusOf(item)].filter((menuId) => menuId !== String(record.id));
+      return menus
+        .filter((menu) => others.includes(String(menu.id)))
+        .sort(byOrder)
+        .map((menu) => text(menu.name));
+    }),
     menus: [...menus].sort(byOrder).map((menu) => mapMenu(menu, { today, popupNames })),
     popups,
   };

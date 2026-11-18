@@ -277,6 +277,17 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     const slaw = await ops.item({ name: "Slaw", price: "4", sectionId: sides._id });
     const sideNames = async (menu) => (await ops.open(menu)).items[0].items.map((item) => item.name);
 
+    // The page knows straight away which other menus each item is on: taking one off asks without a wait.
+    const onPage = (await ops.open(food)).items[0].items;
+    assert.deepEqual(
+      onPage.map((item) => [item.name, item.otherMenus]),
+      [
+        ["Fries", ["Brunch"]],
+        ["Slaw", []],
+      ],
+    );
+    assert.deepEqual((await ops.open(brunch)).items[0].items[0].otherMenus, ["Chez Pickle"]);
+
     await ops.saveItem(withQuickEdit(await ops.getItem(fries._id), { name: "Skin-on fries", description: "Rosemary salt", price: "£6.50" }));
     const changed = (await ops.open(food)).items[0].items.find((item) => item.id === fries._id);
     assert.deepEqual([changed.name, changed.description, changed.prices[0].price], ["Skin-on fries", "Rosemary salt", "6.50"]);

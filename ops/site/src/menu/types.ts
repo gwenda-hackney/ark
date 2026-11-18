@@ -383,7 +383,15 @@ export type Menu = {
   chapterCount: number;
 };
 /** An item as a menu's page lists it. */
-export type MenuPageItem = { id: string; name: string; description: string; prices: PriceRow[]; drinkType: string };
+export type MenuPageItem = {
+  id: string;
+  name: string;
+  description: string;
+  prices: PriceRow[];
+  drinkType: string;
+  /** The other menus it is on, by name: none means taking it off this one deletes it. */
+  otherMenus: string[];
+};
 /** A section on a menu's page (#305), with the items in it. */
 export type MenuItemBlock = { sectionId: string; title: string; subtitle: string; items: MenuPageItem[] };
 /** A chapter on a menu's page: its own items, then each group's, as the website lays them out. */
