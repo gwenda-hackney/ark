@@ -10,9 +10,9 @@ import {
 } from "./lib/logo-renders.mjs";
 
 /**
- * The bottle logo's brand masters (#320), written by scripts/trace-logo.mjs:
- * light enough to hand around, in the logo's own inks only, and filled, so
- * they stand on any background.
+ * The bottle logo's brand masters (#320), written by scripts/trace-logo.mjs,
+ * each traced from a drawing of its own: light enough to hand around, in the
+ * logo's own inks only, with the black see-through.
  */
 const masters = new URL("../marketing/brand/logos/", import.meta.url);
 const file = (name) => new URL(name, masters);
@@ -23,8 +23,25 @@ const INKS = ["#e6d9be", "#cd9f47", "#ba1b1f"];
 const LAYERS = ["cream", "mustard", "red"];
 
 /**
+ * Where each master is see-through, in its own pixels: the record between
+ * two grooves, the hole in its label, the skull's eye.
+ */
+const BLACK = {
+  "gwenda-bottle": [
+    [70, 470],
+    [360, 438],
+    [765, 305],
+  ],
+  "gwenda-bottle-record": [
+    [225, 491],
+    [407, 496],
+    [858, 348],
+  ],
+};
+
+/**
  * An SVG drawn at its own size on nothing: [r, g, b, alpha] at a point given
- * in the original's pixels (the SVG's units are a fraction of one).
+ * in its drawing's pixels (the SVG's units are a fraction of one).
  */
 async function drawn(svg, path) {
   const box = svg
@@ -63,10 +80,8 @@ describe.each(["gwenda-bottle", "gwenda-bottle-record"])("%s", (name) => {
     const ids = [...svg.matchAll(/<g[^>]* id="([^"]+)"/g)].map(([, id]) => id);
     expect(ids).toEqual(LAYERS);
     const at = await drawn(svg, file(`${name}.svg`).pathname);
-    // The record between its grooves, the hole in its label, the skull's eye
-    expect(at(70, 470)[3]).toBe(0);
-    expect(at(360, 438)[3]).toBe(0);
-    expect(at(765, 305)[3]).toBe(0);
+    for (const [x, y] of BLACK[name])
+      expect(at(x, y)[3], `see-through at ${x},${y}`).toBe(0);
   });
 
   it.each(["black", "transparent"])(
@@ -103,77 +118,81 @@ describe("the drawing's frayed edges", () => {
   });
 });
 
+/**
+ * The bottle and record alone is a drawing of its own
+ * (marketing/brand/source/bottle-record-redraw.png), not the full logo with
+ * GWENDA taken off. Points are in the master's own pixels.
+ */
 describe("the bottle and record alone", () => {
-  const svg = readFileSync(file("gwenda-bottle-record.svg"), "utf8");
-  const cream = [0xe6, 0xd9, 0xbe, 255];
+  const path = file("gwenda-bottle-record.svg").pathname;
+  const svg = readFileSync(path, "utf8");
+  const [cream, mustard, red] = [
+    [0xe6, 0xd9, 0xbe, 255],
+    [0xcd, 0x9f, 0x47, 255],
+    [0xba, 0x1b, 0x1f, 255],
+  ];
 
-  it("leaves GWENDA off", async () => {
-    const [full, bottle] = await Promise.all(
-      ["gwenda-bottle", "gwenda-bottle-record"].map((name) =>
-        sharp(file(`${name}.svg`).pathname).metadata(),
-      ),
-    );
-    expect(bottle.width).toBe(full.width);
-    // The record's front and its drips reach a little way into where the
-    // letters stood; nothing goes further
-    expect(bottle.height).toBeLessThan(full.height * 0.86);
-    const at = await drawn(svg, file("gwenda-bottle-record.svg").pathname);
-    for (const [x, y] of [
-      [200, 690],
-      [450, 690],
-      [600, 660],
-      [760, 600],
-    ])
-      expect(at(x, y)[3], `clear at ${x},${y}`).toBe(0);
+  it("is cut to its art, with a small margin round it", async () => {
+    const { data, info } = await sharp(path)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let [left, top, right, bottom] = [info.width, info.height, 0, 0];
+    for (let p = 0; p < info.width * info.height; p++) {
+      if (data[p * 4 + 3] < 128) continue;
+      const [x, y] = [p % info.width, Math.floor(p / info.width)];
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x + 1);
+      bottom = Math.max(bottom, y + 1);
+    }
+    // The drawing's canvas is 1254 square: the master is its art and 8px
+    expect(info.width).toBeLessThan(1150);
+    expect(info.height).toBeLessThan(900);
+    for (const room of [left, top, info.width - right, info.height - bottom]) {
+      expect(room).toBeGreaterThanOrEqual(6);
+      expect(room).toBeLessThanOrEqual(10);
+    }
   });
 
-  it("has a whole record: a deep front edge, well under the label, drawn as a line", async () => {
-    const at = await drawn(svg, file("gwenda-bottle-record.svg").pathname);
-    // The rim line: left of the middle, right of it, and where it comes up
-    // under the end of the pour
+  it("is see-through where the drawing is black", async () => {
+    const at = await drawn(svg, path);
+    // A corner, the air over the record, under the drips; the bottle's label
+    // panel, a second gap between grooves
     for (const [x, y] of [
-      [200, 640],
-      [290, 648],
-      [450, 640],
-      [590, 596],
-    ])
-      expect(at(x, y), `rim at ${x},${y}`).toEqual(cream);
-    // Two of the grooves' lines along it
-    for (const [x, y] of [
-      [230, 626],
-      [440, 623],
-    ])
-      expect(at(x, y), `groove at ${x},${y}`).toEqual(cream);
-    // The record itself is see-through between its lines, and under its rim
-    for (const [x, y] of [
-      [290, 619],
-      [460, 610],
-      [300, 590],
-      [200, 680],
-      [450, 680],
+      [5, 11],
+      [215, 151],
+      [615, 841],
+      [815, 411],
+      [225, 491],
     ])
       expect(at(x, y)[3], `see-through at ${x},${y}`).toBe(0);
   });
 
-  it("has the pour run down the record's front and drip from its new edge", async () => {
-    const at = await drawn(svg, file("gwenda-bottle-record.svg").pathname);
-    // Two streams end in a point on the front; drips hang from the rim under
-    // the pour's end, under two streams, and under the melt on the left
+  it("has the record's rim, a groove, the skull and the three drips in cream", async () => {
+    const at = await drawn(svg, path);
+    // The rim on the left and at the front; a groove; the skull's forehead
     for (const [x, y] of [
-      [240, 600],
-      [400, 600],
-      [646, 592],
-      [522, 654],
-      [348, 686],
-      [128, 650],
+      [40, 541],
+      [215, 696],
+      [177, 491],
+      [880, 291],
     ])
-      expect(at(x, y), `pour at ${x},${y}`).toEqual(cream);
-    // Where the pour ran on under the bottle to the A: clear
+      expect(at(x, y), `cream at ${x},${y}`).toEqual(cream);
+    // The drips, left to right: the long one, the short one, the last
     for (const [x, y] of [
-      [760, 490],
-      [700, 520],
+      [563, 811],
+      [660, 756],
+      [770, 776],
     ])
-      expect(at(x, y)[3], `clear at ${x},${y}`).toBe(0);
+      expect(at(x, y), `drip at ${x},${y}`).toEqual(cream);
+  });
+
+  it("has the label in mustard and the streak in the pour in red", async () => {
+    const at = await drawn(svg, path);
+    expect(at(335, 501)).toEqual(mustard);
+    expect(at(505, 501)).toEqual(mustard);
+    expect(at(450, 291)).toEqual(red);
   });
 });
 

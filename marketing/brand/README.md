@@ -12,8 +12,8 @@ brand/
 │   ├── gwenda-bottle-record.svg   ← bottle and record only (Instagram)
 │   └── <name>-1080-black.png / -transparent.png  ← 1080×1080 posts
 ├── source/               ← what the masters are drawn from
-│   ├── bottle-original.png        ← the original raster: only ever traced
-│   └── bottle-record-front.svg    ← the record's front without GWENDA, drawn by hand
+│   ├── bottle-original.png        ← the full logo's drawing: only ever traced
+│   └── bottle-record-redraw.png   ← the bottle and record's own drawing: only ever traced
 └── src/
     ├── index.html        ← published at brand.gwenda.co.uk
     ├── logo.png          ← primary gold wordmark (dark backgrounds)
@@ -25,15 +25,13 @@ brand/
 
 ## Bottle logo
 
-The SVG masters in `logos/` are the logo: one drawing for everywhere it shows. `scripts/trace-logo.mjs` traces them from `source/bottle-original.png` (the clean-up rules, inks and specks, are in that script), and draws every other file from them:
+The SVG masters in `logos/` are the logo, for everywhere it shows. `scripts/trace-logo.mjs` traces each from a drawing of its own in `source/` (the clean-up rules, inks and specks, are in that script): the full logo from `bottle-original.png`, the bottle and record alone from `bottle-record-redraw.png`, which is cut to its art. Both come out in the logo's three inks. The script draws every other file from the masters:
 
 - the 1080×1080 posts beside them;
-- the website's `marketing/web/src/assets/images/logos/bottle.png` (menu panel, bar) and `bottle-hero-<width>.webp` (home's hero);
-- the emails' `marketing/web/public/brand/logo-email-social.png`, with SOCIAL under it.
+- from the full logo, the website's `marketing/web/src/assets/images/logos/bottle.png` (menu panel, bar) and `bottle-hero-<width>.webp` (home's hero);
+- from the full logo, the emails' `marketing/web/public/brand/logo-email-social.png`, with SOCIAL under it.
 
-Run `npm run brand:logo` from the repo root when the original or a drawing changes, and commit what it writes: the files are assets like any other, and nothing is traced or drawn when the site is built or deployed. `scripts/trace-logo.test.mjs` fails while a committed file is not its master's drawing.
-
-In the full logo the pour runs down into GWENDA and hides the record's front. Without the letters the record is whole, and its front is drawn by hand in `source/bottle-record-front.svg`: a deep, round front edge that carries on from the melt on the left, its rim and grooves as line work, and the pour's streams running down across it and dripping over the edge. Open that file in a browser to see it over the original; change its paths in a drawing tool (units are the original's pixels), then run `npm run brand:logo`.
+Run `npm run brand:logo` from the repo root when a drawing changes, and commit what it writes: the files are assets like any other, and nothing is traced or drawn when the site is built or deployed. `scripts/trace-logo.test.mjs` fails while a committed file is not its master's drawing.
 
 The drawing's black is see-through, as in the original: the logo takes whatever it lies on, so put it on black (the `-1080-black` posts are on the site's `#0b0a08`) or a dark photo. Each SVG has three named layers, bottom to top: `cream`, `mustard`, `red`.
 
