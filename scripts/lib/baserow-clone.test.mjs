@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import {
+  DATABASES,
   ROW_BATCH,
   baserowRequest,
   copyRows,
+  findDatabase,
   retryDelayMs,
 } from "./baserow-clone.mjs";
 
@@ -189,5 +191,32 @@ describe("copyRows", () => {
       ),
       /asked Baserow for 1 rows, it made 0/,
     );
+  });
+});
+
+describe("findDatabase", () => {
+  const request = async (_base, _jwt, path) => {
+    if (path === "/api/workspaces/") return [{ id: 1, name: "Gwenda" }, { id: 2, name: "Gwenda Dev" }];
+    if (path === "/api/applications/workspace/1/") return [{ id: 461843, type: "database", name: "Website" }];
+    if (path === "/api/applications/workspace/2/") return [{ id: 900, type: "database", name: "Website" }];
+    throw new Error(`unexpected ${path}`);
+  };
+
+  it("finds each environment's own database", async () => {
+    const dev = await findDatabase({ apiBase: "x", jwt: "j", key: "website", env: "dev", request });
+    assert.deepEqual(dev, { workspaceId: "2", databaseId: "900", label: "Gwenda Dev / Website" });
+    const production = await findDatabase({ apiBase: "x", jwt: "j", key: "website", env: "production", request });
+    assert.equal(production.label, "Gwenda / Website");
+  });
+
+  it("refuses a database an environment doesn't have", async () => {
+    await assert.rejects(findDatabase({ key: "ops", env: "staging" }), /no ops database in staging/);
+  });
+
+  it("maps every environment for each database, each in its own workspace", () => {
+    for (const key of ["website", "ops", "config"]) {
+      assert.deepEqual(Object.keys(DATABASES[key]), ["dev", "production"]);
+      assert.notEqual(DATABASES[key].dev[0], DATABASES[key].production[0]);
+    }
   });
 });

@@ -430,3 +430,41 @@ export async function copyRows(
   }
   return idMap;
 }
+
+/** Each environment's Baserow databases, as [workspace, database] names. */
+export const DATABASES = {
+  website: {
+    dev: ["Gwenda Dev", "Website"],
+    production: ["Gwenda", "Website"],
+  },
+  ops: {
+    dev: ["Gwenda Dev", "Gwenda Ops"],
+    production: ["Gwenda", "Gwenda Ops"],
+  },
+  config: {
+    dev: ["Gwenda Dev", "Gwenda Config"],
+    production: ["Gwenda", "Gwenda Config"],
+  },
+};
+
+/**
+ * Find an environment's database by workspace + database name (needs a user
+ * JWT; database tokens cannot read names). Ids are never configured.
+ * @returns {Promise<{ workspaceId: string, databaseId: string, label: string }>}
+ */
+export async function findDatabase({ apiBase, jwt, key, env, request = jwtRequest }) {
+  const names = DATABASES[key]?.[env];
+  if (!names) throw new Error(`There is no ${key} database in ${env}.`);
+  const [workspaceName, databaseName] = names;
+  const workspaces = await request(apiBase, jwt, "/api/workspaces/");
+  const workspace = (workspaces || []).find((ws) => ws.name === workspaceName);
+  if (!workspace) throw new Error(`Baserow workspace "${workspaceName}" not found.`);
+  const apps = await request(apiBase, jwt, `/api/applications/workspace/${workspace.id}/`);
+  const database = (apps || []).find((a) => a.type === "database" && a.name === databaseName);
+  if (!database) throw new Error(`Database "${databaseName}" not found in "${workspaceName}".`);
+  return {
+    workspaceId: String(workspace.id),
+    databaseId: String(database.id),
+    label: `${workspaceName} / ${databaseName}`,
+  };
+}

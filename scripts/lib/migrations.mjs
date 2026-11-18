@@ -1,27 +1,26 @@
 /**
- * Deploy migrations: changes to data the apps share (Baserow schema, config
- * rows) that a code change depends on. Expand/contract:
+ * Deploy migrations: changes to data the apps share (D1 rows, config,
+ * Sanity content) that a code change depends on. Expand/contract:
  *
- *   pre   runs before the app deploys. Only adds (a column, a table), so the
- *         code still running keeps working next to the new code.
+ *   pre   runs before the app deploys. Only adds, so the code still running
+ *         keeps working next to the new code.
  *   post  runs after the app is live. Removes what only the old code used.
  *
  * Each migration is a file in migrations/ (run in filename order):
  *
- *   export const app = "web";          // whose deploy runs it: "web" | "ops"
- *   export const phase = "pre";        // "pre" | "post"
- *   export const about = "Form Submissions: Edit Link column";
- *   export async function up({ env, database, d1, sanity, processEnv, log, dryRun }) {
- *     const website = await database("website");
- *     log(await website.ensureField("Form Submissions", { name: "Edit Link", type: "url" }));
+ *   export const app = "ops";          // whose deploy runs it: "web" | "ops"
+ *   export const phase = "post";       // "pre" | "post"
+ *   export const about = "Events: one Happy Hour";
+ *   export async function up({ env, d1, sanity, processEnv, log, dryRun }) {
+ *     const ops = await d1("ops");
+ *     ...
  *   }
  *
- * `database(key)` changes this environment's Baserow; `d1(role)` is its D1
- * database ("ops" | "website" | "config", shared/d1.js helpers apply; schema
- * changes go in db/<role>/migrations/*.sql instead); `sanity()` its Sanity
- * content. Both note changes to what the website build reads (published
- * documents, the tables in SITE_BUILD_TABLES): the site was built before the
- * post migrations, so CI then rebuilds it from the migrated data.
+ * `d1(role)` is this environment's D1 database ("ops" | "website" | "config",
+ * shared/d1.js helpers apply; schema changes go in db/<role>/migrations/*.sql
+ * instead); `sanity()` its Sanity content, which notes changes to published
+ * documents: the site was built before the post migrations, so CI then
+ * rebuilds it from the migrated data.
  *
  * `dryRun` (migrate.mjs --dry-run) asks a migration to report what it would
  * do and change nothing; a migration that changes data supports it.
@@ -34,33 +33,12 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { TABLE_ARTISTS } from "../../shared/baserow.js";
 import { DEV_SANITY_PROJECT_ID, REAL_SANITY_PROJECT_ID } from "../../shared/sanity-projects.js";
-import { jwtRequest } from "./baserow-clone.mjs";
 
 export const PHASES = ["pre", "post"];
 export const APPS = ["web", "ops"];
 /** Dev mirrors production; there is no staging environment. */
 export const ENVS = ["dev", "production"];
-
-/** Each environment's Baserow databases, as [workspace, database] names. */
-export const DATABASES = {
-  website: {
-    dev: ["Gwenda Dev", "Website"],
-    production: ["Gwenda", "Website"],
-  },
-  ops: {
-    dev: ["Gwenda Dev", "Gwenda Ops"],
-    production: ["Gwenda", "Gwenda Ops"],
-  },
-  config: {
-    dev: ["Gwenda Dev", "Gwenda Config"],
-    production: ["Gwenda", "Gwenda Config"],
-  },
-};
-
-/** Baserow tables the website build reads, by database: changing their rows means a rebuild. */
-export const SITE_BUILD_TABLES = { ops: [TABLE_ARTISTS] };
 
 /** What a run changed that the website shows. `rebuild` once there is any. */
 export function siteChanges() {
@@ -97,151 +75,6 @@ export async function loadMigrations(dir) {
 
 export function selectMigrations(migrations, { app, phase }) {
   return migrations.filter((m) => m.app === app && m.phase === phase);
-}
-
-/**
- * One Baserow database, changed through a user JWT (database tokens can only
- * touch rows). Tables are found by name.
- */
-export function baserowDatabase({ apiBase, jwt, databaseId, label, key, site, request = jwtRequest }) {
-  const call = (path, init) => request(apiBase, jwt, path, init);
-  let tables = null;
-
-  async function table(name) {
-    tables ??= await call(`/api/database/tables/database/${databaseId}/`);
-    const found = (tables || []).find((t) => t.name === name);
-    if (!found) throw new Error(`${label}: table "${name}" not found.`);
-    return found;
-  }
-
-  async function fields(tableName) {
-    const { id } = await table(tableName);
-    return call(`/api/database/fields/table/${id}/`);
-  }
-
-  return {
-    label,
-    fields,
-    /** Every row of a table, by field name. */
-    async rows(tableName) {
-      const { id } = await table(tableName);
-      const out = [];
-      for (let page = 1; ; page += 1) {
-        const data = await call(`/api/database/rows/table/${id}/?user_field_names=true&size=200&page=${page}`);
-        out.push(...(data?.results || []));
-        if (!data?.next) return out;
-      }
-    },
-    /** Change rows: `items` are { id, "Field name": value }. */
-    async updateRows(tableName, items) {
-      if (!items.length) return;
-      const { id } = await table(tableName);
-      for (let i = 0; i < items.length; i += 100) {
-        await call(`/api/database/rows/table/${id}/batch/?user_field_names=true`, {
-          method: "PATCH",
-          body: JSON.stringify({ items: items.slice(i, i + 100) }),
-        });
-      }
-      if (SITE_BUILD_TABLES[key]?.includes(tableName)) site?.note(`${label}: ${tableName}`);
-    },
-    /** Delete rows by id, 200 at a time. */
-    async deleteRows(tableName, ids) {
-      if (!ids.length) return;
-      const { id } = await table(tableName);
-      for (let i = 0; i < ids.length; i += 200) {
-        await call(`/api/database/rows/table/${id}/batch-delete/`, {
-          method: "POST",
-          body: JSON.stringify({ items: ids.slice(i, i + 200) }),
-        });
-      }
-    },
-    /** Add a column unless one with that name exists. Returns what happened. */
-    async ensureField(tableName, body) {
-      if ((await fields(tableName)).some((f) => f.name === body.name)) return "exists";
-      const { id } = await table(tableName);
-      try {
-        await call(`/api/database/fields/table/${id}/`, {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-      } catch (error) {
-        // Another deploy (the dev sites deploy side by side) added it first.
-        if ((await fields(tableName)).some((f) => f.name === body.name)) return "exists";
-        throw error;
-      }
-      return "created";
-    },
-    /** Add a choice to a single-select column unless it has it. Returns what happened. */
-    async ensureSelectOption(tableName, fieldName, value) {
-      const field = (await fields(tableName)).find((f) => f.name === fieldName);
-      if (!field) throw new Error(`${label}: column "${fieldName}" not found in "${tableName}".`);
-      const options = field.select_options || [];
-      if (options.some((option) => option.value === value)) return "exists";
-      await call(`/api/database/fields/${field.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify({ select_options: [...options, { value, color: "light-blue" }] }),
-      });
-      return "created";
-    },
-    /**
-     * Add a table unless one with that name exists: just its primary column
-     * (`primary`), no rows. Returns what happened.
-     */
-    async ensureTable(tableName, primary) {
-      tables ??= await call(`/api/database/tables/database/${databaseId}/`);
-      if (tables.some((t) => t.name === tableName)) return "exists";
-      const created = await call(`/api/database/tables/database/${databaseId}/`, {
-        method: "POST",
-        body: JSON.stringify({ name: tableName, data: [[primary]], first_row_header: true }),
-      });
-      tables = [...tables, created];
-      return "created";
-    },
-    /** Remove a whole table, rows and all, if it's there. Post-deploy only. */
-    async removeTable(tableName) {
-      tables ??= await call(`/api/database/tables/database/${databaseId}/`);
-      const found = tables.find((t) => t.name === tableName);
-      if (!found) return "absent";
-      await call(`/api/database/tables/${found.id}/`, { method: "DELETE" });
-      tables = tables.filter((t) => t.id !== found.id);
-      return "removed";
-    },
-    /** Remove a column if it's there. Post-deploy only. */
-    async removeField(tableName, fieldName) {
-      const field = (await fields(tableName)).find((f) => f.name === fieldName);
-      if (!field) return "absent";
-      await call(`/api/database/fields/${field.id}/`, { method: "DELETE" });
-      return "removed";
-    },
-  };
-}
-
-/**
- * Find an environment's database by workspace + database name (needs a user
- * JWT; database tokens cannot read names). Ids are never configured.
- * @returns {Promise<{ workspaceId: string, databaseId: string, label: string }>}
- */
-export async function findDatabase({ apiBase, jwt, key, env, request = jwtRequest }) {
-  const names = DATABASES[key]?.[env];
-  if (!names) throw new Error(`There is no ${key} database in ${env}.`);
-  const [workspaceName, databaseName] = names;
-  const workspaces = await request(apiBase, jwt, "/api/workspaces/");
-  const workspace = (workspaces || []).find((ws) => ws.name === workspaceName);
-  if (!workspace) throw new Error(`Baserow workspace "${workspaceName}" not found.`);
-  const apps = await request(apiBase, jwt, `/api/applications/workspace/${workspace.id}/`);
-  const database = (apps || []).find((a) => a.type === "database" && a.name === databaseName);
-  if (!database) throw new Error(`Database "${databaseName}" not found in "${workspaceName}".`);
-  return {
-    workspaceId: String(workspace.id),
-    databaseId: String(database.id),
-    label: `${workspaceName} / ${databaseName}`,
-  };
-}
-
-/** Open an environment's database by name for a migration. */
-export async function openDatabase({ apiBase, jwt, key, env, site, request = jwtRequest }) {
-  const { databaseId, label } = await findDatabase({ apiBase, jwt, key, env, request });
-  return baserowDatabase({ apiBase, jwt, databaseId, label, key, site, request });
 }
 
 /** The documents a Sanity mutation touches; null when it picks them by query. */
@@ -305,18 +138,18 @@ export function sanityContent({ env, processEnv, site, request = fetch }) {
 }
 
 /**
- * Run the selected migrations in order. `database(key)` opens this env's
- * database of that kind and `sanity()` its Sanity content (both cached, both
- * noting into `site`). Stops at the first failure.
+ * Run the selected migrations in order. `d1(role)` opens this env's D1
+ * database and `sanity()` its Sanity content (cached, noting into `site`).
+ * Stops at the first failure.
  * @returns {Promise<{ rebuild: boolean, changes: string[] }>}
  */
 export async function runMigrations(
   migrations,
-  { env, processEnv, database, d1, sanity, site = siteChanges(), log = console.log, dryRun = false },
+  { env, processEnv, d1, sanity, site = siteChanges(), log = console.log, dryRun = false },
 ) {
   for (const migration of migrations) {
     log(`→ ${migration.name}: ${migration.about}${dryRun ? " (dry run)" : ""}`);
-    await migration.up({ env, processEnv, database, d1, sanity, dryRun, log: (line) => log(`    ${line}`) });
+    await migration.up({ env, processEnv, d1, sanity, dryRun, log: (line) => log(`    ${line}`) });
   }
   return { rebuild: site.rebuild, changes: site.changes };
 }

@@ -13,7 +13,7 @@
  * 3. Run this branch's ops post-deploy migrations on dev (scripts/migrate.mjs),
  *    in file-name order: the ones in migrations/ that main doesn't have.
  *    Older ones have run in production already, so the copy carries their
- *    result (and the Baserow ones would ask for a login).
+ *    result.
  * 4. Bring the website content up to date the way ops does by itself after a
  *    deploy: the menu's Update website, then the events' website job until
  *    nothing is waiting.

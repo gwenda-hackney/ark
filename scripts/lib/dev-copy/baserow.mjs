@@ -4,7 +4,7 @@
  * different app envs (ops and web read BASEROW_API_KEY as different tokens)
  * and still run on their own (`npm run dev:refresh:baserow-*`).
  *
- * The scripts find both databases by name (scripts/lib/migrations.mjs
+ * The scripts find both databases by name (scripts/lib/baserow-clone.mjs
  * DATABASES), keep the copy's database and tables, and wipe and re-copy its
  * rows (--force). File values (photos) are not copied.
  */
