@@ -56,7 +56,7 @@ function liftedCopy(section: HTMLElement, x: number, y: number) {
 		left: "0",
 		top: "0",
 		width: `${box.width}px`,
-		maxHeight: "11rem",
+		maxHeight: "9rem",
 		overflow: "hidden",
 		margin: "0",
 		zIndex: "1000",
@@ -68,7 +68,6 @@ function liftedCopy(section: HTMLElement, x: number, y: number) {
 		color: getComputedStyle(section).color,
 		outline: "1px solid var(--primary)",
 		boxShadow: "0 18px 40px rgb(0 0 0 / 0.45)",
-		maskImage: "linear-gradient(to bottom, #000 70%, transparent)",
 		willChange: "transform",
 	});
 	document.body.append(ghost);
