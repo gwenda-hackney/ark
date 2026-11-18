@@ -61,7 +61,7 @@ function liftedCopy(section: HTMLElement, x: number, y: number) {
 		margin: "0",
 		zIndex: "1000",
 		pointerEvents: "none",
-		opacity: "0.95",
+		opacity: "1",
 		borderRadius: "var(--radius-lg)",
 		// Solid, like a popover, so the page doesn't show through
 		background: "var(--popover, #1a1a1d)",
