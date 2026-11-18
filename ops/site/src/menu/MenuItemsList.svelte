@@ -2,11 +2,12 @@
 	/**
 	 * A menu's items on its page (#305), laid out as the website does: each
 	 * chapter under its name, its own items, then each group under its name.
-	 * Click an item to change its name, line or price there, or take it off
-	 * the menu; Add item puts a new one in that section. Everything else about
-	 * an item is on its own page (All details).
+	 * Click an item to change its name, line or price, or take it off the
+	 * menu; Add item puts a new one in that section. Both open one sheet: a
+	 * bottom sheet on phones, a dialog on desktop. Everything else about an
+	 * item is on its own page (All details).
 	 */
-	import { Button, Confirm, ConfirmDialog, Field, TextField } from "../ui";
+	import { Button, Confirm, ConfirmDialog, Dialog, Field, TextField } from "../ui";
 	import { Icon } from "../app/shell";
 	import * as api from "../app/api";
 	import { menuItemPath, navigate } from "../app/nav";
@@ -35,6 +36,22 @@
 	let draft = $state({ name: "", description: "", price: "" });
 	let saving = $state(false);
 	const confirm = new Confirm();
+
+	/** The item or the section the sheet is for. */
+	const editing = $derived(
+		editingId ? chapters.flatMap((c) => [c, ...c.groups]).flatMap((b) => b.items).find((item) => item.id === editingId) ?? null : null,
+	);
+	const addingSection = $derived(
+		addingTo ? chapters.flatMap((c) => [c, ...c.groups]).find((b) => b.sectionId === addingTo) ?? null : null,
+	);
+	const sheetOpen = $derived(Boolean(editing || addingSection));
+	const sheetTitle = $derived(editing ? editing.name : addingSection ? `Add to ${addingSection.title}` : "");
+
+	function submitSheet(event?: Event) {
+		event?.preventDefault();
+		if (editing) saveEdit(editing);
+		else if (addingSection) saveNew(addingSection);
+	}
 
 	function sameName(a: string, b: string): boolean {
 		return a.trim().localeCompare(b.trim(), undefined, { sensitivity: "base" }) === 0;
@@ -80,8 +97,7 @@
 		}
 	}
 
-	function saveEdit(event: Event, item: MenuPageItem) {
-		event.preventDefault();
+	function saveEdit(item: MenuPageItem) {
 		if (!draft.name.trim()) return void toast.error("Give it a name.");
 		if (priceProblem()) return void toast.error(priceProblem());
 		void run(async () => {
@@ -91,8 +107,7 @@
 		});
 	}
 
-	function saveNew(event: Event, section: MenuItemBlock) {
-		event.preventDefault();
+	function saveNew(section: MenuItemBlock) {
 		const name = draft.name.trim();
 		if (!name) return void toast.error("Give it a name.");
 		if (priceProblem()) return void toast.error(priceProblem());
@@ -171,28 +186,7 @@
 {#snippet itemRow(item: MenuPageItem)}
 	{@const price = formatPrices(item)}
 	<li>
-		{#if editingId === item.id}
-			<form class="edit" novalidate onsubmit={(event) => saveEdit(event, item)}>
-				{@render fields(`item-${item.id}`)}
-				{#if normalizePrices(item).length > 1}
-					<p class="hint">Only the first price changes here. Its other sizes are under All details.</p>
-				{/if}
-				<div class="actions">
-					<Button variant="ghost" size="sm" type="button" class="danger" onclick={() => void remove(item)}>
-						{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
-						Take off
-					</Button>
-					<a class="details" href={menuItemPath(item.name)} onclick={(event) => openItem(event, menuItemPath(item.name))}>All details</a>
-					<span class="spacer"></span>
-					<Button variant="outline" size="sm" type="button" onclick={close}>Cancel</Button>
-					<Button variant="primary" size="sm" type="submit" busy={saving} disabled={saving}>
-						{#snippet icon()}<Icon name="save" size={14} />{/snippet}
-						Save
-					</Button>
-				</div>
-			</form>
-		{:else}
-			<div class="row">
+		<div class="row">
 				<button type="button" class="item" onclick={() => startEdit(item)} aria-label={`Change ${item.name}`}>
 					<span class="text">
 						<span class="name">{item.name}</span>
@@ -204,7 +198,6 @@
 					<Icon name="trash" size={14} />
 				</button>
 			</div>
-		{/if}
 	</li>
 {/snippet}
 
@@ -214,24 +207,10 @@
 			{#each section.items as item (item.id)}{@render itemRow(item)}{/each}
 		</ul>
 	{/if}
-	{#if addingTo === section.sectionId}
-		<form class="edit" novalidate onsubmit={(event) => saveNew(event, section)}>
-			{@render fields(`new-${section.sectionId}`)}
-			<div class="actions">
-				<span class="spacer"></span>
-				<Button variant="outline" size="sm" type="button" onclick={close}>Cancel</Button>
-				<Button variant="primary" size="sm" type="submit" busy={saving} disabled={saving}>
-					{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
-					Add
-				</Button>
-			</div>
-		</form>
-	{:else}
 		<button type="button" class="add" onclick={() => startAdd(section.sectionId)}>
 			<Icon name="plus" size={14} />
 			Add item
 		</button>
-	{/if}
 {/snippet}
 
 {#if chapters.length}
@@ -255,6 +234,37 @@
 {:else}
 	<p class="muted">Give the menu a section below, then add its items here.</p>
 {/if}
+
+<!-- One sheet for changing an item and for adding one: from the bottom on
+     phones, a dialog on desktop. -->
+<Dialog open={sheetOpen} sheet title={sheetTitle} onclose={close}>
+	<form class="sheet-form" novalidate onsubmit={submitSheet}>
+		{@render fields(editing ? `item-${editing.id}` : `new-${addingTo}`)}
+		{#if editing && normalizePrices(editing).length > 1}
+			<p class="hint">Only the first price changes here. Its other sizes are under All details.</p>
+		{/if}
+		{#if editing}
+			<a class="details" href={menuItemPath(editing.name)} onclick={(event) => openItem(event, menuItemPath(editing.name))}>
+				Recipe, photo and all other details
+				<Icon name="chevron-right" size={14} />
+			</a>
+		{/if}
+		<button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
+	</form>
+	{#snippet footer()}
+		{#if editing}
+			<Button variant="ghost" type="button" class="take-off" disabled={saving} onclick={() => editing && void remove(editing)}>
+				{#snippet icon()}<Icon name="trash" size={16} />{/snippet}
+				Take off
+			</Button>
+		{/if}
+		<span class="spacer"></span>
+		<Button variant="primary" type="button" busy={saving} disabled={saving} onclick={() => submitSheet()}>
+			{#snippet icon()}<Icon name={editing ? "save" : "plus"} size={16} />{/snippet}
+			{editing ? "Save" : "Add"}
+		</Button>
+	{/snippet}
+</Dialog>
 
 <ConfirmDialog {confirm} />
 
@@ -420,14 +430,9 @@
 		outline-offset: 2px;
 	}
 
-	.edit {
+	.sheet-form {
 		display: grid;
-		gap: var(--space-3);
-		margin: var(--space-1) 0 var(--space-2);
-		padding: var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--surface-2);
+		gap: var(--space-4);
 	}
 
 	.fields {
@@ -440,24 +445,29 @@
 		grid-column: 1 / -1;
 	}
 
-	.actions {
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-	}
-
-	.actions :global(.danger) {
+	:global(.btn.take-off) {
 		color: var(--danger);
 	}
 
 	.details {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		justify-self: start;
 		font-size: var(--text-sm);
-		color: var(--fg-muted);
+		color: var(--primary);
+		text-decoration: none;
 	}
 
 	.spacer {
 		flex: 1;
+	}
+
+	/* Phones: the sheet has Take off; the row is just the item to tap. */
+	@media (max-width: 900px) {
+		.remove {
+			display: none;
+		}
 	}
 
 	.hint,
