@@ -30,10 +30,11 @@
 	import { toast } from "../ui/toast.svelte";
 	import { beginLeave, clearUnsavedGuard, setUnsavedGuard, takeBlockedNav } from "../ui/unsaved.svelte";
 	import SectionsPanel from "./SectionsPanel.svelte";
+	import MenuItemsList from "./MenuItemsList.svelte";
 	import MenuDaysPicker from "./MenuDaysPicker.svelte";
 	import { MENU_STATUS_TONES, blankMenu, menuDraft, menuPayload, popupDraft, sameMenu } from "./menu-form";
 	import { menuDaysLabel } from "./menu-days.js";
-	import { SECTION_KIND_ITEMS, type Menu, type MenuInput, type MenuPopupRun, type MenuSection } from "./types";
+	import { SECTION_KIND_ITEMS, type Menu, type MenuInput, type MenuItemGroup, type MenuPopupRun, type MenuSection } from "./types";
 
 	let { path }: { path: string } = $props();
 
@@ -43,6 +44,7 @@
 
 	let menu = $state<Menu | null>(null);
 	let sections = $state<MenuSection[]>([]);
+	let items = $state<MenuItemGroup[]>([]);
 	let menus = $state<Menu[]>([]);
 	let popups = $state<MenuPopupRun[]>([]);
 	let draft = $state<MenuInput>(blankMenu());
@@ -84,6 +86,7 @@
 				popups = data.popups || [];
 				menu = null;
 				sections = [];
+				items = [];
 				const popup = popups.find((row) => row.id === popupFromAddress());
 				draft = popup ? popupDraft(popup) : blankMenu();
 				initial = { ...draft, days: [...draft.days] };
@@ -93,6 +96,7 @@
 			const data = await api.getMenuPage(id);
 			menu = data.menu;
 			sections = data.sections || [];
+			items = data.items || [];
 			menus = data.menus || [];
 			popups = data.popups || [];
 			draft = menuDraft(data.menu);
@@ -115,6 +119,7 @@
 		try {
 			const data = await api.getMenuPage(menuId);
 			sections = data.sections || [];
+			items = data.items || [];
 			menus = data.menus || [];
 			menu = data.menu;
 		} catch (err) {
@@ -277,6 +282,12 @@
 	{:else if loading && !menu && !isNew}
 		<Skeleton rows={5} lines={1} label="Loading the menu…" />
 	{:else}
+		{#if menu}
+			<FormSection title="Items" description="What's on it, section by section. Open an item to change it.">
+				<MenuItemsList groups={items} />
+			</FormSection>
+		{/if}
+
 		<Card>
 			<form class="menu-form" novalidate onsubmit={save}>
 				<FormSection title="The menu" description="What it's called, and when guests can order from it.">

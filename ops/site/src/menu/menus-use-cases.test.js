@@ -178,6 +178,33 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     ]);
   });
 
+  it("a menu's page lists its items section by section, in the order guests see them, and only its own", async () => {
+    const food = await ops.addMenu({ name: "Chez Pickle", kind: "kitchen", popupSeriesId: String(pickle.id) });
+    const formulas = await ops.section("Our Formulas", { menuId: drinks.id });
+    const burgers = await ops.section("Burgers", { menuId: food.id });
+    const smash = await ops.section("Smash", { parentId: burgers._id });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    await ops.item({ name: "Negroni", price: "11", sectionId: formulas._id });
+    await ops.item({ name: "OG Burger", price: "14", sectionId: smash._id, placements: [{ channel: "digital", sectionId: smash._id }] });
+    await ops.item({ name: "Fries", price: "6", sectionId: sides._id, placements: [{ channel: "digital", sectionId: sides._id }] });
+
+    const page = await ops.open(food);
+    assert.deepEqual(
+      page.items.map((group) => [group.parentTitle, group.title, group.items.map((item) => [item.name, item.prices[0]?.price])]),
+      [
+        ["Burgers", "Smash", [["OG Burger", "14"]]],
+        ["", "Sides", [["Fries", "6"]]],
+      ],
+      "sections with nothing in them are left out",
+    );
+    assert.deepEqual(
+      (await ops.open(drinks)).items.map((group) => group.items.map((item) => item.name)),
+      [["Negroni"]],
+    );
+    const empty = await ops.addMenu({ name: "Brunch", kind: "kitchen" });
+    assert.deepEqual((await ops.open(empty)).items, []);
+  });
+
   it("adds a menu: every day and ongoing unless told otherwise; refuses what makes no sense", async () => {
     assert.deepEqual(
       { kind: drinks.kind, startsOn: drinks.startsOn, endsOn: drinks.endsOn, days: drinks.days, status: drinks.status },

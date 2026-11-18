@@ -108,11 +108,13 @@ export function listMenus() {
   return request<{ menus: import("../menu/types").Menu[]; popups: import("../menu/types").MenuPopupRun[] }>("/api/menus");
 }
 
-/** A menu's page: the menu, its sections, every menu (to move a chapter to) and the pop-up kitchens. */
+/** A menu's page: the menu, its sections, its items, every menu (to move a chapter to) and the pop-up kitchens. */
 export function getMenuPage(id: string) {
   return request<{
     menu: import("../menu/types").Menu;
     sections: import("../menu/types").MenuSection[];
+    /** Its items, section by section. */
+    items: import("../menu/types").MenuItemGroup[];
     menus: import("../menu/types").Menu[];
     popups: import("../menu/types").MenuPopupRun[];
   }>(`/api/menus/${encodeURIComponent(id)}`);

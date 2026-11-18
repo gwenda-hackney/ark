@@ -382,6 +382,13 @@ export type Menu = {
   itemCount: number;
   chapterCount: number;
 };
+/** A section of a menu's page (#305) and the items in it, in the order guests see them. */
+export type MenuItemGroup = {
+  sectionId: string;
+  title: string;
+  parentTitle: string;
+  items: { id: string; name: string; description: string; prices: PriceRow[]; drinkType: string }[];
+};
 /** A pop-up kitchen a menu can belong to, with when it cooks (a new menu for it starts from these). */
 export type MenuPopupRun = MenuPopup & { startsOn: string; endsOn: string; days: MenuDay[] };
 /** What a menu's save sends. */
