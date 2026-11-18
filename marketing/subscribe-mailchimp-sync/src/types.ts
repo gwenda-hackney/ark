@@ -30,6 +30,8 @@ export type SyncOptions = {
    * Used for ESP migration / Mailchimp backfill after Buttondown already marked Synced.
    */
   all?: boolean;
+  /** Unsubscribed members per Mailchimp page (default 1000, its maximum); tests page smaller. */
+  pageSize?: number;
   /** Mailchimp's fetch, for tests. */
   fetchImpl?: typeof fetch;
   /** Where subscribers are read and marked synced; by default this env's (tests hand in memory). */
@@ -50,6 +52,8 @@ export type SyncSummary = {
   dryRun: boolean;
   errors: number;
   results: SyncRowResult[];
+  /** Subscribers taken off our list because they unsubscribed in Mailchimp. */
+  unsubscribed: number;
   /** Set when the run was skipped because guests are frozen (#191). */
   frozen?: boolean;
 };
