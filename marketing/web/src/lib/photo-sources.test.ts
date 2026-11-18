@@ -25,6 +25,10 @@ const catalog = vi.hoisted(() => ({
 vi.mock("./sanity/events", () => ({
   fetchWhatsOnCatalog: async () => catalog,
 }));
+/** No menus yet: the Food board leads with the pop-up that cooks next. */
+vi.mock("./sanity/menu", () => ({
+  fetchMenu: async () => ({ sections: [], menus: [] }),
+}));
 
 const { eventPhotos, galleryPhotos, venuePhotos } =
   await import("./photo-sources");

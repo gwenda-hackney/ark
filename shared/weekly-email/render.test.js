@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { bookingsWords } from "../../marketing/web/src/lib/bookings.js";
+import { esc } from "../email/shell.js";
 import { weeklyEmailModel } from "./model.js";
 import { emailImageUrl, MAILCHIMP_TAGS, renderWeeklyEmail } from "./render.js";
 import { night, testCatalog } from "./testing.js";
@@ -117,7 +119,7 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
   });
 
   it("has every section, in the site's words", () => {
-    for (const words of ["What’s on this week", "We’re shut on Mondays", "Deals", "Pop-up kitchen", "Next week", "Tonight"]) {
+    for (const words of ["What’s on this week", "Deals", "Pop-up kitchen", "Next week", "Tonight"]) {
       expect(email.html).toContain(words);
     }
     expect(email.html).toContain("Sat 12–8pm · Sun 1–6pm");
@@ -137,11 +139,45 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
 
 describe("renderWeeklyEmail: the top", () => {
   it("centres the heading and the week's dates under the centred logo", () => {
-    const top = email.html.slice(email.html.indexOf("Hackney Wick</div>"), email.html.indexOf("We’re shut on Mondays"));
+    const top = email.html.slice(email.html.indexOf("Hackney Wick</div>"), email.html.indexOf("Deals"));
     // The heading's row, its own table (the stroke under it) and its words
     expect(top).toMatch(/<td align="center"[^>]*><table [^>]*align="center"[^>]*style="[^"]*margin:0 auto;[^"]*"><tr><td [^>]*><h1 [^>]*text-align:center;/);
     // The dates under it
     expect(top.slice(top.lastIndexOf("<p "))).toContain("text-align:center;");
+  });
+});
+
+describe("renderWeeklyEmail: Bookings", () => {
+  const words = bookingsWords();
+  const section = email.html.slice(email.html.indexOf(`>${words.heading}</h2>`), email.html.indexOf(">Book a table</a>"));
+
+  it("has the website's Bookings, in its words: the note, then each half's heading, line and button", () => {
+    expect(section).toContain(esc(words.note));
+    for (const half of words.halves) {
+      for (const text of [half.heading, half.line, half.cta]) expect(section).toContain(esc(text));
+    }
+  });
+
+  it("links each half to its part of /bookings, as text: Book a table is the one button", () => {
+    const links = tags(section, "a").map((tag) => attr(tag, "href"));
+    expect(links).toEqual(["https://gwenda.co.uk/bookings#party", "https://gwenda.co.uk/bookings#play"]);
+  });
+
+  it("puts the halves side by side, wrapping to one under the other on a phone", () => {
+    const halves = section.match(/<div class="half" style="[^"]*"/g) || [];
+    expect(halves).toHaveLength(2);
+    for (const half of halves) expect(half).toContain("display:inline-block;width:100%;max-width:280px;");
+    expect(email.html).toContain("@media (max-width:599px){.half{max-width:100% !important}");
+  });
+
+  it("comes after the week and before the table", () => {
+    expect(email.html.indexOf(words.halves[0].heading)).toBeGreaterThan(email.html.indexOf(">Next week<"));
+    expect(section).not.toBe("");
+  });
+
+  it("is in the plain-text copy, each button with its address", () => {
+    expect(email.text).toContain(`${words.halves[0].cta}: https://gwenda.co.uk/bookings#party`);
+    expect(email.text).toContain(`${words.halves[1].cta}: https://gwenda.co.uk/bookings#play`);
   });
 });
 

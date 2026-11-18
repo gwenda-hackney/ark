@@ -37,6 +37,9 @@ import { onRequestPost as tick } from "../../functions/api/web/tick.js";
 import { onRequestDelete as removeGalleryPhoto } from "../../functions/api/events/[id]/gallery/[key].js";
 import { onRequestPost as release } from "../../functions/api/web/release.js";
 import { resetConfigCacheForTests } from "../../../../shared/config.js";
+import { eventPath, sectionEvents } from "./event-lists.ts";
+import { filterByCategory } from "./event-category.ts";
+import { groupEventSchedule } from "./event-schedule.ts";
 
 /** ISO date `days` from today. */
 function daysFromNow(days) {
@@ -526,6 +529,84 @@ describe("events: creating", () => {
     assert.equal(noStart.status, 400);
     assert.match(noStart.data.error, /first night/);
     assert.equal(world.baserow.rows("Events").length, 0, "nothing saved");
+  });
+});
+
+// What's on's lists (#312): Events, Pop-ups and Deals each hold one kind, as
+// the API lists them, and the Schedule holds every kind's nights.
+describe("events: each list holds only its kind", () => {
+  let world;
+  let ops;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    waitForUpdateWebsite(world);
+    world.install();
+    ops = editor(world);
+  });
+  afterEach(() => world.restore());
+
+  async function addEverything() {
+    const gig = daysFromNow(12);
+    const created = [
+      await ops.create(weeklySeries()),
+      await ops.create({
+        name: "Andy Caruso",
+        description: "The king of disco is back.",
+        startTime: "20:00",
+        endTime: "01:00",
+        startsOn: gig,
+        repeatUnit: "once",
+      }),
+      await ops.create(
+        weeklySeries({ name: "Cocktail Hour", offer: "2 for 1 cocktails", category: "promotion", weekdays: ["fri"], startsOn: nextWeekday(5) }),
+      ),
+      await ops.create(weeklySeries({ name: "Chez Pickle", category: "popup", weekdays: ["thu"], startsOn: nextWeekday(4) })),
+      await ops.create({
+        name: "Dumpling Night",
+        category: "popup",
+        description: "Dumplings, one night only.",
+        startTime: "18:00",
+        endTime: "22:00",
+        startsOn: daysFromNow(20),
+        repeatUnit: "once",
+      }),
+    ];
+    for (const event of created) await ops.waitUntilReady(event);
+    return { gig, events: await ops.list() };
+  }
+
+  it("Events lists the nights, Pop-ups the kitchens, Deals the deals", async () => {
+    const { gig, events } = await addEverything();
+    const names = (section, today = daysFromNow(0)) => sectionEvents(events, section, today).map((event) => event.name);
+
+    assert.deepEqual(names("events"), ["Negroni Chess Society", "Andy Caruso"], "its series, then its one-offs");
+    assert.deepEqual(names("popups"), ["Chez Pickle", "Dumpling Night"]);
+    assert.deepEqual(names("deals"), ["Cocktail Hour"]);
+    assert.deepEqual(names("events", addDays(gig, 1)), ["Negroni Chess Society"], "a one-off goes once its night has");
+  });
+
+  it("each opens at its own list's address", async () => {
+    const { events } = await addEverything();
+    assert.deepEqual(
+      Object.fromEntries(events.map((event) => [event.name, eventPath(event).replace(/\/[^/]+$/, "")])),
+      {
+        "Negroni Chess Society": "/events",
+        "Andy Caruso": "/events",
+        "Cocktail Hour": "/deals",
+        "Chez Pickle": "/popups",
+        "Dumpling Night": "/popups",
+      },
+    );
+  });
+
+  it("the Schedule has every kind's nights, and its filter one kind's", async () => {
+    const { events } = await addEverything();
+    const scheduled = (kind) =>
+      [...new Set(groupEventSchedule(filterByCategory(events, kind)).flatMap((week) => week.rows.map((row) => row.event.name)))].sort();
+    assert.deepEqual(scheduled("all"), ["Andy Caruso", "Chez Pickle", "Cocktail Hour", "Dumpling Night", "Negroni Chess Society"]);
+    assert.deepEqual(scheduled("event"), ["Andy Caruso", "Negroni Chess Society"]);
+    assert.deepEqual(scheduled("popup"), ["Chez Pickle", "Dumpling Night"]);
+    assert.deepEqual(scheduled("promotion"), ["Cocktail Hour"]);
   });
 });
 

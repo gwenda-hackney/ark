@@ -7,6 +7,7 @@
  * the way out, so both hand callers the same records. Several nights change
  * in one batch: one request, and one transaction.
  */
+import { storedAccentColor } from "../accent-color.js";
 import { batch } from "../../../../../../shared/d1.js";
 import { d1Table, exportTables, importTables } from "../../../../../../shared/d1-table.js";
 import {
@@ -63,6 +64,7 @@ const events = d1Table({
     heroCrops: "json",
     gallery: "json",
     logoAsset: "text",
+    accentColor: "text",
   },
   orderBy: "id",
 });
@@ -129,6 +131,7 @@ const EVENT_FIELDS = {
   driveFolderId: text,
   heroCrops: parseHeroCrops,
   gallery: storedGallery,
+  accentColor: storedAccentColor,
 };
 
 /** Event fields → table fields. */
@@ -169,6 +172,7 @@ function eventFromRecord(record) {
     heroCrops: plainObject(rest.heroCrops),
     gallery: rest.gallery || [],
     logo: storedImage({ asset: logoAsset }),
+    accentColor: rest.accentColor || "",
   };
 }
 

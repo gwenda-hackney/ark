@@ -1,8 +1,9 @@
 <script lang="ts">
 	/**
-	 * The events lists: Schedule (list or calendar) and Series, with their
-	 * search and filters. The page keeps it mounted under the editor so the
-	 * week list keeps its scroll position.
+	 * What's on's lists (#312): the Schedule (a list or a calendar of every
+	 * night, with its kind filter and search), or one kind's list, Events,
+	 * Pop-ups or Deals, as cards. The page keeps it mounted under the editor
+	 * so the week list keeps its scroll position.
 	 */
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
@@ -24,14 +25,14 @@
 	import { SCHEDULE_RANGES, scheduleRangeDates, type ScheduleRange } from "./schedule-filters";
 	import { easeOut, flyMs } from "../ui/motion";
 	import type { OpsEvent } from "../app/api";
-	import { eventItemPath, navigate } from "../app/nav";
+	import { eventItemPath, eventNewPath, navigate } from "../app/nav";
 	import ScheduleCalendar from "./ScheduleCalendar.svelte";
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
 	import SeriesCards from "./SeriesCards.svelte";
 	import { seriesCardRow } from "./series-card";
-	import { CATEGORY_FILTER_ITEMS, filterByCategory, type CategoryFilter } from "./event-category";
+	import { filterByCategory, type CategoryFilter } from "./event-category";
+	import { LIST_COPY, SCHEDULE_KINDS, eventPath, sectionEvents, type EventList, type EventSection } from "./event-lists";
 	import {
-		compareSeriesByWeekday,
 		countEventScheduleRows,
 		currentScheduleMonth,
 		filterEventSchedule,
@@ -50,8 +51,7 @@
 
 	let {
 		events,
-		listView,
-		listTitle,
+		list,
 		busy,
 		error,
 		loading,
@@ -60,8 +60,8 @@
 		onreload,
 	}: {
 		events: OpsEvent[];
-		listView: "schedule" | "series";
-		listTitle: string;
+		/** The Schedule, or Events, Pop-ups or Deals. */
+		list: EventList;
 		busy: boolean;
 		error: string;
 		loading: boolean;
@@ -70,11 +70,19 @@
 		onreload: () => void;
 	} = $props();
 
-	let seriesQuery = $state("");
+	const copy = $derived(LIST_COPY[list]);
+	const section = $derived<EventSection | null>(list === "schedule" ? null : list);
+	/** Add starts the list's kind; the Schedule's asks what kind first. */
+	const addPath = $derived(
+		section ? eventNewPath("details", { section }) : eventNewPath("details", { once: true }),
+	);
 
-	/** Nights, promotions or pop-up kitchens only; "all" for everything. Both views share it. */
-	let categoryFilter = $state<string>("all");
-	const shownEvents = $derived(filterByCategory(events, categoryFilter as CategoryFilter));
+	/** Each kind's list keeps its own search. */
+	let sectionQueries = $state<Record<EventSection, string>>({ events: "", popups: "", deals: "" });
+
+	/** The Schedule's kind: everything, or nights, pop-ups or deals only. */
+	let kindFilter = $state<string>("all");
+	const scheduleEvents = $derived(filterByCategory(events, kindFilter as CategoryFilter));
 
 	let scheduleEventIds = $state<string[]>([]);
 
@@ -105,7 +113,7 @@
 		{ id: "calendar", label: "Calendar" },
 	];
 
-	const schedule = $derived(groupEventSchedule(shownEvents));
+	const schedule = $derived(groupEventSchedule(scheduleEvents));
 
 	const eventFilterOptions = $derived(
 		[...events]
@@ -125,42 +133,39 @@
 
 	const visibleSchedule = $derived(filteredSchedule);
 
-	const filteredSeries = $derived.by(() => {
-		const q = seriesQuery.trim().toLowerCase();
-		return [...shownEvents]
-			.filter((event) => event.repeatUnit !== "once")
-			.filter((event) => {
-				if (!q) return true;
-				const hay = [
-					event.name,
-					event.artist,
-					event.offer,
-					event.shortDescription,
-					event.description,
-					...(event.nightSchedule || []).map((slot) => slot.label),
-				]
-					.join(" ")
-					.toLowerCase();
-				return hay.includes(q);
-			})
-			.sort(compareSeriesByWeekday);
+	const sectionQuery = $derived(section ? sectionQueries[section].trim().toLowerCase() : "");
+
+	/** The kind's series and its one-offs still to come, then the search. */
+	const filteredSection = $derived.by(() => {
+		if (!section) return [];
+		const q = sectionQuery;
+		return sectionEvents(events, section, scheduleTodayIso).filter((event) => {
+			if (!q) return true;
+			const hay = [
+				event.name,
+				event.artist,
+				event.offer,
+				event.shortDescription,
+				event.description,
+				...(event.nightSchedule || []).map((slot) => slot.label),
+			]
+				.join(" ")
+				.toLowerCase();
+			return hay.includes(q);
+		});
 	});
 
-	const seriesFiltersActive = $derived(Boolean(seriesQuery.trim()) || categoryFilter !== "all");
-
 	const scheduleFiltersActive = $derived(
-		categoryFilter !== "all" ||
+		kindFilter !== "all" ||
 			scheduleEventIds.length > 0 ||
 			Boolean(scheduleQuery.trim()) ||
 			Boolean(scheduleFrom) ||
 			Boolean(scheduleTo),
 	);
 
-	const filtersActive = $derived(
-		listView === "schedule" ? scheduleFiltersActive : seriesFiltersActive,
-	);
+	const filtersActive = $derived(section ? Boolean(sectionQuery) : scheduleFiltersActive);
 
-	const seriesRows = $derived(filteredSeries.map(seriesCardRow));
+	const sectionRows = $derived(filteredSection.map(seriesCardRow));
 
 	const scheduleRows = $derived.by(() =>
 		visibleSchedule.flatMap((week) => [
@@ -177,7 +182,7 @@
 					id: `${occurrence.event.id}:${occurrence.occurrence?.id || occurrence.date}`,
 					href:
 						occurrence.event.repeatUnit === "once"
-							? eventItemPath(occurrence.event.id)
+							? eventPath(occurrence.event)
 							: eventItemPath(`${occurrence.event.id}@${occurrence.date}`),
 					weekday: formatScheduleWeekday(occurrence.date),
 					dayDate: formatScheduleDate(occurrence.date),
@@ -255,9 +260,19 @@
 	inert={editing || missing ? true : undefined}
 	aria-hidden={editing || missing ? true : undefined}
 >
-		<PageHeader title={listTitle}>
+		<!-- The Schedule's kind filter: in list and calendar alike, so nothing moves when the view or the kind changes. -->
+		{#snippet kinds()}
+			<Segmented
+				bind:value={kindFilter}
+				items={SCHEDULE_KINDS}
+				tone="soft"
+				size="sm"
+				ariaLabel="Show events, pop-ups or deals"
+			/>
+		{/snippet}
+		<PageHeader title={copy.title} children={section ? undefined : kinds}>
 			{#snippet actions()}
-				{#if listView === "schedule"}
+				{#if !section}
 					<Segmented
 						bind:value={scheduleView}
 						items={scheduleViewItems}
@@ -280,35 +295,26 @@
 					{/snippet}
 					Refresh
 				</Button>
-				{#if listView === "series"}
-					<Button type="button" size="sm" disabled={busy} onclick={() => navigate("/events/new")}>
-						{#snippet icon()}
-							<Icon name="plus" size={16} />
-						{/snippet}
-						Add
-					</Button>
-				{:else}
-					<Button type="button" size="sm" disabled={busy} onclick={() => navigate("/events/new")}>
-						{#snippet icon()}
-							<Icon name="plus" size={16} />
-						{/snippet}
-						Add
-					</Button>
-				{/if}
+				<Button type="button" size="sm" disabled={busy} onclick={() => navigate(addPath)}>
+					{#snippet icon()}
+						<Icon name="plus" size={16} />
+					{/snippet}
+					Add
+				</Button>
 			{/snippet}
 			{#snippet toolbar()}
 				{#if events.length || (!error && !loading)}
-					{#if listView === "series"}
+					{#if section}
 						<FilterBar
-							bind:query={seriesQuery}
-							placeholder="Search series"
-							ariaLabel="Search series"
-							searchCount={seriesQuery.trim() ? filteredSeries.length : undefined}
+							bind:query={sectionQueries[section]}
+							placeholder={copy.search}
+							ariaLabel={copy.search}
+							searchCount={sectionQuery ? filteredSection.length : undefined}
 						/>
 					{:else}
 						<FilterBar
 							bind:query={scheduleQuery}
-							placeholder="Search name, artist, offer"
+							placeholder={copy.search}
 							ariaLabel="Search nights"
 							searchCount={scheduleQuery.trim() ? countEventScheduleRows(filteredSchedule) : undefined}
 							active={scheduleFilterCount}
@@ -345,16 +351,8 @@
 					{/if}
 				{/if}
 			{/snippet}
-			<!-- Always here, in both views, so nothing moves when the view or the choice changes. -->
-			<Segmented
-				bind:value={categoryFilter}
-				items={CATEGORY_FILTER_ITEMS}
-				tone="soft"
-				size="sm"
-				ariaLabel="Show nights, promotions or pop-up kitchens"
-			/>
 		</PageHeader>
-		<div class="list-main fill" class:bleed={listView === "series" && seriesRows.length > 0 && !loading}>
+		<div class="list-main fill" class:bleed={Boolean(section) && sectionRows.length > 0 && !loading}>
 			{#if error && !editing && !missing && !events.length}
 				<EmptyState tone="error" title="Could not load events" text={error}>
 					{#snippet action()}
@@ -365,17 +363,17 @@
 				<Skeleton rows={8} thumb label="Loading events…" />
 			{:else}
 				{#if error && !editing && !missing}<p class="error">{error}</p>{/if}
-				{#if listView === "series"}
-					{#if seriesRows.length}
+				{#if section}
+					{#if sectionRows.length}
 						<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-							<SeriesCards rows={seriesRows} />
+							<SeriesCards rows={sectionRows} />
 						</div>
 					{:else if filtersActive}
-						<EmptyState icon="search" title="No series match" text="Try another name, or clear the search." />
+						<EmptyState icon="search" title="Nothing matches" text="Try another name, or clear the search." />
 					{:else}
-						<EmptyState icon="events" title="No series yet" text="A series is a regular night, like a weekly residency.">
+						<EmptyState icon="events" title={copy.emptyTitle} text={copy.emptyText}>
 							{#snippet action()}
-								<Button size="sm" onclick={() => navigate("/events/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add</Button>
+								<Button size="sm" onclick={() => navigate(addPath)}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add</Button>
 							{/snippet}
 						</EmptyState>
 					{/if}
@@ -395,9 +393,9 @@
 				{:else if filtersActive}
 					<EmptyState icon="search" title="No nights match" text="Try other filters, or clear them to see every night." />
 				{:else}
-					<EmptyState icon="events" title="No upcoming nights" text="Nights from your series and special events show here.">
+					<EmptyState icon="events" title={copy.emptyTitle} text={copy.emptyText}>
 						{#snippet action()}
-							<Button size="sm" onclick={() => navigate("/events/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add</Button>
+							<Button size="sm" onclick={() => navigate(addPath)}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add</Button>
 						{/snippet}
 					</EmptyState>
 				{/if}

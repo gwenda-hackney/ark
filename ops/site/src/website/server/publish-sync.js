@@ -9,6 +9,7 @@ import {
   digitalSectionId,
   hasDigitalPlacement,
 } from "../../menu/server/menu-placements.js";
+import { cleanMenuDate, cleanMenuDays } from "../../menu/menu-days.js";
 import { flattenMenuSections } from "../../menu/menu-sections.js";
 import { listPopupSeries } from "../../events/server/popups.js";
 import { loadMenuTree } from "../../menu/server/menu-store.js";
@@ -43,12 +44,15 @@ export function slugifySection(title, fallback = "section") {
  */
 export const MUTATIONS_PER_REQUEST = 50;
 
-const SECTION_FIELDS = `_id, title, subtitle, orderRank, kind, "parent": parent._ref, "popupSeries": popupSeries._ref`;
+const SECTION_FIELDS = `_id, title, subtitle, orderRank, kind, "parent": parent._ref, "popupSeries": popupSeries._ref, "menu": menu._ref`;
+
+const MENU_FIELDS = `_id, name, kind, startsOn, endsOn, days, orderRank, "popupSeries": popupSeries._ref, "slug": slug.current`;
 
 /** The whole menu as the preview has it: few documents, small fields, one query. */
 const PREVIEW_MENU_QUERY = `{
   "items": *[_type == "menuItem"]{ _id, name },
-  "sections": *[_type == "menuSection"]{ ${SECTION_FIELDS}, "slug": slug.current }
+  "sections": *[_type == "menuSection"]{ ${SECTION_FIELDS}, "slug": slug.current },
+  "menus": *[_type == "menu"]{ ${MENU_FIELDS} }
 }`;
 
 /**
@@ -83,6 +87,7 @@ async function previewMenu(env) {
   };
   for (const doc of result.items || []) index.addItem(doc);
   for (const doc of result.sections || []) index.addSection(doc);
+  index.menus = new Map((result.menus || []).map((doc) => [doc._id, doc]));
   return index;
 }
 
@@ -210,15 +215,12 @@ export function patchToMatch(current, wanted, { refs = {}, sameAs = {} } = {}) {
 /**
  * Each pop-up kitchen's Sanity series document, by the series' ops id: only
  * the ones the preview has (a series never sent to the website has none, and
- * a chapter can't refer to a document that isn't there).
+ * a chapter or menu can't refer to a document that isn't there).
+ *
+ * @param {Iterable<string | number | null>} seriesIds the pop-ups' ops ids
  */
-async function popupSeriesDocuments(env, sections) {
-  const wanted = new Set(
-    flattenMenuSections(sections)
-      .map((section) => section.popupSeriesId)
-      .filter(Boolean)
-      .map(String),
-  );
+async function popupSeriesDocuments(env, seriesIds) {
+  const wanted = new Set([...seriesIds].filter(Boolean).map(String));
   if (!wanted.size) return new Map();
   const popups = (await listPopupSeries(env)).filter((popup) => wanted.has(popup.id));
   if (!popups.length) return new Map();
@@ -228,7 +230,94 @@ async function popupSeriesDocuments(env, sections) {
   return new Map(popups.filter((popup) => there.has(popup.sanityId)).map((popup) => [popup.id, popup.sanityId]));
 }
 
-const SECTION_REFS = { parent: reference, popupSeries: reference };
+/**
+ * A menu's Sanity document id (#306): made from its ops id, so a publish
+ * finds it again without a link kept in ops, and its chapters can name it
+ * before it is written.
+ */
+export function sanityMenuId(menuId) {
+  return `menu-${menuId}`;
+}
+
+/**
+ * A chapter's link to its menu stays weak, also once published: a menu that
+ * goes from ops is deleted from the website at once, while its old chapters
+ * may still point at it until their own update.
+ */
+function weakReference(id) {
+  return { _type: "reference", _ref: id, _weak: true };
+}
+
+const MENU_REFS = { popupSeries: reference };
+
+/** Days as Sanity keeps them (a list); none is every day, as in ops. */
+const MENU_SAME = {
+  days: (has, want) => (Array.isArray(has) ? has.join(",") : "") === (want ? want.join(",") : ""),
+};
+
+/**
+ * The menus whose chapters this publish sends, as ops has them: name, link
+ * (`slug`, written when it is created and then left alone, like a
+ * section's), drinks or food, dates, days, pop-up kitchen and place in the
+ * order. The website shows each between its dates, on its days. Returns the
+ * ids it keeps and how many writes it planned.
+ */
+function ensureSanityMenus(writes, preview, menus, sections, popupDocs = new Map()) {
+  const sent = new Set(
+    sections.filter((section) => !section.parentId && section.menuId).map((section) => String(section.menuId)),
+  );
+  const wantedIds = new Set();
+  let count = 0;
+  for (const record of menus) {
+    if (!sent.has(String(record.id))) continue;
+    const id = sanityMenuId(record.id);
+    wantedIds.add(id);
+    const days = cleanMenuDays(record.days);
+    const wanted = {
+      name: record.name || record.slug,
+      kind: record.kind === "kitchen" ? "kitchen" : "bar",
+      startsOn: cleanMenuDate(record.startsOn) || null,
+      endsOn: cleanMenuDate(record.endsOn) || null,
+      days: days ? days.split(",") : null,
+      popupSeries: (record.popupSeriesId != null && popupDocs.get(String(record.popupSeriesId))) || null,
+      orderRank: orderRankFromOrder(record.order, "section"),
+    };
+    const current = preview.menus.get(id);
+    if (current) {
+      const patch = patchToMatch(current, wanted, { refs: MENU_REFS, sameAs: MENU_SAME });
+      if (patch) {
+        writes.add({ patch: { id, ...patch } });
+        count += 1;
+      }
+      continue;
+    }
+    const doc = {
+      _id: id,
+      _type: "menu",
+      slug: { _type: "slug", current: record.slug || slugifySection(record.name, id) },
+    };
+    for (const [key, value] of Object.entries(wanted)) {
+      if (value != null) doc[key] = MENU_REFS[key] ? MENU_REFS[key](value) : value;
+    }
+    writes.add({ create: doc });
+    preview.menus.set(id, { ...wanted, _id: id });
+    count += 1;
+  }
+  return { wantedIds, writes: count };
+}
+
+/** Menus on the preview that ops no longer sends: they go, drafts and all. */
+function dropGoneMenus(writes, preview, wantedIds) {
+  let count = 0;
+  for (const id of preview.menus.keys()) {
+    if (wantedIds.has(id)) continue;
+    writes.add({ delete: { id } });
+    count += 1;
+  }
+  return count;
+}
+
+const SECTION_REFS = { parent: reference, popupSeries: reference, menu: weakReference };
 
 /** A chapter with no kind in Sanity is drinks: the website shows it on /bar either way. */
 const SECTION_SAME = {
@@ -240,7 +329,8 @@ const SECTION_SAME = {
  * ops id → Sanity id. Parents are walked before children via
  * flattenMenuSections. Ops owns a section's title, subtitle, place in the
  * order, parent, and, for a chapter, whether it is drinks or food (`kind`)
- * and its pop-up kitchen (`popupSeries`, the event series' document); a
+ * and its pop-up kitchen (`popupSeries`, the event series' document) and
+ * menu (`menu`, ensureSanityMenus); a
  * group carries neither, it follows its chapter. A
  * section already in Sanity is patched only where it differs. Its slug is
  * written when it is created and then left alone: it is a web address.
@@ -265,6 +355,7 @@ function ensureSanitySections(pending, writes, menu, sections, popupDocs = new M
       kind: chapter ? section.kind || "bar" : null,
       popupSeries:
         (chapter && section.popupSeriesId && popupDocs.get(String(section.popupSeriesId))) || null,
+      menu: (chapter && section.menuId && sanityMenuId(section.menuId)) || null,
     };
 
     // A link to a document that is gone is looked up again by slug.
@@ -341,17 +432,16 @@ async function newItemDocument(env, item, payload, sanitySectionId) {
  * ids, snapshots) is written back at the end, also when a step fails.
  */
 export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
-  const { items, sections, repo } = await loadMenuTree(env);
+  const { items, sections, menus, repo } = await loadMenuTree(env);
   const pending = pendingWrites();
   try {
-    return await publishItems(env, pending, { items, sections, target });
+    return await publishItems(env, pending, { items, sections, menus: menus || [], target });
   } finally {
     await pending.flush(repo);
   }
 }
 
-async function publishItems(env, pending, { items, sections, target }) {
-
+async function publishItems(env, pending, { items, sections, menus = [], target }) {
   const publishable = items.filter((item) =>
     Array.isArray(item.placements) && item.placements.length
       ? hasDigitalPlacement(item)
@@ -386,9 +476,13 @@ async function publishItems(env, pending, { items, sections, target }) {
   }
 
   const publishing = [...withAncestors.values()];
-  const popupDocs = await popupSeriesDocuments(env, publishing);
+  const popupDocs = await popupSeriesDocuments(env, [
+    ...publishing.map((section) => section.popupSeriesId),
+    ...menus.map((record) => record.popupSeriesId),
+  ]);
   const menu = await previewMenu(env);
   const writes = previewWrites();
+  const { wantedIds, writes: menuWrites } = ensureSanityMenus(writes, menu, menus, publishing, popupDocs);
   const { byBaserowId: sectionIds, writes: sectionWrites } = ensureSanitySections(
     pending,
     writes,
@@ -462,8 +556,9 @@ async function publishItems(env, pending, { items, sections, target }) {
   }
 
   const removed = await dropOffMenuItems(env, pending, writes, items, publishable, target);
+  const goneMenus = dropGoneMenus(writes, menu, wantedIds);
   await writes.send(env);
-  return { created, synced, unchanged, missing, removed, sectionWrites };
+  return { created, synced, unchanged, missing, removed, sectionWrites, menuWrites: menuWrites + goneMenus };
 }
 
 /**

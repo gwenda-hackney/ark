@@ -13,9 +13,12 @@
 	let {
 		title = "Help",
 		topics = [],
+		iconOnly = false,
 	}: {
 		title?: string;
 		topics?: PageHelpTopic[];
+		/** Just the "?" (a phone editor's top bar). */
+		iconOnly?: boolean;
 	} = $props();
 
 	const help = getHelp();
@@ -23,20 +26,37 @@
 	const expanded = $derived(help ? help.open : localOpen);
 </script>
 
-<Button
-	variant="ghost"
-	size="sm"
-	type="button"
-	data-compact
-	aria-expanded={expanded}
-	aria-haspopup="dialog"
-	onclick={() => (help ? help.show() : (localOpen = true))}
->
-	{#snippet icon()}
-		<Icon name="help" size={16} />
-	{/snippet}
-	Help
-</Button>
+{#if iconOnly}
+	<Button
+		variant="ghost"
+		size="sm"
+		type="button"
+		aria-label={title}
+		title={title}
+		aria-expanded={expanded}
+		aria-haspopup="dialog"
+		onclick={() => (help ? help.show() : (localOpen = true))}
+	>
+		{#snippet icon()}
+			<Icon name="help" size={20} />
+		{/snippet}
+	</Button>
+{:else}
+	<Button
+		variant="ghost"
+		size="sm"
+		type="button"
+		data-compact
+		aria-expanded={expanded}
+		aria-haspopup="dialog"
+		onclick={() => (help ? help.show() : (localOpen = true))}
+	>
+		{#snippet icon()}
+			<Icon name="help" size={16} />
+		{/snippet}
+		Help
+	</Button>
+{/if}
 
 {#if !help}
 	<HelpDrawer open={localOpen} {title} {topics} onclose={() => (localOpen = false)} />

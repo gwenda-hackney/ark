@@ -1,4 +1,10 @@
-import type { Menu, MenuItem, MenuPrice, MenuSection } from "../../types/menu";
+import type {
+  Menu,
+  MenuInfo,
+  MenuItem,
+  MenuPrice,
+  MenuSection,
+} from "../../types/menu";
 import type { MenuTeaseCocktail } from "../../data/menu-tease";
 import { createSanityClient } from "./client";
 import { getSanityImageConfig } from "./env";
@@ -7,7 +13,7 @@ import {
   mapSanityImage,
   type SanityImageField,
 } from "./images";
-import { MENU_QUERY } from "./queries";
+import { MENU_QUERY, MENUS_QUERY } from "./queries";
 
 type SanityMenuPrice = {
   name?: string | null;
@@ -37,6 +43,7 @@ type SanityMenuSection = {
   kind?: string | null;
   /** The pop-up kitchen's series: its slug, or "series-<slug>" when unpublished. */
   popupSeriesId?: string | null;
+  menuId?: string | null;
   parentId?: string | null;
   items: Array<{
     id: string | null;
@@ -99,6 +106,7 @@ export function mapFlatSection(
   }
 
   const popupSeriesId = popupSeriesSlug(doc.popupSeriesId);
+  const menuId = doc.menuId?.trim() || "";
 
   const items = doc.items
     .map(mapMenuItem)
@@ -110,6 +118,7 @@ export function mapFlatSection(
     subtitle: doc.subtitle?.trim() || undefined,
     kind: doc.kind === "kitchen" ? "kitchen" : "bar",
     ...(popupSeriesId ? { popupSeriesId } : {}),
+    ...(menuId ? { menuId } : {}),
     items,
     parentId: doc.parentId?.trim() || undefined,
   };
@@ -150,9 +159,48 @@ function assertMenuContent(sections: MenuSection[]) {
   );
 }
 
+type SanityMenu = {
+  id?: string | null;
+  name?: string | null;
+  kind?: string | null;
+  startsOn?: string | null;
+  endsOn?: string | null;
+  days?: string[] | null;
+  popupSeriesId?: string | null;
+};
+
+const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+/** A menu as ops sent it (#306); null without a slug or a name. */
+export function mapMenuInfo(doc: SanityMenu): MenuInfo | null {
+  const id = doc.id?.trim() || "";
+  const name = doc.name?.trim() || "";
+  if (!id || !name) return null;
+  const wanted = new Set(
+    (doc.days || []).map((day) => String(day).trim().toLowerCase()),
+  );
+  const days = WEEKDAYS.filter((day) => wanted.has(day));
+  const popupSeriesId = popupSeriesSlug(doc.popupSeriesId);
+  return {
+    id,
+    name,
+    kind: doc.kind === "kitchen" ? "kitchen" : "bar",
+    startsOn: doc.startsOn?.trim() || "",
+    endsOn: doc.endsOn?.trim() || "",
+    days: days.length === WEEKDAYS.length ? [] : days,
+    ...(popupSeriesId ? { popupSeriesId } : {}),
+  };
+}
+
 export async function fetchMenu(): Promise<Menu> {
   const client = createSanityClient();
-  const docs = await client.fetch<SanityMenuSection[]>(MENU_QUERY);
+  const [docs, menuDocs] = await Promise.all([
+    client.fetch<SanityMenuSection[]>(MENU_QUERY),
+    client.fetch<SanityMenu[]>(MENUS_QUERY),
+  ]);
+  const menus = (menuDocs || [])
+    .map(mapMenuInfo)
+    .filter((menu): menu is MenuInfo => menu !== null);
 
   const flat = docs
     .map(mapFlatSection)
@@ -164,7 +212,7 @@ export async function fetchMenu(): Promise<Menu> {
   const sections = nestMenuSections(flat);
   assertMenuContent(sections);
 
-  return { sections };
+  return { sections, menus };
 }
 
 /** Cocktail photos for the homepage gallery — one URL per tile shape. */

@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Settings → Venue details (#240): what the website says about the place.
+	 * Settings → Venue (#240): what the website says about the place.
 	 * Two cards: the opening hours, and the party facts the party page shows
 	 * (how many fit, what's included, how soon we reply; any of them blank).
 	 * A day opens the same editor everywhere: a dialog on desktop, a sheet on
@@ -221,7 +221,7 @@
 </script>
 
 <div class="page scrollbar-fade">
-	<PageHeader title="Venue details" subtitle="What the website says about the place. Saving puts it on the website." />
+	<PageHeader title="Venue" subtitle="What the website says about the place. Saving puts it on the website." />
 
 	{#if loadError}
 		<EmptyState tone="error" title="Could not load the venue details" text={loadError}>

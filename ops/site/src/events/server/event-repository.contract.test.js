@@ -179,6 +179,17 @@ for (const [name, make] of Object.entries(ADAPTERS)) {
       assert.deepEqual((await repo.get(id)).mainImage, { asset: ASSET });
     });
 
+    it("a pop-up kitchen's colour is kept, changed and cleared (#319)", async () => {
+      const { id } = await repo.create(seriesFields({ category: "popup" }));
+      assert.equal((await repo.get(id)).accentColor, "", "none until one is set");
+      await repo.update(id, { accentColor: "#0f4d32" });
+      assert.equal((await repo.get(id)).accentColor, "#0f4d32");
+      await repo.update(id, { offer: "" });
+      assert.equal((await repo.get(id)).accentColor, "#0f4d32", "kept unless given");
+      await repo.update(id, { accentColor: "" });
+      assert.equal((await repo.get(id)).accentColor, "");
+    });
+
     it("a missing series is a 404", async () => {
       await assert.rejects(repo.get("999999"), { status: 404, message: "Event not found." });
       await assert.rejects(repo.update("999999", { offer: "x" }), { status: 404 });

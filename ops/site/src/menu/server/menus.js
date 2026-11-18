@@ -62,6 +62,41 @@ function itemCounts(sections, items) {
 }
 
 /**
+ * A menu's items as the website lays them out: each chapter, in order, with
+ * its own items and then each group's. An item is in a section that is its
+ * own, or that one of its print or website placements names. Every section
+ * is there, empty or not, so an item can be added to it.
+ * @returns {import("../types").MenuItemChapter[]}
+ */
+export function menuItemGroups(chapters, items) {
+  const itemsIn = (section) =>
+    items
+      .filter(
+        (item) =>
+          item.sectionId === section._id ||
+          (item.placements || []).some((row) => row.channel !== "pos" && String(row.sectionId) === section._id),
+      )
+      .map((item) => ({
+        id: item._id,
+        name: item.name,
+        description: item.description || "",
+        prices: item.prices || [],
+        drinkType: item.drinkType || "",
+      }));
+  const block = (section) => ({
+    sectionId: section._id,
+    title: section.title || "",
+    subtitle: section.subtitle || "",
+    items: itemsIn(section),
+  });
+  return chapters
+    .map((chapter) => ({
+      ...block(chapter),
+      groups: (chapter.subsections || []).map(block),
+    }));
+}
+
+/**
  * A menu record → the menu ops shows: its fields, what it says about its
  * dates and days, and its status on `today`.
  */
@@ -120,7 +155,7 @@ export async function listMenus(env, { today = londonToday() } = {}) {
   };
 }
 
-/** One menu with its sections (chapters and their groups, each with its items), and the rest of `listMenus`. */
+/** One menu with its sections (chapters and their groups, each with its items), its items by section, and the rest of `listMenus`. */
 export async function getMenu(env, id, { today = londonToday() } = {}) {
   const [{ menus, sections, items }, popups] = await Promise.all([loadMenuTree(env), popupChoices(env, today)]);
   const record = menus.find((menu) => menu.id === Number(id));
@@ -131,6 +166,7 @@ export async function getMenu(env, id, { today = londonToday() } = {}) {
   return {
     menu: mapMenu(record, { today, popupNames, items: counts.get(record.id) ?? 0, chapters: chapters.length }),
     sections: chapters,
+    items: menuItemGroups(chapters, items),
     menus: [...menus].sort(byOrder).map((menu) => mapMenu(menu, { today, popupNames })),
     popups,
   };
@@ -226,4 +262,83 @@ export async function deleteMenu(env, id) {
   }
   await repo.remove("menus", current.id);
   return { id: String(current.id) };
+}
+
+/** `base`, or `base-2`, `base-3`…: the first `taken` (slugs) doesn't have, which it then has. */
+function freeSlug(base, taken) {
+  let slug = base;
+  for (let n = 2; taken.has(slug); n += 1) slug = `${base}-${n}`;
+  taken.add(slug);
+  return slug;
+}
+
+/**
+ * Copy menu: the next menu, started from an old one. It takes the menu's
+ * name (as "<name> (copy)", or "(copy 2)"…), drinks or food, days and pop-up
+ * kitchen, and its chapters and their groups with their names, lines and
+ * order, each with its own web address. Not its dates, which are the new
+ * run's to set, and not its items: an item will sit on several menus (#307),
+ * so copying them would make two of each. It goes right after the original.
+ */
+export async function copyMenu(env, id) {
+  const repo = menuRepository(env);
+  const current = await repo.get("menus", id);
+  if (!current) fail(404, "Menu not found.");
+  const [menus, sectionRecords] = await Promise.all([repo.list("menus"), repo.list("menu_sections")]);
+  const taken = (name) =>
+    menus.some((menu) => itemSlug(menu.name) === itemSlug(name) || itemSlug(menu.slug) === itemSlug(name));
+  const base = text(current.name) || "Menu";
+  let name = `${base} (copy)`;
+  for (let n = 2; taken(name); n += 1) name = `${base} (copy ${n})`;
+  const after = current.order ?? 0;
+  const fields = {
+    name,
+    slug: itemSlug(name),
+    kind: cleanSectionKind(current.kind),
+    startsOn: "",
+    endsOn: "",
+    days: cleanMenuDays(current.days),
+    popupSeriesId: current.popupSeriesId ?? null,
+    order: after + 1,
+  };
+  // Right after the original: the menus after it move down one.
+  const [record] = await repo.write([
+    { op: "create", collection: "menus", fields },
+    ...menus
+      .filter((menu) => menu.id !== current.id && (menu.order ?? 0) > after)
+      .map((menu) => ({ op: "update", collection: "menus", id: menu.id, fields: { order: (menu.order ?? 0) + 1 } })),
+  ]);
+
+  // Its chapters, then their groups (a group needs its new chapter), in their order after every section there is.
+  const sectionOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id;
+  const chapters = sectionRecords
+    .filter((section) => section.parentId == null && Number(section.menuId) === Number(current.id))
+    .sort(sectionOrder);
+  const chapterIds = new Set(chapters.map((chapter) => Number(chapter.id)));
+  const groups = sectionRecords.filter((section) => chapterIds.has(Number(section.parentId))).sort(sectionOrder);
+  const slugs = new Set(sectionRecords.map((section) => itemSlug(section.slug || section.name)).filter(Boolean));
+  let order = sectionRecords.reduce((max, section) => Math.max(max, section.order ?? 0), 0);
+  const copyOf = (section, own) => ({
+    op: "create",
+    collection: "menu_sections",
+    fields: {
+      name: text(section.name),
+      slug: freeSlug(itemSlug(section.slug || section.name), slugs),
+      subtitle: text(section.subtitle),
+      order: (order += 1),
+      ...own,
+    },
+  });
+  const copies = chapters.length
+    ? await repo.write(chapters.map((chapter) => copyOf(chapter, { parentId: null, menuId: record.id, ...chapterFieldsOf(fields) })))
+    : [];
+  const copyOfChapter = new Map(chapters.map((chapter, index) => [Number(chapter.id), copies[index].id]));
+  if (groups.length) {
+    await repo.write(
+      groups.map((group) =>
+        copyOf(group, { parentId: copyOfChapter.get(Number(group.parentId)), menuId: null, kind: "", popupSeriesId: null }),
+      ),
+    );
+  }
+  return (await getMenu(env, record.id)).menu;
 }

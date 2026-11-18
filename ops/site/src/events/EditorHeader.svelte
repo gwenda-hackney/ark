@@ -3,7 +3,7 @@
 	import { Badge, Button, PageHelp } from "../ui";
 	import { editorHeaderActions } from "./editor-header-actions";
 	import type { OpsEvent } from "../app/api";
-	import { eventItemPath } from "../app/nav";
+	import { eventPath } from "./event-lists";
 	import { eventHeaderFlag } from "./event-header-status";
 	import { formatDate, repeatLabel } from "./event-labels";
 	import type { EventForm } from "./event-form.svelte";
@@ -132,6 +132,7 @@
 				<!-- Always the same buttons in the same places; ones that don't apply
 				     are disabled with a reason rather than hidden. -->
 				<Button
+					class="desk-tool"
 					variant="outline"
 					size="sm"
 					data-compact
@@ -160,8 +161,9 @@
 					{/snippet}
 					Update website
 				</Button>
-				<PageHelp />
+				<span class="desk-tool help-slot"><PageHelp /></span>
 				<Button
+					class="desk-tool"
 					variant="ghost"
 					size="sm"
 					type="button"
@@ -220,11 +222,11 @@
 			{#if parentSeriesName}<span>Part of {parentSeriesName}.</span>{/if}
 			<span>Anything marked From series follows the series until you override it.</span>
 			{#if eventId}
-				<a class="series-link" href={eventItemPath(eventId)}>Edit series</a>
+				<a class="series-link" href={eventPath({ id: eventId, category: current?.category })}>Edit series</a>
 			{/if}
 		</p>
 	{:else if !isNew && !editingOnce && !editingNight}
-		<p class="head-note">Its nights take these details unless a night overrides them.</p>
+		<p class="head-note series-note">Its nights take these details unless a night overrides them.</p>
 	{/if}
 	{#if localOps && eventId}
 		<p class="head-note local-note">
@@ -309,6 +311,10 @@
 
 	.head-tools :global(.close-btn) {
 		color: var(--muted-foreground);
+	}
+
+	.help-slot {
+		display: contents;
 	}
 
 	.head-tools :global(.close-btn:hover:not(:disabled)) {
@@ -444,44 +450,33 @@
 	}
 
 	@media (max-width: 900px) {
-		.head-tools :global(.close-btn), .head-tools :global(.photo-expand) {
+		/* Phones: Update website stays here, beside where the event stands on
+		   the website. Help is in the top bar; Update calendar and Reload are in
+		   the bottom bar's ⋯ with Delete, so there is one toolbar. */
+		.head-tools :global(.close-btn),
+		.head-tools :global(.photo-expand),
+		.head-tools :global(.desk-tool) {
 			display: none;
 		}
 
-		/* One row in a fixed order: scroll sideways rather than wrap. */
-		.head-tools {
-			width: 100%;
-			margin-left: 0;
+		/* Phones: a shorter header. The fields marked From series say the same. */
+		.series-note {
+			display: none;
 		}
 
-		.toolbar-actions {
+		/* Update website beside the status, which wraps onto two lines first. */
+		.head-row {
 			flex-wrap: nowrap;
-			justify-content: flex-start;
-			margin: -2px;
-			padding: 2px;
-			overflow-x: auto;
-			scrollbar-width: none;
 		}
 
-		.toolbar-actions::-webkit-scrollbar {
-			display: none;
+		.type-line {
+			flex: 1 1 auto;
+			flex-wrap: wrap;
+			row-gap: var(--space-1);
 		}
 
-		/* Secondary buttons and Help shrink to their icon so Update website fits. */
-		.toolbar-actions :global(.btn[data-compact]) {
-			width: var(--control-h);
-			height: var(--control-h);
-			padding: 0;
-		}
-
-		.toolbar-actions :global(.btn[data-compact] .label) {
-			position: absolute;
-			width: 1px;
-			height: 1px;
-			margin: -1px;
-			overflow: hidden;
-			clip-path: inset(50%);
-			white-space: nowrap;
+		.head-tools {
+			flex: none;
 		}
 
 		.head-note {

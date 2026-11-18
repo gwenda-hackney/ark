@@ -16,6 +16,7 @@ export { default as FilterBar } from "./FilterBar.svelte";
 export { default as FilterField } from "./FilterField.svelte";
 export { default as HelpTip } from "./HelpTip.svelte";
 export { default as HighlightText } from "./HighlightText.svelte";
+export { default as Notice } from "./Notice.svelte";
 export { default as PageDrawer } from "./PageDrawer.svelte";
 export { default as PageHeader } from "./PageHeader.svelte";
 export { default as PageHelp } from "./PageHelp.svelte";

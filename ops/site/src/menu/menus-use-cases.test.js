@@ -7,9 +7,20 @@
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
+import { evaluate, parse } from "groq-js";
 import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
+import { MENU_QUERY, MENUS_QUERY } from "../../../../marketing/web/src/lib/sanity/queries.ts";
+import { mapFlatSection, mapMenuInfo, nestMenuSections } from "../../../../marketing/web/src/lib/sanity/menu.ts";
+import { menuShelf } from "../../../../marketing/web/src/lib/menus.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { onRequestPost as createItem } from "../../functions/api/menu/index.js";
+import {
+  onRequestDelete as deleteItem,
+  onRequestGet as getItem,
+  onRequestPatch as updateItem,
+} from "../../functions/api/menu/[id].js";
+import { menuItemPayload } from "./item-payload.ts";
+import { offMenu, withQuickEdit } from "./menu-page-items.ts";
 import { onRequestPost as createSection } from "../../functions/api/menu/sections.js";
 import { onRequestPatch as editSection } from "../../functions/api/menu/sections/[id].js";
 import { onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
@@ -19,6 +30,7 @@ import {
   onRequestGet as openMenu,
   onRequestPatch as editMenu,
 } from "../../functions/api/menus/[id].js";
+import { onRequestPost as copyMenu } from "../../functions/api/menus/[id]/copy.js";
 import { onRequestPost as createEvent } from "../../functions/api/events/index.js";
 import { onRequestPost as publishEvent } from "../../functions/api/events/[id]/publish.js";
 import { onRequestGet as popupMenus } from "../../functions/api/events/[id]/menus.js";
@@ -60,6 +72,15 @@ function owner(world) {
       const res = await callApi(world, deleteMenu, { method: "DELETE", path: `/api/menus/${menu.id}`, params: { id: menu.id } });
       return status === 200 ? ok(res) : refused(res, status);
     },
+    /** Copy menu, on a menu's page. */
+    async copyMenu(menu, status = 201) {
+      const res = await callApi(world, copyMenu, {
+        method: "POST",
+        path: `/api/menus/${menu.id}/copy`,
+        params: { id: menu.id },
+      });
+      return status === 201 ? ok(res, 201).menu : refused(res, status);
+    },
     async section(title, more = {}) {
       return ok(
         await callApi(world, createSection, { method: "POST", path: "/api/menu/sections", body: { title, ...more } }),
@@ -77,6 +98,23 @@ function owner(world) {
     },
     async item(body) {
       return ok(await callApi(world, createItem, { method: "POST", path: "/api/menu", body }), 201).item;
+    },
+    async getItem(id) {
+      return ok(await callApi(world, getItem, { path: `/api/menu/${id}`, params: { id } })).item;
+    },
+    /** Save as the menu's page does: the item as its editor has it, changed. */
+    async saveItem(item) {
+      return ok(
+        await callApi(world, updateItem, {
+          method: "PATCH",
+          path: `/api/menu/${item._id}`,
+          params: { id: item._id },
+          body: menuItemPayload(item),
+        }),
+      ).item;
+    },
+    async deleteItem(id) {
+      return ok(await callApi(world, deleteItem, { method: "DELETE", path: `/api/menu/${id}`, params: { id } }));
     },
     async series(body) {
       return ok(await callApi(world, createEvent, { method: "POST", path: "/api/events", body }), 201).event;
@@ -164,6 +202,73 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     ]);
   });
 
+  it("a menu's page lists its items as the website does: each chapter's own, then each group's, and only its own", async () => {
+    const food = await ops.addMenu({ name: "Chez Pickle", kind: "kitchen", popupSeriesId: String(pickle.id) });
+    const formulas = await ops.section("Our Formulas", { menuId: drinks.id });
+    const burgers = await ops.section("Burgers", { menuId: food.id });
+    const smash = await ops.section("Smash", { parentId: burgers._id });
+    await ops.section("Veggie", { parentId: burgers._id });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    await ops.item({ name: "Negroni", price: "11", sectionId: formulas._id });
+    await ops.item({ name: "OG Burger", price: "14", sectionId: smash._id, placements: [{ channel: "digital", sectionId: smash._id }] });
+    await ops.item({ name: "Special", price: "16", sectionId: burgers._id, placements: [{ channel: "digital", sectionId: burgers._id }] });
+    await ops.item({ name: "Fries", price: "6", sectionId: sides._id, placements: [{ channel: "digital", sectionId: sides._id }] });
+
+    const page = await ops.open(food);
+    const names = (block) => block.items.map((item) => [item.name, item.prices[0]?.price]);
+    assert.deepEqual(
+      page.items.map((chapter) => [chapter.title, names(chapter), chapter.groups.map((group) => [group.title, names(group)])]),
+      [
+        ["Burgers", [["Special", "16"]], [["Smash", [["OG Burger", "14"]]], ["Veggie", []]]],
+        ["Sides", [["Fries", "6"]], []],
+      ],
+      "an empty section is there, to add to",
+    );
+    assert.deepEqual(
+      (await ops.open(drinks)).items.map((chapter) => chapter.items.map((item) => item.name)),
+      [["Negroni"]],
+    );
+    const empty = await ops.addMenu({ name: "Brunch", kind: "kitchen" });
+    assert.deepEqual((await ops.open(empty)).items, []);
+  });
+
+  it("on a menu's page: change an item's name, line and price; take it off; add one", async () => {
+    const food = await ops.addMenu({ name: "Chez Pickle", kind: "kitchen", popupSeriesId: String(pickle.id) });
+    const brunch = await ops.addMenu({ name: "Brunch", kind: "kitchen" });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    const extras = await ops.section("Extras", { menuId: brunch.id });
+    const fries = await ops.item({
+      name: "Fries",
+      price: "6",
+      sectionId: sides._id,
+      placements: [
+        { channel: "digital", sectionId: sides._id },
+        { channel: "print", sectionId: sides._id },
+        { channel: "digital", sectionId: extras._id },
+      ],
+    });
+    const slaw = await ops.item({ name: "Slaw", price: "4", sectionId: sides._id });
+    const sideNames = async (menu) => (await ops.open(menu)).items[0].items.map((item) => item.name);
+
+    await ops.saveItem(withQuickEdit(await ops.getItem(fries._id), { name: "Skin-on fries", description: "Rosemary salt", price: "£6.50" }));
+    const changed = (await ops.open(food)).items[0].items.find((item) => item.id === fries._id);
+    assert.deepEqual([changed.name, changed.description, changed.prices[0].price], ["Skin-on fries", "Rosemary salt", "6.50"]);
+
+    const here = [sides._id];
+    const plan = offMenu(await ops.getItem(fries._id), here);
+    assert.equal(plan.action, "update", "it's on Brunch too, so it only comes off");
+    await ops.saveItem(plan.item);
+    assert.deepEqual(await sideNames(food), ["Slaw"]);
+    assert.deepEqual(await sideNames(brunch), ["Skin-on fries"], "and stays on Brunch");
+
+    assert.equal(offMenu(await ops.getItem(slaw._id), here).action, "delete", "on no other menu: the page asks to delete it");
+    await ops.deleteItem(slaw._id);
+    assert.deepEqual(await sideNames(food), []);
+
+    await ops.item({ name: "Onion rings", price: "7", prices: [{ name: "", price: "7" }], sectionId: sides._id });
+    assert.deepEqual(await sideNames(food), ["Onion rings"]);
+  });
+
   it("adds a menu: every day and ongoing unless told otherwise; refuses what makes no sense", async () => {
     assert.deepEqual(
       { kind: drinks.kind, startsOn: drinks.startsOn, endsOn: drinks.endsOn, days: drinks.days, status: drinks.status },
@@ -209,6 +314,76 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
       (await ops.menus()).menus.map((menu) => menu.name),
       ["Drinks"],
     );
+  });
+
+  it("copies a menu to start the next: its fields and sections, not its dates or items, right after it", async () => {
+    const food = await ops.addMenu({
+      name: "Chez Pickle",
+      kind: "kitchen",
+      startsOn: "2026-11-12",
+      endsOn: "2026-11-28",
+      days: ["wed", "thu", "fri", "sat"],
+      popupSeriesId: String(pickle.id),
+    });
+    const later = await ops.addMenu({ name: "Brunch", kind: "kitchen" });
+    const burgers = await ops.section("Burgers", { menuId: food.id, subtitle: "Smashed to order" });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    const smash = await ops.section("Smash", { parentId: burgers._id });
+    await ops.section("Veggie", { parentId: burgers._id, subtitle: "No meat" });
+    await ops.item({ name: "OG Burger", price: "14", sectionId: smash._id, placements: [{ channel: "digital", sectionId: smash._id }] });
+    await ops.item({ name: "Fries", price: "6", sectionId: sides._id, placements: [{ channel: "digital", sectionId: sides._id }] });
+    await ops.publishSeries(pickle);
+    await ops.updateWebsite();
+    assert.ok((await ops.open(food)).sections[0].sanityId, "the original is on the website");
+
+    const copy = await ops.copyMenu(food);
+    assert.deepEqual(
+      { name: copy.name, slug: copy.slug, kind: copy.kind, days: copy.days, popupSeriesId: copy.popupSeriesId },
+      { name: "Chez Pickle (copy)", slug: "chez-pickle-copy", kind: "kitchen", days: ["wed", "thu", "fri", "sat"], popupSeriesId: String(pickle.id) },
+    );
+    assert.deepEqual({ startsOn: copy.startsOn, endsOn: copy.endsOn }, { startsOn: "", endsOn: "" }, "its dates are the next run's to set");
+    assert.equal(copy.itemCount, 0, "items aren't copied");
+    assert.deepEqual(
+      (await ops.menus()).menus.map((menu) => menu.name),
+      ["Drinks", "Chez Pickle", "Chez Pickle (copy)", "Brunch"],
+      "right after the original",
+    );
+    assert.equal((await ops.menus()).menus.find((menu) => menu.id === later.id).name, "Brunch");
+
+    const { sections } = await ops.open(copy);
+    assert.deepEqual(
+      sections.map((chapter) => [
+        chapter.title,
+        chapter.subtitle,
+        chapter.subsections.map((group) => [group.title, group.subtitle]),
+      ]),
+      [
+        ["Burgers", "Smashed to order", [["Smash", undefined], ["Veggie", "No meat"]]],
+        ["Sides", undefined, []],
+      ],
+    );
+    const copied = sections.flatMap((chapter) => [chapter, ...chapter.subsections]);
+    assert.deepEqual(
+      copied.map((section) => section.slug),
+      ["burgers-2", "smash-2", "veggie-2", "sides-2"],
+      "each with its own web address",
+    );
+    assert.ok(copied.every((section) => !section.sanityId), "none is the original's on the website");
+    assert.ok(copied.every((section) => section.items.length === 0));
+    assert.deepEqual(
+      { kind: sections[0].kind, popupSeriesId: sections[0].popupSeriesId, menuId: sections[0].menuId },
+      { kind: "kitchen", popupSeriesId: String(pickle.id), menuId: copy.id },
+    );
+    const original = await ops.open(food);
+    assert.deepEqual(
+      original.sections.map((chapter) => chapter.slug),
+      ["burgers", "sides"],
+      "the original keeps its sections",
+    );
+    assert.equal(original.menu.itemCount, 2, "and its items");
+
+    assert.equal((await ops.copyMenu(food)).name, "Chez Pickle (copy 2)");
+    assert.match(await ops.copyMenu({ id: "999" }, 404), /not found/);
   });
 
   it("sections move with their menu: a chapter is drinks or food, and a pop-up's, as its menu is", async () => {
@@ -266,6 +441,67 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     await ops.updateWebsite();
     assert.equal(published(world, "chez-pickle").kind, "bar");
     assert.equal("popupSeries" in published(world, "chez-pickle"), false);
+  });
+
+  it("Update website sends each menu with its dates, days and pop-up, and the website shows them by day (#306)", async () => {
+    const dinner = await ops.addMenu({
+      name: "Dinner",
+      kind: "kitchen",
+      days: ["thu", "fri"],
+      endsOn: "2026-11-28",
+      popupSeriesId: String(pickle.id),
+    });
+    const brunch = await ops.addMenu({ name: "Brunch", kind: "kitchen", days: ["sat"], popupSeriesId: String(pickle.id) });
+    const plates = await ops.section("Small plates", { menuId: dinner.id });
+    const eggs = await ops.section("Eggs", { menuId: brunch.id });
+    const formulas = await ops.section("Our Formulas", { menuId: drinks.id });
+    for (const [name, section] of [["Fried pickles", plates], ["Shakshuka", eggs], ["Negroni", formulas]]) {
+      await ops.item({ name, price: "9", sectionId: section._id, placements: [{ channel: "digital", sectionId: section._id }] });
+    }
+    await ops.publishSeries(pickle);
+    await ops.updateWebsite();
+
+    const site = world.sanity.view("published");
+    const menuDoc = (id) => world.sanity.view("published").find((doc) => doc._id === `menu-${id}`);
+    assert.deepEqual(
+      [dinner, brunch, drinks].map((menu) => {
+        const doc = menuDoc(menu.id);
+        return [doc.name, doc.slug.current, doc.kind, doc.days ?? null, doc.endsOn ?? null, doc.popupSeries?._ref ?? null];
+      }),
+      [
+        ["Dinner", "dinner", "kitchen", ["thu", "fri"], "2026-11-28", "series-chez-pickle"],
+        ["Brunch", "brunch", "kitchen", ["sat"], null, "series-chez-pickle"],
+        ["Drinks", "drinks", "bar", null, null, null],
+      ],
+    );
+    assert.equal(published(world, "small-plates").menu._ref, `menu-${dinner.id}`);
+    assert.equal(published(world, "small-plates").menu._weak, true, "a menu can go before its old chapters");
+    assert.equal((await ops.updateWebsite()).published, 0, "nothing left to publish");
+
+    // The website, reading what was sent with its own queries
+    const read = async (query, params = {}) => (await evaluate(parse(query), { dataset: site, params })).get();
+    const sections = nestMenuSections((await read(MENU_QUERY)).map(mapFlatSection));
+    const menus = (await read(MENUS_QUERY)).map(mapMenuInfo).filter(Boolean);
+    const catalog = {
+      series: [{ seriesId: "chez-pickle", title: "Chez Pickle", category: "popup" }],
+      occurrences: ["2026-11-19", "2026-11-20", "2026-11-21"].map((date) => ({ seriesId: "chez-pickle", date, category: "popup" })),
+    };
+    const kitchen = menuShelf("kitchen", { sections, menus }, catalog, "2026-11-21");
+    assert.deepEqual(
+      kitchen.menus.map((menu) => [menu.label, menu.href, menu.today]),
+      [
+        ["Dinner · Thu & Fri", "/kitchen#dinner", false],
+        ["Brunch · Sat", "/kitchen#brunch", true],
+      ],
+    );
+    assert.deepEqual(menuShelf("bar", { sections, menus }, catalog, "2026-11-21").menus.map((menu) => menu.name), ["Drinks"]);
+
+    // A menu taken out of ops goes from the website on the next update.
+    await ops.editSection(eggs, { menuId: dinner.id });
+    await ops.deleteMenu(brunch);
+    await ops.updateWebsite();
+    assert.equal(menuDoc(brunch.id), undefined);
+    assert.equal(published(world, "eggs").menu._ref, `menu-${dinner.id}`);
   });
 
   it("in Events, a pop-up lists its menus with their days; Add menu starts one from its name, dates and days", async () => {

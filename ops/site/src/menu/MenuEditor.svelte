@@ -12,6 +12,7 @@
 		Card,
 		ConfirmDialog,
 		DateField,
+		EditorActionBar,
 		EditorBackBar,
 		EmptyState,
 		Field,
@@ -30,10 +31,11 @@
 	import { toast } from "../ui/toast.svelte";
 	import { beginLeave, clearUnsavedGuard, setUnsavedGuard, takeBlockedNav } from "../ui/unsaved.svelte";
 	import SectionsPanel from "./SectionsPanel.svelte";
+	import MenuItemsList from "./MenuItemsList.svelte";
 	import MenuDaysPicker from "./MenuDaysPicker.svelte";
 	import { MENU_STATUS_TONES, blankMenu, menuDraft, menuPayload, popupDraft, sameMenu } from "./menu-form";
 	import { menuDaysLabel } from "./menu-days.js";
-	import { SECTION_KIND_ITEMS, type Menu, type MenuInput, type MenuPopupRun, type MenuSection } from "./types";
+	import { SECTION_KIND_ITEMS, type Menu, type MenuInput, type MenuItemChapter, type MenuPopupRun, type MenuSection } from "./types";
 
 	let { path }: { path: string } = $props();
 
@@ -43,6 +45,7 @@
 
 	let menu = $state<Menu | null>(null);
 	let sections = $state<MenuSection[]>([]);
+	let items = $state<MenuItemChapter[]>([]);
 	let menus = $state<Menu[]>([]);
 	let popups = $state<MenuPopupRun[]>([]);
 	let draft = $state<MenuInput>(blankMenu());
@@ -52,10 +55,23 @@
 	let error = $state("");
 	let saving = $state(false);
 	let deleting = $state(false);
+	let copying = $state(false);
 	let discardOpen = $state(false);
 	let deleteOpen = $state(false);
 
 	const dirty = $derived(!sameMenu(draft, initial));
+	/** Which part of the page shows: what's on it, its details, or its sections. */
+	let tab = $state("items");
+	const tabItems = $derived([
+		{ id: "items", label: "Items" },
+		{ id: "details", label: dirty ? "Details •" : "Details" },
+		{ id: "sections", label: "Sections" },
+	]);
+	// Another menu opens on its items.
+	$effect(() => {
+		void menuId;
+		tab = "items";
+	});
 	const canSave = $derived(!saving && Boolean(draft.name.trim()) && (isNew || dirty));
 	const popupOptions = $derived([
 		{ value: "", label: "None" },
@@ -64,6 +80,9 @@
 	const deleteReason = $derived(
 		isNew ? "Save it first" : sections.length ? "Move its sections to another menu first" : undefined,
 	);
+
+	// It copies the menu as saved, so changes not yet saved come first.
+	const copyReason = $derived(isNew ? "Save it first" : dirty ? "Save your changes first" : undefined);
 
 	function popupFromAddress(): string {
 		if (typeof location === "undefined") return "";
@@ -80,6 +99,7 @@
 				popups = data.popups || [];
 				menu = null;
 				sections = [];
+				items = [];
 				const popup = popups.find((row) => row.id === popupFromAddress());
 				draft = popup ? popupDraft(popup) : blankMenu();
 				initial = { ...draft, days: [...draft.days] };
@@ -89,6 +109,7 @@
 			const data = await api.getMenuPage(id);
 			menu = data.menu;
 			sections = data.sections || [];
+			items = data.items || [];
 			menus = data.menus || [];
 			popups = data.popups || [];
 			draft = menuDraft(data.menu);
@@ -111,6 +132,7 @@
 		try {
 			const data = await api.getMenuPage(menuId);
 			sections = data.sections || [];
+			items = data.items || [];
 			menus = data.menus || [];
 			menu = data.menu;
 		} catch (err) {
@@ -160,6 +182,21 @@
 		}
 	}
 
+	/** Copy menu: the next menu from this one, opened to set its dates. */
+	async function copy() {
+		if (!menu || copying || copyReason) return;
+		copying = true;
+		try {
+			const { menu: made } = await api.copyMenu(menu.id);
+			toast.ok(`${made.name} added, with ${menu.name}'s sections. Set its dates, then add its items.`);
+			navigate(menuPagePath(made.id), { force: true });
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Couldn't copy the menu.");
+		} finally {
+			copying = false;
+		}
+	}
+
 	function back() {
 		leaveEditor(menusListPath());
 	}
@@ -206,37 +243,18 @@
 	);
 </script>
 
+<!-- Like every editor: Back (and on phones the top bar) above, Save and
+     the rest in the bar along the bottom. -->
+<div class="editor">
+<EditorBackBar label="Menus" onback={back} />
 <div class="page scrollbar-fade">
-	<EditorBackBar label="Menus" {dirty} onback={back} />
-	<PageHeader eyebrow="Menu" {title} {subtitle}>
-		{#snippet actions()}
-			<Button variant="outline" type="button" onclick={back}>
-				{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
-				Menus
-			</Button>
-			<Button
-				variant="ghost"
-				type="button"
-				disabled={Boolean(deleteReason) || deleting}
-				reason={deleteReason}
-				onclick={() => (deleteOpen = true)}
-			>
-				{#snippet icon()}<Icon name="trash" size={16} />{/snippet}
-				Delete
-			</Button>
-			<Button
-				variant="primary"
-				type="button"
-				busy={saving}
-				disabled={!canSave}
-				reason={!saving && !draft.name.trim() ? "Give it a name" : !saving && !isNew && !dirty ? "No changes to save" : undefined}
-				onclick={() => void save()}
-			>
-				{#snippet icon()}<Icon name="save" size={16} />{/snippet}
-				{isNew ? "Add menu" : "Save"}
-			</Button>
-		{/snippet}
-	</PageHeader>
+	<PageHeader eyebrow="Menu" {title} {subtitle} />
+	{#if menu && !error}
+		<!-- One part at a time, like the other editors' tabs: the page was three long parts in a row. -->
+		<div class="tabs">
+			<Segmented bind:value={tab} items={tabItems} tone="soft" size="sm" ariaLabel="Menu sections" />
+		</div>
+	{/if}
 
 	{#if error}
 		<EmptyState tone="error" title="Couldn't load this menu" text={error}>
@@ -247,6 +265,13 @@
 	{:else if loading && !menu && !isNew}
 		<Skeleton rows={5} lines={1} label="Loading the menu…" />
 	{:else}
+		{#if menu && tab === "items"}
+			<FormSection title="Items" description="Laid out as on the website. Click an item to change it.">
+				<MenuItemsList chapters={items} menuName={menu.name} onchanged={refreshSections} />
+			</FormSection>
+		{/if}
+
+		{#if !menu || tab === "details"}
 		<Card>
 			<form class="menu-form" novalidate onsubmit={save}>
 				<FormSection title="The menu" description="What it's called, and when guests can order from it.">
@@ -295,7 +320,9 @@
 				<button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
 			</form>
 		</Card>
+		{/if}
 
+		{#if menu && tab === "sections"}
 		<FormSection
 			title="Sections"
 			description="Chapters and their groups, in the order guests see them. The print menu uses the same order."
@@ -306,7 +333,34 @@
 				<p class="muted">Add the menu first, then its sections go here.</p>
 			{/if}
 		</FormSection>
+		{/if}
 	{/if}
+</div>
+{#if !error && !(loading && !menu && !isNew)}
+	<EditorActionBar
+		saveLabel={isNew ? "Add menu" : "Save menu"}
+		savingLabel={isNew ? "Adding…" : "Saving…"}
+		{saving}
+		disabled={!canSave || deleting || copying}
+		{dirty}
+		onsave={() => void save()}
+		overflow={[
+			{
+				label: "Copy menu",
+				disabled: Boolean(copyReason) || copying,
+				reason: copyReason,
+				onselect: () => void copy(),
+			},
+			{
+				label: "Delete menu",
+				tone: "destructive",
+				disabled: Boolean(deleteReason) || deleting,
+				reason: deleteReason,
+				onselect: () => (deleteOpen = true),
+			},
+		]}
+	/>
+{/if}
 </div>
 
 <ConfirmDialog
@@ -328,6 +382,14 @@
 />
 
 <style>
+	.editor {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-width: 0;
+		min-height: 0;
+	}
+
 	.page {
 		position: relative;
 		flex: 1;
@@ -339,6 +401,17 @@
 		align-content: start;
 	}
 
+	.tabs {
+		margin-top: calc(var(--space-2) * -1);
+		border-bottom: 1px solid var(--border);
+	}
+
+	/* The tab strip is the rule above whichever part shows. */
+	.tabs + :global(.form-section) {
+		padding-top: 0;
+		border-top: 0;
+	}
+
 	.menu-form {
 		display: grid;
 		gap: var(--space-4);
@@ -348,5 +421,37 @@
 		margin: 0;
 		font-size: var(--text-sm);
 		color: var(--fg-muted);
+	}
+
+	/* The bar spans the page under the gutter, as in the other editors. */
+	.editor :global(.editor-action-bar) {
+		padding-inline: var(--page-gutter);
+	}
+
+	/* Phones: edge to edge like the other editors, so the fields have the room. */
+	@media (max-width: 900px) {
+		.page {
+			padding-inline: max(var(--page-gutter), 1.125rem);
+		}
+
+		/* Sticks under the top bar while the page scrolls. */
+		.tabs {
+			position: sticky;
+			top: calc(var(--page-gutter) * -1);
+			z-index: 3;
+			margin-inline: calc(max(var(--page-gutter), 1.125rem) * -1);
+			padding-inline: max(var(--page-gutter), 1.125rem);
+			background: var(--ambient), var(--background);
+		}
+
+		.page :global(.card) {
+			border: 0;
+			border-radius: 0;
+			background: none;
+		}
+
+		.page :global(.card > .body) {
+			padding: 0;
+		}
 	}
 </style>

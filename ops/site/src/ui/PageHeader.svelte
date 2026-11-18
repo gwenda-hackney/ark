@@ -9,13 +9,20 @@
 	 * page (`.title-in-strip`), the title is kept for screen readers only. The
 	 * subtitle is one line and the actions stay on one row. Give Help and
 	 * Refresh buttons `data-compact` and they shrink to their icon on phones.
+	 *
+	 * A page with tabs (Stock: Inventory | Suppliers) passes `tabs`: links,
+	 * right under the title and above the tab's own subtitle, so they sit in
+	 * the same place on every tab (#312).
 	 */
 	import type { Snippet } from "svelte";
+	import Segmented from "./Segmented.svelte";
+	import type { SegmentedItem } from "./types";
 
 	let {
 		title,
 		subtitle,
 		eyebrow,
+		tabs,
 		actions,
 		toolbar,
 		children,
@@ -23,6 +30,8 @@
 		title: string;
 		subtitle?: string;
 		eyebrow?: string;
+		/** The page's tabs, each a link with its own address; `value` is the one shown. */
+		tabs?: { items: readonly SegmentedItem[]; value: string; label?: string };
 		actions?: Snippet;
 		/** One row under the title: search, filters, count, view toggle. */
 		toolbar?: Snippet;
@@ -36,6 +45,11 @@
 		<div class="titles">
 			{#if eyebrow}<p class="eyebrow">{eyebrow}</p>{/if}
 			<h1>{title}</h1>
+			{#if tabs}
+				<div class="tabs">
+					<Segmented value={tabs.value} items={tabs.items} tone="soft" size="sm" ariaLabel={tabs.label || title} />
+				</div>
+			{/if}
 			{#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
 		</div>
 		{#if actions}
@@ -80,6 +94,10 @@
 		font-size: var(--text-2xl);
 		line-height: var(--leading-2xl);
 		letter-spacing: 0;
+	}
+
+	.tabs {
+		margin: var(--space-1) 0 var(--space-1) calc(-1 * var(--space-2));
 	}
 
 	.subtitle {
@@ -141,10 +159,13 @@
 			margin-top: 0;
 		}
 
+		/* Up to two lines: one cut "Saving puts it on…" mid-sentence. */
 		.subtitle {
+			display: -webkit-box;
 			overflow: hidden;
-			white-space: nowrap;
-			text-overflow: ellipsis;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+			line-clamp: 2;
 			font-size: var(--text-sm);
 			line-height: var(--leading-sm);
 		}
@@ -160,7 +181,7 @@
 			white-space: nowrap;
 		}
 
-		:global(.title-in-strip) .titles:not(:has(.eyebrow, .subtitle)) {
+		:global(.title-in-strip) .titles:not(:has(.eyebrow, .subtitle, .tabs)) {
 			display: contents;
 		}
 

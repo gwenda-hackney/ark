@@ -113,6 +113,8 @@ export function eventFields() {
     { name: "Gallery", body: { name: "Gallery", type: "long_text" } },
     // A pop-up kitchen's logo (#296): its Sanity asset id.
     { name: "Logo asset", body: { name: "Logo asset", type: "text" } },
+    // A pop-up kitchen's own colour (#319): "#0f4d32".
+    { name: "Accent colour", body: { name: "Accent colour", type: "text" } },
   ];
 }
 

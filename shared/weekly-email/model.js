@@ -15,6 +15,7 @@ import { siteConfig } from "../../marketing/web/src/config/site.ts";
 import { bookingUrl } from "../../marketing/web/src/config/booking.ts";
 import { formatEventSpan } from "../../marketing/web/src/data/events.ts";
 import { isWholeFit } from "../../marketing/web/functions/_lib/sanity-image-url.js";
+import { bookingsWords } from "../../marketing/web/src/lib/bookings.js";
 import { daysAway, weekStart } from "../../marketing/web/src/lib/london-day.js";
 import { nightDay, nightRuns, runDay, runTimes } from "../../marketing/web/src/lib/night-cards.js";
 import { popupKitchens } from "../../marketing/web/src/lib/popup-kitchen.js";
@@ -99,11 +100,30 @@ function nightCards(occurrences, series, todayIso, origin) {
 }
 
 /**
+ * Bookings, as the website's Bookings page has it (#315): its heading and
+ * note, then a party and playing here, each with its heading, line and
+ * button to its half of /bookings. The words are the page's own
+ * (lib/bookings.js), so a change there changes the email too.
+ */
+function bookingsSection(origin) {
+  const { heading, note, halves } = bookingsWords();
+  return {
+    heading,
+    note,
+    halves: halves.map((half) => ({
+      id: half.id,
+      heading: half.heading,
+      line: half.line,
+      cta: half.cta,
+      href: absolute(origin, half.page),
+    })),
+  };
+}
+
+/**
  * @param {object} catalog what the website's What's on is built from
  * @param {object[]} catalog.occurrences every night, each with its series' category
  * @param {object[]} [catalog.series]
- * @param {object[]} [catalog.chapters] the kitchen menu's chapters, for a
- *   pop-up's own place on the food page; the food page itself without
  * @param {object} options
  * @param {string} options.today the day it goes out, in London: YYYY-MM-DD
  *   (lib/london-day.js londonToday)
@@ -136,7 +156,8 @@ export function weeklyEmailModel(catalog, { today, origin = siteConfig.domain } 
   }));
 
   // A pop-up's line and its Instagram (its link) are its series' in ops (#296).
-  const kitchens = popupKitchens(series, occurrences, catalog?.chapters || [], today).map((kitchen) => {
+  // No menus in the email's catalog: "See the menu" goes to the food page.
+  const kitchens = popupKitchens(series, occurrences, new Map(), today).map((kitchen) => {
     const page = kitchen.pageUrl;
     return {
       title: kitchen.title,
@@ -168,6 +189,7 @@ export function weeklyEmailModel(catalog, { today, origin = siteConfig.domain } 
       })),
       more: Math.max(0, following.length - NEXT_WEEK_SHOWN),
     },
+    bookings: bookingsSection(site),
     site: {
       name: siteConfig.name,
       social: siteConfig.copy.social,

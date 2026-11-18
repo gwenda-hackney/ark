@@ -9,8 +9,10 @@
 		EditorActionBar,
 		EditorBackBar,
 		HelpDrawer,
+		PageHelp,
 		Segmented,
 	} from "../ui";
+	import { editorHeaderActions } from "./editor-header-actions";
 	import { provideHelp } from "../ui/help.svelte";
 	import { EVENTS_HELP } from "./events-help";
 	import type { SegmentedItem } from "../ui/types";
@@ -31,12 +33,11 @@
 	import {
 		editorKey,
 		eventItemPath,
-		eventNewPath,
-		eventTabPath,
 		leaveEditor,
 		navigate,
 	} from "../app/nav";
-	import { setActiveNavOverride, setCrumbLeaf } from "../ui/crumbs.svelte";
+	import { setCrumbLeaf } from "../ui/crumbs.svelte";
+	import { LIST_COPY, homeList, type EventList } from "./event-lists";
 	import { easeOut } from "../ui/motion";
 	import {
 		beginLeave,
@@ -56,34 +57,25 @@
 	let tabPrev = "details";
 	let tabReady = false;
 
-	let listOrigin = $state<"series" | "schedule">("series");
-	const routeList = $derived(
-		(editor.route as { list?: string }).list === "schedule" ? "schedule" : (editor.route as { list?: string }).list === "series" ? "series" : null,
-	);
-	// A special event is not a series: keep Schedule highlighted in the menu.
-	$effect(() => {
-		setActiveNavOverride(editor.editingOnce ? "events-schedule" : "");
-		return () => setActiveNavOverride("");
-	});
-	const listView = $derived<"series" | "schedule">(
+	/** The list last shown on this page: it stays under an editor opened from it. */
+	let listOrigin = $state<EventList | null>(null);
+	const routeList = $derived(((editor.route as { list?: string | null }).list || null) as EventList | null);
+	/** The Schedule, or Events, Pop-ups or Deals (#312); under an editor, the one it came from. */
+	const listView = $derived<EventList>(
 		routeList ??
-			(editor.editingOccurrence || editor.creatingOnce || editor.editingOnce
-				? "schedule"
-				: editor.editing && !editor.route.isNew
-					? "series"
-					: listOrigin),
+			homeList({
+				origin: listOrigin,
+				night: editor.editingOccurrence,
+				scheduleAdd: editor.newEventRoute,
+				section: editor.section,
+			}),
 	);
-	const listTitle = $derived(listView === "schedule" ? "Schedule" : "Series");
+	const listTitle = $derived(LIST_COPY[listView].title);
 	/** One Help drawer for the lists and the editor; a field's ? opens its topic. */
 	const help = provideHelp(() => (editor.editing ? "Events" : listTitle), EVENTS_HELP);
 
 	const tabs = $derived.by((): SegmentedItem[] => {
-		const base = editor.route.isNew
-			? "/events/new"
-			: editor.route.slug
-				? `/events/${encodeURIComponent(editor.route.slug)}`
-				: "/events/new";
-		const hrefFor = (id: string) => eventTabPath(base, id);
+		const hrefFor = (id: string) => editor.tabPath(id);
 		// Everything new is one form: nights and photos come after the first save.
 		if (editor.route.isNew) return [];
 		if (editor.editingOnce || editor.editingOccurrence) {
@@ -138,7 +130,7 @@
 	// A special event or a night has no Schedule tab: its date is under When on Details.
 	$effect(() => {
 		if (editor.tab !== "schedule" || !editor.eventId) return;
-		if (editor.editingOnce) navigate(eventItemPath(editor.eventId, "details"), { replace: true });
+		if (editor.editingOnce) navigate(editor.tabPath("details"), { replace: true });
 		else if (editor.editingOccurrence && editor.occurrenceDate) {
 			navigate(eventItemPath(`${editor.eventId}@${editor.occurrenceDate}`, "details"), { replace: true });
 		}
@@ -147,17 +139,19 @@
 	$effect(() => {
 		if (!editor.editingOccurrence || !editor.eventId || !editor.occurrenceDate) return;
 		if (String(editor.current?.repeatUnit || "").toLowerCase() !== "once") return;
-		navigate(eventItemPath(editor.eventId, editor.tab === "schedule" ? "details" : editor.tab), {
+		navigate(eventItemPath(editor.eventId, editor.tab === "schedule" ? "details" : editor.tab, editor.section), {
 			replace: true,
 		});
 	});
 
+	// The address names its list: once loaded, a pop-up opened as /events/36
+	// moves to /popups/36, so the menu lights Pop-ups (#312).
 	$effect(() => {
 		if (!editor.editing) return;
 		const canonical = editor.route.isNew
-			? eventNewPath("details", { once: editor.newEventRoute })
+			? editor.tabPath("details")
 			: editor.route.slug
-				? eventItemPath(editor.route.slug, editor.route.tab || "details")
+				? editor.tabPath(editor.route.tab || "details")
 				: "";
 		if (canonical && canonical !== path) navigate(canonical, { replace: true });
 	});
@@ -170,7 +164,15 @@
 						.filter(Boolean)
 						.join(" · ")
 				: editor.form.name.trim() ||
-					(editor.route.isNew ? (editor.creatingNight ? "New night" : editor.creatingOnce ? "New event" : "New series") : "Event");
+					(editor.route.isNew
+						? editor.creatingNight
+							? "New night"
+							: editor.form.category === "popup"
+								? "New pop-up"
+								: editor.form.category === "promotion"
+									? "New deal"
+									: "New event"
+						: "Event");
 		setCrumbLeaf(label);
 		return () => setCrumbLeaf("");
 	});
@@ -227,6 +229,18 @@
 			: editor.creatingOnce || editor.editingOnce
 				? "Save event"
 				: "Save series",
+	);
+	/** The header's Update calendar and Reload, for the bottom bar on phones. */
+	const headerActions = $derived(
+		editorHeaderActions({
+			eventId: editor.eventId,
+			isNew: Boolean(editor.route.isNew),
+			editingNight: editor.editingNight,
+			special: editor.creatingOnce || editor.editingOnce,
+			dirty: editor.formDirty,
+			busy: editor.busy,
+			liveCurrent: editor.current?.publish.live === "current",
+		}),
 	);
 	const deleteLabel = $derived(
 		editor.editingNight
@@ -324,7 +338,7 @@
 
 <div class="events-root" class:editor.editing>
 	<!-- Keep the list mounted under the editor so week-list scroll survives open/close. -->
-	<EventsList events={editor.events} {listView} {listTitle} busy={editor.busy} error={editor.error} loading={editor.loading} editing={editor.editing && !editor.route.isNew} missing={editor.missing} onreload={() => void editor.reload()} />
+	<EventsList events={editor.events} list={listView} busy={editor.busy} error={editor.error} loading={editor.loading} editing={editor.editing && !editor.route.isNew} missing={editor.missing} onreload={() => void editor.reload()} />
 	{#if editor.missing}
 		<div class="missing">
 			<EditorBackBar label={listTitle} onback={() => leaveEditor(editor.listHomePath())} />
@@ -361,7 +375,9 @@
 			{#if !reveal.settled}
 				<EditorPlaceholder />
 			{:else}
-				<EditorBackBar label={listTitle} onback={requestClose} />
+				<EditorBackBar label={listTitle} onback={requestClose}>
+					{#snippet tools()}<PageHelp iconOnly />{/snippet}
+				</EditorBackBar>
 				<div class="split split--full">
 					<div class="panel" class:dirty={editor.formDirty}>
 						<EditorHeader
@@ -451,6 +467,9 @@
 												logo={editor.showsLogo ? { url: editor.current?.logo?.url || "" } : null}
 												onpicklogo={editor.acceptLogoFile}
 												onclearlogo={() => void editor.onClearLogo()}
+												name={editor.current?.name || ""}
+												colour={editor.current?.accentColor || ""}
+												oncolour={(hex) => void editor.onAccentColor(hex)}
 											/>
 										{/if}
 										{#if editor.websiteJob?.state === "failed" && !editor.formDirty}
@@ -493,6 +512,21 @@
 							errorCount={editor.errors.count}
 							onerrors={() => void editor.showErrors()}
 							overflow={[
+								// Phones: the header's tools, here instead (see EditorHeader).
+								{
+									label: "Update calendar",
+									phoneOnly: true,
+									disabled: headerActions.calendar.disabled || editor.calendarSyncing,
+									reason: headerActions.calendar.reason,
+									onselect: () => void editor.onSyncCalendar(),
+								},
+								{
+									label: "Reload",
+									phoneOnly: true,
+									disabled: headerActions.reload.disabled,
+									reason: headerActions.reload.reason,
+									onselect: requestReload,
+								},
 								// Nights always offer this, disabled when nothing overrides the series;
 								// a series never has it.
 								...(editor.editingOccurrence
@@ -740,4 +774,28 @@
 		}
 	}
 
+	/* Phones: the whole editor scrolls, title and all, between the top bar and
+	   the Save bar, instead of only the part under a pinned header. */
+	@media (max-width: 900px) {
+		.panel {
+			overflow-x: hidden;
+			overflow-y: auto;
+			overscroll-behavior: contain;
+		}
+
+		.tab-scroll {
+			flex: none;
+			min-height: auto;
+			overflow: visible;
+		}
+
+		/* Sticks under the top bar while the editor scrolls. */
+		.tabs {
+			position: sticky;
+			top: 0;
+			z-index: 3;
+			/* The panel's own colour, solid, so fields don't show through. */
+			background: linear-gradient(var(--panel-bg), var(--panel-bg)), var(--background);
+		}
+	}
 </style>

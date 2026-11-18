@@ -1,7 +1,7 @@
 import { describe, test } from "vitest";
 import assert from "node:assert/strict";
 import { memoryEventRepository } from "../../events/server/adapters/memory-events.js";
-import { QUIET_MS, autoUpdateTick, decide, parseState, siteStatus } from "./site-pending.js";
+import { QUIET_MS, autoUpdateTick, decide, menusChangedSince, parseState, siteStatus } from "./site-pending.js";
 import { LOCAL_OPS_FRESH_MS, LOCAL_OPS_KEY } from "./local-ops.js";
 
 const T0 = Date.parse("2026-09-25T10:00:00Z");
@@ -346,5 +346,43 @@ describe("while local ops is running (#300)", () => {
     const later = await siteStatus(env, "production", site.deps(T0 + 60_000 + LOCAL_OPS_FRESH_MS + 1));
     assert.equal(later.paused, null, "once local ops has gone quiet, it isn't");
     assert.ok(later.autoUpdateAt);
+  });
+});
+
+describe("today's menus (#306)", () => {
+  /** Chez Pickle: dinner Thu & Fri, brunch Sat, as the site's Sanity view answers MENU_DAY_QUERY. */
+  const result = {
+    menus: [
+      { id: "dinner", name: "Dinner", kind: "kitchen", days: ["thu", "fri"], popupSeriesId: "series-chez-pickle" },
+      { id: "brunch", name: "Brunch", kind: "kitchen", days: ["sat"], popupSeriesId: "series-chez-pickle" },
+    ],
+    chapters: [
+      { id: "small-plates", kind: "kitchen", menuId: "dinner", filled: true },
+      { id: "eggs", kind: "kitchen", menuId: "brunch", filled: true },
+    ],
+    series: [{ seriesId: "chez-pickle", title: "Chez Pickle", category: "popup" }],
+    nights: ["2026-11-26", "2026-11-27", "2026-11-28"].map((date) => ({ seriesId: "chez-pickle", date })),
+  };
+  const asked = [];
+  const query = async (_env, view, _query, params) => {
+    asked.push({ view, params });
+    return result;
+  };
+  // Friday evening, London time
+  const builtFriday = "2026-11-27T18:00:00Z";
+
+  test("is pending the morning the site would show another menu, read from the site's own view", async () => {
+    const items = await menusChangedSince({}, "preview", builtFriday, "2026-11-28", { query });
+    assert.deepEqual(
+      items.map(({ kind, id, label }) => ({ kind, id, label })),
+      [{ kind: "menus", id: "menus-2026-11-28", label: "Today's menus on the website" }],
+    );
+    assert.deepEqual(asked.at(-1), { view: "preview", params: { from: "2026-11-27" } });
+  });
+
+  test("is not pending on a day that shows the same, nor the day it was built", async () => {
+    assert.deepEqual(await menusChangedSince({}, "production", "2026-11-26T18:00:00Z", "2026-11-27", { query }), []);
+    assert.deepEqual(await menusChangedSince({}, "production", builtFriday, "2026-11-27", { query }), []);
+    assert.deepEqual(await menusChangedSince({}, "production", null, "2026-11-28", { query }), []);
   });
 });
