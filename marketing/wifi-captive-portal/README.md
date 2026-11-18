@@ -1,6 +1,8 @@
 # Gwenda Wi‑Fi captive portal (Cloudflare Worker + UniFi Site Manager)
 
-Captive portal for the UDR7 guest Wi‑Fi. Guests enter an email; the Worker signs it up
+Captive portal for the UDR7 guest Wi‑Fi. Guests enter an email, kept as a Wi‑Fi guest
+(`wifi_guests`, for Wi‑Fi and service messages only). Only a guest who ticks
+"Send me what’s on at Gwenda" (unticked by default) is signed up
 with the website's own sign-up (`shared/guests`: tag `wifi`, unsynced), in Baserow
 `Subscribers` until `store:guests` says D1 (#127),
 then authorizes the device through Ubiquiti’s **Site Manager cloud proxy**
@@ -12,9 +14,14 @@ No LAN host required while the console is online at [unifi.ui.com](https://unifi
 
 1. Guest joins the Hotspot SSID
 2. UniFi redirects to `https://<portal>/guest/s/default/?id=<mac>&ap=<ap>&…`
-3. Guest submits email → new subscriber, or `wifi` merged onto an existing one's tags → Site Manager `authorize-guest`
-4. Success page → `REDIRECT_URL` (default gwenda.co.uk)
-5. Mailchimp sync applies every Tag when `Synced` is false
+3. Guest submits email, and ticks the newsletter box or not
+4. Always: the Wi‑Fi guest is recorded (`wifi_guests`: first and last day seen; not synced anywhere)
+5. Box ticked: new subscriber, or `wifi` merged onto an existing one's tags. Not ticked: nothing
+   changes on the mailing list, and an existing subscriber stays as they were
+6. Site Manager `authorize-guest`. Getting online never waits on either save: a failed save is
+   logged to Sentry, and while guests are frozen (#191) neither is saved
+7. Success page → `REDIRECT_URL` (default gwenda.co.uk)
+8. Mailchimp sync applies every Tag when `Synced` is false
 
 ## Setup
 
@@ -69,8 +76,10 @@ Use the Hotspot UI you already have open, e.g.
 
 1. Join the guest SSID from a phone
 2. Captive sheet should show **Gwenda · Welcome aboard**
-3. Submit an email
-4. Subscribers: a new one tagged `wifi`, or `wifi` merged onto an existing email’s tags and marked unsynced
+3. Submit an email without ticking the box: you get online, a `wifi_guests` row appears, and
+   Subscribers doesn't change
+4. Submit another email with the box ticked: a `wifi_guests` row, and in Subscribers a new one
+   tagged `wifi`, or `wifi` merged onto an existing email’s tags and marked unsynced
 5. Mailchimp sync (hourly or manual) applies every tag (e.g. `prelaunch` + `wifi`)
 
 ## Secrets / vars
@@ -79,7 +88,7 @@ Use the Hotspot UI you already have open, e.g.
 |---|---|---|
 | `UNIFI_SITE_MANAGER_API_KEY` | Worker secret | From unifi.ui.com API Keys |
 | `UNIFI_CONSOLE_ID` | `wrangler.toml` `[vars]` | From the Site Manager URL |
-| `WEBSITE_DB` | `wrangler.toml` D1 binding | Production `gwenda-website`: subscribers |
+| `WEBSITE_DB` | `wrangler.toml` D1 binding | Production `gwenda-website`: subscribers, wifi_guests |
 | `WIFI_SUBSCRIBE_TAG` | vars | Default `wifi` |
 | `UNIFI_GUEST_MINUTES` | vars | Default `1440` |
 | `REDIRECT_URL` | vars | Default `https://gwenda.co.uk` |

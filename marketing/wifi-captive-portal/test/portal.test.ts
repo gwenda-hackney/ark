@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { memorySubscriberRepository } from "../../../shared/guests/adapters/memory-subscribers.js";
+import { memoryWifiGuestRepository } from "../../../shared/guests/adapters/memory-wifi-guests.js";
 import { handlePortalRequest, subscribeEmail } from "../src/handler.js";
 import type { Env } from "../src/types.js";
 import { authorizeGuest } from "../src/unifi.js";
@@ -61,6 +62,98 @@ describe("sign-up", () => {
     const update = vi.spyOn(repo, "update");
     await subscribeEmail(repoEnv, { email: "guest@example.com", tag: "wifi" });
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe("marketing consent", () => {
+  const guestEnv = () => {
+    const subscriberRepository = memorySubscriberRepository();
+    const wifiGuestRepository = memoryWifiGuestRepository();
+    return {
+      subscribers: subscriberRepository,
+      wifiGuests: wifiGuestRepository,
+      env: { ...env, subscriberRepository, wifiGuestRepository } as Env,
+    };
+  };
+  const authorize = async () => ({ ok: true as const });
+  const submit = (testEnv: Env, fields: Record<string, string>) =>
+    handlePortalRequest(
+      new Request("https://wifi.example/authorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ id: "aa:bb:cc:dd:ee:ff", ...fields }),
+      }),
+      testEnv,
+      { authorize },
+    );
+
+  it("shows the newsletter box unticked, apart from the required email", async () => {
+    const page = await handlePortalRequest(
+      new Request("https://wifi.example/guest/s/default/?id=aa:bb:cc:dd:ee:ff"),
+      env,
+    );
+    const html = await page.text();
+    const box = html.match(/<input[^>]*name="marketing"[^>]*>/)?.[0];
+    expect(box).toBeDefined();
+    expect(box).toContain('type="checkbox"');
+    expect(box).not.toMatch(/\bchecked\b/);
+    expect(box).not.toMatch(/\brequired\b/);
+    expect(html).toContain("Send me what’s on at Gwenda");
+    expect(html).not.toContain("The occasional note from Gwenda");
+  });
+
+  it("without the box: gets online, kept as a Wi-Fi guest, not on the mailing list", async () => {
+    const { env: testEnv, subscribers, wifiGuests } = guestEnv();
+    const post = await submit(testEnv, { email: "Guest@Example.com" });
+    expect(post.status).toBe(200);
+    expect(await post.text()).toContain("Connected");
+    expect(await wifiGuests.getByEmail("guest@example.com")).toMatchObject({
+      email: "guest@example.com",
+    });
+    expect(await subscribers.count()).toBe(0);
+  });
+
+  it("with the box: kept as a Wi-Fi guest and on the mailing list, tagged wifi", async () => {
+    const { env: testEnv, subscribers, wifiGuests } = guestEnv();
+    const post = await submit(testEnv, {
+      email: "guest@example.com",
+      marketing: "yes",
+    });
+    expect(post.status).toBe(200);
+    expect(await wifiGuests.count()).toBe(1);
+    expect(await subscribers.listByEmail("guest@example.com")).toMatchObject([
+      { tags: ["wifi"], synced: false },
+    ]);
+  });
+
+  it("without the box leaves an existing subscriber as they were", async () => {
+    const { env: testEnv, subscribers } = guestEnv();
+    await subscribers.create({
+      email: "guest@example.com",
+      tags: ["prelaunch"],
+      signedUpOn: "2026-07-04",
+      synced: true,
+    });
+    await submit(testEnv, { email: "guest@example.com" });
+    expect(await subscribers.listByEmail("guest@example.com")).toMatchObject([
+      { tags: ["prelaunch"], signedUpOn: "2026-07-04", synced: true },
+    ]);
+  });
+
+  it("gets the guest online when the Wi-Fi guest can't be saved, and logs it", async () => {
+    const { env: testEnv, wifiGuests } = guestEnv();
+    vi.spyOn(wifiGuests, "recordVisit").mockRejectedValue(
+      new Error("D1_ERROR: no such table: wifi_guests"),
+    );
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const post = await submit(testEnv, { email: "guest@example.com" });
+    expect(post.status).toBe(200);
+    expect(await post.text()).toContain("Connected");
+    expect(logged).toHaveBeenCalledWith(
+      "[wifi-captive-portal] Wi-Fi guest not saved; guest let on anyway",
+      expect.stringContaining("no such table"),
+    );
+    logged.mockRestore();
   });
 });
 
@@ -158,6 +251,7 @@ describe("handler", () => {
           ap: "11:22:33:44:55:66",
           url: "https://gwenda.co.uk",
           site: "default",
+          marketing: "yes",
         }),
       }),
       env,
@@ -191,7 +285,7 @@ describe("handler", () => {
       new Request("https://wifi.example/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ email: "guest@example.com", id: "aa:bb:cc:dd:ee:ff" }),
+        body: new URLSearchParams({ email: "guest@example.com", id: "aa:bb:cc:dd:ee:ff", marketing: "yes" }),
       }),
       env,
       { subscribe: subscribe as never, authorize },

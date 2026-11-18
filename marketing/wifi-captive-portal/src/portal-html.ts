@@ -207,6 +207,60 @@ const SHARED_STYLES = `
     button[aria-busy="true"] { animation: none; }
     button[aria-busy="true"]::before { animation-duration: 2.4s; }
   }
+  /* The newsletter box: unticked, the whole row is the tap target. */
+  .opt-in {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    min-height: 44px;
+    padding: 0.2rem 0 0.35rem;
+    margin-bottom: 1.15rem;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--text);
+    line-height: 1.45;
+    cursor: pointer;
+  }
+  .opt-in input {
+    appearance: none;
+    flex: none;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-top: 0.05rem;
+    background: var(--bg-elevated);
+    border: 1px solid color-mix(in srgb, var(--text) 28%, transparent);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  .opt-in input::after {
+    content: "";
+    width: 0.4rem;
+    height: 0.75rem;
+    margin-top: -0.15rem;
+    border: solid var(--bg);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+    transition: transform 0.2s var(--ease-smooth);
+  }
+  .opt-in input:checked {
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+  .opt-in input:checked::after { transform: rotate(45deg) scale(1); }
+  .opt-in input:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 55%, transparent);
+  }
+  .opt-in small {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
   .consent {
     margin-top: 1rem;
     color: var(--muted);
@@ -345,8 +399,12 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
         <input type="hidden" name="site" value="${escapeHtml(input.site ?? "default")}" />
         <label for="email">Email</label>
         <input id="email" name="email" type="email" required inputmode="email" autocomplete="email" placeholder="your@email.com" autofocus />
+        <label class="opt-in">
+          <input type="checkbox" name="marketing" value="yes" />
+          <span>Send me what’s on at Gwenda<small>Now and then, by email. Unsubscribe anytime.</small></span>
+        </label>
         <button type="submit">Enter our world</button>
-        <p class="consent">The occasional note from Gwenda. Leave anytime.</p>
+        <p class="consent">We use your email for the Wi‑Fi and to contact you about your visit if we need to.</p>
       </form>
       <script>${BUSY_SCRIPT}</script>
     </div>
