@@ -640,6 +640,10 @@ class FakeMailchimp {
     this.log = [];
     this.fail = {};
     this.nextCampaign = 1;
+    /** Report numbers by campaign id: { uniqueOpens, uniqueClicks, unsubscribed, bounces }. */
+    this.reportStats = new Map();
+    /** Sent campaigns of another audience in the same account, as /reports lists them. */
+    this.otherListReports = [];
   }
 
   /** Give an env this account's key and audience. */
@@ -684,6 +688,31 @@ class FakeMailchimp {
         stats: { member_count: this.memberCount },
         campaign_defaults: { from_name: "Gwenda", from_email: "hello@example.com" },
       });
+    }
+    if (method === "GET" && path === "/reports") {
+      const failure = step("reports");
+      if (failure) return this.refuse(failure);
+      const ours = [...this.campaigns.values()]
+        .filter((campaign) => campaign.status === "sent")
+        .map((campaign) => {
+          const stats = this.reportStats.get(campaign.id) || {};
+          const sent = campaign.emails_sent;
+          const opens = stats.uniqueOpens || 0;
+          const clicks = stats.uniqueClicks || 0;
+          return {
+            id: campaign.id,
+            list_id: this.listId,
+            subject_line: campaign.settings.subject_line,
+            send_time: campaign.send_time,
+            emails_sent: sent,
+            unsubscribed: stats.unsubscribed || 0,
+            bounces: { hard_bounces: stats.bounces || 0, soft_bounces: 0, syntax_errors: 0 },
+            opens: { unique_opens: opens, open_rate: sent ? opens / sent : 0 },
+            clicks: { unique_subscriber_clicks: clicks, click_rate: sent ? clicks / sent : 0 },
+          };
+        });
+      const others = this.otherListReports.map((report) => ({ list_id: "another-list", emails_sent: 1, ...report }));
+      return json({ reports: [...others, ...ours], total_items: others.length + ours.length });
     }
     if (method === "POST" && path === "/campaigns") {
       const failure = step("create");

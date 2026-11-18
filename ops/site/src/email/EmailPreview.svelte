@@ -20,7 +20,7 @@
 <Card
 	title="This week's email"
 	subtitle={email
-		? `As it would go out now, for ${shortDay(email.today)} to ${shortDay(email.week.end)}. ${contentsLine(email)}.`
+		? `${shortDay(email.today)} – ${shortDay(email.week.end)} · ${contentsLine(email)}`
 		: problem
 			? "Couldn't be built just now."
 			: "Building it from the website…"}
@@ -62,8 +62,8 @@
 		</div>
 	</div>
 	<p class="muted small">
-		Built from what's published on the website right now, so it matches What's on. Links go to {email?.origin ||
-			"the website"}. Shown as Gmail shows it, in this computer's fonts; only Apple Mail loads the website's own.
+		From the live website, as it would go now · links to {email?.origin || "the website"} · Gmail's fonts (Apple Mail
+		shows the website's)
 	</p>
 	</div>
 </Card>

@@ -18,7 +18,7 @@
 			const sent = await sendWeeklyEmailTest();
 			result = sent.warning
 				? { tone: "warn", text: sent.warning }
-				: { tone: "ok", text: `Sent to ${sent.sentTo}. It can take a minute to arrive.` };
+				: { tone: "ok", text: `Sent to ${sent.sentTo} · can take a minute` };
 		} catch (err) {
 			result = { tone: "error", text: err instanceof Error ? err.message : "The test didn't send." };
 		} finally {
@@ -29,7 +29,7 @@
 
 <Card
 	title="Send me a test"
-	subtitle={`This week's email, to ${status?.me.email || "your own address"} only. The mailing list gets nothing.`}
+	subtitle={`To ${status?.me.email || "you"} only`}
 >
 	<div class="row">
 		<Button variant="outline" size="sm" {busy} disabled={Boolean(blocked) || busy} reason={blocked} onclick={() => void send()}>

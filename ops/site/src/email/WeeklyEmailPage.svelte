@@ -18,6 +18,7 @@
 	import EmailPreview from "./EmailPreview.svelte";
 	import EmailSchedule from "./EmailSchedule.svelte";
 	import EmailStatus from "./EmailStatus.svelte";
+	import SentEmails from "./SentEmails.svelte";
 	import TestSend from "./TestSend.svelte";
 
 	let { me }: { me: AuthMe } = $props();
@@ -93,6 +94,9 @@
 			<EmailSchedule {status} onsaved={(settings) => { if (status) status = { ...status, settings }; void loadStatus(); }} />
 		</div>
 	</div>
+	<div class="sent">
+		<SentEmails available={status ? status.access.mailchimp : null} />
+	</div>
 </div>
 
 <style>
@@ -113,6 +117,9 @@
 		display: grid;
 		gap: var(--space-4);
 		min-width: 0;
+	}
+	.sent {
+		margin-top: var(--space-4);
 	}
 	.error {
 		margin: 0;

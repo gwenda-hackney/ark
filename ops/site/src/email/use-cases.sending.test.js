@@ -21,6 +21,7 @@ import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { onRequestPost as approve } from "../../functions/api/email/approve.js";
 import { onRequestGet as getAudienceSize } from "../../functions/api/email/audience.js";
 import { onRequestPost as prepare } from "../../functions/api/email/prepare.js";
+import { onRequestGet as getReports } from "../../functions/api/email/reports.js";
 import { onRequestGet as getPreview } from "../../functions/api/email/preview.js";
 import { onRequestPost as sendAgain } from "../../functions/api/email/send-again.js";
 import { onRequestPost as saveSettings } from "../../functions/api/email/settings.js";
@@ -255,6 +256,37 @@ describe("weekly email: switched on, it sends by itself at its time", () => {
     assert.deepEqual(shown.schedule.next, { date: "2026-11-17", time: "11:00" });
     // Nobody needs telling when it just worked.
     assert.deepEqual(world.google.mail, []);
+  });
+
+  it("every email sent to the list shows with its opens, clicks and unsubscribes", async () => {
+    await runTick();
+    world.mailchimp.reportStats.set("camp1", { uniqueOpens: 120, uniqueClicks: 31, unsubscribed: 2, bounces: 3 });
+    world.mailchimp.otherListReports.push({ id: "other1", subject_line: "Not ours" });
+
+    const res = await callApi(world, getReports, { path: "/api/email/reports", headers: await signedIn(world, STAFF) });
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    assert.deepEqual(res.data.reports, [
+      {
+        id: "camp1",
+        subject: sends()[0].subject,
+        sentAt: TUESDAY_SEND.toISOString(),
+        emailsSent: 244,
+        opens: 120,
+        openRate: 120 / 244,
+        clicks: 31,
+        clickRate: 31 / 244,
+        unsubscribed: 2,
+        bounces: 3,
+      },
+    ]);
+  });
+
+  it("without Mailchimp the reports say so, and nothing is asked of it", async () => {
+    delete world.env.MAILCHIMP_API_KEY;
+    const before = world.mailchimp.log.length;
+    const res = await callApi(world, getReports, { path: "/api/email/reports", headers: await signedIn(world, STAFF) });
+    assert.equal(res.status, 409);
+    assert.equal(world.mailchimp.log.length, before);
   });
 
   it("the next ticks that week do nothing: one send per week", async () => {

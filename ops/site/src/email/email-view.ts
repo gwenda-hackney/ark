@@ -45,9 +45,9 @@ export function testBlockedReason(
 	hasEmail: boolean,
 ): string {
 	if (!status) return "Loading…";
-	if (!status.access.mailchimp) return "Mailchimp isn't connected here, so this page is preview only.";
-	if (!status.me.email) return "Sign in with Google to send yourself a test.";
-	if (!hasEmail) return "There's no email to send yet.";
+	if (!status.access.mailchimp) return "Mailchimp not connected here";
+	if (!status.me.email) return "Sign in with Google first";
+	if (!hasEmail) return "No email to send yet";
 	return "";
 }
 
@@ -62,7 +62,7 @@ export const DAY_OPTIONS = [
 ];
 
 export const MODE_OPTIONS = [
-	{ id: "auto", label: "Send automatically" },
+	{ id: "auto", label: "Automatic" },
 	{ id: "approve", label: "Approve first" },
 ];
 
@@ -91,13 +91,10 @@ export function sentLine(iso: string | null): string {
 
 const people = (count: number) => `${count.toLocaleString("en-GB")} ${count === 1 ? "person" : "people"}`;
 
-/** What the settings mean, in a sentence. */
+/** The settings in a few words: "On · Automatic · Tuesdays 11:45". */
 export function settingsLine(settings: WeeklyEmailSettings): string {
-	const when = `every ${dayName(settings.day)} at ${settings.time}`;
-	if (!settings.sending) return "Off. Nothing is sent to the mailing list.";
-	return settings.mode === "approve"
-		? `On. A draft is made ${when} and waits for an admin to approve it.`
-		: `On. It goes to the mailing list ${when}, by itself.`;
+	if (!settings.sending) return "Off";
+	return ["On", settings.mode === "approve" ? "Approve first" : "Automatic", `${dayName(settings.day)}s ${settings.time}`].join(" · ");
 }
 
 export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
@@ -110,13 +107,13 @@ export function runLine(run: WeeklyEmailRun): { label: string; tone: StatusTone;
 			return {
 				label: `Sent${again}`,
 				tone: "success",
-				detail: [sentLine(run.sentAt), run.recipients ? `to ${people(run.recipients)}` : ""].filter(Boolean).join(", "),
+				detail: [sentLine(run.sentAt), run.recipients ? people(run.recipients) : ""].filter(Boolean).join(" · "),
 			};
 		case "waiting":
 			return {
 				label: "Waiting for approval",
 				tone: "warning",
-				detail: run.recipients ? `Ready to go to ${people(run.recipients)}.` : "Ready to go.",
+				detail: run.recipients ? `Ready · ${people(run.recipients)}` : "Ready",
 			};
 		case "sending":
 			return { label: "Sending…", tone: "info", detail: "" };
@@ -133,38 +130,38 @@ export function runLine(run: WeeklyEmailRun): { label: string; tone: StatusTone;
 export function statusLine(status: WeeklyEmailStatus): { label: string; tone: StatusTone; detail: string } {
 	const { access, settings, schedule, current } = status;
 	if (!access.mailchimp) {
-		return { label: "Preview only", tone: "neutral", detail: "Mailchimp isn't connected here, so nothing can be sent." };
+		return { label: "Preview only", tone: "neutral", detail: "Mailchimp not connected" };
 	}
 	if (!access.audience) {
 		return {
 			label: "Nothing is sent from here",
 			tone: "neutral",
-			detail: "Only production ops sends to the mailing list. Here you can look, and send yourself a test.",
+			detail: "Production ops only. Tests still work.",
 		};
 	}
 	if (!settings.sending) {
-		return { label: "Switched off", tone: "neutral", detail: "Nothing is sent to the mailing list until an admin switches it on." };
+		return { label: "Switched off", tone: "neutral", detail: "" };
 	}
 	if (current) {
 		const line = runLine(current);
-		if (status.stuck) return { ...line, detail: "It was cut off. It sorts itself out within five minutes." };
+		if (status.stuck) return { ...line, detail: "Cut off · sorts itself out within 5 min" };
 		return line;
 	}
-	if (schedule.state === "due") return { label: "Due now", tone: "info", detail: "It starts within five minutes." };
+	if (schedule.state === "due") return { label: "Due now", tone: "info", detail: "Starts within 5 min" };
 	if (schedule.state === "missed") {
 		return {
 			label: "Not sent this week",
 			tone: "neutral",
-			detail: `This week's time (${whenLine(schedule.scheduled)}) had passed when it was switched on.`,
+			detail: `Switched on after ${whenLine(schedule.scheduled)}`,
 		};
 	}
 	return { label: "On", tone: "success", detail: "" };
 }
 
-/** "Next one: Mon 16 Nov at 11:00", or why there isn't one. */
+/** When the next one goes, "Mon 16 Nov at 11:00", or "None" while nothing is sent from here. */
 export function nextLine(status: WeeklyEmailStatus): string {
-	if (!status.access.audience || !status.settings.sending) return "Next one: none while it's off.";
-	return `Next one: ${whenLine(status.schedule.next)}.`;
+	if (!status.access.audience || !status.settings.sending) return "None";
+	return whenLine(status.schedule.next);
 }
 
 /** Why nothing can go to the list from this page at all, or "". Shared by every send button. */
@@ -208,4 +205,9 @@ export function settingsBlockedReason(status: WeeklyEmailStatus | null): string 
 /** The mailing list by size, for a confirmation: "244 people". */
 export function audienceLine(memberCount: number): string {
 	return people(memberCount);
+}
+
+/** A count and its share: "120 · 49%". */
+export function countAndRate(count: number, rate: number): string {
+	return `${count.toLocaleString("en-GB")} · ${Math.round(rate * 100)}%`;
 }

@@ -31,6 +31,25 @@
 	let error = $state("");
 
 	const now = $derived(status ? statusLine(status) : null);
+
+	// How many the next one goes to: everyone subscribed right now. Only production reaches the list.
+	let subscribed = $state<number | null>(null);
+	let subscribedError = $state(false);
+	const reachesList = $derived(Boolean(status?.access.audience));
+	$effect(() => {
+		if (!reachesList || !status?.me.isAdmin) return;
+		getWeeklyEmailAudience()
+			.then(({ audience }) => (subscribed = audience.memberCount))
+			.catch(() => (subscribedError = true));
+	});
+	const toLine = $derived(
+		!status ? "…"
+		: !reachesList ? "Production only"
+		: !status.settings.sending || !status.me.isAdmin ? "—"
+		: subscribed !== null ? `${audienceLine(subscribed)} (subscribed now)`
+		: subscribedError ? "Couldn't ask Mailchimp"
+		: "…",
+	);
 	const approveBlocked = $derived(approveBlockedReason(status));
 	const tryAgainBlocked = $derived(tryAgainBlockedReason(status));
 	const sendAgainBlocked = $derived(sendAgainBlockedReason(status));
@@ -42,19 +61,20 @@
 		error = "";
 		try {
 			const { audience } = await getWeeklyEmailAudience();
+			subscribed = audience.memberCount;
 			const to = audienceLine(audience.memberCount);
 			const after = status.current?.id ?? 0;
 			await confirm.run(
 				kind === "approve"
 					? {
 							title: `Send this week's email to ${to}?`,
-							message: "It goes to everyone on the mailing list now, as the preview shows it. It can't be taken back.",
+							message: "As the preview shows it. Can't be undone.",
 							action: "Approve and send",
 							tone: "primary",
 						}
 					: {
 							title: `Send it again to ${to}?`,
-							message: "This week's email has already gone. Everyone on the mailing list gets a second one. It can't be taken back.",
+							message: "Everyone gets it a second time. Can't be undone.",
 							action: "Send again",
 							tone: "destructive",
 						},
@@ -84,8 +104,13 @@
 	<div class="now">
 		<Badge tone={now?.tone || "neutral"} label={now?.label || "Loading…"} />
 		<p class="detail">{now?.detail || " "}</p>
-		<p class="muted">{status ? nextLine(status) : " "}</p>
 	</div>
+	<dl class="facts">
+		<dt>Next</dt>
+		<dd>{status ? nextLine(status) : "…"}</dd>
+		<dt>To</dt>
+		<dd>{toLine}</dd>
+	</dl>
 
 	<div class="buttons">
 		<Button
@@ -120,16 +145,14 @@
 			Send again
 		</Button>
 	</div>
-	<p class="hint">
-		Try again gets this week's email ready and leaves it waiting for Approve and send.
-	</p>
+	<p class="hint">Try again: rebuilds this week's, then waits for approval.</p>
 	<p class="error" role="alert">{error || " "}</p>
 
-	<h3>Last few</h3>
+	<h3>History</h3>
 	{#if status?.historyProblem}
 		<p class="error">{status.historyProblem}</p>
 	{:else if status && !status.history.length}
-		<p class="muted">None yet.</p>
+		<p class="muted">None yet</p>
 	{:else if status}
 		<ul class="history">
 			{#each status.history as run (run.id)}
@@ -165,6 +188,20 @@
 		margin: 0;
 		min-height: 1.4em;
 		font-size: var(--text-sm);
+		overflow-wrap: anywhere;
+	}
+	.facts {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: var(--space-1) var(--space-3);
+		margin: var(--space-2) 0 0;
+		font-size: var(--text-sm);
+	}
+	.facts dt {
+		color: var(--muted-foreground);
+	}
+	.facts dd {
+		margin: 0;
 		overflow-wrap: anywhere;
 	}
 	.muted,

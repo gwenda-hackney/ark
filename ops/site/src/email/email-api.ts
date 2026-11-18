@@ -102,6 +102,25 @@ export function saveWeeklyEmailSettings(settings: Partial<WeeklyEmailSettings>) 
 	return request<{ settings: WeeklyEmailSettings }>("/api/email/settings", post(settings));
 }
 
+/** One email sent to the list, with Mailchimp's numbers. Rates are 0 to 1. */
+export type SentEmailReport = {
+	id: string;
+	subject: string;
+	sentAt: string;
+	emailsSent: number;
+	opens: number;
+	openRate: number;
+	clicks: number;
+	clickRate: number;
+	unsubscribed: number;
+	bounces: number;
+};
+
+/** Every email sent to the mailing list, newest first. */
+export function getSentEmailReports() {
+	return request<{ reports: SentEmailReport[] }>("/api/email/reports");
+}
+
 /** How many people are on the mailing list (admins). */
 export function getWeeklyEmailAudience() {
 	return request<{ audience: { name: string; memberCount: number } }>("/api/email/audience");

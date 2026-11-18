@@ -4,6 +4,7 @@ import type { WeeklyEmailRun, WeeklyEmailStatus } from "./email-api.ts";
 import {
 	approveBlockedReason,
 	contentsLine,
+	countAndRate,
 	nextLine,
 	previewDocument,
 	runLine,
@@ -59,9 +60,9 @@ describe("weekly email page: send me a test", () => {
 
 	it("is always there, with the reason when it can't be pressed", () => {
 		assert.equal(testBlockedReason(status(true, "someone@example.com"), true), "");
-		assert.match(testBlockedReason(status(false, "someone@example.com"), true), /preview only/);
+		assert.match(testBlockedReason(status(false, "someone@example.com"), true), /not connected/);
 		assert.match(testBlockedReason(status(true, ""), true), /Sign in with Google/);
-		assert.match(testBlockedReason(status(true, "someone@example.com"), false), /no email to send/);
+		assert.match(testBlockedReason(status(true, "someone@example.com"), false), /No email to send/);
 		assert.equal(testBlockedReason(null, true), "Loading…");
 	});
 });
@@ -109,21 +110,21 @@ function page(fields: Partial<WeeklyEmailStatus> = {}): WeeklyEmailStatus {
 describe("weekly email page: status", () => {
 	it("says what the settings mean", () => {
 		const settings = page().settings;
-		assert.equal(settingsLine({ ...settings, sending: false }), "Off. Nothing is sent to the mailing list.");
-		assert.equal(settingsLine(settings), "On. It goes to the mailing list every Monday at 11:00, by itself.");
+		assert.equal(settingsLine({ ...settings, sending: false }), "Off");
+		assert.equal(settingsLine(settings), "On · Automatic · Mondays 11:00");
 		assert.equal(
 			settingsLine({ ...settings, mode: "approve", day: "thu", time: "16:30" }),
-			"On. A draft is made every Thursday at 16:30 and waits for an admin to approve it.",
+			"On · Approve first · Thursdays 16:30",
 		);
 	});
 
 	it("says where a run is, in London time", () => {
-		assert.deepEqual(runLine(run()), { label: "Sent", tone: "success", detail: "Mon 9 Nov, 11:02, to 244 people" });
+		assert.deepEqual(runLine(run()), { label: "Sent", tone: "success", detail: "Mon 9 Nov, 11:02 · 244 people" });
 		assert.equal(runLine(run({ attempt: 2 })).label, "Sent (sent again)");
 		assert.deepEqual(runLine(run({ status: "waiting", sentAt: null })), {
 			label: "Waiting for approval",
 			tone: "warning",
-			detail: "Ready to go to 244 people.",
+			detail: "Ready · 244 people",
 		});
 		assert.deepEqual(runLine(run({ status: "skipped", reason: "No nights." })), { label: "Not sent", tone: "neutral", detail: "No nights." });
 		assert.deepEqual(runLine(run({ status: "failed", reason: "Mailchimp said no." })), {
@@ -142,11 +143,11 @@ describe("weekly email page: status", () => {
 		assert.equal(statusLine(page({ settings: { ...page().settings, sending: false } })).label, "Switched off");
 		assert.equal(statusLine(page()).label, "On");
 		assert.equal(statusLine(page({ current: run({ status: "waiting" }) })).label, "Waiting for approval");
-		assert.match(statusLine(page({ current: run({ status: "sending" }), stuck: true })).detail, /cut off/);
+		assert.match(statusLine(page({ current: run({ status: "sending" }), stuck: true })).detail, /Cut off/);
 		const missed = page({ schedule: { ...page().schedule, state: "missed", next: { date: "2026-11-16", time: "11:00" } } });
 		assert.equal(statusLine(missed).label, "Not sent this week");
-		assert.equal(nextLine(missed), "Next one: Mon 16 Nov at 11:00.");
-		assert.equal(nextLine(page({ settings: { ...page().settings, sending: false } })), "Next one: none while it's off.");
+		assert.equal(nextLine(missed), "Mon 16 Nov at 11:00");
+		assert.equal(nextLine(page({ settings: { ...page().settings, sending: false } })), "None");
 	});
 });
 
@@ -182,5 +183,10 @@ describe("weekly email page: the buttons are always there, with a reason when th
 	it("the schedule: admins only", () => {
 		assert.equal(settingsBlockedReason(page()), "");
 		assert.equal(settingsBlockedReason(page({ me: { email: "staff@example.com", isAdmin: false } })), "Only admins can change this.");
+	});
+
+	it("shows a count with its share", () => {
+		assert.equal(countAndRate(120, 120 / 244), "120 · 49%");
+		assert.equal(countAndRate(1234, 0), "1,234 · 0%");
 	});
 });

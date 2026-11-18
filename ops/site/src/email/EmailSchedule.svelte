@@ -62,8 +62,8 @@
 				{
 					title: "Switch the weekly email on?",
 					message: status.access.audience
-						? settingsLine(draft).replace(/^On\. /, "")
-						: "It's saved, but nothing is sent from here: only production ops sends to the mailing list.",
+						? `${settingsLine(draft).replace(/^On · /, "")} · to the mailing list`
+						: "Saved, but only production ops sends to the mailing list.",
 					action: "Switch on",
 					tone: "primary",
 				},
@@ -84,12 +84,12 @@
 
 <Card title="Schedule" subtitle={status ? settingsLine(status.settings) : "Loading…"}>
 	<div class="form">
-		<Field label="Send the weekly email" hint="Off: nothing goes to the mailing list. Tests to yourself still work.">
+		<Field label="Weekly email" hint="Off: the list gets nothing. Tests still work.">
 			<Switch bind:checked={sending} disabled={locked} label={sending ? "On" : "Off"} />
 		</Field>
 		<Field
 			label="How"
-			hint="Automatically: it goes by itself at its time. Approve first: a draft waits until an admin presses Approve and send."
+			hint="Approve first: waits for an admin to press Approve and send."
 		>
 			<Segmented bind:value={mode} items={modeItems} tone="soft" size="sm" ariaLabel="How it's sent" />
 		</Field>
@@ -97,11 +97,11 @@
 			<Field label="Day">
 				<NativeSelect bind:value={day} options={DAY_OPTIONS} disabled={locked} />
 			</Field>
-			<Field label="Time" hint="London time.">
+			<Field label="Time" hint="London">
 				<TimeField bind:value={time} disabled={locked} placeholder="e.g. 11am" suggest="11:00" />
 			</Field>
 		</div>
-		<Field label="Who to tell" hint="When one waits for approval or doesn't send. Leave empty for the admins.">
+		<Field label="Alert" hint="When one waits for approval or fails. Empty: the admins.">
 			<TextField bind:value={notify} disabled={locked} placeholder="name@example.com, …" />
 		</Field>
 		<div class="actions">

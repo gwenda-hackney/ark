@@ -20,6 +20,7 @@ import {
   deleteCampaign,
   getAudience,
   getCampaign,
+  listSentReports,
   mailchimpConfigured,
   sendCampaignTest,
   sendCampaignToAudience,
@@ -439,6 +440,16 @@ export async function audienceSize(env) {
     return { name: audience.name, memberCount: audience.memberCount };
   } catch (error) {
     throw upstream("Couldn't read the mailing list.", error);
+  }
+}
+
+/** Every email sent to the list, with Mailchimp's numbers. Reads only. */
+export async function sentReports(env) {
+  if (!mailchimpConfigured(env)) throw refusal(409, NO_MAILCHIMP);
+  try {
+    return await listSentReports(env);
+  } catch (error) {
+    throw upstream("Couldn't read Mailchimp's reports.", error);
   }
 }
 
