@@ -36,4 +36,10 @@ export type OverflowItem = {
 	disabled?: boolean;
 	/** Why it's disabled, shown under the label ("Save the drink first"). */
 	reason?: string;
+	/**
+	 * Only in the editor's bottom bar on phones: a tool that sits in the
+	 * editor's header on desktop (Print, Undo, Reload), so phones keep the
+	 * header to the title and every action in one place at the bottom.
+	 */
+	phoneOnly?: boolean;
 };

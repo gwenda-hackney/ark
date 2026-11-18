@@ -881,7 +881,9 @@
 		}}
 	>
 		<BusyOverlay active={busy} label={busyLabel} />
-		<EditorBackBar label="Menu" onback={discardAndClose} />
+		<EditorBackBar label="Menu" onback={discardAndClose}>
+			{#snippet tools()}<PageHelp iconOnly />{/snippet}
+		</EditorBackBar>
 		<div class="split">
 
 			<div class="panel" class:dirty>
@@ -1442,6 +1444,27 @@
 					onerrors={() => void showErrors()}
 					overflow={[
 						{
+							label: "Print recipe",
+							phoneOnly: true,
+							disabled: avail.print.disabled,
+							reason: avail.print.reason,
+							onselect: () => void onprint?.(),
+						},
+						{
+							label: "Undo last edit",
+							phoneOnly: true,
+							disabled: avail.undo.disabled,
+							reason: avail.undo.reason,
+							onselect: undo,
+						},
+						{
+							label: "Reload",
+							phoneOnly: true,
+							disabled: avail.reload.disabled,
+							reason: avail.reload.reason,
+							onselect: requestReload,
+						},
+						{
 							label: "Delete drink",
 							tone: "destructive",
 							disabled: avail.delete.disabled,
@@ -1958,7 +1981,8 @@
 			border-right: none;
 		}
 
-		.head-tools :global(.close-btn) {
+		/* Phones: Help is in the top bar, the rest in the bottom bar's ⋯. */
+		.head-tools {
 			display: none;
 		}
 

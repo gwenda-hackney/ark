@@ -9,8 +9,10 @@
 		EditorActionBar,
 		EditorBackBar,
 		HelpDrawer,
+		PageHelp,
 		Segmented,
 	} from "../ui";
+	import { editorHeaderActions } from "./editor-header-actions";
 	import { provideHelp } from "../ui/help.svelte";
 	import { EVENTS_HELP } from "./events-help";
 	import type { SegmentedItem } from "../ui/types";
@@ -228,6 +230,18 @@
 				? "Save event"
 				: "Save series",
 	);
+	/** The header's Update calendar and Reload, for the bottom bar on phones. */
+	const headerActions = $derived(
+		editorHeaderActions({
+			eventId: editor.eventId,
+			isNew: Boolean(editor.route.isNew),
+			editingNight: editor.editingNight,
+			special: editor.creatingOnce || editor.editingOnce,
+			dirty: editor.formDirty,
+			busy: editor.busy,
+			liveCurrent: editor.current?.publish.live === "current",
+		}),
+	);
 	const deleteLabel = $derived(
 		editor.editingNight
 			? "Delete night"
@@ -361,7 +375,9 @@
 			{#if !reveal.settled}
 				<EditorPlaceholder />
 			{:else}
-				<EditorBackBar label={listTitle} onback={requestClose} />
+				<EditorBackBar label={listTitle} onback={requestClose}>
+					{#snippet tools()}<PageHelp iconOnly />{/snippet}
+				</EditorBackBar>
 				<div class="split split--full">
 					<div class="panel" class:dirty={editor.formDirty}>
 						<EditorHeader
@@ -496,6 +512,21 @@
 							errorCount={editor.errors.count}
 							onerrors={() => void editor.showErrors()}
 							overflow={[
+								// Phones: the header's tools, here instead (see EditorHeader).
+								{
+									label: "Update calendar",
+									phoneOnly: true,
+									disabled: headerActions.calendar.disabled || editor.calendarSyncing,
+									reason: headerActions.calendar.reason,
+									onselect: () => void editor.onSyncCalendar(),
+								},
+								{
+									label: "Reload",
+									phoneOnly: true,
+									disabled: headerActions.reload.disabled,
+									reason: headerActions.reload.reason,
+									onselect: requestReload,
+								},
 								// Nights always offer this, disabled when nothing overrides the series;
 								// a series never has it.
 								...(editor.editingOccurrence

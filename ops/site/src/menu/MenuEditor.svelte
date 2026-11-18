@@ -12,6 +12,7 @@
 		Card,
 		ConfirmDialog,
 		DateField,
+		EditorActionBar,
 		EditorBackBar,
 		EmptyState,
 		Field,
@@ -225,48 +226,12 @@
 	);
 </script>
 
+<!-- Like every editor: Back (and on phones the top bar) above, Save and
+     the rest in the bar along the bottom. -->
+<div class="editor">
+<EditorBackBar label="Menus" onback={back} />
 <div class="page scrollbar-fade">
-	<EditorBackBar label="Menus" {dirty} onback={back} />
-	<PageHeader eyebrow="Menu" {title} {subtitle}>
-		{#snippet actions()}
-			<Button variant="outline" type="button" onclick={back}>
-				{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
-				Menus
-			</Button>
-			<Button
-				variant="outline"
-				type="button"
-				busy={copying}
-				disabled={Boolean(copyReason) || copying}
-				reason={copyReason}
-				onclick={() => void copy()}
-			>
-				{#snippet icon()}<Icon name="copy" size={16} />{/snippet}
-				Copy menu
-			</Button>
-			<Button
-				variant="ghost"
-				type="button"
-				disabled={Boolean(deleteReason) || deleting}
-				reason={deleteReason}
-				onclick={() => (deleteOpen = true)}
-			>
-				{#snippet icon()}<Icon name="trash" size={16} />{/snippet}
-				Delete
-			</Button>
-			<Button
-				variant="primary"
-				type="button"
-				busy={saving}
-				disabled={!canSave}
-				reason={!saving && !draft.name.trim() ? "Give it a name" : !saving && !isNew && !dirty ? "No changes to save" : undefined}
-				onclick={() => void save()}
-			>
-				{#snippet icon()}<Icon name="save" size={16} />{/snippet}
-				{isNew ? "Add menu" : "Save"}
-			</Button>
-		{/snippet}
-	</PageHeader>
+	<PageHeader eyebrow="Menu" {title} {subtitle} />
 
 	{#if error}
 		<EmptyState tone="error" title="Couldn't load this menu" text={error}>
@@ -338,6 +303,32 @@
 		</FormSection>
 	{/if}
 </div>
+{#if !error && !(loading && !menu && !isNew)}
+	<EditorActionBar
+		saveLabel={isNew ? "Add menu" : "Save menu"}
+		savingLabel={isNew ? "Adding…" : "Saving…"}
+		{saving}
+		disabled={!canSave || deleting || copying}
+		{dirty}
+		onsave={() => void save()}
+		overflow={[
+			{
+				label: "Copy menu",
+				disabled: Boolean(copyReason) || copying,
+				reason: copyReason,
+				onselect: () => void copy(),
+			},
+			{
+				label: "Delete menu",
+				tone: "destructive",
+				disabled: Boolean(deleteReason) || deleting,
+				reason: deleteReason,
+				onselect: () => (deleteOpen = true),
+			},
+		]}
+	/>
+{/if}
+</div>
 
 <ConfirmDialog
 	open={discardOpen}
@@ -358,6 +349,14 @@
 />
 
 <style>
+	.editor {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-width: 0;
+		min-height: 0;
+	}
+
 	.page {
 		position: relative;
 		flex: 1;
@@ -378,5 +377,27 @@
 		margin: 0;
 		font-size: var(--text-sm);
 		color: var(--fg-muted);
+	}
+
+	/* The bar spans the page under the gutter, as in the other editors. */
+	.editor :global(.editor-action-bar) {
+		padding-inline: var(--page-gutter);
+	}
+
+	/* Phones: edge to edge like the other editors, so the fields have the room. */
+	@media (max-width: 900px) {
+		.page {
+			padding-inline: max(var(--page-gutter), 1.125rem);
+		}
+
+		.page :global(.card) {
+			border: 0;
+			border-radius: 0;
+			background: none;
+		}
+
+		.page :global(.card > .body) {
+			padding: 0;
+		}
 	}
 </style>

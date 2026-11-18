@@ -389,7 +389,9 @@
 </script>
 
 <form class="editor" novalidate onsubmit={onSave}>
-	<EditorBackBar label="Artists" onback={close} />
+	<EditorBackBar label="Artists" onback={close}>
+		{#snippet tools()}<PageHelp iconOnly />{/snippet}
+	</EditorBackBar>
 	<div class="split">
 		<div class="panel" class:dirty>
 			<header class="panel-head">
@@ -1109,6 +1111,15 @@
 
 		.tab-body {
 			padding: var(--space-4) max(var(--page-gutter), 1.125rem);
+		}
+
+		/* Help is in the top bar; Back closes. */
+		.head-tools {
+			display: none;
+		}
+
+		.title-name {
+			grid-column: 1 / -1;
 		}
 	}
 </style>

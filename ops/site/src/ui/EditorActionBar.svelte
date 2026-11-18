@@ -4,6 +4,9 @@
 	 * right with what it saves in the label ("Save series", "Save night"),
 	 * and anything destructive in the "⋯" menu beside it, never next to Save.
 	 * Sticks to the bottom of the editor and clears the phone's home bar.
+	 * On phones it is every editor's one toolbar: the header keeps the title,
+	 * and the header's tools (Print, Undo, Reload…) join the "⋯" menu as
+	 * `phoneOnly` items, above anything destructive.
 	 * It is the one "unsaved" mark in an editor; the shell's saving pill reads
 	 * the same unsaved guard, so the two never disagree.
 	 */
@@ -13,6 +16,7 @@
 	import OverflowMenu from "./OverflowMenu.svelte";
 	import { errorCountLabel } from "./form-errors.svelte";
 	import type { OverflowItem } from "./types";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "./viewport.svelte";
 
 	let {
 		saveLabel = "Save",
@@ -44,9 +48,16 @@
 	} = $props();
 
 	const errorText = $derived(errorCountLabel(errorCount));
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	/** Phone-only tools first, then the rest (Delete stays last). */
+	const menuItems = $derived(
+		phone.matches
+			? [...overflow.filter((item) => item.phoneOnly), ...overflow.filter((item) => !item.phoneOnly)]
+			: overflow.filter((item) => !item.phoneOnly),
+	);
 </script>
 
-<footer class="action-bar">
+<footer class="action-bar editor-action-bar">
 	<div class="status" aria-live="polite">
 		{#if errorText}
 			{#if onerrors}
@@ -62,8 +73,8 @@
 		{#if start}{@render start()}{/if}
 	</div>
 	<div class="actions">
-		{#if overflow.length}
-			<OverflowMenu items={overflow} disabled={saving} />
+		{#if menuItems.length}
+			<OverflowMenu items={menuItems} disabled={saving} />
 		{/if}
 		<Button
 			variant="primary"
@@ -166,8 +177,13 @@
 				max(var(--space-2), env(safe-area-inset-bottom, 0px));
 		}
 
-		.actions :global(.btn) {
+		.actions :global(.btn),
+		.actions :global(.trigger) {
 			min-height: 2.75rem;
+		}
+
+		.actions :global(.trigger:not(.labelled)) {
+			width: 2.75rem;
 		}
 	}
 </style>

@@ -325,6 +325,44 @@
 			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
 			out:fade={{ duration: fadeMs, easing: easeOut }}
 		>
+			{#snippet decisionButtons()}
+				<!-- Same three buttons on every submission; ones that don't apply are disabled. -->
+				<Button
+					variant="outline"
+					size="sm"
+					type="button"
+					disabled={can.reply.disabled}
+					reason={can.reply.reason}
+					title={selected?.email ? `Write to ${selected.email}` : undefined}
+					onclick={() => (window.location.href = `mailto:${selected?.email}`)}
+				>
+					{#snippet icon()}<Icon name="send" size={14} />{/snippet}
+					Reply
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					type="button"
+					disabled={can.decline.disabled}
+					reason={can.decline.reason}
+					onclick={() => selected && void decide(selected, "Declined")}
+				>
+					{#snippet icon()}<Icon name="x-circle" size={14} />{/snippet}
+					Decline
+				</Button>
+				<Button
+					variant="primary"
+					size="sm"
+					type="button"
+					disabled={can.approve.disabled}
+					reason={can.approve.reason}
+					title="Approved artists can be picked as an event's guest artist."
+					onclick={() => selected && void decide(selected, "Approved")}
+				>
+					{#snippet icon()}<Icon name="check" size={14} />{/snippet}
+					Approve
+				</Button>
+			{/snippet}
 			<EditorBackBar label="Play applications" onback={closeDetail} />
 			<div class="split">
 				<article class="panel">
@@ -343,42 +381,7 @@
 							{/if}
 						</div>
 						<div class="head-tools">
-							<!-- Same three buttons on every submission; ones that don't apply are disabled. -->
-							<Button
-								variant="outline"
-								size="sm"
-								type="button"
-								disabled={can.reply.disabled}
-								reason={can.reply.reason}
-								title={selected?.email ? `Write to ${selected.email}` : undefined}
-								onclick={() => (window.location.href = `mailto:${selected?.email}`)}
-							>
-								{#snippet icon()}<Icon name="send" size={14} />{/snippet}
-								Reply
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								type="button"
-								disabled={can.decline.disabled}
-								reason={can.decline.reason}
-								onclick={() => selected && void decide(selected, "Declined")}
-							>
-								{#snippet icon()}<Icon name="x-circle" size={14} />{/snippet}
-								Decline
-							</Button>
-							<Button
-								variant="primary"
-								size="sm"
-								type="button"
-								disabled={can.approve.disabled}
-								reason={can.approve.reason}
-								title="Approved artists can be picked as an event's guest artist."
-								onclick={() => selected && void decide(selected, "Approved")}
-							>
-								{#snippet icon()}<Icon name="check" size={14} />{/snippet}
-								Approve
-							</Button>
+							{@render decisionButtons()}
 							<Button
 								class="close-btn"
 								variant="ghost"
@@ -532,6 +535,8 @@
 							</section>
 						{/if}
 					</div>
+					<!-- Phones: the decision is the bottom bar, like Save in an editor. -->
+					<footer class="decision-bar editor-action-bar">{@render decisionButtons()}</footer>
 				</article>
 			</div>
 		</div>
@@ -684,6 +689,10 @@
 
 	.head-tools :global(.close-btn) {
 		color: var(--muted-foreground);
+	}
+
+	.decision-bar {
+		display: none;
 	}
 
 	.head-tools :global(.close-btn:hover:not(:disabled)) {
@@ -937,8 +946,27 @@
 			border-right: none;
 		}
 
-		.head-tools :global(.close-btn) {
+		.head-tools {
 			display: none;
+		}
+
+		.decision-bar {
+			position: sticky;
+			bottom: 0;
+			z-index: 3;
+			display: flex;
+			justify-content: flex-end;
+			gap: var(--space-2);
+			flex-shrink: 0;
+			padding: var(--space-2) max(var(--page-gutter), 1.125rem)
+				max(var(--space-2), env(safe-area-inset-bottom, 0px));
+			border-top: 1px solid var(--border);
+			background: color-mix(in srgb, var(--surface-1) 70%, transparent);
+			backdrop-filter: blur(12px);
+		}
+
+		.decision-bar :global(.btn) {
+			min-height: 2.75rem;
 		}
 
 		.panel-head,
