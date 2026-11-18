@@ -4,6 +4,7 @@ import type { WeeklyEmailRun, WeeklyEmailStatus } from "./email-api.ts";
 import {
 	approveBlockedReason,
 	contentsLine,
+	howLine,
 	countAndRate,
 	nextLine,
 	previewDocument,
@@ -115,6 +116,9 @@ function page(fields: Partial<WeeklyEmailStatus> = {}): WeeklyEmailStatus {
 describe("weekly email page: status", () => {
 	it("says what the settings mean", () => {
 		const settings = page().settings;
+		assert.equal(howLine(settings), "Automatic");
+		assert.equal(howLine({ ...settings, mode: "approve" }), "Approve first");
+		assert.equal(howLine({ ...settings, sending: false }), "Off");
 		assert.equal(settingsLine({ ...settings, sending: false }), "Off");
 		assert.equal(settingsLine(settings), "On · Automatic · Mondays 11:00");
 		assert.equal(

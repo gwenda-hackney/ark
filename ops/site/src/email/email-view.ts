@@ -106,6 +106,12 @@ export function sentLine(iso: string | null): string {
 
 const people = (count: number) => `${count.toLocaleString("en-GB")} ${count === 1 ? "person" : "people"}`;
 
+/** How it goes out: "Automatic", "Approve first", or "Off". */
+export function howLine(settings: WeeklyEmailSettings): string {
+	if (!settings.sending) return "Off";
+	return settings.mode === "approve" ? "Approve first" : "Automatic";
+}
+
 /** The settings in a few words: "On · Automatic · Tuesdays 11:45". */
 export function settingsLine(settings: WeeklyEmailSettings): string {
 	if (!settings.sending) return "Off";

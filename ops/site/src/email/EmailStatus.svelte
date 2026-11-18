@@ -17,6 +17,7 @@
 	import {
 		approveBlockedReason,
 		audienceLine,
+		howLine,
 		nextLine,
 		sendAgainBlockedReason,
 		statusLine,
@@ -128,6 +129,8 @@
 		{#if now?.detail}<p class="detail">{now.detail}</p>{/if}
 	</div>
 	<dl class="facts">
+		<dt>How</dt>
+		<dd>{status ? howLine(status.settings) : "…"}</dd>
 		<dt>Next</dt>
 		<dd>{status ? nextLine(status) : "…"}</dd>
 		<dt>To</dt>
