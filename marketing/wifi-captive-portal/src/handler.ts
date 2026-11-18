@@ -11,13 +11,18 @@ import type { Env } from "./types.js";
 import { resolveRedirectUrl, resolveSubscribeTag } from "./types.js";
 import { authorizeGuest } from "./unifi.js";
 
-/** The guests sign-up (the website's too), on D1; Baserow is retired (#234). Tests hand in a repository. */
+/**
+ * The guests sign-up (the website's too), on D1; Baserow is retired (#234).
+ * Every guest is kept, seen today; `marketing` (the newsletter box) decides
+ * the mailing list, and unticked never changes an address's consent. Tests
+ * hand in a repository.
+ */
 export function subscribeEmail(
   env: Env & { subscriberRepository?: SubscriberRepository },
-  input: { email: string; tag: string },
+  input: { email: string; tag: string; marketing: boolean },
 ): Promise<SubscribeResult> {
   const repo = env.subscriberRepository ?? d1SubscriberRepository(env.WEBSITE_DB);
-  return subscribeGuest(repo, input);
+  return subscribeGuest(repo, { ...input, visit: true });
 }
 
 export type HandlerDeps = {
@@ -60,8 +65,14 @@ async function parseForm(request: Request): Promise<Record<string, string>> {
   return out;
 }
 
+/** The newsletter box: ticked only when the guest chose it (an unticked box isn't posted). */
+function marketingConsent(form: Record<string, string>): boolean {
+  return Boolean(form.marketing?.trim());
+}
+
 /**
- * Keep the guest's email. Getting online never waits on it: a sign-up that
+ * Keep the guest's email, seen today, with their answer to the newsletter
+ * box (only a tick puts them on the mailing list). Getting online never waits on it: a sign-up that
  * can't be saved is logged (so it reaches Sentry) and the guest goes on.
  * While subscribers are frozen for a data move (#191) it isn't kept, or it
  * would be lost between the copy and the switch.
@@ -70,13 +81,18 @@ async function saveSignUp(
   env: Env,
   subscribe: typeof subscribeEmail,
   email: string,
+  marketing: boolean,
 ): Promise<void> {
   try {
     if ((await frozenFeatures(env, ["guests"])).length > 0) {
       console.log("wifi portal: guests frozen, sign-up not saved");
       return;
     }
-    const saved = await subscribe(env, { email, tag: resolveSubscribeTag(env) });
+    const saved = await subscribe(env, {
+      email,
+      tag: resolveSubscribeTag(env),
+      marketing,
+    });
     if (!saved.ok) {
       console.error(
         "[wifi-captive-portal] Sign-up not saved; guest let on anyway",
@@ -159,7 +175,7 @@ export async function handlePortalRequest(
       );
     }
 
-    await saveSignUp(env, subscribe, email);
+    await saveSignUp(env, subscribe, email, marketingConsent(form));
 
     const auth = await authorize(env, {
       mac,

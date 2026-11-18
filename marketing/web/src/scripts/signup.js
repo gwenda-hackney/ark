@@ -218,7 +218,7 @@ async function postSubscribe(form, email) {
     },
     body: JSON.stringify({
       email,
-      tag: form.querySelector('input[name="tag"]')?.value ?? "prelaunch",
+      tag: form.querySelector('input[name="tag"]')?.value ?? "website",
       website: form.querySelector('input[name="website"]')?.value ?? "",
     }),
   });

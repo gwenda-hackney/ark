@@ -295,8 +295,15 @@ jobs:
 
   wifi-captive-portal:
     name: Wi-Fi captive portal
-    needs: changes
-    if: needs.changes.outputs.wifi_portal == 'true'
+    # After the sync: a newer portal saves Wi-Fi guests who said no to marketing,
+    # and only the newer sync knows not to send them to Mailchimp. When the sync
+    # didn't change it's skipped, and the portal still deploys; if it failed, the
+    # portal waits.
+    needs: [changes, subscribe-mailchimp-sync]
+    if: >-
+      always() && needs.changes.outputs.wifi_portal == 'true' &&
+      needs.subscribe-mailchimp-sync.result != 'failure' &&
+      needs.subscribe-mailchimp-sync.result != 'cancelled'
     runs-on: ubuntu-latest
     environment:
       name: production
