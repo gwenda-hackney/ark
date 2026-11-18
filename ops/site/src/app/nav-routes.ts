@@ -74,7 +74,19 @@ export const NAV_ROUTES: NavRoute[] = [
 		heading: true,
 		children: [
 			{ id: "web", path: "/web", name: "Website", icon: "web", badge: "website", hint: "What's waiting to go live" },
-			{ id: "email", path: "/email", name: "Weekly email", short: "Email", icon: "send", hint: "This week's what's on email" },
+			{
+				id: "email",
+				path: "/email",
+				name: "Weekly email",
+				short: "Email",
+				icon: "send",
+				hint: "This week's what's on email",
+				tabs: [
+					{ id: "week", label: "This week", path: "/email" },
+					{ id: "sent", label: "Sent", path: "/email/sent" },
+					{ id: "settings", label: "Settings", path: "/email/settings" },
+				],
+			},
 			{ id: "photos", path: "/venue/gallery", name: "Photos", icon: "camera", hint: "The venue's own photos, on the website" },
 		],
 	},

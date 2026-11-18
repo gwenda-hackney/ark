@@ -377,6 +377,9 @@ describe("spa-path", () => {
       page: "lightspeed",
       view: "reconcile",
     });
+    assert.deepEqual(parseShellPath("/email"), { page: "email", view: null });
+    assert.deepEqual(parseShellPath("/email/sent"), { page: "email", view: "sent" });
+    assert.deepEqual(parseShellPath("/email/settings"), { page: "email", view: "settings" });
     assert.deepEqual(parseShellPath("/lightspeed/export"), {
       page: "lightspeed",
       view: "export",
