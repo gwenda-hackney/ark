@@ -17,6 +17,8 @@
 	import { onWebsiteJobEvent } from "./website-jobs.svelte";
 	import EditorHeader from "./EditorHeader.svelte";
 	import EventsList from "./EventsList.svelte";
+	import PopupMenus from "./PopupMenus.svelte";
+	import { categoryOf } from "./event-category";
 	import EventFields from "./tabs/EventFields.svelte";
 	import AddWizard from "./AddWizard.svelte";
 	import GalleryTab from "./tabs/GalleryTab.svelte";
@@ -72,6 +74,15 @@
 	/** One Help drawer for the lists and the editor; a field's ? opens its topic. */
 	const help = provideHelp(() => (editor.editing ? "Events" : listTitle), EVENTS_HELP);
 
+	/** A saved pop-up kitchen series has menus (#305): a night or a new one doesn't. */
+	const hasMenus = $derived(
+		Boolean(editor.eventId) &&
+			!editor.route.isNew &&
+			!editor.editingOnce &&
+			!editor.editingOccurrence &&
+			categoryOf(editor.current) === "popup",
+	);
+
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const hrefFor = (id: string) => editor.tabPath(id);
 		// Everything new is one form: nights and photos come after the first save.
@@ -85,6 +96,8 @@
 		}
 		return [
 			{ id: "details", label: "Details", href: hrefFor("details") },
+			// A pop-up kitchen's menus have a tab of their own, so they're easy to find
+			...(hasMenus ? [{ id: "menus", label: "Menus", href: hrefFor("menus") }] : []),
 			{ id: "schedule", label: "Schedule", href: hrefFor("schedule") },
 			{ id: "ops", label: "Ops", href: hrefFor("ops") },
 			{ id: "gallery", label: "Images", href: hrefFor("gallery") },
@@ -123,6 +136,12 @@
 
 	$effect(() => {
 		if (routeList) listOrigin = routeList;
+	});
+
+	// Only a pop-up kitchen has a Menus tab: anything else opened there shows Details.
+	$effect(() => {
+		if (editor.tab !== "menus" || !editor.eventId || !editor.current || hasMenus) return;
+		navigate(editor.tabPath("details"), { replace: true });
 	});
 
 	// A special event or a night has no Schedule tab: its date is under When on Details.
@@ -462,7 +481,9 @@
 								easing: easeOut,
 							}}
 						>
-							{#if editor.tab !== "gallery" || editor.route.isNew}
+							{#if editor.tab === "menus" && hasMenus}
+								<PopupMenus eventId={editor.eventId} />
+							{:else if editor.tab !== "gallery" || editor.route.isNew}
 								<EventFields
 									part={editor.route.isNew ? "all" : editor.tab === "schedule" || editor.tab === "ops" ? editor.tab : "details"}
 									form={editor.form}
