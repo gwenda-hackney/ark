@@ -571,6 +571,17 @@
 		visibility: hidden;
 	}
 
+	/* While a section moves, only the drop bar marks a place: no hover glow. */
+	.dragging-any .group:not(.dragged):hover {
+		border-color: var(--border);
+		background: var(--surface-2);
+	}
+
+	.dragging-any .chapter:hover {
+		border-color: var(--border);
+		box-shadow: none;
+	}
+
 	.dragging-any {
 		cursor: grabbing;
 		user-select: none;
