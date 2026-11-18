@@ -5,51 +5,57 @@
 	 * items, laid out and shaped as on the website (MenuItemsList). /menus/new starts a menu;
 	 * /menus/new?popup=<id> starts it from a pop-up kitchen's name, nights and
 	 * cooking days (Events → Add menu), for the owner to narrow down.
+	 *
+	 * The whole page is one draft (menu-page-draft.svelte.ts): nothing is
+	 * written until Save menu, which writes it all in order. It sits in the
+	 * same card as the events editor (EditorCard).
 	 */
 	import { onDestroy } from "svelte";
 	import {
+		Badge,
 		Button,
-		Card,
 		ConfirmDialog,
 		DateField,
-		EditorActionBar,
-		EditorBackBar,
+		EditorShell,
 		EmptyState,
 		Field,
 		FormSection,
+		HelpDrawer,
 		NativeSelect,
-		PageHeader,
 		Segmented,
 		Skeleton,
 		TextField,
-		Badge,
 	} from "../ui";
 	import { Icon } from "../app/shell";
 	import * as api from "../app/api";
 	import { leaveEditor, menuPagePath, menusListPath, navigate, parseShellPath } from "../app/nav";
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
+	import { provideHelp } from "../ui/help.svelte";
 	import { toast } from "../ui/toast.svelte";
 	import { beginLeave, clearUnsavedGuard, setUnsavedGuard, takeBlockedNav } from "../ui/unsaved.svelte";
 	import MenuItemsList from "./MenuItemsList.svelte";
 	import MenuDaysPicker from "./MenuDaysPicker.svelte";
-	import { MENU_STATUS_TONES, blankMenu, menuDraft, menuPayload, popupDraft, sameMenu } from "./menu-form";
+	import { MENU_STATUS_TONES, blankMenu, menuDraft, menuPayload, popupDraft } from "./menu-form";
 	import { menuDaysLabel } from "./menu-days.js";
-	import { SECTION_KIND_ITEMS, type Menu, type MenuInput, type MenuItemChapter, type MenuPopupRun, type MenuSection } from "./types";
+	import { MenuPageDraft, saveReport } from "./menu-page-draft.svelte";
+	import { MENU_PAGE_HELP } from "./menu-page-help";
+	import { apiSavePort } from "./menu-page-save";
+	import { SECTION_KIND_ITEMS, type Menu, type MenuPopupRun, type MenuSection } from "./types";
 
-	let { path }: { path: string } = $props();
+	let { path, open = true }: { path: string; /** Whether the menu shows (MenusPage keeps it mounted so it can zoom in and out). */ open?: boolean } = $props();
 
 	const route = $derived(parseShellPath(path));
 	const isNew = $derived(Boolean(route.isNew));
 	const menuId = $derived(route.isNew ? "" : String(route.slug || ""));
 
+	const help = provideHelp("Menu", MENU_PAGE_HELP);
+
 	let menu = $state<Menu | null>(null);
 	let sections = $state<MenuSection[]>([]);
-	let items = $state<MenuItemChapter[]>([]);
 	let menus = $state<Menu[]>([]);
 	let popups = $state<MenuPopupRun[]>([]);
-	let draft = $state<MenuInput>(blankMenu());
-	/** What the form started from: the menu as saved, or a new one as first filled in. */
-	let initial = $state<MenuInput>(blankMenu());
+	/** The page as a draft: the details, the sections and the items. */
+	const page = new MenuPageDraft();
 	let loading = $state(true);
 	let error = $state("");
 	let saving = $state(false);
@@ -58,21 +64,21 @@
 	let discardOpen = $state(false);
 	let deleteOpen = $state(false);
 
-	const dirty = $derived(!sameMenu(draft, initial));
-	/** An item open on the page with changes not yet saved (MenuItemsList). */
+	const dirty = $derived(page.dirty);
+	/** The item dialog is open with changes not yet Done (MenuItemsList). */
 	let itemDirty = $state(false);
 	/** Which part of the page shows: what's on it, or its details. */
 	let tab = $state("items");
 	const tabItems = $derived([
-		{ id: "items", label: "Items" },
-		{ id: "details", label: dirty ? "Details •" : "Details" },
+		{ id: "items", label: page.itemsDirty ? "Items •" : "Items" },
+		{ id: "details", label: page.detailsDirty ? "Details •" : "Details" },
 	]);
 	// Another menu opens on its items.
 	$effect(() => {
 		void menuId;
 		tab = "items";
 	});
-	const canSave = $derived(!saving && Boolean(draft.name.trim()) && (isNew || dirty));
+	const canSave = $derived(!saving && Boolean(page.details.name.trim()) && (isNew || dirty));
 	const popupOptions = $derived([
 		{ value: "", label: "None" },
 		...popups.map((popup) => ({ value: popup.id, label: popup.name })),
@@ -89,6 +95,8 @@
 		return new URLSearchParams(location.search).get("popup") || "";
 	}
 
+	const namesOf = (list: Menu[]) => Object.fromEntries(list.map((entry) => [entry.id, entry.name]));
+
 	async function load(id: string, fresh: boolean) {
 		try {
 			loading = true;
@@ -99,21 +107,17 @@
 				popups = data.popups || [];
 				menu = null;
 				sections = [];
-				items = [];
 				const popup = popups.find((row) => row.id === popupFromAddress());
-				draft = popup ? popupDraft(popup) : blankMenu();
-				initial = { ...draft, days: [...draft.days] };
+				page.load("", popup ? popupDraft(popup) : blankMenu(), [], namesOf(menus));
 				setCrumbLeaf("");
 				return;
 			}
 			const data = await api.getMenuPage(id);
 			menu = data.menu;
 			sections = data.sections || [];
-			items = data.items || [];
 			menus = data.menus || [];
 			popups = data.popups || [];
-			draft = menuDraft(data.menu);
-			initial = menuDraft(data.menu);
+			page.load(data.menu.id, menuDraft(data.menu), data.items || [], namesOf(menus));
 			setCrumbLeaf(data.menu.name);
 		} catch (err) {
 			error = err instanceof Error ? err.message : "Couldn't load this menu.";
@@ -123,42 +127,37 @@
 	}
 
 	$effect(() => {
-		void load(menuId, isNew);
+		if (open) void load(menuId, isNew);
+		else setCrumbLeaf("");
 	});
 
-	/** After a section changes: the sections again, and the menu's counts. */
-	async function refreshSections() {
-		if (!menuId) return;
-		try {
-			const data = await api.getMenuPage(menuId);
-			sections = data.sections || [];
-			items = data.items || [];
-			menus = data.menus || [];
-			menu = data.menu;
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Couldn't reload the sections.");
-		}
-	}
-
+	/** Save menu: everything on the page, in order; a step that fails keeps the rest to save. */
 	async function save(event?: Event) {
 		event?.preventDefault();
 		if (!canSave) return;
 		saving = true;
 		try {
-			const body = menuPayload(draft);
 			if (isNew) {
-				const { menu: made } = await api.createMenu(body);
-				initial = { ...draft, days: [...draft.days] };
+				const { menu: made } = await api.createMenu(menuPayload(page.details));
+				page.savedDetails = { ...page.details, days: [...page.details.days] };
 				toast.ok(`${made.name} added. Now give it its sections, under Items.`);
 				navigate(menuPagePath(made.id), { replace: true, force: true });
 				return;
 			}
-			const { menu: saved } = await api.updateMenu(menuId, body);
-			menu = saved;
-			draft = menuDraft(saved);
-			initial = menuDraft(saved);
-			setCrumbLeaf(saved.name);
-			toast.ok("Menu saved.");
+			const result = await page.save(apiSavePort(menuId));
+			try {
+				const data = await api.getMenuPage(menuId);
+				menu = data.menu;
+				sections = data.sections || [];
+				menus = data.menus || [];
+				page.menuNames = namesOf(menus);
+				page.settle(result, menuDraft(data.menu), data.items || []);
+				setCrumbLeaf(data.menu.name);
+			} catch (err) {
+				toast.error(err instanceof Error ? `Saved, but couldn't load the menu again: ${err.message}` : "Couldn't load the menu again.");
+			}
+			if (result.failed) toast.error(saveReport(result));
+			else toast.ok("Menu saved.");
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Couldn't save the menu.");
 		} finally {
@@ -173,7 +172,7 @@
 		try {
 			await api.deleteMenu(menu.id);
 			toast.ok(`${menu.name} deleted.`);
-			initial = draft;
+			beginLeave();
 			navigate(menusListPath(), { replace: true, force: true });
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Couldn't delete the menu.");
@@ -203,12 +202,12 @@
 
 	// Unsaved changes: leaving asks first, like any editor.
 	$effect(() => {
-		setUnsavedGuard((dirty || itemDirty) && !saving, () => (discardOpen = true));
+		setUnsavedGuard(open && (dirty || itemDirty) && !saving, () => (discardOpen = true));
 	});
 
 	// Esc closes the menu, as it closes an event (leaving asks first when there are changes).
 	$effect(() => {
-		if (typeof window === "undefined") return;
+		if (!open || typeof window === "undefined") return;
 		function onKey(e: KeyboardEvent) {
 			if (e.key !== "Escape" || e.defaultPrevented || saving || discardOpen || deleteOpen) return;
 			if (document.querySelector("[role=dialog], [role=menu], dialog[open]")) return;
@@ -219,8 +218,9 @@
 		return () => window.removeEventListener("keydown", onKey);
 	});
 
+	// Reload asks first too (the browser's own question).
 	$effect(() => {
-		if (!(dirty || itemDirty) || typeof window === "undefined") return;
+		if (!open || !(dirty || itemDirty) || typeof window === "undefined") return;
 		const onBeforeUnload = (e: BeforeUnloadEvent) => {
 			e.preventDefault();
 			e.returnValue = "";
@@ -246,7 +246,7 @@
 		if (pending?.path) navigate(pending.path, { force: true, replace: pending.replace });
 	}
 
-	const title = $derived(isNew ? "New menu" : menu?.name || "Menu");
+	const heading = $derived(isNew ? page.details.name.trim() || "New menu" : menu?.name || "Menu");
 	const subtitle = $derived(
 		isNew
 			? "Name it, say when it runs, then save it and add its sections."
@@ -256,109 +256,36 @@
 	);
 </script>
 
-<!-- Like every editor: Back (and on phones the top bar) above, Save and
-     the rest in the bar along the bottom. -->
-<div class="editor">
-<EditorBackBar label="Menus" onback={back} />
-<div class="page scrollbar-fade">
-	<PageHeader eyebrow="Menu" {title} {subtitle}>
-		{#snippet actions()}
-			<Button class="close-btn" variant="ghost" size="sm" type="button" aria-label={dirty || itemDirty ? "Close with unsaved changes" : "Close"} title="Close (Esc)" onclick={back}>
-				{#snippet icon()}<Icon name="close" size={16} />{/snippet}
-			</Button>
-		{/snippet}
-	</PageHeader>
-	{#if menu && !error}
-		<!-- One part at a time, like the other editors' tabs: the page was three long parts in a row. -->
-		<div class="tabs">
-			<Segmented bind:value={tab} items={tabItems} tone="soft" size="sm" ariaLabel="Menu sections" />
-		</div>
-	{/if}
+{#snippet menuKicker()}
+	<p class="eyebrow">Menu</p>
+	{#if menu}<Badge tone={MENU_STATUS_TONES[menu.status]} label={menu.statusLabel} />{/if}
+{/snippet}
 
-	{#if error}
-		<EmptyState tone="error" title="Couldn't load this menu" text={error}>
-			{#snippet action()}
-				<Button variant="outline" size="sm" onclick={() => void load(menuId, isNew)}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
-			{/snippet}
-		</EmptyState>
-	{:else if loading && !menu && !isNew}
-		<Skeleton rows={5} lines={1} label="Loading the menu…" />
-	{:else}
-		{#if menu && tab === "items"}
-			<FormSection title="Items" description="A map of the menu, in its order. Click a section's name or line to change it, an item's pencil to edit it, and drag a section by its handle to move it.">
-				<MenuItemsList
-					chapters={items}
-					menuName={menu.name}
-					menuId={menu.id}
-					menus={menus.map(({ id, name }) => ({ id, name }))}
-					bind:dirty={itemDirty}
-					onchanged={refreshSections}
-				/>
-			</FormSection>
-		{/if}
+{#snippet menuTabs()}
+	<Segmented bind:value={tab} items={tabItems} tone="soft" size="sm" ariaLabel="Menu sections" />
+{/snippet}
 
-		{#if !menu || tab === "details"}
-		<Card>
-			<form class="menu-form" novalidate onsubmit={save}>
-				<FormSection title="The menu" description="What it's called, and when guests can order from it.">
-					{#snippet actions()}
-						{#if menu}<Badge tone={MENU_STATUS_TONES[menu.status]} label={menu.statusLabel} />{/if}
-					{/snippet}
-					<Field class="span-6" label="Name" for="menu-name" required hint="What guests see at the top, e.g. Brunch.">
-						<TextField id="menu-name" size="sm" bind:value={draft.name} placeholder="Chez Pickle" autocomplete="off" />
-					</Field>
-					<Field class="span-6" label="Drinks or food" for="menu-kind" hint="Food goes on the kitchen page, drinks on the bar page.">
-						<Segmented bind:value={draft.kind} items={SECTION_KIND_ITEMS} tone="soft" size="sm" ariaLabel="Drinks or food" />
-					</Field>
-					<Field class="span-3" label="Starts" for="menu-starts" optional hint="Empty: it's on already.">
-						<DateField id="menu-starts" size="sm" bind:value={draft.startsOn} />
-					</Field>
-					<Field class="span-3" label="Ends" for="menu-ends" optional hint="Empty: it keeps going.">
-						<DateField id="menu-ends" size="sm" bind:value={draft.endsOn} min={draft.startsOn} />
-					</Field>
-					<Field
-						class="span-6"
-						label="Days"
-						for="menu-days"
-						hint={draft.days.length ? `${menuDaysLabel(draft.days)}. Pick none for every day.` : "Every day. Pick days to narrow it down."}
-					>
-						<MenuDaysPicker id="menu-days" bind:days={draft.days} />
-					</Field>
-					<!-- Always there, so the form doesn't move when Drinks or Food is switched. -->
-					<Field
-						class="span-6"
-						label="Pop-up kitchen"
-						for="menu-popup"
-						optional
-						hint={draft.kind === "kitchen"
-							? "Whose food this is. Pop-up kitchens are added in Events."
-							: "Only a Food menu can belong to a pop-up kitchen."}
-					>
-						<NativeSelect
-							id="menu-popup"
-							size="sm"
-							bind:value={draft.popupSeriesId}
-							options={popupOptions}
-							disabled={draft.kind !== "kitchen"}
-						/>
-					</Field>
-				</FormSection>
-				<button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
-			</form>
-		</Card>
-		{/if}
-
-	{/if}
-</div>
-{#if !error && !(loading && !menu && !isNew)}
-	<EditorActionBar
-		saveLabel={isNew ? "Add menu" : "Save menu"}
-		savingLabel={isNew ? "Adding…" : "Saving…"}
-		{saving}
-		disabled={!canSave || deleting || copying}
-		{dirty}
-		onsave={() => void save()}
-		overflow={[
+<!-- The same editor card as an event's (EditorShell): its head, tabs, a body
+     that scrolls inside it, and the save bar at its foot. -->
+<EditorShell
+	{open}
+	backLabel="Menus"
+	onclose={back}
+	dirty={dirty || itemDirty}
+	busy={saving}
+	kicker={menuKicker}
+	{heading}
+	placeholder={isNew && !page.details.name.trim()}
+	{subtitle}
+	tabs={menu && !error ? menuTabs : undefined}
+	actions={{
+		saveLabel: isNew ? "Add menu" : "Save menu",
+		savingLabel: isNew ? "Adding…" : "Saving…",
+		saving,
+		disabled: !canSave || deleting || copying || Boolean(error) || (loading && !menu && !isNew),
+		dirty,
+		onsave: () => void save(),
+		overflow: [
 			{
 				label: "Copy menu",
 				disabled: Boolean(copyReason) || copying,
@@ -372,10 +299,82 @@
 				reason: deleteReason,
 				onselect: () => (deleteOpen = true),
 			},
-		]}
-	/>
-{/if}
-</div>
+		],
+	}}
+>
+	{#if error}
+		<div class="tab-body">
+			<EmptyState tone="error" title="Couldn't load this menu" text={error}>
+				{#snippet action()}
+					<Button variant="outline" size="sm" onclick={() => void load(menuId, isNew)}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
+				{/snippet}
+			</EmptyState>
+		</div>
+	{:else if loading && !menu && !isNew}
+		<div class="tab-body"><Skeleton rows={5} lines={1} label="Loading the menu…" /></div>
+	{:else}
+		<div class="tab-body">
+			{#if menu && tab === "items"}
+				<FormSection title="Items" description="A map of the menu, in its order. Click a section's name or line to change it, an item's pencil to edit it, and drag a section by its handle to move it. Nothing is saved until Save menu.">
+					<MenuItemsList
+						{page}
+						menuName={menu.name}
+						menuId={menu.id}
+						menus={menus.map(({ id, name }) => ({ id, name }))}
+						busy={saving}
+						bind:dirty={itemDirty}
+					/>
+				</FormSection>
+			{/if}
+
+			{#if !menu || tab === "details"}
+				<form class="menu-form" novalidate onsubmit={save}>
+					<FormSection title="The menu" description="What it's called, and when guests can order from it.">
+						<Field class="span-6" label="Name" for="menu-name" required hint="What guests see at the top, e.g. Brunch.">
+							<TextField id="menu-name" size="sm" bind:value={page.details.name} placeholder="Chez Pickle" autocomplete="off" />
+						</Field>
+						<Field class="span-6" label="Drinks or food" for="menu-kind" hint="Food goes on the kitchen page, drinks on the bar page.">
+							<Segmented bind:value={page.details.kind} items={SECTION_KIND_ITEMS} tone="soft" size="sm" ariaLabel="Drinks or food" />
+						</Field>
+						<Field class="span-3" label="Starts" for="menu-starts" optional hint="Empty: it's on already.">
+							<DateField id="menu-starts" size="sm" bind:value={page.details.startsOn} />
+						</Field>
+						<Field class="span-3" label="Ends" for="menu-ends" optional hint="Empty: it keeps going.">
+							<DateField id="menu-ends" size="sm" bind:value={page.details.endsOn} min={page.details.startsOn} />
+						</Field>
+						<Field
+							class="span-6"
+							label="Days"
+							for="menu-days"
+							hint={page.details.days.length ? `${menuDaysLabel(page.details.days)}. Pick none for every day.` : "Every day. Pick days to narrow it down."}
+						>
+							<MenuDaysPicker id="menu-days" bind:days={page.details.days} />
+						</Field>
+						<!-- Always there, so the form doesn't move when Drinks or Food is switched. -->
+						<Field
+							class="span-6"
+							label="Pop-up kitchen"
+							for="menu-popup"
+							optional
+							hint={page.details.kind === "kitchen"
+								? "Whose food this is. Pop-up kitchens are added in Events."
+								: "Only a Food menu can belong to a pop-up kitchen."}
+						>
+							<NativeSelect
+								id="menu-popup"
+								size="sm"
+								bind:value={page.details.popupSeriesId}
+								options={popupOptions}
+								disabled={page.details.kind !== "kitchen"}
+							/>
+						</Field>
+					</FormSection>
+					<button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
+				</form>
+			{/if}
+		</div>
+	{/if}
+</EditorShell>
 
 <ConfirmDialog
 	open={discardOpen}
@@ -395,40 +394,21 @@
 	onconfirm={() => void remove()}
 />
 
+<HelpDrawer {help} />
+
 <style>
-	.editor {
-		display: flex;
-		flex-direction: column;
-		flex: 1;
-		min-width: 0;
-		min-height: 0;
-	}
-
-	.page {
+	/* The body inside the card, padded as the events editor's. The map keeps
+	   its readable width (MenuItemsList's 64rem), left-aligned. */
+	.tab-body {
 		position: relative;
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		padding: var(--page-gutter);
-		display: grid;
-		gap: var(--space-5);
-		align-content: start;
+		padding: 1rem var(--card-pad-lg) var(--card-pad-lg);
 	}
 
-	/* A wide screen doesn't stretch the form: everything keeps the items'
-	   width (MenuItemsList's 64rem), left-aligned under the title. */
-	.page > :global(*) {
-		width: 100%;
+	.tab-body > :global(*) {
 		max-width: 64rem;
 	}
 
-	.tabs {
-		margin-top: calc(var(--space-2) * -1);
-		border-bottom: 1px solid var(--border);
-	}
-
-	/* The tab strip is the rule above whichever part shows. */
-	.tabs + :global(.form-section) {
+	.tab-body > :global(.form-section:first-child) {
 		padding-top: 0;
 		border-top: 0;
 	}
@@ -438,42 +418,14 @@
 		gap: var(--space-4);
 	}
 
-	/* Phones close with Menus in the bar above. */
-	@media (max-width: 900px) {
-		.page :global(.close-btn) {
-			display: none;
-		}
+	.menu-form > :global(.form-section) {
+		padding-top: 0;
+		border-top: 0;
 	}
 
-	/* The bar spans the page under the gutter, as in the other editors. */
-	.editor :global(.editor-action-bar) {
-		padding-inline: var(--page-gutter);
-	}
-
-	/* Phones: edge to edge like the other editors, so the fields have the room. */
 	@media (max-width: 900px) {
-		.page {
-			padding-inline: max(var(--page-gutter), 1.125rem);
-		}
-
-		/* Sticks under the top bar while the page scrolls. */
-		.tabs {
-			position: sticky;
-			top: calc(var(--page-gutter) * -1);
-			z-index: 3;
-			margin-inline: calc(max(var(--page-gutter), 1.125rem) * -1);
-			padding-inline: max(var(--page-gutter), 1.125rem);
-			background: var(--ambient), var(--background);
-		}
-
-		.page :global(.card) {
-			border: 0;
-			border-radius: 0;
-			background: none;
-		}
-
-		.page :global(.card > .body) {
-			padding: 0;
+		.tab-body {
+			padding: var(--space-4) max(var(--page-gutter), 1.125rem) max(var(--page-gutter), 1.125rem);
 		}
 	}
 </style>

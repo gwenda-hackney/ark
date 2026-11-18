@@ -2,54 +2,59 @@
 	/**
 	 * A menu's page (#305) laid out as the website does, and shaped right
 	 * there: each section under its name and line, its items, then its groups.
+	 * Everything here changes the page's draft (menu-page-draft.svelte.ts);
+	 * nothing is written until Save menu. What's changed is marked: an edited
+	 * item or section has a dot, a new one says New, and one to come off
+	 * stays in sight, struck through, with Undo.
 	 *
 	 * - Names and lines change where they show (MenuSectionHead, InlineEdit).
 	 * - Sections move by their handle (drag, or arrow keys) or Move up/down
 	 *   in their ⋯ menu; Add section and Add group put new ones at the end;
-	 *   Remove takes one off the menu, asking first when it has anything in it.
-	 * - An item's pencil (on hover) opens it in a large editor dialog with the
-	 *   standard save bar: name, price, line; All details and Take off in its
-	 *   ⋯ (item-inline-edit.svelte.ts holds the draft). Add item opens it empty.
+	 *   Remove marks one to come off, asking first when it has anything in it.
+	 * - An item's pencil (on hover) opens it in a large editor dialog: name,
+	 *   price, line; Done puts the change on the page. Take off this menu, in
+	 *   the dialog or by the bin, asks first, straight away, from what the
+	 *   page loaded (each item's other menus). Add item opens it empty.
 	 */
 	import { Button, Confirm, ConfirmDialog, Dialog, EditorActionBar, Field, InlineEdit, NativeSelect, TextArea, TextField, type OverflowItem } from "../ui";
 	import { Icon } from "../app/shell";
-	import * as api from "../app/api";
 	import { menuItemPath, navigate } from "../app/nav";
 	import { toast } from "../ui/toast.svelte";
-	import { menuItemPayload } from "./item-payload";
 	import { InlineItemEditor, type ItemDraft, type ItemEditTarget } from "./item-inline-edit.svelte";
-	import { cleanPrice, offMenu, sectionRemovalQuestion, withQuickEdit } from "./menu-page-items";
+	import type { DraftBlock, DraftItem, MenuPageDraft } from "./menu-page-draft.svelte";
+	import { sectionRemovalQuestion } from "./menu-page-items";
 	import { moveId } from "./menu-sections.js";
 	import { normalizePrices } from "./prices.js";
 	import MenuSectionHead from "./MenuSectionHead.svelte";
 	import { startSectionDrag } from "./section-drag";
-	import { formatPrices, type MenuItemBlock, type MenuItemChapter, type MenuPageItem } from "./types";
+	import { formatPrices } from "./types";
 
 	let {
-		chapters,
+		page,
 		menuName = "this menu",
 		menuId,
 		menus = [],
+		busy = false,
 		dirty = $bindable(false),
-		onchanged,
 	}: {
-		chapters: MenuItemChapter[];
+		/** The page's draft: what's shown, and what Save menu writes. */
+		page: MenuPageDraft;
 		menuName?: string;
-		/** The menu shown: a new section goes on it. */
+		/** The menu shown. */
 		menuId: string;
 		/** Every menu, for moving a section to another. */
 		menus?: { id: string; name: string }[];
-		/** An item is open with changes not yet saved: leaving the page asks first. */
+		/** Save menu is writing: nothing changes meanwhile. */
+		busy?: boolean;
+		/** The item dialog is open with changes not yet Done: leaving the page asks first. */
 		dirty?: boolean;
-		/** After anything changes: the page loads the menu again. */
-		onchanged: () => Promise<void> | void;
 	} = $props();
 
 	const confirm = new Confirm();
 	const editor = new InlineItemEditor((label) =>
 		confirm.ask({
 			title: `Discard your changes to ${label}?`,
-			message: "You've changed it and haven't saved it.",
+			message: "You've changed it and haven't put it on the menu.",
 			action: "Discard",
 			cancel: "Keep editing",
 		}),
@@ -59,64 +64,20 @@
 		dirty = editor.dirty;
 	});
 
-	/** Sections being saved (renamed, moved, removed): their controls wait. */
-	let busy = $state(false);
-
-	/**
-	 * A new order shows as soon as it's dropped, before the page reloads:
-	 * siblings' ids by their parent ("" for the chapters).
-	 */
-	let pendingOrder = $state<Record<string, string[]>>({});
-	function ordered<T extends { sectionId: string }>(list: T[], parent: string): T[] {
-		const ids = pendingOrder[parent];
-		if (!ids) return list;
-		const at = new Map(ids.map((id, index) => [id, index]));
-		return [...list].sort((a, b) => (at.get(a.sectionId) ?? 0) - (at.get(b.sectionId) ?? 0));
-	}
-	const view = $derived(
-		ordered(chapters, "").map((chapter) => ({ ...chapter, groups: ordered(chapter.groups, chapter.sectionId) })),
-	);
-
-	/** Every section on this menu: taking an item off goes by these. */
-	const here = $derived(chapters.flatMap((chapter) => [chapter.sectionId, ...chapter.groups.map((group) => group.sectionId)]));
+	const view = $derived(page.view);
 
 	/** Where a dragged section would land: its parent and the index it goes before. */
 	let dropAt = $state<{ parent: string; at: number } | null>(null);
 	let dragging = $state<string | null>(null);
 
-	async function sectionWork(work: () => Promise<unknown>, failed: string) {
-		busy = true;
-		try {
-			await work();
-			await onchanged();
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : failed);
-			throw err;
-		} finally {
-			busy = false;
-		}
-	}
-
-	async function saveOrder(parent: string, ids: string[]) {
-		pendingOrder = { ...pendingOrder, [parent]: ids };
-		try {
-			await sectionWork(() => api.orderSections(ids), "Couldn't move it.");
-		} catch {
-			// Back as it was: the toast says why.
-		} finally {
-			const { [parent]: _, ...rest } = pendingOrder;
-			pendingOrder = rest;
-		}
-	}
-
-	function move(parent: string, siblings: MenuItemBlock[], index: number, dir: -1 | 1) {
+	function move(parent: string, siblings: DraftBlock[], index: number, dir: -1 | 1) {
 		const ids = siblings.map((block) => block.sectionId);
 		if (!ids[index + dir]) return;
-		void saveOrder(parent, moveId(ids, index, index + dir));
+		page.setOrder(parent, moveId(ids, index, index + dir));
 	}
 
 	let lists: Record<string, HTMLElement | undefined> = $state({});
-	function grab(event: PointerEvent, parent: string, siblings: MenuItemBlock[], index: number) {
+	function grab(event: PointerEvent, parent: string, siblings: DraftBlock[], index: number) {
 		if (busy) return;
 		const ids = siblings.map((block) => block.sectionId);
 		dragging = ids[index];
@@ -125,7 +86,7 @@
 			ids,
 			from: index,
 			onover: (at) => (dropAt = at == null ? null : { parent, at }),
-			ondrop: (next) => void saveOrder(parent, next),
+			ondrop: (next) => page.setOrder(parent, next),
 		});
 		const done = () => {
 			dragging = null;
@@ -136,67 +97,51 @@
 		window.addEventListener("pointercancel", done, true);
 	}
 
-	function rename(block: MenuItemBlock, title: string) {
-		return sectionWork(() => api.updateSection(block.sectionId, { title }), "Couldn't rename it.");
+	async function rename(block: DraftBlock, title: string) {
+		page.renameSection(block.sectionId, title);
 	}
 
-	function setSubtitle(block: MenuItemBlock, subtitle: string) {
-		return sectionWork(() => api.updateSection(block.sectionId, { subtitle }), "Couldn't save the line.");
+	async function setSubtitle(block: DraftBlock, subtitle: string) {
+		page.setSubtitle(block.sectionId, subtitle);
 	}
 
-	async function removeSection(block: MenuItemBlock) {
+	/** Remove asks first when the section has anything in it; then it's marked, to go on Save. */
+	async function removeSection(block: DraftBlock) {
 		if (busy) return;
-		let question: ReturnType<typeof sectionRemovalQuestion>;
-		try {
-			question = sectionRemovalQuestion((await api.previewSectionRemoval(block.sectionId)).removal, menuName);
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Couldn't check what's in it.");
-			return;
+		if (block.mark !== "new") {
+			const question = sectionRemovalQuestion(page.removalOf(block.sectionId), menuName);
+			if (question && !(await confirm.ask(question))) return;
 		}
-		if (question && !(await confirm.ask(question))) return;
-		try {
-			await sectionWork(() => api.removeSection(block.sectionId), "Couldn't remove it.");
-			toast.ok(`${block.title} is off ${menuName}.`);
-		} catch {
-			// The toast says why.
-		}
+		page.removeSection(block.sectionId);
 	}
 
 	let addingChapter = $state(false);
 	let addingGroupTo = $state<string | null>(null);
 
-	function addSection(title: string, parentId = "") {
-		return sectionWork(
-			() => api.createSection(parentId ? { title, parentId } : { title, parentId: "", menuId }),
-			"Couldn't add it.",
-		);
+	async function addSection(title: string, parentId = "") {
+		page.addSection(title, parentId);
 	}
 
 	/** Move to another menu: the section, with its groups and items. */
-	let moving = $state<MenuItemBlock | null>(null);
+	let moving = $state<DraftBlock | null>(null);
 	let moveTo = $state("");
 	const otherMenus = $derived(menus.filter((menu) => menu.id !== menuId).map((menu) => ({ value: menu.id, label: menu.name })));
 
-	async function moveToMenu() {
+	function moveToMenu() {
 		const block = moving;
 		if (!block || !moveTo) return;
-		const name = menus.find((menu) => menu.id === moveTo)?.name || "the other menu";
-		try {
-			await sectionWork(() => api.updateSection(block.sectionId, { menuId: moveTo }), "Couldn't move it.");
-			moving = null;
-			toast.ok(`${block.title} moved to ${name}.`);
-		} catch {
-			// The toast says why.
-		}
+		page.moveToMenu(block.sectionId, moveTo);
+		moving = null;
 	}
 
-	function chapterActions(chapter: MenuItemBlock): OverflowItem[] {
+	function chapterActions(chapter: DraftBlock): OverflowItem[] {
+		const fresh = chapter.mark === "new";
 		return [
 			{ label: "Add group", disabled: busy, onselect: () => (addingGroupTo = chapter.sectionId) },
 			{
 				label: "Move to another menu…",
-				disabled: busy || !otherMenus.length,
-				reason: otherMenus.length ? undefined : "There's no other menu",
+				disabled: busy || !otherMenus.length || fresh,
+				reason: !otherMenus.length ? "There's no other menu" : fresh ? "Save it here first" : undefined,
 				onselect: () => {
 					moving = chapter;
 					moveTo = otherMenus[0]?.value || "";
@@ -205,102 +150,50 @@
 		];
 	}
 
-	// Items: the editor opens where the item sits.
+	// Items: the editor opens over the page.
 
-	function firstPrice(item: MenuPageItem): string {
-		return normalizePrices(item)[0]?.price || "";
+	function openItem(item: DraftItem) {
+		void editor.open({ kind: "item", id: item.id, label: item.name }, page.quick(item.id));
 	}
 
-	function openItem(item: MenuPageItem) {
-		void editor.open({ kind: "item", id: item.id, label: item.name }, { name: item.name, description: item.description, price: firstPrice(item) });
-	}
-
-	function openNew(block: MenuItemBlock) {
+	function openNew(block: DraftBlock) {
 		void editor.open({ kind: "new", sectionId: block.sectionId, label: `the new item in ${block.title}` });
 	}
 
-	async function saveItem(target: ItemEditTarget, draft: ItemDraft) {
-		if (target.kind === "item") {
-			const { item: full } = await api.getItem(target.id);
-			await api.updateItem(target.id, menuItemPayload(withQuickEdit(full, draft)));
-		} else {
-			const name = draft.name.trim();
-			const price = cleanPrice(draft.price);
-			await api.createItem({
-				name,
-				description: draft.description.trim() || undefined,
-				sectionId: target.sectionId,
-				...(price ? { price, prices: [{ name: "", price }] } : {}),
-			});
-		}
+	async function applyItem(target: ItemEditTarget, draft: ItemDraft) {
+		if (target.kind === "item") page.editItem(target.id, draft);
+		else page.addItem(target.sectionId, draft);
 	}
 
+	/** Done: the change goes on the page (and is saved with Save menu). */
 	async function submitItem(event?: Event) {
 		event?.preventDefault();
-		const target = editor.target;
-		try {
-			const problem = await editor.save(saveItem);
-			if (problem) return void toast.error(problem);
-			await onchanged();
-			if (target?.kind === "new") toast.ok("Added.");
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Couldn't save the item.");
-		}
+		const problem = await editor.save(applyItem);
+		if (problem) toast.error(problem);
 	}
 
-	async function remove(item: MenuPageItem) {
+	/** Take off: asks straight away (from what the page loaded), then marks it. A new one just goes. */
+	async function remove(item: DraftItem) {
 		if (busy) return;
-		busy = true;
-		let plan: ReturnType<typeof offMenu>;
-		let full: Awaited<ReturnType<typeof api.getItem>>["item"];
-		try {
-			full = (await api.getItem(item.id)).item;
-			plan = offMenu(full, here);
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Couldn't load the item.");
-			return;
-		} finally {
-			busy = false;
-		}
-		const ok = await confirm.ask(
-			plan.action === "delete"
-				? {
-						title: `Delete ${item.name}?`,
-						message: `It isn't on any other menu, so taking it off ${menuName} deletes it, with its recipe. This can't be undone.`,
-						action: "Delete",
-					}
-				: {
-						title: `Take ${item.name} off ${menuName}?`,
-						message: "It stays on its other menus, and you can put it back here from its page.",
-						action: "Take off",
-					},
-		);
-		if (!ok) return;
-		try {
-			await sectionWork(async () => {
-				if (plan.action === "delete") await api.deleteItem(item.id);
-				else await api.updateItem(item.id, menuItemPayload(plan.item));
-			}, "Couldn't take it off.");
-			if (editor.isOpen(item.id)) editor.cancel();
-			toast.ok(plan.action === "delete" ? `${item.name} deleted.` : `${item.name} is off ${menuName}.`);
-		} catch {
-			// The toast says why.
-		}
+		const question = page.takeOffQuestion(item.id, menuName);
+		if (question && !(await confirm.ask(question))) return;
+		page.takeOff(item.id);
+		if (editor.isOpen(item.id)) editor.cancel();
 	}
 
 	/** The items and sections shown, for the dialog to find what it edits. */
 	const itemById = $derived(
-		new Map(chapters.flatMap((chapter) => [chapter, ...chapter.groups]).flatMap((block) => block.items.map((item) => [item.id, item] as const))),
+		new Map(view.flatMap((chapter) => [chapter, ...chapter.groups]).flatMap((block) => block.items.map((item) => [item.id, item] as const))),
 	);
-	const blockById = $derived(new Map(chapters.flatMap((chapter) => [chapter, ...chapter.groups]).map((block) => [block.sectionId, block] as const)));
+	const blockById = $derived(new Map(view.flatMap((chapter) => [chapter, ...chapter.groups]).map((block) => [block.sectionId, block] as const)));
 
-	/** Closing the dialog: unsaved changes ask first. */
+	/** Closing the dialog: changes not yet Done ask first. */
 	async function closeItem() {
 		if (editor.saving) return;
 		if (editor.dirty) {
 			const ok = await confirm.ask({
 				title: `Discard your changes to ${editor.target?.label || "this item"}?`,
-				message: "You've changed it and haven't saved it.",
+				message: "You've changed it and haven't put it on the menu.",
 				action: "Discard",
 				cancel: "Keep editing",
 			});
@@ -310,8 +203,8 @@
 	}
 
 	/** The dialog's ⋯: the item's full page. Take off is a button of its own. */
-	function itemActions(item: MenuPageItem | null): OverflowItem[] {
-		if (!item) return [];
+	function itemActions(item: DraftItem | null): OverflowItem[] {
+		if (!item || item.mark === "new") return [];
 		return [
 			{
 				label: "All details",
@@ -370,7 +263,7 @@
 		{#snippet footer()}
 			<div class="item-dialog-bar">
 				<EditorActionBar
-					saveLabel={item ? "Save item" : "Add item"}
+					saveLabel={item ? "Done" : "Add item"}
 					saving={editor.saving}
 					dirty={editor.dirty}
 					overflow={itemActions(item)}
@@ -391,34 +284,45 @@
 	</Dialog>
 {/snippet}
 
-{#snippet itemRow(item: MenuPageItem)}
+{#snippet itemRow(item: DraftItem, locked: boolean)}
 	{@const price = formatPrices(item)}
-	<li>
+	{@const off = item.mark === "off"}
+	<li class:off>
 		<div class="row">
 			<div class="item">
 				<span class="text">
-					<span class="name">{item.name}</span>
+					<span class="name">
+						{item.name}
+						{#if item.mark === "edited"}<span class="mark-dot" title="Edited: saved with Save menu" aria-label="edited"></span>{/if}
+						{#if item.mark === "new"}<span class="mark-new">New</span>{/if}
+					</span>
 					{#if item.description}<span class="description">{item.description}</span>{/if}
 				</span>
 				{#if price}<span class="price tnum">{price}</span>{/if}
 			</div>
-			<button type="button" class="tool edit" onclick={() => openItem(item)} aria-label={`Edit ${item.name}`} title="Edit">
-				<Icon name="pencil" size={14} />
-			</button>
-			<button type="button" class="tool remove" onclick={() => void remove(item)} aria-label={`Take ${item.name} off ${menuName}`} title="Take off this menu">
-				<Icon name="trash" size={14} />
-			</button>
+			{#if off}
+				<button type="button" class="undo" disabled={busy || locked} onclick={() => page.undoTakeOff(item.id)} aria-label={`Keep ${item.name} on ${menuName}`} title={item.otherMenus.length ? "Comes off when you save" : "Deleted when you save"}>
+					Undo
+				</button>
+			{:else}
+				<button type="button" class="tool edit" disabled={busy || locked} onclick={() => openItem(item)} aria-label={`Edit ${item.name}`} title="Edit">
+					<Icon name="pencil" size={14} />
+				</button>
+				<button type="button" class="tool remove" disabled={busy || locked} onclick={() => void remove(item)} aria-label={`Take ${item.name} off ${menuName}`} title="Take off this menu">
+					<Icon name="trash" size={14} />
+				</button>
+			{/if}
 		</div>
 	</li>
 {/snippet}
 
-{#snippet items(block: MenuItemBlock)}
+{#snippet items(block: DraftBlock, locked: boolean)}
 	{#if block.items.length}
 		<ul class="items">
-			{#each block.items as item (item.id)}{@render itemRow(item)}{/each}
+			{#each block.items as item (item.id)}{@render itemRow(item, locked)}{/each}
 		</ul>
 	{/if}
-	<button type="button" class="add" onclick={() => openNew(block)}>
+	<button type="button" class="add" disabled={busy || locked} onclick={() => openNew(block)}>
 		<Icon name="plus" size={14} />
 		Add item
 	</button>
@@ -440,8 +344,11 @@
 
 <div class="chapters" bind:this={lists[""]} class:dragging-any={Boolean(dragging)}>
 	{#each view as chapter, chapterIndex (chapter.sectionId)}
+		{@const chapterGone = chapter.mark === "removed" || chapter.mark === "moved"}
 		<section
 			class="chapter"
+			class:gone={chapterGone}
+			class:fresh={chapter.mark === "new"}
 			aria-label={chapter.title}
 			data-section={chapter.sectionId}
 			class:dragged={dragging === chapter.sectionId}
@@ -461,12 +368,17 @@
 				onrename={(title) => rename(chapter, title)}
 				onsubtitle={(subtitle) => setSubtitle(chapter, subtitle)}
 				onremove={() => void removeSection(chapter)}
+				mark={chapter.mark}
+				movedTo={chapter.movedTo}
+				onundo={() => (chapter.mark === "moved" ? page.undoMove(chapter.sectionId) : page.undoRemoveSection(chapter.sectionId))}
 			/>
-			{#if chapter.items.length || !chapter.groups.length}{@render items(chapter)}{/if}
+			{#if chapter.items.length || !chapter.groups.length}{@render items(chapter, chapterGone)}{/if}
 			<div class="groups" bind:this={lists[chapter.sectionId]}>
 				{#each chapter.groups as group, groupIndex (group.sectionId)}
 					<div
 						class="group"
+						class:gone={group.mark === "removed"}
+						class:fresh={group.mark === "new"}
 						data-section={group.sectionId}
 						class:dragged={dragging === group.sectionId}
 						class:drop-before={dropAt?.parent === chapter.sectionId && dropAt.at === groupIndex}
@@ -478,21 +390,24 @@
 							level="group"
 							index={groupIndex}
 							count={chapter.groups.length}
-							{busy}
+							busy={busy || chapterGone}
 							ongrab={(event) => grab(event, chapter.sectionId, chapter.groups, groupIndex)}
 							onmove={(dir) => move(chapter.sectionId, chapter.groups, groupIndex, dir)}
 							onrename={(title) => rename(group, title)}
 							onsubtitle={(subtitle) => setSubtitle(group, subtitle)}
 							onremove={() => void removeSection(group)}
+							mark={group.mark}
+							movedTo={group.movedTo}
+							onundo={() => page.undoRemoveSection(group.sectionId)}
 						/>
-						{@render items(group)}
+						{@render items(group, chapterGone || group.mark === "removed")}
 					</div>
 				{/each}
 			</div>
 			{#if addingGroupTo === chapter.sectionId}
 				{@render newSection(chapter.sectionId)}
 			{:else}
-				<button type="button" class="add add-group" disabled={busy} onclick={() => (addingGroupTo = chapter.sectionId)}>
+				<button type="button" class="add add-group" disabled={busy || chapterGone} onclick={() => (addingGroupTo = chapter.sectionId)}>
 					<Icon name="plus" size={14} />
 					Add group
 				</button>
@@ -514,14 +429,14 @@
 
 <Dialog open={Boolean(moving)} title={moving ? `Move ${moving.title} to another menu` : ""} onclose={() => (moving = null)}>
 	<div class="move-form">
-		<Field label="Menu" for="move-section-menu" hint="It goes with its groups and items.">
+		<Field label="Menu" for="move-section-menu" hint="It goes with its groups and items when you save.">
 			<NativeSelect id="move-section-menu" size="sm" bind:value={moveTo} options={otherMenus} />
 		</Field>
 	</div>
 	{#snippet footer()}
 		<span class="spacer"></span>
 		<Button variant="outline" type="button" onclick={() => (moving = null)}>Cancel</Button>
-		<Button variant="primary" type="button" busy={busy} disabled={busy || !moveTo} onclick={() => void moveToMenu()}>Move</Button>
+		<Button variant="primary" type="button" disabled={busy || !moveTo} onclick={moveToMenu}>Move</Button>
 	{/snippet}
 </Dialog>
 
@@ -675,13 +590,84 @@
 		color: var(--fg-muted);
 	}
 
+	/* Gold like the names above it, a step quieter. */
 	.price {
 		flex-shrink: 0;
 		font-size: var(--text-sm);
-		color: var(--fg-muted);
+		font-variant-numeric: tabular-nums;
+		color: color-mix(in srgb, var(--primary) 70%, var(--fg-muted));
+	}
+
+	/* A hairline between items, so the rows read apart. */
+	.items > li + li {
+		border-top: 1px solid var(--border);
+	}
+
+	/* Draft marks: an edited dot, New, and one to come off struck through (not gold or red). */
+	.name {
+		display: inline-flex;
+		align-items: baseline;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.mark-dot {
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
+		background: var(--warning);
+		align-self: center;
+	}
+
+	.mark-new {
+		padding: 0 var(--space-2);
+		border-radius: 999px;
+		font-size: var(--text-xs, 0.75rem);
+		font-weight: 600;
+		line-height: 1.5;
+		color: var(--info);
+		background: color-mix(in srgb, var(--info) 15%, transparent);
+	}
+
+	.off .item {
+		text-decoration: line-through;
+		opacity: 0.55;
+	}
+
+	.undo {
+		flex-shrink: 0;
+		align-self: center;
+		margin-right: var(--space-1);
+		min-height: 1.75rem;
+		padding: 0 var(--space-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: none;
+		color: var(--fg);
+		font: inherit;
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+
+	.undo:hover:not(:disabled) {
+		background: var(--surface-2);
+	}
+
+	/* A section to come off: its items dim with it. */
+	.gone > :global(:not(.head)) {
+		opacity: 0.55;
+	}
+
+	.fresh {
+		border-style: dashed;
+		border-color: color-mix(in srgb, var(--info) 45%, var(--border));
 	}
 
 	/* The pencil and the bin: there on hover (always, without hover). */
+	.tool:disabled {
+		cursor: default;
+	}
+
 	.tool {
 		flex-shrink: 0;
 		display: inline-grid;
@@ -746,10 +732,13 @@
 		background: var(--surface-2);
 	}
 
+	/* A group's head is a faint gold header band above its items. */
 	.group > :global(.head) {
-		margin: 0 calc(var(--space-3) * -1) var(--space-1);
-		padding: 0 var(--space-3) var(--space-2);
+		margin: calc(var(--space-2) * -1) calc(var(--space-3) * -1) var(--space-1);
+		padding: var(--space-2) var(--space-3) var(--space-2);
 		border-bottom: 1px solid var(--border);
+		border-radius: var(--radius-md) var(--radius-md) 0 0;
+		background: color-mix(in srgb, var(--primary) 5%, var(--surface-2));
 	}
 
 	.chapter > :global(.head) {

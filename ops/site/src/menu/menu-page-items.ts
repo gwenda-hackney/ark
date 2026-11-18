@@ -52,9 +52,10 @@ export function nameList(names: string[], most = 3): string {
 }
 
 /**
- * What Remove section says before it asks, from what the server says it
- * takes (api.previewSectionRemoval). Null when the section is empty: it
- * goes without asking.
+ * What Remove section says before it asks, from what it takes (the page's
+ * draft works it out from what it loaded: MenuPageDraft.removalOf). Null
+ * when the section is empty: it goes without asking. Nothing goes until
+ * Save menu.
  */
 export function sectionRemovalQuestion(
 	removal: { title: string; groups: string[]; deleted: string[]; takenOff: string[] },
@@ -66,11 +67,11 @@ export function sectionRemovalQuestion(
 	if (groups.length) lines.push(`${nameList(groups)} ${groups.length === 1 ? "goes" : "go"} with it.`);
 	if (deleted.length) {
 		lines.push(
-			`${nameList(deleted)} ${deleted.length === 1 ? "isn't" : "aren't"} on any other menu, so ${deleted.length === 1 ? "it's" : "they're"} deleted, with ${deleted.length === 1 ? "its recipe" : "their recipes"}.`,
+			`${nameList(deleted)} ${deleted.length === 1 ? "isn't" : "aren't"} on any other menu, so ${deleted.length === 1 ? "it's" : "they're"} deleted when you save, with ${deleted.length === 1 ? "its recipe" : "their recipes"}.`,
 		);
 	}
 	if (takenOff.length) lines.push(`${nameList(takenOff)} ${takenOff.length === 1 ? "stays on its" : "stay on their"} other menus.`);
-	if (deleted.length) lines.push("This can't be undone.");
+	if (deleted.length) lines.push("Once saved, this can't be undone.");
 	return {
 		title: `Remove ${removal.title} from ${menuName}?`,
 		message: lines.join(" "),

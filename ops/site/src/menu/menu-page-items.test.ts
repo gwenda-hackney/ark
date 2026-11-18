@@ -15,7 +15,7 @@ describe("sectionRemovalQuestion: what Remove section asks", () => {
 			{
 				title: "Remove Burgers from Chez Pickle?",
 				message:
-					"Smash goes with it. OG Burger and Special aren't on any other menu, so they're deleted, with their recipes. Fries stays on its other menus. This can't be undone.",
+					"Smash goes with it. OG Burger and Special aren't on any other menu, so they're deleted when you save, with their recipes. Fries stays on its other menus. Once saved, this can't be undone.",
 				action: "Remove and delete",
 			},
 		);

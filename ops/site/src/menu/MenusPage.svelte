@@ -9,7 +9,7 @@
 	 */
 	import { onMount, untrack } from "svelte";
 	import type { ColDef, ICellRendererParams, RowClickedEvent } from "ag-grid-community";
-	import { Button, DataGrid, EditorPlaceholder, EditorReveal, EmptyState, PageHeader, Skeleton, editorZoom } from "../ui";
+	import { Button, DataGrid, EmptyState, PageHeader, Skeleton } from "../ui";
 	import BadgeCell from "../ui/BadgeCell.svelte";
 	import { hasRangeSelection, svelteCell } from "../ui/grid";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
@@ -26,9 +26,6 @@
 	const route = $derived(parseShellPath(path));
 	const editing = $derived(Boolean(route.isNew || route.slug));
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
-
-	/** The menu mounts once its pane has come forward over the list. */
-	const reveal = new EditorReveal(untrack(() => editing));
 
 	let menus = $state<Menu[]>([]);
 	let loading = $state(true);
@@ -176,15 +173,8 @@
 			</div>
 		{/if}
 	</div>
-	{#if editing}
-		<div class="detail" transition:editorZoom onintroend={reveal.introend} onoutrostart={reveal.outrostart}>
-			{#if !reveal.settled}
-				<EditorPlaceholder />
-			{:else}
-				<MenuEditor {path} />
-			{/if}
-		</div>
-	{/if}
+	<!-- Always mounted: it comes forward over the list when a menu opens (EditorShell). -->
+	<MenuEditor {path} open={editing} />
 </div>
 
 <style>
@@ -215,17 +205,6 @@
 		.page {
 			transition: none;
 		}
-	}
-
-	.detail {
-		position: absolute;
-		inset: 0;
-		z-index: 1;
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
-		overflow: hidden;
-		background: var(--ambient), var(--background);
 	}
 
 	.page {

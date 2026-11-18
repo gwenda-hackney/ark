@@ -42,6 +42,8 @@ export { default as OverflowMenu } from "./OverflowMenu.svelte";
 export { default as RowAction } from "./RowAction.svelte";
 export { default as PhotoActions } from "./PhotoActions.svelte";
 export { default as EditorActionBar } from "./EditorActionBar.svelte";
+export { default as EditorShell } from "./EditorShell.svelte";
+export { default as EditorCardHeader } from "./EditorCardHeader.svelte";
 export { default as FormSection } from "./FormSection.svelte";
 export { default as FormHeading } from "./FormHeading.svelte";
 export { default as FormLead } from "./FormLead.svelte";
