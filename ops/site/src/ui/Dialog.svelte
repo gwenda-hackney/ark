@@ -23,8 +23,8 @@
 		open?: boolean;
 		/** On phones, rise from the bottom as a sheet instead of a centred box. */
 		sheet?: boolean;
-		/** "lg" for a dialog that holds a form, like the Add wizard. */
-		size?: "md" | "lg";
+		/** "lg" for a dialog that holds a form, like the Add wizard; "xl" for an editor. */
+		size?: "md" | "lg" | "xl";
 		title: string;
 		onclose: () => void;
 		children: Snippet;
@@ -75,6 +75,7 @@
 		<div
 			class="dialog"
 			class:lg={size === "lg"}
+			class:xl={size === "xl"}
 			role="dialog"
 			aria-modal="true"
 			aria-label={title}
@@ -141,6 +142,10 @@
 	}
 
 	/* A fixed height, so a form's buttons stay put from step to step. */
+	.dialog.xl {
+		width: min(60rem, 100%);
+	}
+
 	.dialog.lg {
 		width: min(42rem, 100%);
 		height: min(44rem, calc(100vh - 2rem));

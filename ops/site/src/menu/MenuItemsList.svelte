@@ -7,11 +7,11 @@
 	 * - Sections move by their handle (drag, or arrow keys) or Move up/down
 	 *   in their ⋯ menu; Add section and Add group put new ones at the end;
 	 *   Remove takes one off the menu, asking first when it has anything in it.
-	 * - Click an item and its row opens into an editor where it sits: name,
-	 *   line, price, All details and Take off (item-inline-edit.svelte.ts).
-	 *   Add item opens an empty one at the foot of its section.
+	 * - An item's pencil (on hover) opens it in a large editor dialog with the
+	 *   standard save bar: name, price, line; All details and Take off in its
+	 *   ⋯ (item-inline-edit.svelte.ts holds the draft). Add item opens it empty.
 	 */
-	import { Button, Confirm, ConfirmDialog, Dialog, Field, InlineEdit, NativeSelect, TextArea, TextField, type OverflowItem } from "../ui";
+	import { Button, Confirm, ConfirmDialog, Dialog, EditorActionBar, Field, InlineEdit, NativeSelect, TextArea, TextField, type OverflowItem } from "../ui";
 	import { Icon } from "../app/shell";
 	import * as api from "../app/api";
 	import { menuItemPath, navigate } from "../app/nav";
@@ -288,11 +288,40 @@
 		}
 	}
 
-	function follow(event: MouseEvent, href: string) {
-		if (event.button !== 0) return;
-		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-		event.preventDefault();
-		navigate(href);
+	/** The items and sections shown, for the dialog to find what it edits. */
+	const itemById = $derived(
+		new Map(chapters.flatMap((chapter) => [chapter, ...chapter.groups]).flatMap((block) => block.items.map((item) => [item.id, item] as const))),
+	);
+	const blockById = $derived(new Map(chapters.flatMap((chapter) => [chapter, ...chapter.groups]).map((block) => [block.sectionId, block] as const)));
+
+	/** Closing the dialog: unsaved changes ask first. */
+	async function closeItem() {
+		if (editor.saving) return;
+		if (editor.dirty) {
+			const ok = await confirm.ask({
+				title: `Discard your changes to ${editor.target?.label || "this item"}?`,
+				message: "You've changed it and haven't saved it.",
+				action: "Discard",
+				cancel: "Keep editing",
+			});
+			if (!ok) return;
+		}
+		editor.cancel();
+	}
+
+	/** The dialog's ⋯: the item's full page, and taking it off this menu. */
+	function itemActions(item: MenuPageItem | null): OverflowItem[] {
+		if (!item) return [];
+		return [
+			{
+				label: "All details",
+				onselect: async () => {
+					await closeItem();
+					if (!editor.target) navigate(menuItemPath(item.name));
+				},
+			},
+			{ label: "Take off this menu", tone: "destructive", disabled: busy, onselect: () => void remove(item) },
+		];
 	}
 
 	/** The line under an item grows with what's typed, so all of it shows. */
@@ -308,93 +337,82 @@
 		return { destroy: () => node.removeEventListener("input", fit) };
 	}
 
-	function onEditorKey(event: KeyboardEvent) {
-		if (event.key === "Escape") {
-			event.preventDefault();
-			event.stopPropagation();
-			editor.cancel();
-		}
-	}
 </script>
 
-{#snippet itemEditor(item: MenuPageItem | null, block: MenuItemBlock)}
-	{@const id = item ? `item-${item.id}` : `new-${block.sectionId}`}
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions (Esc cancels, as in any editor) -->
-	<form class="item-editor" novalidate onsubmit={submitItem} onkeydown={onEditorKey} aria-label={item ? `Change ${item.name}` : `Add to ${block.title}`}>
-		<div class="fields">
-			<Field class="name-field" label="Name" for={`${id}-name`} required>
-				<!-- svelte-ignore a11y_autofocus -->
-				<TextField id={`${id}-name`} size="sm" bind:value={editor.draft.name} autocomplete="off" autofocus />
-			</Field>
-			<Field class="price-field" label="Price" for={`${id}-price`} optional>
-				<TextField id={`${id}-price`} size="sm" bind:value={editor.draft.price} placeholder="12" inputmode="decimal" autocomplete="off" />
-			</Field>
-			<Field class="line-field" label="Line under it" for={`${id}-description`} optional>
-				<div class="grow" use:autogrow>
-					<TextArea id={`${id}-description`} rows={1} bind:value={editor.draft.description} />
-				</div>
-			</Field>
-		</div>
-		{#if item && normalizePrices(item).length > 1}
-			<p class="hint">Only the first price changes here. Its other sizes are under All details.</p>
-		{/if}
-		<div class="foot">
-			{#if item}
-				<a class="details" href={menuItemPath(item.name)} onclick={(event) => follow(event, menuItemPath(item.name))}>
-					All details
-					<Icon name="chevron-right" size={14} />
-				</a>
-				<Button variant="ghost" size="sm" type="button" class="take-off" disabled={editor.saving || busy} onclick={() => void remove(item)}>
-					{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
-					Take off this menu
-				</Button>
+{#snippet itemDialog()}
+	{@const target = editor.target}
+	{@const item = target?.kind === "item" ? itemById.get(target.id) || null : null}
+	{@const block = target?.kind === "new" ? blockById.get(target.sectionId) || null : null}
+	<Dialog
+		open={Boolean(target)}
+		size="xl"
+		title={item ? item.name : block ? `Add an item to ${block.title}` : "Item"}
+		onclose={() => void closeItem()}
+	>
+		<form id="item-dialog-form" class="item-form" novalidate onsubmit={submitItem}>
+			<div class="fields">
+				<Field class="name-field" label="Name" for="item-dialog-name" required>
+					<!-- svelte-ignore a11y_autofocus -->
+					<TextField id="item-dialog-name" bind:value={editor.draft.name} autocomplete="off" autofocus />
+				</Field>
+				<Field class="price-field" label="Price" for="item-dialog-price" optional>
+					<TextField id="item-dialog-price" bind:value={editor.draft.price} placeholder="12" inputmode="decimal" autocomplete="off" />
+				</Field>
+				<Field class="line-field" label="Line under it" for="item-dialog-description" optional hint="What guests read under its name.">
+					<div class="grow" use:autogrow>
+						<TextArea id="item-dialog-description" rows={4} bind:value={editor.draft.description} />
+					</div>
+				</Field>
+			</div>
+			{#if item && normalizePrices(item).length > 1}
+				<p class="hint">Only the first price changes here. Its other sizes are under All details.</p>
 			{/if}
-			<span class="spacer"></span>
-			<Button variant="outline" size="sm" type="button" disabled={editor.saving} onclick={() => editor.cancel()}>Cancel</Button>
-			<Button variant="primary" size="sm" type="submit" busy={editor.saving} disabled={editor.saving}>
-				{#snippet icon()}<Icon name={item ? "save" : "plus"} size={14} />{/snippet}
-				{item ? "Save" : "Add"}
-			</Button>
-		</div>
-	</form>
+		</form>
+		{#snippet footer()}
+			<div class="item-dialog-bar">
+				<EditorActionBar
+					saveLabel={item ? "Save item" : "Add item"}
+					saving={editor.saving}
+					dirty={editor.dirty}
+					overflow={itemActions(item)}
+					onsave={() => void submitItem()}
+				/>
+			</div>
+		{/snippet}
+	</Dialog>
 {/snippet}
 
-{#snippet itemRow(item: MenuPageItem, block: MenuItemBlock)}
+{#snippet itemRow(item: MenuPageItem)}
 	{@const price = formatPrices(item)}
 	<li>
-		{#if editor.isOpen(item.id)}
-			{@render itemEditor(item, block)}
-		{:else}
-			<div class="row">
-				<button type="button" class="item" onclick={() => openItem(item)} aria-label={`Change ${item.name}`}>
-					<span class="text">
-						<span class="name">{item.name}</span>
-						{#if item.description}<span class="description">{item.description}</span>{/if}
-					</span>
-					{#if price}<span class="price tnum">{price}</span>{/if}
-				</button>
-				<button type="button" class="remove" onclick={() => void remove(item)} aria-label={`Take ${item.name} off ${menuName}`} title="Take off this menu">
-					<Icon name="trash" size={14} />
-				</button>
+		<div class="row">
+			<div class="item">
+				<span class="text">
+					<span class="name">{item.name}</span>
+					{#if item.description}<span class="description">{item.description}</span>{/if}
+				</span>
+				{#if price}<span class="price tnum">{price}</span>{/if}
 			</div>
-		{/if}
+			<button type="button" class="tool edit" onclick={() => openItem(item)} aria-label={`Edit ${item.name}`} title="Edit">
+				<Icon name="pencil" size={14} />
+			</button>
+			<button type="button" class="tool remove" onclick={() => void remove(item)} aria-label={`Take ${item.name} off ${menuName}`} title="Take off this menu">
+				<Icon name="trash" size={14} />
+			</button>
+		</div>
 	</li>
 {/snippet}
 
 {#snippet items(block: MenuItemBlock)}
 	{#if block.items.length}
 		<ul class="items">
-			{#each block.items as item (item.id)}{@render itemRow(item, block)}{/each}
+			{#each block.items as item (item.id)}{@render itemRow(item)}{/each}
 		</ul>
 	{/if}
-	{#if editor.isAdding(block.sectionId)}
-		{@render itemEditor(null, block)}
-	{:else}
-		<button type="button" class="add" onclick={() => openNew(block)}>
-			<Icon name="plus" size={14} />
-			Add item
-		</button>
-	{/if}
+	<button type="button" class="add" onclick={() => openNew(block)}>
+		<Icon name="plus" size={14} />
+		Add item
+	</button>
 {/snippet}
 
 {#snippet newSection(parentId: string)}
@@ -497,6 +515,8 @@
 		<Button variant="primary" type="button" busy={busy} disabled={busy || !moveTo} onclick={() => void moveToMenu()}>Move</Button>
 	{/snippet}
 </Dialog>
+
+{@render itemDialog()}
 
 <ConfirmDialog {confirm} />
 
@@ -609,7 +629,6 @@
 		color: inherit;
 		font: inherit;
 		text-align: left;
-		cursor: pointer;
 	}
 
 	.text {
@@ -635,13 +654,13 @@
 		color: var(--fg-muted);
 	}
 
-	.remove {
+	/* The pencil and the bin: there on hover (always, without hover). */
+	.tool {
 		flex-shrink: 0;
 		display: inline-grid;
 		place-items: center;
 		width: 2rem;
 		height: 2rem;
-		margin-right: var(--space-1);
 		border: 0;
 		border-radius: var(--radius-md);
 		background: none;
@@ -650,20 +669,65 @@
 		opacity: 0;
 	}
 
-	.row:hover .remove,
-	.row:focus-within .remove {
+	.remove {
+		margin-right: var(--space-1);
+	}
+
+	.row:hover .tool,
+	.row:focus-within .tool {
 		opacity: 1;
+	}
+
+	.edit:hover {
+		background: var(--surface-2);
+		color: var(--primary);
 	}
 
 	.remove:hover {
 		color: var(--danger);
 	}
 
-	/* No hover (a tablet): the bin is always there. */
 	@media (hover: none) {
-		.remove {
+		.tool {
 			opacity: 1;
 		}
+	}
+
+	/* Hovering a section lights up all of it: its name, items and groups. */
+	.chapter,
+	.group {
+		transition:
+			background var(--t-fast, 120ms) ease,
+			border-color var(--t-fast, 120ms) ease,
+			box-shadow var(--t-fast, 120ms) ease;
+	}
+
+	.chapter:hover:not(:has(.group:hover)) {
+		border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+		box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent);
+	}
+
+	/* Each group is a panel of its own inside its section: the map's blocks. */
+	.group {
+		padding: var(--space-2) var(--space-3) var(--space-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+	}
+
+	.group > :global(.head) {
+		margin: 0 calc(var(--space-3) * -1) var(--space-1);
+		padding: 0 var(--space-3) var(--space-2);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.chapter > :global(.head) {
+		margin-bottom: var(--space-2);
+	}
+
+	.group:hover {
+		border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+		background: color-mix(in srgb, var(--primary) 5%, var(--surface-2));
 	}
 
 	.add {
@@ -696,8 +760,7 @@
 	}
 
 	.add:focus-visible,
-	.item:focus-visible,
-	.remove:focus-visible {
+	.tool:focus-visible {
 		outline: 2px solid var(--ring);
 		outline-offset: 2px;
 	}
@@ -712,21 +775,16 @@
 		font-size: var(--text-sm);
 	}
 
-	/* The editor where the item was: the card's full width. */
-	.item-editor {
+	/* The item's editor dialog: name and price side by side, the line under them. */
+	.item-form {
 		display: grid;
 		gap: var(--space-3);
-		margin: var(--space-1) 0 var(--space-2);
-		padding: var(--space-3);
-		border: 1px solid var(--border-strong, var(--border));
-		border-radius: var(--radius-md);
-		background: var(--surface-2);
 	}
 
 	.fields {
 		display: grid;
-		grid-template-columns: 1fr 7rem;
-		gap: var(--space-3);
+		grid-template-columns: 1fr 9rem;
+		gap: var(--space-4);
 	}
 
 	.fields :global(.line-field) {
@@ -734,30 +792,24 @@
 	}
 
 	.grow :global(textarea) {
-		min-height: 2.5rem;
-		resize: none;
-		overflow: hidden;
+		min-height: 6rem;
+		resize: vertical;
 		field-sizing: content;
 	}
 
-	.foot {
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: var(--space-2);
+	/* The standard save bar, as the dialog's footer. */
+	.item-dialog-bar {
+		flex: 1;
+		min-width: 0;
 	}
 
-	.foot :global(.take-off) {
-		color: var(--danger);
-	}
-
-	.details {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-1);
-		font-size: var(--text-sm);
-		color: var(--primary);
-		text-decoration: none;
+	.item-dialog-bar :global(.editor-action-bar) {
+		position: static;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		backdrop-filter: none;
 	}
 
 	.spacer {
@@ -775,7 +827,7 @@
 		color: var(--fg-muted);
 	}
 
-	/* Phones: the editor has Take off; the row is just the item to tap. The fields go full width. */
+	/* Phones: the pencil opens the item, whose ⋯ has Take off. The fields go full width. */
 	@media (max-width: 900px) {
 		.remove {
 			display: none;

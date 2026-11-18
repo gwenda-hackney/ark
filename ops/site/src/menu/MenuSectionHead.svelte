@@ -124,20 +124,19 @@
 		margin: 0;
 	}
 
+	/* A map of the menu, not a copy of its print: plain, clear headings. */
 	.chapter .name {
 		font-family: var(--font);
-		font-size: var(--text-base);
+		font-size: var(--text-lg, 1.125rem);
 		font-weight: 600;
 		line-height: var(--leading-base);
 	}
 
 	.group .name {
-		font-size: var(--text-xs);
+		font-size: var(--text-base);
 		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--fg-muted);
-		line-height: 1.6;
+		color: var(--fg);
+		line-height: var(--leading-base);
 	}
 
 	.note {
@@ -198,12 +197,7 @@
 		transition: opacity var(--t-fast, 120ms) ease;
 	}
 
-	/* Brightens on hover or focus, and the section's head lights up as the
-	   thing that moves. */
-	.head:has(.handle:not(:disabled)):hover {
-		border-radius: var(--radius-md);
-		background: var(--surface-2, rgb(255 255 255 / 0.03));
-	}
+	/* Brightens on hover or focus; the whole section lights up (MenuItemsList). */
 
 	.head:hover .handle:not(:disabled),
 	.head:focus-within .handle:not(:disabled),
