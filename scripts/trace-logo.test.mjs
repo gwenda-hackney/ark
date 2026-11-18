@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { EMAIL_LOGO_PATH } from "../shared/email/shell.js";
 import {
   HERO_LOGO_WIDTHS,
+  LOGO_PNG_WIDTHS,
+  atWidth,
   emailLogo,
   heroLogo,
   siteLogo,
@@ -27,12 +29,12 @@ const LAYERS = ["cream", "mustard", "red"];
  * two grooves, the hole in its label, the skull's eye.
  */
 const BLACK = {
-  "gwenda-bottle": [
+  "gwenda-social-logo": [
     [70, 470],
     [360, 438],
     [765, 305],
   ],
-  "gwenda-bottle-record": [
+  "gwenda-social-logo-no-word": [
     [225, 491],
     [407, 496],
     [858, 348],
@@ -60,46 +62,108 @@ async function drawn(svg, path) {
   };
 }
 
-describe.each(["gwenda-bottle", "gwenda-bottle-record"])("%s", (name) => {
+describe.each(["gwenda-social-logo", "gwenda-social-logo-no-word"])(
+  "%s",
+  (name) => {
+    const svg = readFileSync(file(`${name}.svg`), "utf8");
+
+    it("is an SVG under 150 KB", () => {
+      expect(svg).toMatch(/^<svg[^>]*viewBox=/);
+      expect(statSync(file(`${name}.svg`)).size / 1024).toBeLessThan(150);
+    });
+
+    it("uses only the logo's inks", () => {
+      const colours = new Set(
+        [...svg.matchAll(/#[0-9a-f]{3,6}\b/gi)].map(([c]) => c.toLowerCase()),
+      );
+      expect(colours.size).toBeGreaterThan(0);
+      for (const colour of colours) expect(INKS).toContain(colour);
+    });
+
+    it("has a named layer for each ink, and no black: the black is see-through", async () => {
+      const ids = [...svg.matchAll(/<g[^>]* id="([^"]+)"/g)].map(
+        ([, id]) => id,
+      );
+      expect(ids).toEqual(LAYERS);
+      const at = await drawn(svg, file(`${name}.svg`).pathname);
+      for (const [x, y] of BLACK[name])
+        expect(at(x, y)[3], `see-through at ${x},${y}`).toBe(0);
+    });
+
+    it.each(["black", "transparent"])(
+      "has a 1080x1080 post on %s",
+      async (bg) => {
+        const meta = await sharp(
+          file(`${name}-1080-${bg}.png`).pathname,
+        ).metadata();
+        expect([meta.width, meta.height]).toEqual([1080, 1080]);
+        expect(meta.hasAlpha).toBe(true);
+      },
+    );
+  },
+);
+
+/** Every master's plain PNGs: each width, on nothing, and still its master. */
+describe.each([
+  "gwenda-social-logo",
+  "gwenda-social-logo-no-word",
+  "gwenda-social-badge",
+])("%s, as PNGs", (name) => {
   const svg = readFileSync(file(`${name}.svg`), "utf8");
 
-  it("is an SVG under 150 KB", () => {
-    expect(svg).toMatch(/^<svg[^>]*viewBox=/);
-    expect(statSync(file(`${name}.svg`)).size / 1024).toBeLessThan(150);
-  });
+  it.each(LOGO_PNG_WIDTHS)(
+    "is %ipx wide, see-through round it",
+    async (width) => {
+      const path = file(`${name}-${width}.png`).pathname;
+      const { data, info } = await sharp(path)
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      expect([info.width, info.channels]).toEqual([width, 4]);
+      expect(data[3], "top-left corner").toBe(0);
+      const fresh = await sharp(await atWidth(svg, width))
+        .raw()
+        .toBuffer();
+      let off = 0;
+      for (let at = 0; at < data.length; at++)
+        if (Math.abs(data[at] - fresh[at]) > 24) off += 1;
+      expect(off / data.length).toBeLessThan(0.005);
+    },
+  );
+});
 
-  it("uses only the logo's inks", () => {
-    const colours = new Set(
-      [...svg.matchAll(/#[0-9a-f]{3,6}\b/gi)].map(([c]) => c.toLowerCase()),
-    );
-    expect(colours.size).toBeGreaterThan(0);
-    for (const colour of colours) expect(INKS).toContain(colour);
-  });
+describe("gwenda-social-badge", () => {
+  const svg = readFileSync(file("gwenda-social-badge.svg"), "utf8");
+  const icon = readFileSync(
+    new URL(
+      "../marketing/web/src/assets/images/logos/icon/app-icon.svg",
+      import.meta.url,
+    ),
+    "utf8",
+  );
 
-  it("has a named layer for each ink, and no black: the black is see-through", async () => {
-    const ids = [...svg.matchAll(/<g[^>]* id="([^"]+)"/g)].map(([, id]) => id);
-    expect(ids).toEqual(LAYERS);
-    const at = await drawn(svg, file(`${name}.svg`).pathname);
-    for (const [x, y] of BLACK[name])
-      expect(at(x, y)[3], `see-through at ${x},${y}`).toBe(0);
+  it("is the website's app icon without its square, cut to its circle", () => {
+    expect(svg).toMatch(/viewBox="3 3 174 174"/);
+    expect(svg).not.toMatch(/<rect/);
+    // Everything else is the icon's, so the two never drift apart
+    const drawing = (s) => s.slice(s.indexOf("<circle"));
+    expect(drawing(svg)).toBe(drawing(icon));
   });
 
   it.each(["black", "transparent"])(
     "has a 1080x1080 post on %s",
     async (bg) => {
       const meta = await sharp(
-        file(`${name}-1080-${bg}.png`).pathname,
+        file(`gwenda-social-badge-1080-${bg}.png`).pathname,
       ).metadata();
       expect([meta.width, meta.height]).toEqual([1080, 1080]);
-      expect(meta.hasAlpha).toBe(true);
     },
   );
 });
 
 describe("the drawing's frayed edges", () => {
   it("keeps the pin-pricks in the letters, too small and faint for a plain threshold", async () => {
-    const svg = readFileSync(file("gwenda-bottle.svg"), "utf8");
-    const at = await drawn(svg, file("gwenda-bottle.svg").pathname);
+    const svg = readFileSync(file("gwenda-social-logo.svg"), "utf8");
+    const at = await drawn(svg, file("gwenda-social-logo.svg").pathname);
     // In the E, the A, the E's foot and the D's: a pixel or two across, grey
     for (const [x, y] of [
       [673, 605],
@@ -114,7 +178,9 @@ describe("the drawing's frayed edges", () => {
   });
 
   it("is still light enough to hand around", () => {
-    expect(statSync(file("gwenda-bottle.svg")).size / 1024).toBeLessThan(120);
+    expect(statSync(file("gwenda-social-logo.svg")).size / 1024).toBeLessThan(
+      120,
+    );
   });
 });
 
@@ -124,7 +190,7 @@ describe("the drawing's frayed edges", () => {
  * GWENDA taken off. Points are in the master's own pixels.
  */
 describe("the bottle and record alone", () => {
-  const path = file("gwenda-bottle-record.svg").pathname;
+  const path = file("gwenda-social-logo-no-word.svg").pathname;
   const svg = readFileSync(path, "utf8");
   const [cream, mustard, red] = [
     [0xe6, 0xd9, 0xbe, 255],
@@ -202,7 +268,7 @@ describe("the bottle and record alone", () => {
  * changes without them (or the other way round) fails here.
  */
 describe("the website's and the emails' logo", () => {
-  const master = readFileSync(file("gwenda-bottle.svg"), "utf8");
+  const master = readFileSync(file("gwenda-social-logo.svg"), "utf8");
   const web = new URL("../marketing/web/", import.meta.url);
   const logos = new URL("src/assets/images/logos/", web);
   const original = new URL("../source/bottle-original.png", masters);

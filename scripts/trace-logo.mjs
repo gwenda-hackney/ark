@@ -5,13 +5,17 @@
  * from them are the logo, and every other file is drawn from the masters:
  *
  *   marketing/brand/logos/
- *     gwenda-bottle.svg          the full logo: bottle, record and GWENDA,
+ *     gwenda-social-logo.svg          the full logo: bottle, record and GWENDA,
  *                                from bottle-original.png
- *     gwenda-bottle-record.svg   the bottle and record alone, for Instagram,
+ *     gwenda-social-logo-no-word.svg   the bottle and record alone, for Instagram,
  *                                from bottle-record-redraw.png, a drawing of
  *                                its own, cut to its art
+ *     gwenda-social-badge.svg    the round badge: the record with the skull,
+ *                                the website's app icon without its square
+ *                                (marketing/web/src/assets/images/logos/icon/)
  *     <name>-1080-black.png      each as a 1080x1080 post, centred on our black
  *     <name>-1080-transparent.png  and on transparent
+ *     <name>-512.png, -2048.png  each that wide, cut to its art, on transparent
  *   marketing/web/, from the full logo (scripts/lib/logo-renders.mjs)
  *     src/assets/images/logos/bottle.png           the menu's and the bar's
  *     src/assets/images/logos/bottle-hero-<w>.webp home's hero, per width
@@ -46,13 +50,15 @@
  * clearly-inked pixels there; the redraw's are within a shade of them and
  * take them. svgo then shrinks the result.
  */
-import { mkdirSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import potrace from "potrace";
 import sharp from "sharp";
 import { optimize } from "svgo";
 import { EMAIL_LOGO_PATH } from "../shared/email/shell.js";
 import {
   HERO_LOGO_WIDTHS,
+  LOGO_PNG_WIDTHS,
+  atWidth,
   emailLogo,
   heroLogo,
   post,
@@ -64,9 +70,9 @@ const source = (file) =>
   new URL(`../marketing/brand/source/${file}`, import.meta.url).pathname;
 const SOURCES = {
   // The original: its canvas is the website's logo's, so it is kept
-  "gwenda-bottle": { file: source("bottle-original.png") },
+  "gwenda-social-logo": { file: source("bottle-original.png") },
   // A drawing of its own, with room round it: cut to its art
-  "gwenda-bottle-record": {
+  "gwenda-social-logo-no-word": {
     file: source("bottle-record-redraw.png"),
     cut: true,
   },
@@ -460,12 +466,41 @@ function write(file, contents) {
   console.log(`${file}: ${(statSync(file).size / 1024).toFixed(0)} KB`);
 }
 
+/** A master's plain PNGs, one per width. */
+async function writeWidths(name, svg) {
+  for (const w of LOGO_PNG_WIDTHS)
+    write(`${outDir}${name}-${w}.png`, await atWidth(svg, w));
+}
+
+/**
+ * The badge: the website's app icon, drawn by hand as SVG, without the square
+ * a home screen needs. Its circle is cut to: centre 90,90, radius 87.
+ */
+function badge() {
+  const icon = readFileSync(
+    new URL(
+      "../marketing/web/src/assets/images/logos/icon/app-icon.svg",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const square = /\s*<rect width="180" height="180"[^>]*\/>/;
+  if (!square.test(icon))
+    throw new Error("app-icon.svg: no square to take off");
+  return icon
+    .replace(square, "")
+    .replace(
+      'viewBox="0 0 180 180" width="180" height="180"',
+      'viewBox="3 3 174 174" width="174" height="174"',
+    );
+}
+
 mkdirSync(outDir, { recursive: true });
 const drawings = {};
 for (const [name, from] of Object.entries(SOURCES))
   drawings[name] = await read(from);
 // The logo's inks are the full logo's: the other drawing's take them
-const colours = drawings["gwenda-bottle"].inks;
+const colours = drawings["gwenda-social-logo"].inks;
 const masters = {};
 for (const [name, drawing] of Object.entries(drawings)) {
   const svg = await logo(drawing, colours);
@@ -473,23 +508,39 @@ for (const [name, drawing] of Object.entries(drawings)) {
   write(`${outDir}${name}.svg`, svg);
   write(`${outDir}${name}-1080-black.png`, await post(svg, BLACK));
   write(`${outDir}${name}-1080-transparent.png`, await post(svg, null));
+  await writeWidths(name, svg);
   console.log(
     `  its own inks: ${INKS.map((ink) => `${ink} ${drawing.inks[ink]}`).join(", ")}`,
   );
 }
 
+const badgeSvg = badge();
+write(`${outDir}gwenda-social-badge.svg`, badgeSvg);
+write(
+  `${outDir}gwenda-social-badge-1080-black.png`,
+  await post(badgeSvg, BLACK),
+);
+write(
+  `${outDir}gwenda-social-badge-1080-transparent.png`,
+  await post(badgeSvg, null),
+);
+await writeWidths("gwenda-social-badge", badgeSvg);
+
 // The website's and the emails' logo: the full master, on the original's canvas
-const { width, height } = drawings["gwenda-bottle"];
+const { width, height } = drawings["gwenda-social-logo"];
 const canvas = { width, height };
 const logos = `${site}src/assets/images/logos/`;
-write(`${logos}bottle.png`, await siteLogo(masters["gwenda-bottle"], canvas));
+write(
+  `${logos}bottle.png`,
+  await siteLogo(masters["gwenda-social-logo"], canvas),
+);
 for (const w of HERO_LOGO_WIDTHS)
   write(
     `${logos}bottle-hero-${w}.webp`,
-    await heroLogo(masters["gwenda-bottle"], canvas, w),
+    await heroLogo(masters["gwenda-social-logo"], canvas, w),
   );
 write(
   `${site}public${EMAIL_LOGO_PATH}`,
-  await emailLogo(masters["gwenda-bottle"], canvas),
+  await emailLogo(masters["gwenda-social-logo"], canvas),
 );
 console.log(LAYERS.map((name) => `${name} ${colours[name]}`).join(", "));

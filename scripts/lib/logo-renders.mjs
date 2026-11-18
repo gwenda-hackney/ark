@@ -122,6 +122,17 @@ export async function post(svg, background) {
     .toBuffer();
 }
 
+/** The plain PNGs beside each master, by width: on a page, and for print. */
+export const LOGO_PNG_WIDTHS = [512, 2048];
+
+/** A master as a PNG this wide, cut to its art, on nothing. */
+export async function atWidth(svg, width) {
+  return sharp(Buffer.from(svg), { density: 600 })
+    .resize({ width })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
 /**
  * The website's logo (src/assets/images/logos/bottle.png: the menu panel's
  * flag and the bar's logo are cut from it by astro:assets): the full master
