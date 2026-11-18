@@ -11,20 +11,17 @@ import {
 } from "./featured-artist.js";
 
 describe("opsArtistEnv", () => {
-  it("uses the ops token, not the marketing Baserow key", () => {
+  it("reads the ops database: the binding, or the D1 API with a Cloudflare token", () => {
+    const OPS_DB = {};
+    expect(opsArtistEnv({ OPS_DB, SITE_ENV: "dev" })).toMatchObject({ OPS_DB, SITE_ENV: "dev" });
     expect(
       opsArtistEnv({
-        BASEROW_API_KEY: "marketing",
-        BASEROW_OPS_API_KEY: "ops",
-      }),
-    ).toMatchObject({ BASEROW_API_KEY: "ops" });
-    expect(
-      opsArtistEnv({
-        BASEROW_OPS_API_KEY: "ops",
+        CLOUDFLARE_API_TOKEN: "cf",
+        CLOUDFLARE_ACCOUNT_ID: "acct",
         SANITY_PROJECT_ID: "gwscpagy",
       }),
-    ).toMatchObject({ SANITY_PROJECT_ID: "gwscpagy" });
-    expect(opsArtistEnv({ BASEROW_API_KEY: "marketing" })).toBeNull();
+    ).toMatchObject({ CLOUDFLARE_API_TOKEN: "cf", SANITY_PROJECT_ID: "gwscpagy" });
+    expect(opsArtistEnv({})).toBeNull();
   });
 });
 
@@ -141,7 +138,7 @@ describe("liveArtist", () => {
 });
 
 describe("fetchFeaturedArtists", () => {
-  it("builds without artists when the token is missing", async () => {
+  it("builds without artists when the database can't be reached", async () => {
     await expect(fetchFeaturedArtists({})).resolves.toEqual({
       current: null,
       next: null,
@@ -151,7 +148,7 @@ describe("fetchFeaturedArtists", () => {
 
   it("throws in strict mode, so a live check never reads an outage as an empty wall", async () => {
     await expect(fetchFeaturedArtists({}, { strict: true })).rejects.toThrow(
-      "BASEROW_OPS_API_KEY",
+      "OPS_DB",
     );
   });
 });

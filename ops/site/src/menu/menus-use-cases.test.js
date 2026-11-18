@@ -8,7 +8,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { evaluate, parse } from "groq-js";
-import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { MENU_QUERY, MENUS_QUERY } from "../../../../marketing/web/src/lib/sanity/queries.ts";
 import { mapFlatSection, mapMenuInfo, nestMenuSections } from "../../../../marketing/web/src/lib/sanity/menu.ts";
 import { menuShelf } from "../../../../marketing/web/src/lib/menus.js";
@@ -193,7 +192,6 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     vi.useFakeTimers({ toFake: ["Date"], now: new Date(`${TODAY}T12:00:00Z`) });
     world = await createFakeWorld();
     world.install();
-    Object.assign(world.env, { OPS_DB: createTestD1("ops"), DATA_STORE_MENU: "d1" });
     ops = owner(world);
     pickle = await ops.series({
       name: "Chez Pickle",

@@ -17,7 +17,6 @@ import {
   PREVIEW,
   sanityMutate,
   sanityQuery,
-  sanityUploadImage,
 } from "../../platform/sanity.js";
 
 /** Sortable Sanity orderRank from the menu's numeric order (create only). */
@@ -119,34 +118,16 @@ function newDocumentId() {
 }
 
 /**
- * The drink's photo as a Sanity image. One uploaded in ops is already an
- * asset (#183) and is only referenced; one from before is still a Baserow
- * file and is copied, until the backfill gives it an asset.
+ * The drink's photo as a Sanity image: uploaded in ops, it is already an
+ * asset (#183) and is only referenced.
  */
 async function syncPhoto(env, item) {
   const assetId = item.image?.asset?._id;
-  if (assetId) {
-    return {
-      _type: "image",
-      alt: item.name,
-      asset: { _type: "reference", _ref: assetId },
-    };
-  }
-  const url = item.image?.asset?.url;
-  if (!url) return undefined;
-  const response = await fetch(url);
-  if (!response.ok) return undefined;
-  const bytes = await response.arrayBuffer();
-  const contentType = response.headers.get("content-type") || "image/jpeg";
-  const asset = await sanityUploadImage(env, bytes, {
-    filename: `${item.name || "cocktail"}.jpg`,
-    contentType,
-  });
-  if (!asset?._id) return undefined;
+  if (!assetId) return undefined;
   return {
     _type: "image",
     alt: item.name,
-    asset: { _type: "reference", _ref: asset._id },
+    asset: { _type: "reference", _ref: assetId },
   };
 }
 
@@ -340,7 +321,7 @@ const SECTION_SAME = {
  */
 function ensureSanitySections(pending, writes, menu, sections, popupDocs = new Map()) {
   const flat = flattenMenuSections(sections);
-  const byBaserowId = new Map();
+  const byOpsId = new Map();
   const changed = [];
   let count = 0;
 
@@ -348,7 +329,7 @@ function ensureSanitySections(pending, writes, menu, sections, popupDocs = new M
     const slug =
       section.slug || slugifySection(section.title, `section-${section._id}`);
     const parentSanityId = section.parentId
-      ? byBaserowId.get(String(section.parentId))
+      ? byOpsId.get(String(section.parentId))
       : null;
     const chapter = !section.parentId;
     const wanted = {
@@ -393,10 +374,10 @@ function ensureSanitySections(pending, writes, menu, sections, popupDocs = new M
       count += 1;
     }
 
-    byBaserowId.set(String(section._id), sanityId);
+    byOpsId.set(String(section._id), sanityId);
   }
 
-  return { byBaserowId, writes: count, changed };
+  return { byOpsId, writes: count, changed };
 }
 
 function sectionRef(sanitySectionId) {
@@ -510,7 +491,7 @@ export async function planOpsMenuSync(env, tree = null) {
   const changedItems = [];
   for (const item of publishable) {
     const sectionId = String(digitalSectionId(item) || item.sectionId || item.section?._id || "");
-    if (!sectionId || !plannedSections.byBaserowId.get(sectionId)) continue;
+    if (!sectionId || !plannedSections.byOpsId.get(sectionId)) continue;
     const previous = item.publishSnapshots?.preview;
     if (!menu.itemId(item) || previous?.hash !== projectionHash(websiteProjection(item))) changedItems.push(String(item._id));
   }
@@ -535,7 +516,7 @@ async function publishItems(env, pending, { items, sections, menus = [], target 
   const menu = await previewMenu(env);
   const writes = previewWrites();
   const { wantedIds, writes: menuWrites } = ensureSanityMenus(writes, menu, menus, publishing, popupDocs);
-  const { byBaserowId: sectionIds, writes: sectionWrites } = ensureSanitySections(
+  const { byOpsId: sectionIds, writes: sectionWrites } = ensureSanitySections(
     pending,
     writes,
     menu,
@@ -549,11 +530,11 @@ async function publishItems(env, pending, { items, sections, menus = [], target 
   const missing = [];
 
   for (const item of publishable) {
-    const baserowSectionId = String(
+    const opsSectionId = String(
       digitalSectionId(item) || item.sectionId || item.section?._id || "",
     );
-    const sanitySectionId = baserowSectionId
-      ? sectionIds.get(baserowSectionId)
+    const sanitySectionId = opsSectionId
+      ? sectionIds.get(opsSectionId)
       : null;
 
     if (!sanitySectionId) {

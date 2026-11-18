@@ -39,7 +39,7 @@ async function main() {
       process.env.BASEROW_DATABASE_ID ||
       process.env.SUBSCRIBE_MAILCHIMP_BASEROW_DATABASE_ID,
     BASEROW_API_URL: process.env.BASEROW_API_URL,
-    // Where subscribers live is this environment's store:guests (shared/data-store.js).
+    // Subscribers live in this environment's website D1 database, over the API.
     SITE_ENV: process.env.SITE_ENV,
     CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
     CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,

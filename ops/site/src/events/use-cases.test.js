@@ -407,7 +407,7 @@ describe("events: creating", () => {
   it("a weekly series: saved, got ready in the background, then live on Update website", async () => {
     const event = await ops.create(weeklySeries());
 
-    assert.equal(world.baserow.rows("Events").length, 1);
+    assert.equal((await world.events().listEvents()).length, 1);
     assert.deepEqual(
       world.google.eventFolders().map((folder) => folder.name),
       ["Negroni Chess Society"],
@@ -416,7 +416,7 @@ describe("events: creating", () => {
     assert.equal(await ops.sees(event), "Not live");
 
     await ops.waitUntilReady(event);
-    const nights = world.baserow.rows("Event dates").map((row) => row.Date).sort();
+    const nights = (await world.events().exportAll()).nights.map((night) => night.date).sort();
     assert.ok(nights.length >= 8, `about nine Wednesdays in 60 days, got ${nights.length}`);
     assert.ok(nights.every((date) => new Date(`${date}T12:00:00Z`).getUTCDay() === WEDNESDAY));
     assert.equal(world.google.calendar().length, nights.length, "every night is in Google Calendar");
@@ -437,7 +437,7 @@ describe("events: creating", () => {
     const start = nextWeekday(WEDNESDAY);
     const event = await ops.create(weeklySeries({ repeatEvery: 2, startsOn: start, endsOn: addDays(start, 42) }));
     await ops.waitUntilReady(event);
-    const nights = world.baserow.rows("Event dates").map((row) => row.Date).sort();
+    const nights = (await world.events().exportAll()).nights.map((night) => night.date).sort();
     assert.deepEqual(nights, [0, 14, 28, 42].map((days) => addDays(start, days)));
   });
 
@@ -447,7 +447,7 @@ describe("events: creating", () => {
       weeklySeries({ name: "Vinyl Swap", repeatUnit: "month", weekdays: [], startsOn: start, endsOn: daysFromNow(100) }),
     );
     await ops.waitUntilReady(event);
-    const days = new Set(world.baserow.rows("Event dates").map((row) => row.Date.slice(8)));
+    const days = new Set((await world.events().exportAll()).nights.map((night) => night.date.slice(8)));
     assert.deepEqual([...days], [start.slice(8)]);
   });
 
@@ -518,7 +518,7 @@ describe("events: creating", () => {
     await ops.create(weeklySeries());
     const again = await ops.tryCreate(weeklySeries());
     assert.ok(again.status >= 400 && again.status < 500, `expected a refusal, got ${again.status}`);
-    assert.equal(world.baserow.rows("Events").length, 1);
+    assert.equal((await world.events().listEvents()).length, 1);
   });
 
   it("refuses times that aren't 24-hour, and a repeating series without its first night (#245)", async () => {
@@ -529,7 +529,7 @@ describe("events: creating", () => {
     const noStart = await ops.tryCreate(weeklySeries({ repeatUnit: "day", weekdays: [], startsOn: "", endsOn: "" }));
     assert.equal(noStart.status, 400);
     assert.match(noStart.data.error, /first night/);
-    assert.equal(world.baserow.rows("Events").length, 0, "nothing saved");
+    assert.equal((await world.events().listEvents()).length, 0, "nothing saved");
   });
 });
 
@@ -816,8 +816,8 @@ describe("events: deleting", () => {
 
     await ops.publishAll();
     assert.deepEqual(world.sanity.published(), []);
-    assert.equal(world.baserow.rows("Events").length, 0);
-    assert.equal(world.baserow.rows("Event dates").length, 0);
+    assert.equal((await world.events().listEvents()).length, 0);
+    assert.equal((await world.events().exportAll()).nights.length, 0);
   });
 
   it("all future nights of a running series: it ends yesterday, past nights stay", async () => {
@@ -855,8 +855,8 @@ describe("events: deleting", () => {
     await ops.publishAll();
     assert.deepEqual(world.sanity.published(), []);
     assert.deepEqual(world.sanity.drafts(), []);
-    assert.equal(world.baserow.rows("Events").length, 0);
-    assert.equal(world.baserow.rows("Event dates").length, 0);
+    assert.equal((await world.events().listEvents()).length, 0);
+    assert.equal((await world.events().exportAll()).nights.length, 0);
   });
 
   it("Restore before Update website: the event is back as it was", async () => {
@@ -889,7 +889,7 @@ describe("events: deleting", () => {
       !world.sanity.drafts().some((doc) => String(doc.title || "").startsWith("Tuesday Quiz")),
       "no preview copy left",
     );
-    assert.equal(world.baserow.rows("Events").length, 1, "only the live series is left");
+    assert.equal((await world.events().listEvents()).length, 1, "only the live series is left");
   });
 
   it("one night of an open series: only that night goes, the series stays (#151)", async () => {
@@ -1322,8 +1322,8 @@ describe("events: the Drive copy for collaborators", () => {
     world.google.driveFiles.set("old-gallery", { id: "old-gallery", name: "gallery", mimeType: "application/vnd.google-apps.folder", parents: [driveFolderId] });
     world.google.driveFiles.set("original", { id: "original", name: "IMG_1.jpg", mimeType: "image/jpeg", parents: ["old-gallery"] });
     const asset = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
-    world.baserow.update("Events", event.id, {
-      Gallery: JSON.stringify([{ key: "original", asset, date: "", added: "", source: "drive:original" }]),
+    await world.events().update(event.id, {
+      gallery: [{ key: "original", asset, date: "", added: "", source: "drive:original" }],
     });
     const run = await ops.copyToDrive();
     assert.equal(run.copied, 1);
@@ -1336,7 +1336,7 @@ describe("events: the Drive copy for collaborators", () => {
   it("a row pointing at another environment's folder gets one of its own, then its copies", async () => {
     // The dev clone copies rows from production, Drive folder id included.
     world.google.driveFiles.set("other-series", { id: "other-series", name: "Series", mimeType: "application/vnd.google-apps.folder", parents: ["other-root"] });
-    world.baserow.update("Events", event.id, { "Drive folder id": "other-series" });
+    await world.events().update(event.id, { driveFolderId: "other-series" });
     await ops.addGalleryPhoto(event, { name: "mine.jpg" });
     await ops.copyToDrive();
     const { driveFolderId } = await ops.open(event);
@@ -1418,7 +1418,7 @@ describe("events: the website follows a save", () => {
     assert.equal(await seesWhile(event, "waiting"), "Updating");
 
     await ops.waitUntilReady(event);
-    const nights = world.baserow.rows("Event dates").map((row) => row.Date).sort();
+    const nights = (await world.events().exportAll()).nights.map((night) => night.date).sort();
     assert.ok(nights.length >= 8);
     assert.deepEqual(liveNights(world), nights, "every night is on the website");
     assert.equal(world.sanity.published("eventSeries")[0].title, "Negroni Chess Society");
@@ -1453,7 +1453,7 @@ describe("events: the website follows a save", () => {
     const event = await ops.create(
       weeklySeries({ name: "Happy Hour", repeatUnit: "day", weekdays: [], startsOn: daysFromNow(1), endsOn: "" }),
     );
-    const total = world.baserow.rows("Event dates").length;
+    const total = (await world.events().exportAll()).nights.length;
     assert.equal(total, 84, "a night a day for 12 weeks");
     let steps = 0;
     for (; steps < 60; steps += 1) {
@@ -1479,7 +1479,7 @@ describe("events: the website follows a save", () => {
     await ops.waitUntilReady(event);
     assert.deepEqual(liveNights(world), nights.slice(0, 3));
     assert.deepEqual(world.sanity.drafts(), []);
-    assert.equal(world.baserow.rows("Events").length, 1);
+    assert.equal((await world.events().listEvents()).length, 1);
     assert.equal(await ops.sees(event), "Live");
   });
 

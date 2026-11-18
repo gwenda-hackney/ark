@@ -7,19 +7,12 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
 import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
 import { copyRoundTrip } from "../../../../../shared/testing/repository-contract.js";
-import { createFakeWorld } from "../../testing/fake-world.js";
-import { baserowEventRepository } from "./adapters/baserow-events.js";
 import { d1EventRepository } from "./adapters/d1-events.js";
 import { memoryEventRepository } from "./adapters/memory-events.js";
 import { eventFieldsFromInput } from "./event-model.js";
 
 const ADAPTERS = {
   memory: async () => ({ repo: memoryEventRepository(), done() {} }),
-  baserow: async () => {
-    const world = await createFakeWorld();
-    world.install();
-    return { repo: baserowEventRepository(world.env), done: () => world.restore() };
-  },
   d1: async () => ({ repo: d1EventRepository(createTestD1("ops")), done() {} }),
 };
 

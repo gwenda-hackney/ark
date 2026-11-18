@@ -1,7 +1,7 @@
 /**
  * Use case: an editor signs in to a dev ops branch preview with Google.
- * Driven through the real auth handlers and middleware; Google and Baserow
- * are faked.
+ * Driven through the real auth handlers and middleware; Google and the
+ * users list are faked.
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
@@ -10,7 +10,6 @@ import { onRequestGet as callback } from "../../../functions/api/auth/callback.j
 import { onRequestGet as login } from "../../../functions/api/auth/login.js";
 import { onRequestGet as logout } from "../../../functions/api/auth/logout.js";
 import { AUTH_COOKIE_NAME, parseCookies, verifySessionToken } from "./auth.js";
-import { resetBaserowClientForTests } from "../../../../../shared/baserow.js";
 import { resetUsersCacheForTests } from "../../users/server/user-store.js";
 
 const SECRET = "test-session-secret";
@@ -23,26 +22,23 @@ function devEnv(overrides = {}) {
     GOOGLE_OAUTH_CLIENT_ID: "client-id",
     GOOGLE_OAUTH_CLIENT_SECRET: "client-secret",
     OPS_SESSION_SECRET: SECRET,
-    BASEROW_API_KEY: "baserow-token",
+    // The users list as the faked world holds it right now.
+    usersRepository: { list: async () => (world?.users || []).map((user, i) => ({ id: i + 1, name: "", ...user })) },
     ...overrides,
   };
 }
 
-/** Google signs in `email`; Baserow Users holds `users` ({ Email, Active }). */
-function fakeWorld({ email = "editor@gwenda.co.uk", users = [{ Email: "editor@gwenda.co.uk", Active: true }] } = {}) {
-  const world = { email, users };
+let world = null;
+
+/** Google signs in `email`; the users list holds `users` ({ email, active }). */
+function fakeWorld({ email = "editor@gwenda.co.uk", users = [{ email: "editor@gwenda.co.uk", active: true }] } = {}) {
+  world = { email, users };
   const idToken = (address) =>
     `x.${btoa(JSON.stringify({ email: address, email_verified: true })).replace(/=+$/, "")}.y`;
   globalThis.fetch = async (input) => {
     const url = new URL(typeof input === "string" ? input : input.url);
     const json = (body) => new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } });
     if (url.host === "oauth2.googleapis.com") return json({ id_token: idToken(world.email) });
-    if (url.pathname === "/api/database/tables/all-tables/") {
-      return json(
-        ["Menu Sections", "Menu Items", "Ingredients", "Users"].map((name, i) => ({ id: i + 1, name, database_id: 7 })),
-      );
-    }
-    if (url.pathname === "/api/database/rows/table/4/") return json({ results: world.users, next: null });
     throw new Error(`Unexpected fetch ${url}`);
   };
   return world;
@@ -81,7 +77,7 @@ describe("signing in to a dev ops branch preview", () => {
   const realFetch = globalThis.fetch;
   beforeEach(() => {
     resetUsersCacheForTests();
-    resetBaserowClientForTests();
+    world = null;
   });
   afterEach(() => {
     globalThis.fetch = realFetch;
@@ -117,10 +113,10 @@ describe("signing in to a dev ops branch preview", () => {
 
   it("turns away someone taken off the Users list, on the preview too", async () => {
     const env = devEnv();
-    const world = fakeWorld();
+    fakeWorld();
     const back = await signInThroughGoogle(`${PREVIEW}/api/auth/login`, env);
     const session = cookieValue(setCookie(back, AUTH_COOKIE_NAME), AUTH_COOKIE_NAME);
-    world.users = [{ Email: "editor@gwenda.co.uk", Active: false }];
+    world.users = [{ email: "editor@gwenda.co.uk", active: false }];
     resetUsersCacheForTests();
     const page = await middleware(get(`${PREVIEW}/events`, env, { cookie: `${AUTH_COOKIE_NAME}=${session}` }));
     assert.equal(page.status, 403);

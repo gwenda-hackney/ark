@@ -14,10 +14,8 @@
  */
 import { SETTINGS } from "../shared/config.js";
 import { d1ConfigRepository } from "../shared/config-adapters/d1-config.js";
-import { first } from "../shared/d1.js";
 import { d1Http } from "../shared/d1-http.js";
 import { D1_DATABASES } from "../shared/d1-databases.js";
-import { STORE_KEY_PREFIX } from "../shared/data-store.js";
 import { cloudflareFor } from "./lib/bitwarden-sm.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 
@@ -42,10 +40,6 @@ export function parseArgs(argv) {
  * @returns {Promise<{ before: string | null, after: string | null }>}  null: no row
  */
 export async function settingRow(db, { env, key, value }) {
-  const stored = await first(db, "SELECT value FROM _meta WHERE key = ?", [`${STORE_KEY_PREFIX}config`]);
-  if (stored?.value !== "d1") {
-    throw new Error(`${env}'s settings aren't on D1 (npm run d1:store -- --env ${env} --list): edit the Gwenda Config table in Baserow instead.`);
-  }
   const repo = d1ConfigRepository(db);
   const slot = { name: key, env, service: SETTINGS[key].service };
   const before = (await repo.find(slot))?.value ?? null;

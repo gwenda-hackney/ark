@@ -217,7 +217,7 @@ describe("collectDashboard", () => {
     const log = { warn: (message, extra) => warnings.push([message, extra.section]) };
     const { deps } = fakes({
       listFormSubmissions: async () => {
-        throw new Error("Baserow exploded with secrets in the message");
+        throw new Error("The database exploded with secrets in the message");
       },
       fetchMonitor: async () => null,
       listEvents: async () => {
@@ -274,8 +274,8 @@ describe("GET /api/dashboard", () => {
     // Saved, not ready yet: a website job, not "waiting for Update website".
     assert.equal(res.data.jobs.ok, true, res.data.jobs.error);
     assert.deepEqual(res.data.jobs.data.jobs.map((job) => job.name), ["Gwenda + Live"]);
-    // Nothing fakes the forms database or the site monitor: those cards fail alone.
-    assert.equal(res.data.forms.ok, false);
+    // The forms database is there and empty; nothing fakes the site monitor, so that card fails alone.
+    assert.equal(res.data.forms.ok, true, res.data.forms.error);
     assert.equal(res.data.health.ok, false);
     // The dashboard only reads.
     const writes = dashboardCalls.filter(

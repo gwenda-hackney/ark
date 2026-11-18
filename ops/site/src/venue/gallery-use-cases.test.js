@@ -11,7 +11,6 @@ import assert from "node:assert/strict";
 import { evaluate, parse } from "groq-js";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { VENUE_DETAILS_QUERY, readVenueDetails } from "../../../../marketing/web/src/lib/venue-details.js";
-import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { onRequestGet as getGallery, onRequestPost as postPhoto, onRequestPut as putOrder } from "../../functions/api/venue/gallery.js";
 import { onRequestDelete as deletePhoto, onRequestPatch as patchPhoto } from "../../functions/api/venue/gallery/[key].js";
@@ -26,7 +25,6 @@ let world;
 beforeEach(async () => {
   world = await createFakeWorld();
   world.install();
-  world.env.OPS_DB = createTestD1("ops");
 });
 afterEach(() => world.restore());
 

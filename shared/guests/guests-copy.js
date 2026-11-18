@@ -1,10 +1,8 @@
 /**
  * Guests as one feature for data-move (#127): subscribers and form
- * submissions, copied together because one `store:guests` flag switches
- * both. Each half imports only its own collection.
+ * submissions, copied together: both live in the website database. Each
+ * half imports only its own collection.
  */
-import { baserowFormSubmissionRepository } from "./adapters/baserow-form-submissions.js";
-import { baserowSubscriberRepository } from "./adapters/baserow-subscribers.js";
 import { d1FormSubmissionRepository } from "./adapters/d1-form-submissions.js";
 import { d1SubscriberRepository } from "./adapters/d1-subscribers.js";
 
@@ -27,13 +25,6 @@ export function guestsCopy({ subscribers, formSubmissions }) {
     };
   return copy;
 }
-
-/** @param {Record<string, any>} env  the Website token as BASEROW_API_KEY */
-export const baserowGuests = (env) =>
-  guestsCopy({
-    subscribers: baserowSubscriberRepository(env),
-    formSubmissions: baserowFormSubmissionRepository(env),
-  });
 
 export const d1Guests = (db) =>
   guestsCopy({

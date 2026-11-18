@@ -1,6 +1,6 @@
 /**
- * Move one feature's data between repositories (#127): Baserow → D1 for a
- * cutover, or D1 production → D1 dev for the dev copy. Repository to
+ * Move one feature's data between repositories (#127): D1 production → D1
+ * dev for the dev copy. Repository to
  * repository, so the adapters stay the only code that knows storage (#186).
  *
  * A snapshot is what a repository's exportAll() returns: collections of

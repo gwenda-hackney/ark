@@ -16,7 +16,6 @@ import {
 } from "../../../../marketing/web/src/lib/opening-hours.js";
 import { partyFactLines } from "../../../../marketing/web/src/lib/party-facts.js";
 import { VENUE_DETAILS_QUERY, readVenueDetails } from "../../../../marketing/web/src/lib/venue-details.js";
-import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { onRequestGet as getVenue } from "../../functions/api/venue/index.js";
 import { onRequestPut as putHours } from "../../functions/api/venue/hours.js";
@@ -37,7 +36,6 @@ let world;
 beforeEach(async () => {
   world = await createFakeWorld();
   world.install();
-  world.env.OPS_DB = createTestD1("ops");
 });
 afterEach(() => world.restore());
 
