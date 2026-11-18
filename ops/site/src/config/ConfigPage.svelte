@@ -328,15 +328,6 @@
 		color: var(--foreground);
 	}
 
-	.env-grid a {
-		color: var(--primary);
-		text-decoration: none;
-	}
-
-	.env-grid a:hover {
-		text-decoration: underline;
-	}
-
 	.mono {
 		font-family: var(--font-mono);
 		font-size: 0.9em;

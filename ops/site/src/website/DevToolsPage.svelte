@@ -3,7 +3,7 @@
 	 * Developer tools (admins): preview against live, in three parts.
 	 *   Content   Drafts that differ from what is live. Publish them, or discard them.
 	 *   Code      Commits the preview runs that live does not. Ships on promote.
-	 *   Databases Baserow production vs its copies. Production may drift; copy it over to debug.
+	 *   Databases This environment's D1 databases: records per table, migrations, last copy.
 	 *   Dev copy  Copy production over dev in one go: website content and both databases.
 	 */
 	import { onDestroy, onMount } from "svelte";
@@ -14,7 +14,7 @@
 	import { changeBadgeTone, toBadgeTone } from "../ui/badge";
 	import {
 		getCodeDiff,
-		getDbPairDiff,
+		getDbStatus,
 		getDeployStatus,
 		getMe,
 		getReleaseDiff,
@@ -22,7 +22,7 @@
 		publishRelease,
 		startDevCopy,
 		type CodeDiff,
-		type DbPairDiff,
+		type DbStatus,
 		type DevCopyTarget,
 		type ReleaseDiff,
 		type ReleaseEntry,
@@ -50,9 +50,9 @@
 	type Direction = "to-production" | "discard";
 	type CopyRun = { runId: number | null; runUrl: string; status: string; conclusion: string | null };
 
-	const PAIRS: { id: PairId; label: string; copy: string }[] = [
-		{ id: "ops", label: "Ops", copy: "Gwenda Dev copy (dev ops)" },
-		{ id: "website", label: "Website", copy: "Gwenda Dev copy (dev website)" },
+	const PAIRS: { id: PairId; label: string }[] = [
+		{ id: "ops", label: "Ops" },
+		{ id: "website", label: "Website" },
 	];
 
 	const COPIES: { id: CopyId; label: string; target: DevCopyTarget }[] = [
@@ -64,7 +64,7 @@
 	let diff = $state<ReleaseDiff | null>(null);
 	let web = $state<WebStatus | null>(null);
 	let code = $state<CodeDiff | null>(null);
-	let dbs = $state<Record<PairId, DbPairDiff | null>>({ ops: null, website: null });
+	let dbs = $state<Record<PairId, DbStatus | null>>({ ops: null, website: null });
 	let dbErrors = $state<Record<PairId, string>>({ ops: "", website: "" });
 	let dbLoading = $state<Record<PairId, boolean>>({ ops: false, website: false });
 	let copyRuns = $state<Record<CopyId, CopyRun | null>>({ all: null, ops: null, website: null });
@@ -117,19 +117,22 @@
 
 	function dbSummary(id: PairId): Summary {
 		if (dbLoading[id] && !dbs[id]) return { tone: "muted", text: "Checking…" };
-		if (dbErrors[id]) return { tone: "muted", text: "Can't compare", title: dbErrors[id] };
-		const pair = dbs[id];
-		if (!pair) return { tone: "muted", text: "Not checked" };
-		if (pair.inSync) return { tone: "up", text: "In sync" };
-		const count = pair.tables.filter((table) => table.status !== "same").length;
-		return { tone: "warn", text: `${count} differ`, title: `${count} table${count === 1 ? "" : "s"} differ` };
+		if (dbErrors[id]) return { tone: "warn", text: "Can't read", title: dbErrors[id] };
+		const db = dbs[id];
+		if (!db) return { tone: "muted", text: "Not checked" };
+		const records = db.tables.reduce((sum, table) => sum + table.rows, 0);
+		return {
+			tone: "up",
+			text: `${records} record${records === 1 ? "" : "s"}`,
+			title: `${db.tables.length} tables, ${db.migrations.count} migrations`,
+		};
 	}
 
 	const dbOverall = $derived.by((): Summary => {
 		const all = PAIRS.map((pair) => ({ pair, summary: dbSummary(pair.id) }));
 		const title = all.map(({ pair, summary }) => `${pair.label}: ${summary.title || summary.text}`).join(" · ");
-		if (all.some(({ summary }) => summary.tone === "warn")) return { tone: "warn", text: "Differ", title };
-		if (all.every(({ summary }) => summary.tone === "up")) return { tone: "up", text: "In sync", title };
+		if (all.some(({ summary }) => summary.tone === "warn")) return { tone: "warn", text: "Can't read", title };
+		if (all.every(({ summary }) => summary.tone === "up")) return { tone: "up", text: "Readable", title };
 		return { tone: "muted", text: "Not checked", title };
 	});
 
@@ -173,12 +176,12 @@
 	async function loadDb(id: PairId) {
 		dbLoading = { ...dbLoading, [id]: true };
 		try {
-			dbs = { ...dbs, [id]: await getDbPairDiff(id) };
+			dbs = { ...dbs, [id]: await getDbStatus(id) };
 			dbErrors = { ...dbErrors, [id]: "" };
 		} catch (err) {
 			dbErrors = {
 				...dbErrors,
-				[id]: err instanceof Error ? err.message : "Could not compare these databases.",
+				[id]: err instanceof Error ? err.message : "Could not read this database.",
 			};
 		} finally {
 			dbLoading = { ...dbLoading, [id]: false };
@@ -660,9 +663,9 @@
 				{#if section.has("data")}
 					<div class="section-body">
 						<p class="muted">
-							Production keeps changing, and that's expected. This shows whether each copy still
-							matches production, table by table. Copying overwrites the copy's rows with
-							production's (photos are not copied). Production is never changed.
+							The D1 databases this ops works on: how many records each table holds, the migrations
+							applied, and when each part was last copied from production. Copying replaces dev's
+							records with production's. Production is never changed.
 						</p>
 						{#each PAIRS as pair (pair.id)}
 							{@const result = dbs[pair.id]}
@@ -670,7 +673,7 @@
 							{@const run = copyRuns[pair.id]}
 							<section class="group" aria-label={pair.label}>
 								<header class="group-head db-head">
-									<h3>{pair.label}: production → {pair.copy}</h3>
+									<h3>{pair.label}{#if result}: D1 {result.name} ({result.environment}){/if}</h3>
 									<Badge tone={toBadgeTone(summary.tone)} label={summary.text} title={summary.title} />
 								</header>
 								<div class="db-body">
@@ -682,44 +685,33 @@
 												<thead>
 													<tr>
 														<th scope="col">Table</th>
-														<th scope="col">Production</th>
-														<th scope="col">Copy</th>
-														<th scope="col">Difference</th>
+														<th scope="col">Records</th>
 													</tr>
 												</thead>
 												<tbody>
 													{#each result.tables as table (table.name)}
-														<tr class:same={table.status === "same"}>
+														<tr>
 															<th scope="row">{table.name}</th>
-															<td class="num">{table.status === "extra" ? "—" : table.sourceRows}</td>
-															<td class="num">{table.status === "missing" ? "—" : table.targetRows}</td>
-															<td>
-																{#if table.status === "same"}
-																	Same
-																{:else if table.status === "missing"}
-																	Not in the copy
-																{:else if table.status === "extra"}
-																	Only in the copy
-																{:else}
-																	{[
-																		table.sourceOnly ? `${table.sourceOnly} rows only in production` : "",
-																		table.targetOnly ? `${table.targetOnly} only in the copy` : "",
-																		table.missingColumns.length
-																			? `copy lacks ${table.missingColumns.join(", ")}`
-																			: "",
-																		table.extraColumns.length
-																			? `copy has ${table.extraColumns.join(", ")}`
-																			: "",
-																	]
-																		.filter(Boolean)
-																		.join(" · ")}
-																{/if}
-															</td>
+															<td class="num">{table.rows}</td>
 														</tr>
 													{/each}
 												</tbody>
 											</table>
 										</div>
+										<p class="muted">
+											{result.migrations.count} migration{result.migrations.count === 1 ? "" : "s"} applied{#if result.migrations.latest}, latest {result.migrations.latest}{/if}.
+										</p>
+										{#if result.moves.length}
+											<ul class="muted">
+												{#each result.moves as move (move.feature)}
+													<li>
+														{move.feature}: {move.records} records from {move.from}, {formatWhen(move.at)}
+													</li>
+												{/each}
+											</ul>
+										{:else}
+											<p class="muted">Never copied from production.</p>
+										{/if}
 									{/if}
 									<div class="db-actions">
 										<Button
@@ -731,7 +723,7 @@
 											{#snippet icon()}
 												<Icon name="refresh" size={14} />
 											{/snippet}
-											Compare again
+											Check again
 										</Button>
 										<Button
 											variant="outline"
@@ -764,8 +756,8 @@
 					<div class="section-body">
 						<p class="muted">
 							Makes dev a fresh copy of production: website content (events, menu, pages, drafts
-							included) goes to Gwenda Dev Sanity, and the Ops and Website databases to their Gwenda
-							Dev copies. Dev's own changes, and anything only dev has, are removed. Photos in the databases are not copied.
+							included) goes to Gwenda Dev Sanity, and the Ops and Website databases to dev's D1
+							databases. Dev's own changes, and anything only dev has, are removed.
 							Production is only read. It only runs when you start it.
 						</p>
 						<div class="db-actions">
@@ -837,17 +829,17 @@
 	>
 		<p class="dialog-copy">
 			{#if confirmCopy === "all"}
-				Dev's website content (Gwenda Dev Sanity) and every row in the Gwenda Dev copies of the Ops
-				and Website DBs are replaced with production's, so dev will hold real people's data
+				Dev's website content (Gwenda Dev Sanity) and every record in dev's Ops and Website
+				databases are replaced with production's, so dev will hold real people's data
 				(subscribers, form submissions). Dev-only documents and rows are deleted.
 			{:else if confirmCopy === "ops"}
-				Every row in the Gwenda Dev copy of the Ops DB (what dev ops uses) is replaced with
+				Every record in dev's Ops database (what dev ops uses) is replaced with
 				production's. Local edits there are lost.
 			{:else}
-				Every row in the Gwenda Dev copy of the Website DB (subscribers, form submissions) is replaced
+				Every record in dev's Website database (subscribers, form submissions) is replaced
 				with production's, so the dev website will hold real people's data. Dev-only rows are lost.
 			{/if}
-			Production is only read. Database photos are not copied. It runs as a GitHub Action and takes a
+			Production is only read. It runs as a GitHub Action and takes a
 			few minutes.
 		</p>
 		{#snippet footer()}
@@ -1195,10 +1187,6 @@
 	td.num {
 		font-variant-numeric: tabular-nums;
 		font-feature-settings: var(--font-features-num);
-	}
-
-	tr.same {
-		color: var(--muted-foreground);
 	}
 
 	td.old {

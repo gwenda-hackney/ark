@@ -847,31 +847,23 @@ export function getCodeDiff() {
   return request<CodeDiff>("/api/web/code");
 }
 
-export type DbTableDiff = {
-  name: string;
-  status: "same" | "different" | "missing" | "extra";
-  sourceRows: number;
-  targetRows: number;
-  sourceOnly: number;
-  targetOnly: number;
-  missingColumns: string[];
-  extraColumns: string[];
-};
-
-export type DbPairDiff = {
+/** One D1 database in this environment (/api/web/databases, platform/d1-status.js). */
+export type DbStatus = {
   ok: boolean;
   id: "ops" | "website";
   label: string;
-  copyLabel: string;
-  source: { label: string; databaseId: string };
-  target: { label: string; databaseId: string };
-  inSync: boolean;
-  tables: DbTableDiff[];
+  /** The D1 database's name, e.g. gwenda-ops. */
+  name: string;
+  environment: string;
+  tables: { name: string; rows: number }[];
+  migrations: { count: number; latest: string };
+  /** When each feature was last copied in, and from where (data-move). */
+  moves: { feature: string; from: string; at: string; records: number }[];
   checkedAt: string;
 };
 
-export function getDbPairDiff(pair: "ops" | "website") {
-  return request<DbPairDiff>(`/api/web/databases?pair=${pair}`);
+export function getDbStatus(db: "ops" | "website") {
+  return request<DbStatus>(`/api/web/databases?db=${db}`);
 }
 
 /** What a copy of production over dev covers (copy-prod-to-dev.yml). */
