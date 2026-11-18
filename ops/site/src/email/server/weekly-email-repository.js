@@ -21,7 +21,7 @@
  *   exportAll()           { weekly_emails, weekly_email_tests }
  *   importAll(snapshot)   replace everything, keeping ids
  *
- * D1 only (the ops database): this feature began after the move off Baserow.
+ * D1 only (the ops database).
  */
 import { databaseFor } from "../../../../../shared/d1-env.js";
 import { d1WeeklyEmailRepository } from "./adapters/d1-weekly-email.js";

@@ -1,7 +1,7 @@
 /**
  * Use cases (#300): while a developer runs `npm run ops:dev`, hosted dev ops
  * sends nothing to the website by itself, so its older code can't undo what
- * local ops just did. Through the real handlers with Baserow, Sanity and
+ * local ops just did. Through the real handlers with D1 (SQLite), Sanity and
  * Google faked (testing/fake-world.js): hosted dev is the world's env
  * (SITE_ENV=dev), local ops checks in through the same config database, as
  * scripts/ops-dev.mjs does.
@@ -95,7 +95,7 @@ async function tabStep(eventId = "") {
 }
 
 /** Calls that left ops for anything but its own config and data (Sanity, Google, …). */
-const callsOutSince = (from) => world.calls.slice(from).filter((call) => !call.includes("api.baserow.io"));
+const callsOutSince = (from) => world.calls.slice(from);
 
 describe("dev's automatic website updates wait while local ops runs", () => {
   it("a saved event waiting for the website: the cron's tick leaves it alone and says why", async () => {

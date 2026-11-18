@@ -1,6 +1,6 @@
 /**
  * Lightspeed (POS) menu names. Plain constants, so the app and the
- * Lightspeed parsers can use them without pulling in the Baserow store.
+ * Lightspeed parsers can use them without pulling in the menu store.
  */
 
 export const DEFAULT_POS_MENU_NAME = "Fall 2026";

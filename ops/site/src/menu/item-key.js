@@ -77,7 +77,7 @@ export function assertUniqueItemName(
   throw error;
 }
 
-/** Match a route key: slug of the name, or a leftover numeric Baserow id. */
+/** Match a route key: slug of the name, or a leftover numeric id. */
 export function itemMatchesKey(item, key) {
   const raw = String(key || "").trim();
   if (!raw || !item) return false;

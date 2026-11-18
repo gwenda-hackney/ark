@@ -98,7 +98,7 @@ describe("weekly email: this week's email, as it would go out", () => {
   it("only reads: two Sanity queries, nothing else", async () => {
     publishWeek(world);
     await callApi(world, getPreview, { path: "/api/email/preview" });
-    const outside = world.calls.filter((call) => !call.includes("api.baserow.io"));
+    const outside = world.calls;
     assert.deepEqual(outside, [
       "GET gwscpagy.api.sanity.io/v2025-01-01/data/query/production",
       "GET gwscpagy.api.sanity.io/v2025-01-01/data/query/production",

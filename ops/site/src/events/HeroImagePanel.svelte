@@ -58,7 +58,7 @@
 		onclear: () => void;
 	} = $props();
 
-	/** The uploaded file in Baserow, the only copy. A photo not yet saved (blob:) has none. */
+	/** The uploaded photo's address. A photo not yet saved (blob:) has none. */
 	const originalUrl = $derived(/^https?:\/\//i.test(sourceUrl) ? sourceUrl : "");
 
 	let naturalW = $state(0);

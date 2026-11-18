@@ -50,13 +50,13 @@ dist/          Build output (gitignored)
 
 ## Data and domain (DDD)
 
-Server code is organised by domain-driven design, so a storage change (Baserow → D1, #127) touches adapters only. Code written before this rule is moving over in #186.
+Server code is organised by domain-driven design, so a storage change (as Baserow → D1, #127) touches adapters only. Code written before this rule is moving over in #186.
 
 - **One bounded context per feature** (events, menu and inventory, artists, guests, users, config and state). Each has:
   - a domain model: plain objects and rules, no I/O, no column or table names;
   - a repository interface in domain terms (`get`, `list`, `save`, …);
   - storage adapters that implement it.
-- **Only adapters know the storage.** Nothing else imports `shared/baserow.js` (or, later, a D1 binding) or writes column names. Publishing, sync jobs, website functions and scripts go through the repository.
+- **Only adapters know the storage.** Nothing else touches a D1 binding (`shared/d1-env.js` `databaseFor`) or writes column names. Publishing, sync jobs, website functions and scripts go through the repository.
 - **Use cases** (application services) call repositories and other ports: Sanity, Google Drive, Calendar, mail.
 - **Tests:** use-case tests check behaviour through the API or domain, never storage columns. Each repository has a contract test that every adapter must pass.
 - **New fields** start in the domain model, then go into each adapter and its schema or migration. If a change to what something stores edits code outside the repository and its adapters, fix the boundary in the same PR or file an issue.
@@ -99,8 +99,8 @@ Server code is organised by domain-driven design, so a storage change (Baserow �
 - Local: `bw-unlock` and a git email (`FORMS_NOTIFY_EMAIL` defaults to it); `.env` is optional overrides (`.env.example`); local settings default to the dev copies (`LOCAL_DEFAULTS` in `scripts/lib/load-env.mjs`). Secrets are never in files: `with-env` / `with-ops-env` / `ops:dev` load them from Secrets Manager into memory (RAM cache in `/dev/shm`). If a script says the vault is locked, run `bw-unlock`. See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
 - Preview gate: `SITE_PASSWORD` (Bitwarden Ark/Web → the Pages preview environment via `web-secrets.yml`).
 - Secrets in Bitwarden SM follow one rule: `NAME` is shared, `NAME__DEV` / `NAME__PRODUCTION` overrides it for that env (dev = a developer's machine and the dev sites). Code reads the plain name; never add bespoke per-env names or env checks that pick a secret. Per-app key lists and renames live in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). Do not add fallbacks across envs.
-- Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (runtime name; SM `BASEROW_WEBSITE_API_KEY__<ENV>`). Subscribe, Event Invites, and Form Submissions tables are resolved by name. The token selects the Website database.
-- Runtime non-secret config (pour targets, `forms.notify_email`, Sanity dataset…): Baserow **Gwenda Config** database, read via `shared/config.js` with `BASEROW_CONFIG_API_KEY`. Rows are profiled by Env and Service; a runtime only writes its own Env rows. No Baserow ids are configured: the token picks the workspace (per-env tokens only, `__DEV` / `__PRODUCTION`), and database and table ids are resolved by table names. Marketing product flags stay in Sanity `siteSettings`.
+- Subscribe: `SUBSCRIBE_SECRET`. Subscribers and form submissions are in the website D1 database (`WEBSITE_DB`). RSVP and event invites still use Baserow (`BASEROW_API_KEY`, SM `BASEROW_WEBSITE_API_KEY__<ENV>`) until #237.
+- Runtime non-secret config (pour targets, `forms.notify_email`, Sanity dataset…): the D1 config database (`CONFIG_DB`, `gwenda-config`), read via `shared/config.js`. Rows are profiled by Env and Service; a runtime only writes its own Env rows. Each environment has its own database. Marketing product flags stay in Sanity `siteSettings`.
 - Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
 ## What not to do
 

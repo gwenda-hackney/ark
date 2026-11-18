@@ -1,6 +1,6 @@
 /**
  * Use cases (#42): every kind of menu edit an editor makes in ops reaches
- * /menu after the menu's Update website. Real API handlers, with Baserow and
+ * /menu after the menu's Update website. Real API handlers, with D1 (SQLite) and
  * Sanity faked (testing/fake-world.js); "what /menu shows" is the website's
  * own MENU_QUERY run against the published documents.
  */

@@ -1,5 +1,5 @@
 /**
- * Method copy is stored as plain text (Baserow). Light Markdown only:
+ * Method copy is stored as plain text. Light Markdown only:
  * # headings, paragraphs, line breaks, **bold**, *italic*, - bullets, 1. steps.
  * Escape first, then apply marks — never feed raw HTML through.
  */
@@ -239,7 +239,7 @@ function markdownFromHtmlString(html: string): string {
 }
 
 /**
- * Convert editor / SpecBook HTML back to the Markdown we store in Baserow.
+ * Convert editor / SpecBook HTML back to the Markdown we store.
  * Prefers DOMParser in the browser so contenteditable lists survive.
  */
 export function htmlToMarkdown(html: string | undefined | null): string {

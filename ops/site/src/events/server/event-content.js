@@ -280,7 +280,6 @@ export function titleOverrideEchoesSeries(seriesName, titleOverride) {
   return value.toLowerCase() === series.toLowerCase();
 }
 
-/** Stable file identity: Baserow URLs rotate signed query tokens. */
 /** What of a gallery shows on the website: which photos, in order, and their nights. */
 export function stableGallery(gallery) {
   return (gallery || []).map((photo) => `${photo.key}:${photo.asset}:${photo.date || ""}`);

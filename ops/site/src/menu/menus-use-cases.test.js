@@ -1,7 +1,7 @@
 /**
  * Use cases for menus (#305): what the owner does on Menu → Menus, on a
  * menu's page and from a pop-up kitchen in Events, through the real API
- * handlers, with the menu on D1 and Baserow, Sanity and Google faked
+ * handlers, with the menu on D1 (SQLite), and Sanity and Google faked
  * (testing/fake-world.js). "What the website gets" is the published
  * sections, as /bar and /kitchen read them.
  */

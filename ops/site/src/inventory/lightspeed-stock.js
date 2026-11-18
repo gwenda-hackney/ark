@@ -996,7 +996,7 @@ function escapeRegExp(value) {
 
 /**
  * Fill missing Lightspeed SKUs with the next free prefixed code (G0001, G0002, …).
- * Order is stable by Baserow id so the same drink keeps the same code.
+ * Order is stable by record id so the same drink keeps the same code.
  * Does not continue Lightspeed’s bare integers.
  */
 export function withAllocatedLightspeedSkus(

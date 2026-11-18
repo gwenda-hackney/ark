@@ -1,6 +1,6 @@
 /**
  * Intra-night schedule (sets / activities), distinct from series recurrence.
- * Stored as JSON in Baserow "Night schedule".
+ * Stored as JSON with the night.
  */
 
 function text(value) {
@@ -32,7 +32,7 @@ export function normalizeNightScheduleEntry(entry) {
   };
 }
 
-/** Parse Baserow JSON / array into a clean list. */
+/** Parse stored JSON / an array into a clean list. */
 export function parseNightSchedule(raw) {
   if (!raw) return [];
   let list = raw;

@@ -1,6 +1,6 @@
 /**
  * Use cases: what an editor does with events in ops, end to end through the
- * real API handlers, with Baserow, Sanity and Google faked (_test/fake-world.js).
+ * real API handlers, with D1 (SQLite), Sanity and Google faked (testing/fake-world.js).
  * Each test checks what the editor sees (the event's status line) as well as
  * what reached the calendar and the website.
  *

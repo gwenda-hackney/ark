@@ -91,7 +91,7 @@ export function menuCard(row: MenuListItem): MenuCard {
 	};
 }
 
-/** A card-sized photo: Sanity crops to 4:3; other hosts (Baserow files) can't, so they pass through. */
+/** A card-sized photo: Sanity crops to 4:3; other hosts can't, so they pass through. */
 export function cardPhotoUrl(url: string | null | undefined, width = 640): string {
 	const raw = String(url || "").trim();
 	if (!raw || !raw.includes("cdn.sanity.io")) return raw;

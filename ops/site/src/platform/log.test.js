@@ -10,11 +10,11 @@ import {
 
 describe("serializeError", () => {
   it("keeps name, message, status, and stack", () => {
-    const error = new Error("Baserow 429: Request was throttled.");
+    const error = new Error("D1 429: Request was throttled.");
     error.status = 429;
     const fields = serializeError(error);
     assert.equal(fields.name, "Error");
-    assert.equal(fields.message, "Baserow 429: Request was throttled.");
+    assert.equal(fields.message, "D1 429: Request was throttled.");
     assert.equal(fields.status, 429);
     assert.equal(typeof fields.stack, "string");
   });

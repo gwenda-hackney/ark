@@ -794,7 +794,7 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
 }
 
 /**
- * Move a night onto another series (Baserow Events row), keeping overrides.
+ * Move a night onto another series, keeping overrides.
  */
 export async function assignOccurrenceToSeries(
   env,

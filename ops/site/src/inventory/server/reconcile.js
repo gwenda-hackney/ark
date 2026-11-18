@@ -2,7 +2,7 @@
  * Unpublished-change tracking for ops recipes vs external systems.
  *
  * Website targets (preview / production) compare the current guest projection
- * to the last successful publish snapshot stored on the Baserow item.
+ * to the last successful publish snapshot stored on the menu item.
  *
  * POS is a stub (`unsupported`). A later live adapter should fetch external
  * records and diff against a POS-specific projection (name, prices, SKU),
@@ -133,7 +133,7 @@ export function websiteProjection(item) {
     abv: packaged.abv,
     volume: packaged.volume,
     producer: packaged.producer,
-    // Baserow section row id — detects moves; Sanity ref is resolved at publish.
+    // Ops section id — detects moves; Sanity ref is resolved at publish.
     sectionId: text(digitalSection || item?.sectionId || item?.section?._id),
     onDigitalMenu: onDigital,
     photo: photoFingerprint(item),

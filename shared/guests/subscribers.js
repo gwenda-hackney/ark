@@ -33,7 +33,7 @@ export function normalizeEmail(raw) {
   return email && EMAIL_RE.test(email) ? email : null;
 }
 
-/** Tags from a string, `{ value }` (Baserow's select) or a list of them; no repeats. */
+/** Tags from a string, `{ value }` or a list of them; no repeats. */
 export function normalizeTags(raw) {
   if (raw == null) return [];
   if (typeof raw === "string") {

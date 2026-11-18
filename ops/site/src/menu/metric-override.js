@@ -6,7 +6,7 @@
  *   overridden = the flag is on, OR a value is stored that isn't the one the
  *                recipe works out.
  *
- * The second half covers drinks saved before the flags existed (a Baserow
+ * The second half covers drinks saved before the flags existed (a stored
  * boolean is never empty, so "off" can't be told from "never set"): their
  * stored figure is never replaced behind anyone's back. A locked field that
  * follows the recipe always matches it, so it reads as locked.

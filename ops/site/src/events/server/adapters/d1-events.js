@@ -3,9 +3,9 @@
  * ops database (db/ops/migrations/0006_events.sql, and the columns added
  * after it). The only events code that knows their column names.
  *
- * Values are tidied on the way in the way the Baserow adapter tidies them on
- * the way out, so both hand callers the same records. Several nights change
- * in one batch: one request, and one transaction.
+ * Values are tidied on the way in, so callers get the same records the
+ * memory adapter hands them. Several nights change in one batch: one
+ * request, and one transaction.
  */
 import { storedAccentColor } from "../accent-color.js";
 import { batch } from "../../../../../../shared/d1.js";

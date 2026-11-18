@@ -1,5 +1,5 @@
 /**
- * Resolve ops runtime env: Cloudflare bindings/secrets + Baserow config database.
+ * Resolve ops runtime env: Cloudflare bindings/secrets + the D1 config database.
  * Cached on context.data for the request.
  */
 import { applyOpsAppConfig } from "./config-store.js";

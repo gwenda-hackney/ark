@@ -921,7 +921,7 @@ export function getDeployStatus(runId: number) {
 
 /**
  * An event photo. Since #183 it lives in Sanity: `asset` is its id and `url`
- * its cdn.sanity.io address. Older ones are Baserow files (name and url only).
+ * its cdn.sanity.io address.
  */
 export type OpsEventImage = {
   name: string;
