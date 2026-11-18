@@ -556,18 +556,19 @@
 		margin-top: var(--space-3);
 	}
 
-	/* Dragging: a copy follows the pointer (section-drag.ts) and the section
-	   itself folds away, so it's plain it's being moved; a bar shows where it
-	   lands. It folds to nothing rather than leaving the page (display: none),
-	   so its handle keeps the pointer for the rest of the drag. */
+	/* Dragging: a copy follows the pointer (section-drag.ts). The section
+	   itself empties into a placeholder of the same size, so it's plain it's
+	   being moved and nothing else on the page shifts; a bar shows where it
+	   lands. */
 	.dragged {
-		height: 0;
-		min-height: 0;
-		margin: 0 !important;
-		padding: 0 !important;
-		border: 0 !important;
-		overflow: hidden;
-		opacity: 0;
+		border-style: dashed !important;
+		border-color: var(--border-strong, var(--fg-muted)) !important;
+		background: color-mix(in srgb, var(--fg) 3%, transparent) !important;
+		box-shadow: none !important;
+	}
+
+	.dragged > :global(*) {
+		visibility: hidden;
 	}
 
 	.dragging-any {
