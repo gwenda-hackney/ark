@@ -112,7 +112,11 @@
 							<WebPage />
 						{/if}
 					{:else if key === "email"}
-						<WeeklyEmailPage {me} view={route.view === "sent" || route.view === "settings" ? route.view : "week"} />
+						<WeeklyEmailPage
+							{me}
+							path={current}
+							view={route.view === "sent" || route.view === "settings" || route.view === "write" ? route.view : "week"}
+						/>
 					{:else if key === "events"}
 						<EventsPage path={current} />
 					{:else if key === "artists"}

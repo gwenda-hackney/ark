@@ -280,8 +280,12 @@ export function parseShellPath(path) {
   if (p === "/web" || p.startsWith("/web/")) return { page: "web", view: null };
   if (p === "/email/sent") return { page: "email", view: "sent" };
   if (p === "/email/settings") return { page: "email", view: "settings" };
-  if (p === "/email" || p.startsWith("/email/"))
-    return { page: "email", view: null };
+  // Write (#348): the one-off emails, a new one, or one opened by id.
+  if (p === "/email/write" || p.startsWith("/email/write/")) {
+    const part = decodeSegment(p.slice("/email/write/".length).split("/")[0] || "");
+    return { page: "email", view: "write", slug: part && part !== "new" ? part : null, isNew: part === "new" };
+  }
+  if (p === "/email" || p.startsWith("/email/")) return { page: "email", view: null };
   if (p === "/forms") return { page: "forms", slug: null };
   if (p.startsWith("/forms/")) {
     const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");

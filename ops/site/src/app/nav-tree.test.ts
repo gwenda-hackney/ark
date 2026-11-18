@@ -27,7 +27,7 @@ describe("NAV_ROUTES (#312)", () => {
 			],
 		);
 		const names = (id: string) => routes.find((row) => row.id === id)?.children?.map((row) => row.name);
-		assert.deepEqual(names("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Occasions", "Artists", "Weekly email", "Photos"]);
+		assert.deepEqual(names("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Occasions", "Artists", "Email", "Photos"]);
 		assert.deepEqual(names("bar-kitchen"), ["Menus", "Items", "Stock"]);
 		assert.deepEqual(names("publish"), ["Website"]);
 		assert.deepEqual(names("settings"), ["Venue", "Users", "Lightspeed", "Configuration", "Developer tools"]);
@@ -176,6 +176,8 @@ describe("matchActiveRoute", () => {
 		assert.equal(page("/email"), "email");
 		assert.equal(page("/email/sent"), "email");
 		assert.equal(page("/email/settings"), "email");
+		assert.equal(page("/email/write"), "email");
+		assert.equal(page("/email/write/12"), "email");
 		assert.equal(page("/venue"), "venue");
 		assert.equal(page("/venue/gallery"), "photos");
 		assert.equal(page("/users"), "users");

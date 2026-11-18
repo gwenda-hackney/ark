@@ -9,7 +9,8 @@
  *   sent        gone to the list (step 2)
  *   failed      didn't go; `reason` says why (step 2)
  */
-import { cleanSections, SECTION_KINDS } from "../../../../../shared/email/sections.js";
+import { oneOffNotReady } from "../../../../../shared/email/one-off.js";
+import { cleanSections } from "../../../../../shared/email/sections.js";
 
 export const ONE_OFF_STATUSES = ["draft", "scheduled", "sending", "sent", "failed"];
 
@@ -58,10 +59,4 @@ export function isEditable(email) {
 }
 
 /** Why it can't be sent anywhere yet (a test or the list), or "" when it can. */
-export function notReadyReason(email) {
-  if (!email?.subject) return "Give it a subject first.";
-  const filled = (email.sections || []).filter((section) => !SECTION_KINDS[section.kind]?.empty(section));
-  if (!filled.length) return "Add something to it first.";
-  return "";
-}
-
+export const notReadyReason = oneOffNotReady;

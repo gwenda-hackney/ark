@@ -8,6 +8,17 @@ import { MAILCHIMP_TAGS, campaignFootText, campaignHtml } from "./campaign.js";
 import { SECTION_KINDS, cleanSections, renderSections } from "./sections.js";
 
 /**
+ * Why it can't be sent anywhere yet (a test or the list), or "" when it can:
+ * it needs a subject and one section with something in it.
+ * @param {{ subject?: string, sections?: object[] }} email
+ */
+export function oneOffNotReady(email, kinds = SECTION_KINDS) {
+  if (!String(email?.subject ?? "").trim()) return "Give it a subject first.";
+  const filled = cleanSections(email?.sections, kinds).filter((section) => !kinds[section.kind].empty(section));
+  return filled.length ? "" : "Add something to it first.";
+}
+
+/**
  * @param {{ subject?: string, previewText?: string, sections?: object[] }} email
  * @param {object} frame where it's sent from
  * @param {import("./campaign.js").CampaignSite} frame.site
