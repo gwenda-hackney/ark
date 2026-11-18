@@ -13,9 +13,11 @@ const heroLogoFiles = [heroLogo320, heroLogo432, heroLogo640, heroLogo864];
  * The logo, large, over the hero: home's first sight, and the page's largest
  * paint. It is 82vw on a phone and at most 27rem (432px), from 33rem up
  * (styles/chart.css, --ch-hero-logo), so a phone fetches a phone's file.
- * The files are 16-colour lossless WebP from scripts/write-hero-logo.mjs,
- * used as they are (a third of astro:assets' lossy WebP): attributes for a
- * plain <img>. No <link rel="preload"> for it: the <img> is near the top of
+ * The files are 16-colour lossless WebP, used as they are (a fraction of
+ * astro:assets' lossy WebP): attributes for a plain <img>. They and
+ * bottle.png are drawn from the logo's master SVG by `npm run brand:logo`
+ * (scripts/lib/logo-renders.mjs) and committed; nothing draws them at build
+ * time. No <link rel="preload"> for it: the <img> is near the top of
  * the page and the browser already asks for it with the stylesheets; a
  * preload measured no sooner.
  */
