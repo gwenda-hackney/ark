@@ -34,7 +34,7 @@
 	import MenuDaysPicker from "./MenuDaysPicker.svelte";
 	import { MENU_STATUS_TONES, blankMenu, menuDraft, menuPayload, popupDraft, sameMenu } from "./menu-form";
 	import { menuDaysLabel } from "./menu-days.js";
-	import { SECTION_KIND_ITEMS, type Menu, type MenuInput, type MenuItemGroup, type MenuPopupRun, type MenuSection } from "./types";
+	import { SECTION_KIND_ITEMS, type Menu, type MenuInput, type MenuItemChapter, type MenuPopupRun, type MenuSection } from "./types";
 
 	let { path }: { path: string } = $props();
 
@@ -44,7 +44,7 @@
 
 	let menu = $state<Menu | null>(null);
 	let sections = $state<MenuSection[]>([]);
-	let items = $state<MenuItemGroup[]>([]);
+	let items = $state<MenuItemChapter[]>([]);
 	let menus = $state<Menu[]>([]);
 	let popups = $state<MenuPopupRun[]>([]);
 	let draft = $state<MenuInput>(blankMenu());
@@ -283,8 +283,8 @@
 		<Skeleton rows={5} lines={1} label="Loading the menu…" />
 	{:else}
 		{#if menu}
-			<FormSection title="Items" description="What's on it, section by section. Open an item to change it.">
-				<MenuItemsList groups={items} />
+			<FormSection title="Items" description="Laid out as on the website. Click an item to change it.">
+				<MenuItemsList chapters={items} menuName={menu.name} onchanged={refreshSections} />
 			</FormSection>
 		{/if}
 

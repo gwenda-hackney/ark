@@ -62,32 +62,38 @@ function itemCounts(sections, items) {
 }
 
 /**
- * A menu's items, section by section in the order guests see them (each
- * chapter, then its groups): an item is in a section that is its own, or that
- * one of its print or website placements names. Sections with none are left out.
- * @returns {{ sectionId: string, title: string, parentTitle: string, items: { id: string, name: string, description: string, prices: unknown[], drinkType: string }[] }[]}
+ * A menu's items as the website lays them out: each chapter, in order, with
+ * its own items and then each group's. An item is in a section that is its
+ * own, or that one of its print or website placements names. Every section
+ * is there, empty or not, so an item can be added to it.
+ * @returns {import("../types").MenuItemChapter[]}
  */
 export function menuItemGroups(chapters, items) {
-  return flattenMenuSections(chapters)
-    .map((section) => ({
-      sectionId: section._id,
-      title: section.title || "",
-      parentTitle: section.parentTitle || "",
-      items: items
-        .filter(
-          (item) =>
-            item.sectionId === section._id ||
-            (item.placements || []).some((row) => row.channel !== "pos" && String(row.sectionId) === section._id),
-        )
-        .map((item) => ({
-          id: item._id,
-          name: item.name,
-          description: item.description || "",
-          prices: item.prices || [],
-          drinkType: item.drinkType || "",
-        })),
-    }))
-    .filter((group) => group.items.length);
+  const itemsIn = (section) =>
+    items
+      .filter(
+        (item) =>
+          item.sectionId === section._id ||
+          (item.placements || []).some((row) => row.channel !== "pos" && String(row.sectionId) === section._id),
+      )
+      .map((item) => ({
+        id: item._id,
+        name: item.name,
+        description: item.description || "",
+        prices: item.prices || [],
+        drinkType: item.drinkType || "",
+      }));
+  const block = (section) => ({
+    sectionId: section._id,
+    title: section.title || "",
+    subtitle: section.subtitle || "",
+    items: itemsIn(section),
+  });
+  return chapters
+    .map((chapter) => ({
+      ...block(chapter),
+      groups: (chapter.subsections || []).map(block),
+    }));
 }
 
 /**
