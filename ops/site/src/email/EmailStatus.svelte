@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
-	 * Status and history: where this week's email is, when the next is due,
-	 * the last few, and the three things an admin can do. The buttons are
+	 * This week: where the email is, when the next goes and to how many, the
+	 * three things an admin can do, and a test to yourself. The buttons are
 	 * always there; one that can't be pressed says why.
 	 */
 	import { Icon } from "../app/shell";
@@ -11,26 +11,50 @@
 		getWeeklyEmailAudience,
 		prepareWeeklyEmail,
 		sendWeeklyEmailAgain,
+		sendWeeklyEmailTest,
 		type WeeklyEmailStatus,
 	} from "./email-api";
 	import {
 		approveBlockedReason,
 		audienceLine,
+		howLine,
 		nextLine,
-		runLine,
 		sendAgainBlockedReason,
-		shortDay,
 		statusLine,
+		testBlockedReason,
 		tryAgainBlockedReason,
 	} from "./email-view";
 
-	let { status, onchange }: { status: WeeklyEmailStatus | null; onchange: (status: WeeklyEmailStatus) => void } = $props();
+	let {
+		status,
+		hasEmail,
+		onchange,
+	}: { status: WeeklyEmailStatus | null; hasEmail: boolean; onchange: (status: WeeklyEmailStatus) => void } = $props();
 
 	const confirm = new Confirm();
 	let busy = $state("");
 	let error = $state("");
 
 	const now = $derived(status ? statusLine(status) : null);
+
+	// How many the next one goes to: everyone subscribed right now. Only production reaches the list.
+	let subscribed = $state<number | null>(null);
+	let subscribedError = $state(false);
+	const reachesList = $derived(Boolean(status?.access.audience));
+	$effect(() => {
+		if (!reachesList || !status?.me.isAdmin) return;
+		getWeeklyEmailAudience()
+			.then(({ audience }) => (subscribed = audience.memberCount))
+			.catch(() => (subscribedError = true));
+	});
+	const toLine = $derived(
+		!status ? "…"
+		: !reachesList ? "Production only"
+		: !status.settings.sending || !status.me.isAdmin ? "—"
+		: subscribed !== null ? `${audienceLine(subscribed)} (subscribed now)`
+		: subscribedError ? "Couldn't ask Mailchimp"
+		: "…",
+	);
 	const approveBlocked = $derived(approveBlockedReason(status));
 	const tryAgainBlocked = $derived(tryAgainBlockedReason(status));
 	const sendAgainBlocked = $derived(sendAgainBlockedReason(status));
@@ -42,19 +66,20 @@
 		error = "";
 		try {
 			const { audience } = await getWeeklyEmailAudience();
+			subscribed = audience.memberCount;
 			const to = audienceLine(audience.memberCount);
 			const after = status.current?.id ?? 0;
 			await confirm.run(
 				kind === "approve"
 					? {
 							title: `Send this week's email to ${to}?`,
-							message: "It goes to everyone on the mailing list now, as the preview shows it. It can't be taken back.",
+							message: "As the preview shows it. Can't be undone.",
 							action: "Approve and send",
 							tone: "primary",
 						}
 					: {
 							title: `Send it again to ${to}?`,
-							message: "This week's email has already gone. Everyone on the mailing list gets a second one. It can't be taken back.",
+							message: "Everyone gets it a second time. Can't be undone.",
 							action: "Send again",
 							tone: "destructive",
 						},
@@ -62,6 +87,24 @@
 			);
 		} catch (err) {
 			error = err instanceof Error ? err.message : "That didn't work.";
+		} finally {
+			busy = "";
+		}
+	}
+
+	let testResult = $state<{ tone: "ok" | "warn" | "error"; text: string } | null>(null);
+	const testBlocked = $derived(testBlockedReason(status, hasEmail));
+
+	async function sendTest() {
+		busy = "test";
+		testResult = null;
+		try {
+			const sent = await sendWeeklyEmailTest();
+			testResult = sent.warning
+				? { tone: "warn", text: sent.warning }
+				: { tone: "ok", text: `Sent to ${sent.sentTo} · can take a minute` };
+		} catch (err) {
+			testResult = { tone: "error", text: err instanceof Error ? err.message : "The test didn't send." };
 		} finally {
 			busy = "";
 		}
@@ -80,12 +123,19 @@
 	}
 </script>
 
-<Card title="Status">
+<Card title="This week">
 	<div class="now">
 		<Badge tone={now?.tone || "neutral"} label={now?.label || "Loading…"} />
-		<p class="detail">{now?.detail || " "}</p>
-		<p class="muted">{status ? nextLine(status) : " "}</p>
+		{#if now?.detail}<p class="detail">{now.detail}</p>{/if}
 	</div>
+	<dl class="facts">
+		<dt>How</dt>
+		<dd>{status ? howLine(status.settings) : "…"}</dd>
+		<dt>Next</dt>
+		<dd>{status ? nextLine(status) : "…"}</dd>
+		<dt>To</dt>
+		<dd>{toLine}</dd>
+	</dl>
 
 	<div class="buttons">
 		<Button
@@ -104,6 +154,7 @@
 			busy={busy === "prepare"}
 			disabled={Boolean(tryAgainBlocked) || Boolean(busy)}
 			reason={tryAgainBlocked}
+			title="Rebuilds this week's, then waits for approval"
 			onclick={() => void tryAgain()}
 		>
 			{#snippet icon()}<Icon name="refresh" size={16} />{/snippet}
@@ -120,38 +171,26 @@
 			Send again
 		</Button>
 	</div>
-	<p class="hint">
-		Try again gets this week's email ready and leaves it waiting for Approve and send.
-	</p>
 	<p class="error" role="alert">{error || " "}</p>
 
-	<h3>Last few</h3>
-	{#if status?.historyProblem}
-		<p class="error">{status.historyProblem}</p>
-	{:else if status && !status.history.length}
-		<p class="muted">None yet.</p>
-	{:else if status}
-		<ul class="history">
-			{#each status.history as run (run.id)}
-				{@const line = runLine(run)}
-				<li>
-					<div class="row">
-						<span class="week">Week of {shortDay(run.weekStart)}</span>
-						<Badge tone={line.tone} label={line.label} />
-					</div>
-					{#if run.subject}<p class="subject">{run.subject}</p>{/if}
-					{#if line.detail}<p class="muted">{line.detail}</p>{/if}
-					{#if run.campaignUrl}
-						<a class="link" href={run.campaignUrl} target="_blank" rel="noreferrer">
-							See it in Mailchimp <Icon name="external-link" size={12} />
-						</a>
-					{/if}
-				</li>
-			{/each}
-		</ul>
-	{:else}
-		<p class="muted">Loading…</p>
-	{/if}
+	<div class="test">
+		<dl class="facts">
+			<dt>Test</dt>
+			<dd>To {status?.me.email || "you"} only</dd>
+		</dl>
+		<Button
+			variant="outline"
+			size="sm"
+			busy={busy === "test"}
+			disabled={Boolean(testBlocked) || Boolean(busy)}
+			reason={testBlocked}
+			onclick={() => void sendTest()}
+		>
+			{#snippet icon()}<Icon name="send" size={16} />{/snippet}
+			Send me a test
+		</Button>
+		<p class="result {testResult?.tone || ''}" role="status">{testResult?.text || testBlocked || " "}</p>
+	</div>
 </Card>
 <ConfirmDialog {confirm} />
 
@@ -167,16 +206,19 @@
 		font-size: var(--text-sm);
 		overflow-wrap: anywhere;
 	}
-	.muted,
-	.hint {
-		margin: 0;
-		color: var(--muted-foreground);
+	.facts {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: var(--space-1) var(--space-3);
+		margin: var(--space-2) 0 0;
 		font-size: var(--text-sm);
-		overflow-wrap: anywhere;
 	}
-	.hint {
-		font-size: var(--text-xs);
-		margin-top: var(--space-2);
+	.facts dt {
+		color: var(--muted-foreground);
+	}
+	.facts dd {
+		margin: 0;
+		overflow-wrap: anywhere;
 	}
 	.buttons {
 		display: flex;
@@ -190,44 +232,31 @@
 		color: var(--destructive);
 		font-size: var(--text-sm);
 	}
-	h3 {
-		margin: var(--space-2) 0 var(--space-2);
-		font-size: var(--text-sm);
-	}
-	.history {
+	.test {
 		display: grid;
-		gap: var(--space-3);
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-	.history li {
-		display: grid;
-		gap: 0.15rem;
+		gap: var(--space-2);
+		justify-items: start;
+		margin-top: var(--space-2);
 		padding-top: var(--space-3);
 		border-top: 1px solid var(--border);
 	}
-	.row {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
-	}
-	.week {
-		font-size: var(--text-sm);
-		font-weight: 600;
-	}
-	.subject {
+	.test .facts {
 		margin: 0;
+	}
+	.result {
+		margin: 0;
+		min-height: 1.4em;
 		font-size: var(--text-sm);
+		color: var(--muted-foreground);
 		overflow-wrap: anywhere;
 	}
-	.link {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		font-size: var(--text-sm);
-		color: var(--primary);
+	.result.ok {
+		color: var(--success, var(--foreground));
+	}
+	.result.error {
+		color: var(--destructive);
+	}
+	.result.warn {
+		color: var(--warning, var(--foreground));
 	}
 </style>

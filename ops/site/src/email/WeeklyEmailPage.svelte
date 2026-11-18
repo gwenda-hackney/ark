@@ -1,12 +1,15 @@
 <script lang="ts">
 	/**
-	 * Weekly email: the "what's on" email that goes to the mailing list. This
-	 * week's as it would go out, a test to yourself, where it stands and what's
-	 * been sent, and its schedule. Everyone signed in can look and test; admins
-	 * change the schedule and send. Only production ops reaches the list.
+	 * Weekly email: the "what's on" email that goes to the mailing list, in
+	 * three tabs. This week: the email as it would go out, where it stands,
+	 * the send buttons and a test to yourself. Sent: every email sent, with
+	 * Mailchimp's numbers. Settings: the schedule. Everyone signed in can look
+	 * and test; admins change the schedule and send. Only production ops
+	 * reaches the list.
 	 */
 	import { onMount } from "svelte";
 	import { Icon } from "../app/shell";
+	import { navTabs } from "../app/nav-routes";
 	import { Button, PageHeader } from "../ui";
 	import type { AuthMe } from "../app/api";
 	import {
@@ -18,9 +21,9 @@
 	import EmailPreview from "./EmailPreview.svelte";
 	import EmailSchedule from "./EmailSchedule.svelte";
 	import EmailStatus from "./EmailStatus.svelte";
-	import TestSend from "./TestSend.svelte";
+	import SentEmails from "./SentEmails.svelte";
 
-	let { me }: { me: AuthMe } = $props();
+	let { me, view = "week" }: { me: AuthMe; view?: "week" | "sent" | "settings" } = $props();
 
 	let email = $state<WeeklyEmailPreview | null>(null);
 	let problem = $state("");
@@ -51,12 +54,17 @@
 		}
 	}
 
+	let sentKey = $state(0);
 	function refresh() {
-		void loadPreview();
 		void loadStatus();
+		if (view === "week") void loadPreview();
+		if (view === "sent") sentKey += 1;
 	}
 
-	onMount(refresh);
+	onMount(() => {
+		void loadStatus();
+		if (view === "week") void loadPreview();
+	});
 
 	// While this week's is on its way (or due any minute), keep the status fresh.
 	const moving = $derived(
@@ -72,8 +80,8 @@
 	});
 </script>
 
-<div class="page scrollbar-fade">
-	<PageHeader title="Weekly email" subtitle="What's on this week, sent to the mailing list.">
+<div class="page scrollbar-fade" class:fill={view === "sent"}>
+	<PageHeader title="Weekly email" tabs={{ items: navTabs("email"), value: view }}>
 		{#snippet actions()}
 			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={refresh}>
 				{#snippet icon()}
@@ -84,15 +92,22 @@
 		{/snippet}
 	</PageHeader>
 
-	<div class="layout" data-env={me.siteEnv}>
-		<EmailPreview {email} {problem} {loading} />
-		<div class="side">
-			{#if statusError}<p class="error" role="alert">{statusError}</p>{/if}
-			<EmailStatus {status} onchange={(next) => (status = { ...next, me: status?.me ?? next.me })} />
-			<TestSend {status} hasEmail={Boolean(email)} />
+	{#if statusError}<p class="error" role="alert">{statusError}</p>{/if}
+
+	{#if view === "sent"}
+		{#key sentKey}
+			<SentEmails available={status ? status.access.mailchimp : null} />
+		{/key}
+	{:else if view === "settings"}
+		<div class="narrow">
 			<EmailSchedule {status} onsaved={(settings) => { if (status) status = { ...status, settings }; void loadStatus(); }} />
 		</div>
-	</div>
+	{:else}
+		<div class="layout" data-env={me.siteEnv}>
+			<EmailPreview {email} {problem} {loading} />
+			<EmailStatus {status} hasEmail={Boolean(email)} onchange={(next) => (status = { ...next, me: status?.me ?? next.me })} />
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -109,10 +124,13 @@
 		gap: var(--space-4);
 		align-items: start;
 	}
-	.side {
-		display: grid;
-		gap: var(--space-4);
-		min-width: 0;
+	.page.fill {
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+	.narrow {
+		max-width: 40rem;
 	}
 	.error {
 		margin: 0;
