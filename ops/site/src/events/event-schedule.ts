@@ -360,18 +360,35 @@ export function shiftScheduleMonth(
 	return formatIsoDate(new Date(parsed.year, parsed.monthIndex + delta, 1)).slice(0, 7);
 }
 
-/** Monday-first month grid. Nights land on their date, including leading and trailing days. */
-export function buildScheduleCalendar(
-	weeks: EventScheduleWeek[],
+/**
+ * A month's cells, Monday first: whole weeks, so the days before the 1st and
+ * after the last day of the month fill out its first and last rows.
+ */
+export function scheduleMonthDays(
 	month: string,
 	now = new Date(),
-): ScheduleCalendar {
+): { month: string; days: { date: string; inMonth: boolean }[] } {
 	const parsed = parseScheduleMonth(month, now);
 	const first = new Date(parsed.year, parsed.monthIndex, 1);
 	const startOffset = (first.getDay() + 6) % 7;
 	const gridStart = addDays(first, -startOffset);
 	const daysInMonth = new Date(parsed.year, parsed.monthIndex + 1, 0).getDate();
 	const cellCount = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+	const days = [];
+	for (let index = 0; index < cellCount; index += 1) {
+		const date = formatIsoDate(addDays(gridStart, index));
+		days.push({ date, inMonth: date.slice(0, 7) === parsed.key });
+	}
+	return { month: parsed.key, days };
+}
+
+/** Monday-first month grid. Nights land on their date, including leading and trailing days. */
+export function buildScheduleCalendar(
+	weeks: EventScheduleWeek[],
+	month: string,
+	now = new Date(),
+): ScheduleCalendar {
+	const grid = scheduleMonthDays(month, now);
 	const byDate = new Map<string, EventScheduleRow[]>();
 	for (const week of weeks) {
 		for (const row of week.rows) {
@@ -380,18 +397,13 @@ export function buildScheduleCalendar(
 			byDate.set(row.date, list);
 		}
 	}
-	const days: ScheduleCalendarDay[] = [];
-	for (let index = 0; index < cellCount; index += 1) {
-		const date = formatIsoDate(addDays(gridStart, index));
-		days.push({
-			date,
-			inMonth: date.slice(0, 7) === parsed.key,
-			rows: byDate.get(date) || [],
-		});
-	}
+	const days: ScheduleCalendarDay[] = grid.days.map((day) => ({
+		...day,
+		rows: byDate.get(day.date) || [],
+	}));
 	return {
-		month: parsed.key,
-		label: scheduleMonthLabel(parsed.key, now),
+		month: grid.month,
+		label: scheduleMonthLabel(grid.month, now),
 		weekdays: SCHEDULE_WEEKDAYS,
 		days,
 	};
