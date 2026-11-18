@@ -1364,4 +1364,20 @@
 		}
 
 	}
+
+	/* Phones: the whole editor scrolls, title and all, between the top bar and
+	   the Save bar, instead of only the part under a pinned header. */
+	@media (max-width: 900px) {
+		.panel {
+			overflow-x: hidden;
+			overflow-y: auto;
+			overscroll-behavior: contain;
+		}
+
+		.body {
+			flex: none;
+			min-height: auto;
+			overflow: visible;
+		}
+	}
 </style>

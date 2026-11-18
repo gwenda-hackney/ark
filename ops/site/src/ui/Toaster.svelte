@@ -48,6 +48,21 @@
 		pointer-events: none;
 	}
 
+	/* Phones: above the tab bar, or above an editor's Save bar, never over them. */
+	@media (max-width: 900px) {
+		:global(body:has(.shell.has-tabs)) .stack {
+			bottom: calc(var(--bottom-nav-h) + 0.75rem);
+		}
+
+		:global(body:has(.editor-action-bar)) .stack {
+			bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+		}
+
+		:global(body:has(.shell.has-tabs):has(.editor-action-bar)) .stack {
+			bottom: calc(var(--bottom-nav-h) + 4.25rem);
+		}
+	}
+
 	.toast {
 		pointer-events: auto;
 		display: grid;

@@ -207,6 +207,11 @@
 		top: calc(2.25rem + env(safe-area-inset-top, 0px));
 	}
 
+	/* An editor on a phone has its own pill, in its top bar beside Back. */
+	:global(body:has(.editor-back-bar)) .pill.floating {
+		display: none;
+	}
+
 	/* Phones: above the bottom bar, clear of the tab strip and page actions. */
 	:global(body:has(.shell.has-tabs)) .pill.floating {
 		top: auto;

@@ -108,11 +108,13 @@ export function listMenus() {
   return request<{ menus: import("../menu/types").Menu[]; popups: import("../menu/types").MenuPopupRun[] }>("/api/menus");
 }
 
-/** A menu's page: the menu, its sections, every menu (to move a chapter to) and the pop-up kitchens. */
+/** A menu's page: the menu, its sections, its items, every menu (to move a chapter to) and the pop-up kitchens. */
 export function getMenuPage(id: string) {
   return request<{
     menu: import("../menu/types").Menu;
     sections: import("../menu/types").MenuSection[];
+    /** Its items, chapter by chapter. */
+    items: import("../menu/types").MenuItemChapter[];
     menus: import("../menu/types").Menu[];
     popups: import("../menu/types").MenuPopupRun[];
   }>(`/api/menus/${encodeURIComponent(id)}`);
@@ -195,6 +197,11 @@ export function deleteSection(id: string) {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/** One item, as its editor has it. */
+export function getItem(id: string) {
+  return request<{ item: import("../menu/types").MenuItem }>(`/api/menu/${encodeURIComponent(id)}`);
 }
 
 export function createItem(body: unknown) {

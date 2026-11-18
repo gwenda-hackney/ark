@@ -159,10 +159,13 @@
 			margin-top: 0;
 		}
 
+		/* Up to two lines: one cut "Saving puts it on…" mid-sentence. */
 		.subtitle {
+			display: -webkit-box;
 			overflow: hidden;
-			white-space: nowrap;
-			text-overflow: ellipsis;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+			line-clamp: 2;
 			font-size: var(--text-sm);
 			line-height: var(--leading-sm);
 		}
