@@ -6,7 +6,7 @@ import { subscriberRepository } from "../../../../shared/guests/subscriber-repos
 import { subscribe } from "../../../../shared/guests/subscribers.js";
 
 /** @returns {Promise<{ ok: true, status: 200 } | { ok: false, status: number, error: string }>} */
-export async function subscribeEmail({ email, tag = "prelaunch", env = {} }) {
+export async function subscribeEmail({ email, tag = "website", env = {} }) {
   const result = await subscribe(subscriberRepository(env), { email, tag });
   return result.ok ? { ok: true, status: 200 } : result;
 }

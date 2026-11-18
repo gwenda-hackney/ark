@@ -18,10 +18,10 @@ describe("runSignupSmoke", () => {
     const detail = await runSignupSmoke(env);
     expect(detail).toContain(SIGNUP_SMOKE_EMAIL);
     expect(create.mock.calls.map(([fields]) => fields.tags)).toEqual([
-      ["prelaunch"],
+      ["website"],
     ]);
     expect(update.mock.calls.map(([, fields]) => fields.tags)).toEqual([
-      ["prelaunch", "wifi"],
+      ["website", "wifi"],
     ]);
     expect(await subscribers.count()).toBe(0);
   });

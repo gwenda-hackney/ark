@@ -7,8 +7,7 @@
  * SIGNUP_SMOKE_EMAIL, which the Mailchimp sync skips, so it never reaches
  * the real list even if the sync runs before the record is gone.
  *
- * The tags are real ones (Baserow's Tag only allows its options): prelaunch,
- * then wifi.
+ * The tags are real ones: website, then wifi.
  */
 import { SIGNUP_SMOKE_EMAIL } from "../../../../shared/smoke-test.js";
 import { subscriberRepository } from "../../../../shared/guests/subscriber-repository.js";
@@ -46,16 +45,16 @@ export async function runSignupSmoke(env, { email = SIGNUP_SMOKE_EMAIL } = {}) {
   // A run that failed before cleaning up leaves its record; start from none.
   await removeAll();
   try {
-    await signUp(env, email, "prelaunch", "Signing up");
+    await signUp(env, email, "website", "Signing up");
     expectOne(
       await subscribers.listByEmail(email),
-      ["prelaunch"],
+      ["website"],
       "After signing up",
     );
     await signUp(env, email, "wifi", "Signing up again");
     expectOne(
       await subscribers.listByEmail(email),
-      ["prelaunch", "wifi"],
+      ["website", "wifi"],
       "After signing up again",
     );
   } finally {

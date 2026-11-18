@@ -13,7 +13,7 @@ function mountEmbedded({ outerId }) {
           <input type="email" name="email" id="email" />
           <button type="submit">Sign me up</button>
           <input type="checkbox" name="consent" id="consent" />
-          <input type="hidden" name="tag" value="prelaunch" />
+          <input type="hidden" name="tag" value="website" />
           <input type="text" name="website" id="website" />
           <p class="signup-error" id="signup-error"></p>
         </form>
