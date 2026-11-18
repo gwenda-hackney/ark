@@ -43,7 +43,7 @@ No LAN host required while the console is online at [unifi.ui.com](https://unifi
 npm run setup:wifi-portal
 ```
 
-Sign-ups are saved to D1 (`WEBSITE_DB`, the `subscribers` table); Baserow is retired.
+Sign-ups are saved to D1 (`WEBSITE_DB`, the `subscribers` table).
 Errors, including every failed UniFi authorise or sign-up save, go to Sentry, and
 the Worker's logs are kept in the Cloudflare dashboard (Workers → Logs).
 
