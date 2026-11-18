@@ -98,7 +98,9 @@ export function startSectionDrag(
 	if (event.button !== 0) return;
 	const handle = event.currentTarget as HTMLElement;
 	event.preventDefault();
-	handle.setPointerCapture?.(event.pointerId);
+	// The drag is followed on the window, not the handle: the section (and its
+	// handle) is hidden behind its placeholder while it moves.
+	const pointer = event.pointerId;
 	const area = scroller(handle);
 	let x = event.clientX;
 	let y = event.clientY;
@@ -123,6 +125,7 @@ export function startSectionDrag(
 		frame = requestAnimationFrame(tickScroll);
 	};
 	const move = (e: PointerEvent) => {
+		if (e.pointerId !== pointer) return;
 		x = e.clientX;
 		y = e.clientY;
 		ghost?.at(x, y);
@@ -130,9 +133,16 @@ export function startSectionDrag(
 		if (!frame) frame = requestAnimationFrame(tickScroll);
 	};
 	const end = (e: PointerEvent) => {
-		handle.removeEventListener("pointermove", move);
-		handle.removeEventListener("pointerup", end);
-		handle.removeEventListener("pointercancel", end);
+		if (e.pointerId !== pointer) return;
+		// Where it's let go decides, not the last move
+		if (e.type === "pointerup") {
+			x = e.clientX;
+			y = e.clientY;
+			place();
+		}
+		window.removeEventListener("pointermove", move);
+		window.removeEventListener("pointerup", end);
+		window.removeEventListener("pointercancel", end);
 		if (frame) cancelAnimationFrame(frame);
 		ghost?.remove();
 		onover(null);
@@ -140,7 +150,7 @@ export function startSectionDrag(
 			ondrop(orderAfterDrop(ids, from, at));
 		}
 	};
-	handle.addEventListener("pointermove", move);
-	handle.addEventListener("pointerup", end);
-	handle.addEventListener("pointercancel", end);
+	window.addEventListener("pointermove", move);
+	window.addEventListener("pointerup", end);
+	window.addEventListener("pointercancel", end);
 }
