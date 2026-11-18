@@ -614,7 +614,7 @@ jobs:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Ops tools — branch preview (dev data)","rows":[
               ["Preview","[${{ steps.preview_url.outputs.url }}](${{ steps.preview_url.outputs.url }})"],
-              ["Data","Dev copies (Gwenda Dev Sanity, dev Baserow). No migrations run for previews."],
+              ["Data","Dev copies (Gwenda Dev Sanity, dev D1). No migrations run for previews."],
               ["Pages branch","`${{ steps.branch.outputs.name }}`"],
               ["Git branch","`${{ github.ref_name }}`"],
               ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"],

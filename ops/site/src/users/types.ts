@@ -1,4 +1,4 @@
-/** Who may sign in to ops (Baserow Users). */
+/** Who may sign in to ops (the users list). */
 export type OpsUser = {
   _id?: string;
   id?: string;

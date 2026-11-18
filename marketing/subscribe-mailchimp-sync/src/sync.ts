@@ -332,7 +332,7 @@ export async function syncUnsyncedSubscribers(
   const mailchimpKey = env.MAILCHIMP_API_KEY?.trim();
   if (!mailchimpKey) throw new Error("MAILCHIMP_API_KEY is not configured");
 
-  // Wherever subscribers live now: Baserow, or D1 once store:guests says so.
+  // Subscribers, in the website D1 database.
   const subscribers = options.repository ?? subscriberRepository(env);
   const audienceId = resolveAudienceId(env);
 

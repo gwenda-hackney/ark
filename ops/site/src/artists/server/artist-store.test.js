@@ -1,48 +1,53 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { resetBaserowClientForTests } from "../../../../../shared/baserow.js";
 import { d1ArtistRepository } from "../../../../../shared/artists/d1-artists.js";
 import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
 import { clearArtistImage, createArtist, deleteArtist, getArtist, setArtistImage } from "./artist-store.js";
 import { artistView, listArtists, orderArtists } from "../../../../../shared/artists.js";
-import { artistFromRow } from "../../../../../shared/artists/baserow-artists.js";
-import { jsonResponse, mockOpsBaserow, opsCatalogTables } from "../../testing/test-baserow-mock.js";
+import { artistRecord } from "../../../../../shared/artists/artist-model.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
-  resetBaserowClientForTests();
 });
 
-const tableEnv = { BASEROW_API_KEY: "token" };
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
 
-/** A Baserow row as ops shows it. */
-const mapArtist = (row, options) => artistView(artistFromRow(row), options);
+const ASSET = "image-0a1b2c3d4e5f-1600x1000-jpg";
+const OTHER = "image-ffeeddccbbaa-800x600-png";
 
-function row(partial) {
-  return {
-    id: 1,
-    Name: "Amina Cole",
-    Slot: { id: 1, value: "current", color: "green" },
-    Website: "https://amina.example",
-    Profile: "Painter.",
-    Bio: "A longer note.",
-    Portrait: [],
-    Art: [],
-    "Gwenda photos": [],
-    ...partial,
-  };
+/** An artist as ops shows them. */
+const shown = (fields, options) => artistView(artistRecord({ id: 1, name: "Amina Cole", slot: "current", ...fields }), options);
+
+/** A dev env whose ops database holds these artists, Sanity faked for uploads. */
+async function world(artists = [], uploaded = ASSET) {
+  const db = createTestD1("ops");
+  const repo = d1ArtistRepository(db);
+  await repo.importAll({ artists, guestArtists: [] });
+  const uploads = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.includes("api.sanity.io") && url.includes("/assets/images/")) {
+      uploads.push(new URL(url).searchParams.get("filename"));
+      return jsonResponse({ document: { _id: uploaded } });
+    }
+    throw new Error(`unexpected ${url}`);
+  });
+  const env = { SITE_ENV: "dev", SANITY_API_TOKEN: "sanity", SANITY_PROJECT_ID: "gwscpagy", OPS_DB: db };
+  return { env, repo, uploads };
 }
 
 describe("artistView / orderArtists", () => {
   it("orders current, next, then previous by name", () => {
-    const current = mapArtist(row({ id: 4 }));
-    const next = mapArtist(row({ id: 2, Name: "Jo", Slot: "next", Website: "" }));
-    const ada = mapArtist(row({ id: 8, Name: "Ada", Slot: "previous" }));
-    const bea = mapArtist(row({ id: 6, Name: "Bea", Slot: { value: "previous" } }));
+    const current = shown({ id: 4, website: "https://amina.example" });
+    const next = shown({ id: 2, name: "Jo", slot: "next" });
+    const ada = shown({ id: 8, name: "Ada", slot: "previous" });
+    const bea = shown({ id: 6, name: "Bea", slot: "previous" });
     assert.equal(current.slot, "current");
     assert.equal(current.artistName, "");
     assert.equal(next.website, "");
-    const ordered = orderArtists([bea, ada, next, current, mapArtist({ id: 3 })]);
+    const ordered = orderArtists([bea, ada, next, current, shown({ id: 3, slot: "" })]);
     assert.deepEqual(
       ordered.map((artist) => artist.name),
       ["Amina Cole", "Jo", "Ada", "Bea"],
@@ -51,56 +56,18 @@ describe("artistView / orderArtists", () => {
 });
 
 describe("listArtists / createArtist / deleteArtist", () => {
-  it("returns an empty list when the table has no slotted rows", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(
-      mockOpsBaserow(async () => jsonResponse({ results: [] })));
-    assert.deepEqual(await listArtists(tableEnv), []);
+  it("returns an empty list when nobody has a slot", async () => {
+    const { env } = await world([{ id: 1, name: "Being prepared", slot: "" }]);
+    assert.deepEqual(await listArtists(env), []);
   });
 
-  it("fails when the Artists table is missing", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation( async (input) => {
-      const url = String(input);
-      if (url.includes("/tables/all-tables/")) {
-        return jsonResponse(
-          opsCatalogTables().filter((table) => table.name !== "Artists"),
-        );
-      }
-      return jsonResponse({ results: [] });
-    });
-    await assert.rejects(
-      () => listArtists(tableEnv),
-      (error) => error.status === 503,
-    );
+  it("fails when the ops database can't be reached", async () => {
+    await assert.rejects(() => listArtists({ SITE_ENV: "dev" }), /OPS_DB/);
   });
 
   it("moves the current artist to previous when someone else takes that badge", async () => {
-    const patches = [];
-    vi.spyOn(globalThis, "fetch").mockImplementation(
-      mockOpsBaserow(async (_input, init, url) => {
-        const method = init?.method || "GET";
-        if (method === "PATCH") {
-          patches.push(JSON.parse(init.body));
-          return jsonResponse(row({ id: 4, Slot: "previous" }));
-        }
-        if (method === "POST") {
-          const body = JSON.parse(init.body);
-          assert.equal(body.Slot, "current");
-          assert.equal(body.Name, "New Guest");
-          assert.equal(body["Artist name"], "Rita");
-          assert.equal(body["Start month"], "9");
-          assert.equal(body["End month"], "10");
-          assert.equal(body.Website, "https://rita.example");
-          return jsonResponse({
-            id: 9,
-            ...body,
-            Portrait: [],
-            Art: [],
-            "Gwenda photos": [],
-          });
-        }
-        return jsonResponse({ results: [row({ id: 4, Name: "Rita Matos" })] });
-      }));
-    const created = await createArtist(tableEnv, {
+    const { env, repo } = await world([{ id: 4, name: "Rita Matos", slot: "current" }]);
+    const created = await createArtist(env, {
       name: "New Guest",
       artistName: "Rita",
       website: "rita.example",
@@ -112,64 +79,23 @@ describe("listArtists / createArtist / deleteArtist", () => {
     });
     assert.equal(created.startMonth, "9");
     assert.equal(created.endMonth, "10");
-    assert.equal(created.id, "9");
     assert.equal(created.slot, "current");
     assert.equal(created.artistName, "Rita");
-    assert.deepEqual(patches, [{ Slot: "previous" }]);
+    assert.equal(created.website, "https://rita.example");
+    assert.equal((await repo.getArtist(4)).slot, "previous");
   });
 
   it("deletes a previous artist by id", async () => {
-    let deleted = "";
-    vi.spyOn(globalThis, "fetch").mockImplementation(
-      mockOpsBaserow(async (_input, init, url) => {
-        if ((init?.method || "GET") === "DELETE") {
-          deleted = url;
-          return jsonResponse({});
-        }
-        return jsonResponse(row({ id: 8, Name: "Ada", Slot: "previous" }));
-      }));
-    const result = await deleteArtist(tableEnv, "8");
-    assert.deepEqual(result, { ok: true, id: "8" });
-    assert.match(deleted, /\/rows\/table\/66\/8\//);
+    const { env, repo } = await world([{ id: 8, name: "Ada", slot: "previous" }]);
+    assert.deepEqual(await deleteArtist(env, "8"), { ok: true, id: "8" });
+    assert.equal(await repo.getArtist(8), null);
   });
 });
 
-const ASSET = "image-0a1b2c3d4e5f-1600x1000-jpg";
-const OTHER = "image-ffeeddccbbaa-800x600-png";
-const imageEnv = { ...tableEnv, SITE_ENV: "dev", SANITY_API_TOKEN: "sanity", SANITY_PROJECT_ID: "gwscpagy" };
-
-/** Ops Baserow and Sanity: the row as stored, every PATCH, every upload. */
-function imageWorld(stored, uploaded = ASSET) {
-  const patches = [];
-  const uploads = [];
-  vi.spyOn(globalThis, "fetch").mockImplementation(
-    mockOpsBaserow(async (_input, init, url) => {
-      if (url.includes("api.sanity.io") && url.includes("/assets/images/")) {
-        uploads.push(new URL(url).searchParams.get("filename"));
-        return jsonResponse({ document: { _id: uploaded } });
-      }
-      if (url.includes("/upload-file/")) throw new Error("photos don't go to Baserow any more");
-      if ((init?.method || "GET") === "PATCH") {
-        const body = JSON.parse(init.body);
-        patches.push(body);
-        return jsonResponse({ ...stored, ...body });
-      }
-      return jsonResponse(stored);
-    }));
-  return { patches, uploads };
-}
-
 describe("artist photos in Sanity (#183)", () => {
-  it("shows Sanity photos from the CDN, and files from before until they move", () => {
-    const artist = mapArtist(
-      row({
-        "Portrait asset": ASSET,
-        Portrait: [{ name: "old.jpg", url: "https://files.example/old.jpg" }],
-        "Art assets": JSON.stringify([{ asset: OTHER, label: "Blue.png" }]),
-        Art: [{ name: "stale.jpg", url: "https://files.example/stale.jpg" }],
-        "Gwenda assets": "",
-        "Gwenda photos": [{ name: "bar.jpg", url: "https://files.example/bar.jpg" }],
-      }),
+  it("shows Sanity photos from the CDN", () => {
+    const artist = shown(
+      { portrait: { asset: ASSET }, art: [{ asset: OTHER, label: "Blue.png" }], gwenda: [] },
       { projectId: "gwscpagy" },
     );
     assert.equal(artist.portrait.name, ASSET);
@@ -179,90 +105,62 @@ describe("artist photos in Sanity (#183)", () => {
       [[OTHER, "Blue.png"]],
     );
     assert.match(artist.art[0].thumb, /w=400/);
-    assert.deepEqual(
-      artist.gwenda.map((image) => image.url),
-      ["https://files.example/bar.jpg"],
-    );
-    const moved = mapArtist(row({ "Art assets": "[]", Art: [{ name: "x.jpg", url: "https://files.example/x.jpg" }] }));
-    assert.deepEqual(moved.art, [], "[] has moved: the old files no longer show");
+    assert.deepEqual(artist.gwenda, []);
   });
 
   it("uploads a photo to Sanity and adds its asset id to the list", async () => {
-    const stored = row({
-      id: 7,
-      "Portrait asset": OTHER,
-      "Art assets": JSON.stringify([{ asset: OTHER, label: "one.png" }]),
-    });
-    const { patches, uploads } = imageWorld(stored);
-    const artist = await setArtistImage(imageEnv, "7", new Uint8Array([1, 2]), {
+    const { env, uploads } = await world([
+      { id: 7, name: "Amina", slot: "current", portrait: { asset: OTHER }, art: [{ asset: OTHER, label: "one.png" }] },
+    ]);
+    const artist = await setArtistImage(env, "7", new Uint8Array([1, 2]), {
       filename: "two.jpg",
       contentType: "image/jpeg",
       kind: "art",
     });
     assert.deepEqual(uploads, ["two.jpg"]);
-    assert.deepEqual(patches, [
-      { "Art assets": JSON.stringify([{ asset: OTHER, label: "one.png" }, { asset: ASSET, label: "two.jpg" }]) },
-    ]);
     assert.deepEqual(
-      artist.art.map((image) => image.name),
-      [OTHER, ASSET],
+      artist.art.map((image) => [image.name, image.label]),
+      [
+        [OTHER, "one.png"],
+        [ASSET, "two.jpg"],
+      ],
     );
     assert.equal(artist.portrait.name, OTHER);
   });
 
   it("a new portrait replaces the old one", async () => {
-    const { patches } = imageWorld(row({ id: 7, Portrait: [{ name: "old.jpg", url: "https://files.example/old.jpg" }] }));
-    const artist = await setArtistImage(imageEnv, "7", new Uint8Array([1]), {
+    const { env } = await world([{ id: 7, name: "Amina", slot: "current", portrait: { asset: OTHER } }]);
+    const artist = await setArtistImage(env, "7", new Uint8Array([1]), {
       filename: "face.jpg",
       contentType: "image/jpeg",
       kind: "portrait",
     });
-    assert.deepEqual(patches, [{ "Portrait asset": ASSET }]);
-    assert.equal(artist.portrait.asset, ASSET);
+    assert.equal(artist.portrait.name, ASSET);
   });
 
-  it("waits for the backfill when the list is still Baserow files", async () => {
-    const { uploads } = imageWorld(row({ id: 7, Art: [{ name: "one.jpg", url: "https://files.example/one.jpg" }] }));
-    await assert.rejects(
-      () => setArtistImage(imageEnv, "7", new Uint8Array([1]), { filename: "a.jpg", contentType: "image/jpeg", kind: "art" }),
-      (error) => error.status === 409,
-    );
-    assert.deepEqual(uploads, []);
-  });
-
-  it("takes a photo off by its asset id, and the portrait with its old file", async () => {
-    const stored = row({
-      id: 7,
-      "Portrait asset": ASSET,
-      "Gwenda assets": JSON.stringify([{ asset: ASSET, label: "a" }, { asset: OTHER, label: "b" }]),
-    });
-    const { patches } = imageWorld(stored);
-    const artist = await clearArtistImage(imageEnv, "7", { kind: "gwenda", name: ASSET });
-    assert.deepEqual(artist.gwenda.map((image) => image.name), [OTHER]);
-    await clearArtistImage(imageEnv, "7", { kind: "portrait" });
-    assert.deepEqual(patches, [
-      { "Gwenda assets": JSON.stringify([{ asset: OTHER, label: "b" }]) },
-      { "Portrait asset": "", Portrait: [] },
+  it("takes a photo off by its asset id, and the portrait", async () => {
+    const { env } = await world([
+      {
+        id: 7,
+        name: "Amina",
+        slot: "current",
+        portrait: { asset: ASSET },
+        gwenda: [
+          { asset: ASSET, label: "a" },
+          { asset: OTHER, label: "b" },
+        ],
+      },
     ]);
-  });
-
-  it("still takes off a photo kept as a Baserow file", async () => {
-    const { patches } = imageWorld(
-      row({ id: 7, Art: [{ name: "one.jpg", url: "https://files.example/one.jpg" }, { name: "two.jpg", url: "https://files.example/two.jpg" }] }),
-    );
-    await clearArtistImage(imageEnv, "7", { kind: "art", name: "one.jpg" });
-    assert.deepEqual(patches, [{ Art: [{ name: "two.jpg" }] }]);
+    const artist = await clearArtistImage(env, "7", { kind: "gwenda", name: ASSET });
+    assert.deepEqual(artist.gwenda.map((image) => image.name), [OTHER]);
+    const cleared = await clearArtistImage(env, "7", { kind: "portrait" });
+    assert.equal(cleared.portrait, null);
   });
 });
 
-describe("artist use cases on D1 (#127)", () => {
-  it("keep one current artist and add photos, whatever holds them", async () => {
-    const artistRepository = d1ArtistRepository(createTestD1("ops"));
-    const env = { ...imageEnv, artistRepository };
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      if (String(input).includes("/assets/images/")) return jsonResponse({ document: { _id: ASSET } });
-      throw new Error(`unexpected ${input}`);
-    });
+describe("artist use cases", () => {
+  it("keep one current artist and add photos", async () => {
+    const { env } = await world();
     const first = await createArtist(env, { name: "Ada", slot: "current" });
     const second = await createArtist(env, { name: "Bea", slot: "current" });
     assert.equal((await getArtist(env, first.id)).slot, "previous");

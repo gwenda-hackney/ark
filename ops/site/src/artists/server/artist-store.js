@@ -12,7 +12,7 @@ import {
   normalizeArtistMonth,
   normalizeArtistSlot,
 } from "../../../../../shared/artists.js";
-import { fail, isFilePhoto, text } from "../../../../../shared/artists/artist-model.js";
+import { fail, text } from "../../../../../shared/artists/artist-model.js";
 import { parseImageAssetId } from "../../../../../shared/sanity-image.js";
 import { normalizeWebsite } from "../../../../../shared/web-address.js";
 import { sanityUploadImage } from "../../platform/sanity.js";
@@ -125,15 +125,12 @@ async function uploadArtistPhoto(env, bytes, { filename, contentType }) {
 
 /**
  * Add a photo: a new portrait replaces the old one, art and Gwenda photos
- * add to the list. A list still in Baserow files waits for the backfill.
+ * add to the list.
  */
 export async function setArtistImage(env, id, bytes, { filename, contentType, kind }) {
   const image = imageKind(kind);
   const artists = artistRepository(env);
   const record = await artistRecordOf(artists, id);
-  if (image !== "portrait" && record[image].some(isFilePhoto)) {
-    fail(409, "These photos are still being moved to Sanity. Try again after the next deploy.");
-  }
   const asset = await uploadArtistPhoto(env, bytes, { filename, contentType });
   const fields =
     image === "portrait"
@@ -145,8 +142,8 @@ export async function setArtistImage(env, id, bytes, { filename, contentType, ki
 }
 
 /**
- * Take a photo off the artist (`name`: its asset id, or a file name from
- * before). The Sanity asset stays: the live site may still show it.
+ * Take a photo off the artist (`name`: its asset id). The Sanity asset
+ * stays: the live site may still show it.
  */
 export async function clearArtistImage(env, id, { kind, name }) {
   const image = imageKind(kind);
@@ -156,6 +153,6 @@ export async function clearArtistImage(env, id, { kind, name }) {
   const fields =
     image === "portrait"
       ? { portrait: null }
-      : { [image]: record[image].filter((photo) => (photo.asset || photo.name) !== key) };
+      : { [image]: record[image].filter((photo) => photo.asset !== key) };
   return view(env, await artists.updateArtist(record.id, fields), "Could not read the artist after removing the photo.");
 }

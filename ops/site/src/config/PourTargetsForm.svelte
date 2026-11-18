@@ -94,7 +94,7 @@
 </script>
 
 <p class="lead">
-	Cocktails default to 20%, the usual mixed-drink target. Saved in Baserow for the whole
+	Cocktails default to 20%, the usual mixed-drink target. Saved for the whole
 	team.
 </p>
 {#if pourSettings.error && !pourSettings.saving}

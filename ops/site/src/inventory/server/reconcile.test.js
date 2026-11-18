@@ -28,7 +28,7 @@ const baseItem = {
   producer: "",
   onDigitalMenu: true,
   sanityId: "abc",
-  image: { asset: { url: "https://files.baserow.io/photo.jpg" } },
+  image: { asset: { url: "https://files.example.com/photo.jpg" } },
   ingredients: [{ name: "Bombay gin", quantity: 25, unit: "ml" }],
   glassware: "Coupe",
   method: "Shake",
@@ -43,7 +43,7 @@ describe("websiteProjection", () => {
     assert.equal(payload.description, "gin, italicus, soda");
     assert.equal(payload.price, "14");
     assert.equal(payload.sectionId, "");
-    assert.equal(payload.photo, "https://files.baserow.io/photo.jpg");
+    assert.equal(payload.photo, "https://files.example.com/photo.jpg");
     assert.equal(payload.onDigitalMenu, true);
     assert.equal("method" in payload, false);
     assert.equal("glassware" in payload, false);

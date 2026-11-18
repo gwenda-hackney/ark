@@ -130,18 +130,14 @@ function recordsById(records) {
   return new Map(records.map((record) => [record.id, record]));
 }
 
-/**
- * A drink's photo is a Sanity asset (#183). One from before is still a
- * Baserow file (legacyPhotoUrl, Baserow only) until the backfill
- * (migrations/2026-10-06-menu-photos-backfill.mjs) gives it an asset.
- */
+/** A drink's photo is a Sanity asset (#183). */
 function itemImage(record, projectId) {
   const name = text(record.name);
   const assetId = text(record.photoAsset);
   if (parseImageAssetId(assetId)) {
     return { alt: name, asset: { _id: assetId, url: sanityImageUrl(projectId, assetId) } };
   }
-  return record.legacyPhotoUrl ? { alt: name, asset: { url: record.legacyPhotoUrl } } : undefined;
+  return undefined;
 }
 
 /** What mapItem needs from the runtime: the Sanity project photos are shown from. */

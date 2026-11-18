@@ -1,31 +1,17 @@
 /**
  * What every UserRepository adapter must do (#186, #127): the same cases run
- * on memory, Baserow (the fake world) and D1 (SQLite with the real
- * migrations), plus the copy between them that data-move relies on.
+ * on memory and D1 (SQLite with the real migrations), plus the copy between them that data-move relies on.
  */
 import assert from "node:assert/strict";
-import { afterEach, describe, it } from "vitest";
+import { describe, it } from "vitest";
 import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
 import { repositoryContract } from "../../../../../shared/testing/repository-contract.js";
-import { createFakeWorld } from "../../testing/fake-world.js";
-import { baserowUserRepository } from "./adapters/baserow-users.js";
 import { d1UserRepository } from "./adapters/d1-users.js";
 import { memoryUserRepository } from "./adapters/memory-users.js";
 import { usersRepository } from "./user-repository.js";
 
-const worlds = [];
-afterEach(() => {
-  while (worlds.length) worlds.pop().restore();
-});
-
 const ADAPTERS = {
   memory: () => memoryUserRepository(),
-  baserow: async () => {
-    const world = await createFakeWorld();
-    world.install();
-    worlds.push(world);
-    return baserowUserRepository(world.env);
-  },
   d1: () => d1UserRepository(createTestD1("ops")),
 };
 
@@ -153,27 +139,12 @@ describe("UserRepository (d1) storage", () => {
 });
 
 describe("usersRepository", () => {
-  it("stays on Baserow until store:users says d1, then reads D1", async () => {
-    const world = await createFakeWorld();
-    world.install();
-    worlds.push(world);
+  it("reads the ops D1 database", async () => {
     const OPS_DB = createTestD1("ops");
     await d1UserRepository(OPS_DB).importAll({
       users: [{ id: 7, name: "On D1", email: "d1@gwenda.co.uk", active: true }],
     });
-    const env = { ...world.env, OPS_DB };
-
-    const onBaserow = await usersRepository(env).list();
-    assert.deepEqual(
-      onBaserow.map((u) => u.email),
-      ["editor@gwenda.co.uk"],
-    );
-
-    await OPS_DB.prepare(
-      "INSERT INTO _meta (key, value) VALUES ('store:users', 'd1')",
-    ).run();
-    // A new runtime: each one keeps the flag it read for a few seconds.
-    const onD1 = await usersRepository({ ...env }).list();
+    const onD1 = await usersRepository({ SITE_ENV: "dev", OPS_DB }).list();
     assert.deepEqual(
       onD1.map((u) => u.email),
       ["d1@gwenda.co.uk"],

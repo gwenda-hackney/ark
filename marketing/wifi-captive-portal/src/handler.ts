@@ -12,7 +12,7 @@ import { resolveRedirectUrl, resolveSubscribeTag } from "./types.js";
 import { authorizeGuest } from "./unifi.js";
 
 /**
- * The guests sign-up (the website's too), on D1; Baserow is retired (#234).
+ * The guests sign-up (the website's too), on D1.
  * Every guest is kept, seen today; `marketing` (the newsletter box) decides
  * the mailing list, and unticked never changes an address's consent. Tests
  * hand in a repository.

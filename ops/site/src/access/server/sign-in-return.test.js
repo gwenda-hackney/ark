@@ -2,7 +2,7 @@
  * Sign-in: the return path stays on this site. After the gate or Google
  * sign-in, the browser goes back to the page asked for (`next`), and whatever
  * `next` says, it lands on ops itself. Checked as a browser resolves the
- * Location it gets. Google and Baserow are faked.
+ * Location it gets. Google and the users list are faked.
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
@@ -10,7 +10,7 @@ import { protect as middleware } from "../../../functions/_middleware.js";
 import { onRequestGet as callback } from "../../../functions/api/auth/callback.js";
 import { onRequestGet as login } from "../../../functions/api/auth/login.js";
 import { AUTH_COOKIE_NAME, createSessionToken, parseCookies } from "./auth.js";
-import { resetBaserowClientForTests } from "../../../../../shared/baserow.js";
+import { memoryUserRepository } from "../../users/server/adapters/memory-users.js";
 import { resetUsersCacheForTests } from "../../users/server/user-store.js";
 
 const SITE = "https://gwenda-ops-dev.pages.dev";
@@ -19,7 +19,7 @@ const googleEnv = {
   GOOGLE_OAUTH_CLIENT_ID: "client-id",
   GOOGLE_OAUTH_CLIENT_SECRET: "client-secret",
   OPS_SESSION_SECRET: "test-session-secret",
-  BASEROW_API_KEY: "baserow-token",
+  usersRepository: memoryUserRepository([{ id: 1, name: "Editor", email: "editor@gwenda.co.uk", active: true }]),
 };
 
 /** `next` values that point somewhere other than a page on ops, as typed. */
@@ -61,14 +61,6 @@ function fakeGoogleAndUsers() {
     const url = new URL(typeof input === "string" ? input : input.url);
     const json = (body) => new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } });
     if (url.host === "oauth2.googleapis.com") return json({ id_token: idToken });
-    if (url.pathname === "/api/database/tables/all-tables/") {
-      return json(
-        ["Menu Sections", "Menu Items", "Ingredients", "Users"].map((name, i) => ({ id: i + 1, name, database_id: 7 })),
-      );
-    }
-    if (url.pathname === "/api/database/rows/table/4/") {
-      return json({ results: [{ Email: "editor@gwenda.co.uk", Active: true }], next: null });
-    }
     throw new Error(`Unexpected fetch ${url}`);
   };
 }
@@ -94,7 +86,6 @@ describe("sign-in: return path stays on this site", () => {
   const realFetch = globalThis.fetch;
   beforeEach(() => {
     resetUsersCacheForTests();
-    resetBaserowClientForTests();
   });
   afterEach(() => {
     globalThis.fetch = realFetch;

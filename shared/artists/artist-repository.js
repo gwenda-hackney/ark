@@ -18,22 +18,14 @@
  *   importAll(snapshot)          memory and D1: replace everything, keeping ids
  *
  * Rules (one current and one next, checks on input, photos waiting for the
- * backfill) live in ops' artist-store.js. Baserow until `store:artists` in
- * ops D1 says d1 (shared/data-store.js). The website reads it too: through
+ * backfill) live in ops' artist-store.js. Artists live in the ops D1
+ * database (#127). The website reads it too: through
  * its OPS_DB binding at runtime, over the D1 API in the build.
  */
 import { databaseFor } from "../d1-env.js";
-import { switchedRepository } from "../data-store.js";
-import { baserowArtistRepository } from "./baserow-artists.js";
 import { d1ArtistRepository } from "./d1-artists.js";
 
 /** The repository for this runtime. Tests may hand one in as env.artistRepository. */
 export function artistRepository(env) {
-  return (
-    env?.artistRepository ||
-    switchedRepository(env, "artists", {
-      baserow: (env) => baserowArtistRepository(env),
-      d1: (env) => d1ArtistRepository(databaseFor(env, "ops")),
-    })
-  );
+  return env?.artistRepository || d1ArtistRepository(databaseFor(env, "ops"));
 }

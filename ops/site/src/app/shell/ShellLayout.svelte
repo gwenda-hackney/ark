@@ -79,11 +79,7 @@
 	const envDetail = $derived(
 		!me
 			? ""
-			: [
-					me.envLabel,
-					me.databaseId ? `Baserow DB ${me.databaseId}` : "Baserow DB not reachable",
-					me.databaseLabel,
-				].join(" · "),
+			: [me.envLabel, me.databaseLabel].join(" · "),
 	);
 	/** Read-only while their data moves to the new database (#191). */
 	const frozen = $derived(me?.frozen ?? []);
@@ -95,8 +91,8 @@
 			: me.risk
 				? `${me.envLabel} is using ${me.databaseLabel}. Check this before you edit.`
 				: me.siteEnv === "local"
-				? `Local · edits go to Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}), not production.`
-				: `${me.envLabel} · Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}).`,
+				? `Local · edits go to ${me.databaseLabel}, not production.`
+				: `${me.envLabel} · ${me.databaseLabel}.`,
 	);
 
 	onMount(() => {

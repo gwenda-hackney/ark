@@ -75,7 +75,7 @@ describe("storeFormSubmission", () => {
 
   it("says it could not save, and alerts, when storage fails", async () => {
     vi.spyOn(repo, "create").mockRejectedValue(
-      Object.assign(new Error("Baserow 500: boom"), { status: 502 }),
+      Object.assign(new Error("D1 500: boom"), { status: 502 }),
     );
     const result = await storeFormSubmission(env, {
       form: play,

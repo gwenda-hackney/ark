@@ -47,7 +47,7 @@ Gitflow-style: `develop` is WIP, `main` is dev, `release` is prod's preview, and
 
 Pushing `release` does not change the live site. Emergency hotfixes land on `main`, then `release`, then promote. Leave `develop` WIP alone.
 
-Schema and site code follow git. Content lives in one Sanity dataset per environment; ops publishes drafts to put them live. Baserow subscribers and RSVPs are not copied.
+Schema and site code follow git. Content lives in one Sanity dataset per environment; ops publishes drafts to put them live. Subscribers and RSVPs are not copied.
 
 ## Layout
 

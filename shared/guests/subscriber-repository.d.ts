@@ -23,7 +23,4 @@ export type SubscriberRepository = {
   exportAll(): Promise<{ subscribers: SubscriberRecord[] }>;
 };
 
-export function subscriberRepository(
-  env: unknown,
-  options?: { baserow?: (env: any) => SubscriberRepository },
-): SubscriberRepository;
+export function subscriberRepository(env: unknown): SubscriberRepository;

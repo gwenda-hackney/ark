@@ -1,7 +1,7 @@
 # Gwenda ops site
 
 Internal ops tools on Cloudflare Pages with a shared Svelte shell (collapsible rail).
-Auth is Google OAuth in the app (local and production). Membership is Baserow Users.
+Auth is Google OAuth in the app (local and production). Membership is the users list in D1.
 
 Live: [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)
 
@@ -13,13 +13,13 @@ ops/site/                 one package: @gwenda/ops
 │   ├── events/  menu/  inventory/  artists/  forms/  users/
 │   ├── website/  config/  home/  access/ (sign-in)
 │   │     each holds its screens (.svelte), logic (.ts/.js) and tests (*.test.*);
-│   │     server/ inside it holds its Baserow, Sanity and Google code (Functions only)
+│   │     server/ inside it holds its D1, Sanity and Google code (Functions only)
 │   ├── app/              App.svelte, main.ts, shell/, navigation, routing, API client, money format
 │   ├── ui/               shared components (grid, fields, dialogs, toast…) and theme/
-│   ├── platform/         server building blocks: Sanity, Google, HTTP, log, config (Baserow is in /shared)
+│   ├── platform/         server building blocks: Sanity, Google, HTTP, log, config (D1 helpers are in /shared)
 │   └── testing/          the fake world for use-case tests
 ├── functions/            Pages Functions routes only: middleware and /api/*, calling src/
-├── scripts/              ops-only tooling: setup-baserow (npm run setup:baserow-ops), LWC price list, supplier enrichment; data/
+├── scripts/              ops-only tooling: LWC price list, supplier enrichment; data/
 ├── public/               served as-is: gate/ (sign-in page), icons, robots.txt
 ├── dist/                 build output (gitignored): `npm run build`, deployed by CI
 ├── index.html  vite.config.ts  svelte.config.js  tsconfig.json
@@ -66,16 +66,15 @@ Old hash URLs (`/#/menu`) still resolve to the path routes. Drink and inventory 
 
 Theme/UI primitives mirror trading’s `shell.web` (Gwenda colours + Ysabeau/Roboto).
 
-## Auth (Google OAuth + Baserow Users)
+## Auth (Google OAuth + the users list)
 
-The same Google login works on **localhost** (`npm run ops:prod`) and **gwenda-ops.pages.dev**. Who may use ops lives in the Baserow **Users** table (Email + Active), managed at `/users`.
+The same Google login works on **localhost** (`npm run ops:prod`) and **gwenda-ops.pages.dev**. Who may use ops lives in the D1 **users** table (email + active), managed at `/users`.
 
 ```bash
 # Secrets Manager (loaded after bw-unlock); the client id is in wrangler [vars]
 GOOGLE_OAUTH_CLIENT_SECRET=…
 OPS_SESSION_SECRET=…          # signs the app session cookie (not from Google)
 
-npm run setup:baserow-ops     # creates Users (and other Ops tables)
 npm run setup:ops             # Pages secrets
 ```
 
@@ -103,21 +102,22 @@ There are no roles: an active user sees all of ops (recipes and trade prices, fo
 
 | Data | Store |
 |------|--------|
-| Recipes, ingredients, method, glass, garnish | **Baserow** `Menu Items` + `Ingredients` |
-| Drink photos | **Sanity** image assets, uploaded straight from ops (#183); Menu Items `Photo asset` holds the asset id. Older photos are a Baserow file (`Photo`) until the backfill. |
-| Where a drink appears (print / digital / POS) | **Baserow** `Menu placements` (channel + section or POS menu/screen). Legacy Section / On print / On digital / POS menus fields are mirrored for compatibility. |
-| Lightspeed menus catalog (Fall 2026, Gwenda, …) | **Baserow** `POS Menus`. Manage at `/lightspeed/menus`. |
-| Lightspeed till screen path | **Baserow** `Menu placements` POS screen (also mirrored on Menu Items `Lightspeed menu/screen`). |
-| Menu chapters and groups (Our Formulas, Spritz, Draught Beer…) | **Baserow** `Menu Sections` (parent + order). Nested tree on `GET /api/menu`. Edit in the menu **Sections** panel. |
-| Bar stock / ABV catalog | **Baserow** `Inventory` |
-| Wholesalers, product pages, and pack prices | **Baserow** `Suppliers` plus junction `Inventory suppliers` (SKU, pack, trade price, product URL) |
-| Who may sign in to ops | **Baserow** `Users` (Email, Active). Manage in the app at `/users`, or in Baserow. |
-| House pour-cost targets and other non-secret knobs | **Baserow** `Gwenda Config` database (Name, Value, Env, Service), shared with the website and never copied with Ops data. Edit pour targets at `/config`. |
+| Recipes, ingredients, method, glass, garnish | **D1** `gwenda-ops`: `menu_items` + `ingredients` |
+| Drink photos | **Sanity** image assets, uploaded straight from ops (#183); the drink keeps the asset id (`photoAsset`). |
+| Where a drink appears (print / digital / POS) | **D1** `menu_placements` (channel + section or POS menu/screen). |
+| Lightspeed menus catalog (Fall 2026, Gwenda, …) | **D1** `pos_menus`. Manage at `/lightspeed/menus`. |
+| Menu chapters and groups (Our Formulas, Spritz, Draught Beer…) | **D1** `menu_sections` (parent + order). Nested tree on `GET /api/menu`. Edit in the menu **Sections** panel. |
+| Bar stock / ABV catalog | **D1** `inventory` |
+| Wholesalers, product pages, and pack prices | **D1** `suppliers` plus `inventory_suppliers` (SKU, pack, trade price, product URL) |
+| Events, nights, artists, opening hours, the weekly email's runs | **D1** `gwenda-ops` |
+| Subscribers and form submissions | **D1** `gwenda-website` (bound as `WEBSITE_DB`) |
+| Who may sign in to ops | **D1** `users` (email, active). Manage in the app at `/users`. |
+| House pour-cost targets and other non-secret knobs | **D1** `gwenda-config` (name, value, env, service), shared with the website and never copied with ops data. Edit pour targets at `/config`. |
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 
-The menu and inventory tables above (sections, drinks, recipe lines, placements, POS menus, stock, suppliers and their links) are reached only through the menu repository (`src/menu/server/menu-repository.js`, #186). They move to D1 (`db/ops/migrations/0005_menu.sql`) with `npm run data:move -- --feature menu` and switch over when `store:menu` says `d1` ([db/README.md](../../db/README.md)).
+Each feature's data is reached only through its repository (e.g. `src/menu/server/menu-repository.js`, #186); schema in `db/ops/migrations/` ([db/README.md](../../db/README.md)). RSVP and event invites are the one thing still on Baserow, until #237.
 
-Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section) from Baserow into Sanity as **drafts**, and points each drink at its photo's asset. It matches by stored Sanity ID or name, creates missing sections/items, and the preview site rebuilds once edits go quiet. They go live when ops publishes them (Website → Preview → live). In local ops this writes the Gwenda Dev copy instead.
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section) from the menu into Sanity as **drafts**, and points each drink at its photo's asset. It matches by stored Sanity ID or name, creates missing sections/items, and the preview site rebuilds once edits go quiet. They go live when ops publishes them (Website → Preview → live). In local ops this writes the Gwenda Dev copy instead.
 
 ## Weekly email
 
@@ -167,7 +167,7 @@ npm run ops:dev
 - The app, with HMR: [http://127.0.0.1:5174/](http://127.0.0.1:5174/). Use this one.
 - Pages Functions and `public/` (sign-in gate, icons): [http://127.0.0.1:8788/](http://127.0.0.1:8788/). Vite proxies `/api` and `/gate` here.
 
-Secrets come from Secrets Manager (env `dev`) after `bw-unlock`, loaded in memory and mapped to ops runtime names by `ops-dev` / `with-ops-env`; Wrangler reads them through `.dev.vars`, which is only a symlink to a per-run file in RAM (`/dev/shm`) while `ops:dev` runs; the secrets never touch the repo disk. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets, the web origin for form resends) load from the Baserow **Gwenda Config** database with `BASEROW_CONFIG_API_KEY`. See [docs/config.md](../../docs/config.md).
+Secrets come from Secrets Manager (env `dev`) after `bw-unlock`, loaded in memory and mapped to ops runtime names by `ops-dev` / `with-ops-env`; Wrangler reads them through `.dev.vars`, which is only a symlink to a per-run file in RAM (`/dev/shm`) while `ops:dev` runs; the secrets never touch the repo disk. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets, the web origin for form resends) load from dev's D1 config database over the API, with dev's Cloudflare token. See [docs/config.md](../../docs/config.md).
 
 ```bash
 bw-unlock        # if a script says the vault is locked

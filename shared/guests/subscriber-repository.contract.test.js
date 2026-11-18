@@ -1,7 +1,6 @@
 /**
  * What every SubscriberRepository adapter must do (#186): memory and D1
- * (SQLite with the real migrations). Baserow (retired, #234) can't hold
- * marketing consent, so it's no longer held to this.
+ * (SQLite with the real migrations).
  */
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
@@ -300,7 +299,7 @@ describe("SubscriberRepository: one record per address", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const failing = (status) => ({
       listByEmail: async () => {
-        throw Object.assign(new Error(`Baserow ${status}: nope`), { status });
+        throw Object.assign(new Error(`D1 ${status}: nope`), { status });
       },
     });
     const result = (status) =>

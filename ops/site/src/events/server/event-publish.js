@@ -444,7 +444,7 @@ export async function publishEventPreview(
       ? { dates: forTasks, warnings: [] }
       : await syncSocialTasks(env, event, forTasks);
   warnings.push(...tasks.warnings);
-  // One Baserow write per changed night only: a series has a dozen nights and
+  // One database write per changed night only: a series has a dozen nights and
   // Cloudflare allows 50 outbound calls per request on the free plan.
   const changed = [];
   for (const { unchanged, previousTaskId, ...occurrence } of tasks.dates) {

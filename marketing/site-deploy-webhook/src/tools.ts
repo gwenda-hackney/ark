@@ -9,8 +9,6 @@ import type { Env, HandlerResult, WorkflowRun } from "./types";
 
 export const DEV_COPY_WORKFLOW_FILE = "copy-prod-to-dev.yml";
 export const DEV_COPY_TARGETS = new Set(["everything", "content", "ops-data", "website-data"]);
-/** Targets ops sent before the copy took content too (POST /baserow-copy). */
-const LEGACY_TARGETS: Record<string, string> = { "ops-dev": "ops-data", "website-dev": "website-data" };
 
 const SHA = /^[0-9a-f]{7,40}$/i;
 
@@ -85,7 +83,6 @@ async function latestCopyRun(env: Env, after: number): Promise<WorkflowRun | nul
 
 /**
  * POST /dev-copy { target: "everything" | "content" | "ops-data" | "website-data" }
- * (also POST /baserow-copy, which older ops sends "ops-dev" | "website-dev" to).
  */
 export async function handleDevCopy(request: Request, env: Env): Promise<HandlerResult> {
   // Reads production, so production ops only.
@@ -100,8 +97,7 @@ export async function handleDevCopy(request: Request, env: Env): Promise<Handler
   } catch {
     body = null;
   }
-  const raw = String(body?.target || "");
-  const target = LEGACY_TARGETS[raw] || raw;
+  const target = String(body?.target || "");
   if (!DEV_COPY_TARGETS.has(target)) {
     return { status: 400, body: { error: `target must be one of: ${[...DEV_COPY_TARGETS].join(", ")}.` } };
   }

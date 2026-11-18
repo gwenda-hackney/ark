@@ -51,7 +51,7 @@ describe("withApiHandler", () => {
   it("passes through 4xx status from thrown errors", async () => {
     const { log, records } = capturingLog();
     const handler = withApiHandler(async () => {
-      const error = new Error("Baserow 429: Request was throttled.");
+      const error = new Error("D1 429: Request was throttled.");
       error.status = 429;
       throw error;
     });
@@ -61,7 +61,7 @@ describe("withApiHandler", () => {
     });
     assert.equal(response.status, 429);
     await assert.deepEqual(await response.json(), {
-      error: "Baserow 429: Request was throttled.",
+      error: "D1 429: Request was throttled.",
     });
     assert.equal(records[0].err.status, 429);
   });

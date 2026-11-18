@@ -6,7 +6,7 @@ name: PR checks
 # of it, so a PR never needs updating after another merges. Website builds and previews come
 # from the branch push (web.yml branch preview); this workflow adds what
 # nothing else runs: lint, and ops tests and build before merge. No secrets:
-# nothing here talks to Baserow, Sanity or Cloudflare.
+# nothing here talks to Sanity, D1 or Cloudflare.
 
 on:
   pull_request:

@@ -1,18 +1,16 @@
 /**
  * The artists domain (#186): wall artists and guest artists as records, the
  * rules every adapter keeps them by, and how ops and the website show them.
- * No storage here: adapters (baserow-artists.js, d1-artists.js,
- * memory-artists.js) turn records into rows.
+ * No storage here: adapters (d1-artists.js, memory-artists.js) turn
+ * records into rows.
  *
  * ArtistRecord: { id, name, slot, artistName, website, profile, bio,
  *   startMonth, endMonth, portrait, art, gwenda }
- * - id: number (Baserow's row id, kept in D1)
+ * - id: number
  * - slot: "current" | "next" | "previous", or "" for a row that isn't one
  * - startMonth / endMonth: "1"–"12" or ""
  * - portrait: Photo or null; art, gwenda: Photo[]
- * Photo: { asset, label }, a Sanity image asset (#183). Until the backfill,
- * Baserow may still hand back a photo kept as a file:
- * { name, label, url, thumb } with no asset. D1 holds no files.
+ * Photo: { asset, label }, a Sanity image asset (#183).
  *
  * GuestArtistRecord: { id, email, decision, artistName, artistLink }, one per
  * email (lower case). decision: "Approved", "Declined" or "".
@@ -86,34 +84,14 @@ export function sanityPhoto(entry) {
   return { asset, label: text(entry?.label) };
 }
 
-/** A photo as kept: a Sanity one, or a Baserow file from before (#183). */
-export function storedPhoto(entry) {
-  const photo = sanityPhoto(entry);
-  if (photo) return photo;
-  const name = text(entry?.name);
-  const url = text(entry?.url);
-  if (!name && !url) return null;
-  return {
-    name,
-    label: text(entry?.label) || name,
-    url,
-    thumb: text(entry?.thumb) || url,
-  };
-}
-
-/** True when a photo is still a Baserow file: it waits for the backfill. */
-export function isFilePhoto(photo) {
-  return Boolean(photo) && !photo.asset;
-}
-
-/** A portrait keeps no label of its own (only a file from before has one). */
+/** A portrait keeps no label of its own. */
 function portraitPhoto(entry) {
-  const photo = storedPhoto(entry);
-  return photo?.asset ? { asset: photo.asset, label: "" } : photo;
+  const photo = sanityPhoto(entry);
+  return photo ? { asset: photo.asset, label: "" } : null;
 }
 
 function photos(list) {
-  return Array.isArray(list) ? list.map(storedPhoto).filter(Boolean) : [];
+  return Array.isArray(list) ? list.map(sanityPhoto).filter(Boolean) : [];
 }
 
 /** A full ArtistRecord from any fields, cleaned the way every adapter keeps them. */
@@ -135,7 +113,7 @@ export function artistRecord(fields = {}) {
 }
 
 /**
- * True for a row with nothing in it at all (an empty Baserow grid row). A
+ * True for a record with nothing in it at all. A
  * row with no slot but anything else is kept: it may be an artist being
  * prepared.
  */
@@ -218,16 +196,10 @@ export function artistImage(asset, label, projectId) {
   };
 }
 
-/** A photo as shown: from the CDN, or a Baserow file's own address. */
+/** A photo as shown: from the Sanity CDN. */
 function photoView(photo, projectId) {
   if (!photo) return null;
-  if (photo.asset) return artistImage(photo.asset, photo.label, projectId);
-  return {
-    name: photo.name,
-    label: photo.label,
-    url: photo.url,
-    thumb: photo.thumb,
-  };
+  return artistImage(photo.asset, photo.label, projectId);
 }
 
 /** An artist as ops and the website show them; null for a row with no slot. */

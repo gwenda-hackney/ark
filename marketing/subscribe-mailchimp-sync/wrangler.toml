@@ -5,13 +5,12 @@ compatibility_flags = ["nodejs_compat"]
 account_id = "1c23e160e39a187ce33fe192595c4a7f"
 
 [vars]
-BASEROW_API_URL = "https://api.baserow.io"
 MAILCHIMP_AUDIENCE_ID = "e2c69d5d31"
 
 [triggers]
 crons = ["0 * * * *"]
 
-# D1 (#127): the website database only, for subscribers. Unused until guests move.
+# D1 (#127): the website database only, for subscribers.
 [[d1_databases]]
 binding = "WEBSITE_DB"
 database_name = "gwenda-website"

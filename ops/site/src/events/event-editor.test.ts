@@ -197,9 +197,9 @@ describe("EventEditor: saving a series", () => {
 	it("shows the error and stays put when saving fails", async () => {
 		const editor = await open("/events/ev1");
 		editor.form.offer = "£12";
-		api.updateEvent.mockRejectedValue(new Error("Baserow is down."));
+		api.updateEvent.mockRejectedValue(new Error("The database is down."));
 		await editor.onSave(submit());
-		assert.equal(editor.error, "Baserow is down.");
+		assert.equal(editor.error, "The database is down.");
 		assert.equal(editor.formDirty, true, "the edit is kept");
 		assert.equal(editor.saving, false);
 	});

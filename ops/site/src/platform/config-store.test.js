@@ -1,49 +1,32 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it, vi } from "vitest";
-import { resetBaserowClientForTests } from "../../../../shared/baserow.js";
+import { afterEach, describe, it } from "vitest";
+import { memoryConfigRepository } from "../../../../shared/config-adapters/memory-config.js";
 import {
   DEFAULT_POUR_TARGETS,
+  applyOpsAppConfig,
   getPourTargets,
   pourTargetsFromValues,
   resetConfigCacheForTests,
   setPourTargets,
   siteEnvName,
-  valuesFromRows,
 } from "./config-store.js";
-import { jsonResponse, mockOpsBaserow } from "../testing/test-baserow-mock.js";
 
 afterEach(() => {
-  vi.restoreAllMocks();
-  resetBaserowClientForTests();
   resetConfigCacheForTests();
 });
 
-const tableEnv = {
-  BASEROW_CONFIG_API_KEY: "config-token",
+/** A dev env whose config database holds these records. */
+const envWith = (records = [], extra = {}) => ({
   SITE_ENV: "dev",
-};
+  configRepository: memoryConfigRepository(records),
+  ...extra,
+});
 
 describe("siteEnvName", () => {
   it("normalizes local aliases", () => {
     assert.equal(siteEnvName({ SITE_ENV: "local" }), "dev");
     assert.equal(siteEnvName({ SITE_ENV: "dev" }), "dev");
     assert.throws(() => siteEnvName({}), /SITE_ENV is not set/);
-  });
-});
-
-describe("valuesFromRows", () => {
-  it("prefers env-specific rows over all", () => {
-    const values = valuesFromRows(
-      [
-        { Name: "pour_target.cocktail", Value: "20", Env: "all", Service: "ops" },
-        { Name: "pour_target.cocktail", Value: "22", Env: "dev", Service: "ops" },
-        { Name: "other", Value: "x", Env: "production", Service: "ops" },
-      ],
-      "dev",
-      "ops",
-    );
-    assert.equal(values["pour_target.cocktail"], "22");
-    assert.equal(values.other, undefined);
   });
 });
 
@@ -58,101 +41,46 @@ describe("pourTargetsFromValues", () => {
 });
 
 describe("getPourTargets", () => {
-  it("reads config rows for ops", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(
-      mockOpsBaserow(async (_input, _init, url) => {
-        assert.match(url, /\/rows\/table\/88\//);
-        return jsonResponse({
-          results: [
-            {
-              id: 1,
-              Name: "pour_target.cocktail",
-              Value: "24",
-              Env: "all",
-              Service: "ops",
-            },
-          ],
-        });
-      }));
-    assert.deepEqual(await getPourTargets(tableEnv), {
+  it("reads config records for ops, this env's over all", async () => {
+    const env = envWith([
+      { name: "pour_target.cocktail", value: "20", env: "all", service: "ops" },
+      { name: "pour_target.cocktail", value: "24", env: "dev", service: "ops" },
+      { name: "pour_target.beer", value: "30", env: "production", service: "ops" },
+    ]);
+    assert.deepEqual(await getPourTargets(env), {
       ...DEFAULT_POUR_TARGETS,
       cocktail: 24,
     });
   });
 
-  it("returns defaults without a config token", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation( async () => {
-      throw new Error("should not fetch");
-    });
+  it("returns defaults when the config database can't be reached", async () => {
     assert.deepEqual(await getPourTargets({ SITE_ENV: "local" }), DEFAULT_POUR_TARGETS);
-  });
-
-  it("returns defaults when the config table is missing", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation( async (input) => {
-      const url = String(input);
-      if (url.includes("/tables/all-tables/")) {
-        return jsonResponse([
-          { id: 1, name: "Menu Sections", database_id: 9 },
-          { id: 2, name: "Menu Items", database_id: 9 },
-          { id: 3, name: "Ingredients", database_id: 9 },
-        ]);
-      }
-      return jsonResponse({ results: [] });
-    });
-    assert.deepEqual(await getPourTargets(tableEnv), DEFAULT_POUR_TARGETS);
   });
 });
 
 describe("applyOpsAppConfig", () => {
   it("fills missing plain settings from config", async () => {
-    const { applyOpsAppConfig } = await import("./config-store.js");
-    vi.spyOn(globalThis, "fetch").mockImplementation(
-      mockOpsBaserow(async () =>
-        jsonResponse({
-          results: [
-            {
-              id: 1,
-              Name: "sanity.project_id",
-              Value: "pn5yjro6",
-              Env: "all",
-              Service: "ops",
-            },
-            {
-              id: 2,
-              Name: "google.oauth_client_id",
-              Value: "client.apps.googleusercontent.com",
-              Env: "all",
-              Service: "ops",
-            },
-          ],
-        }),
-      ));
-    const env = await applyOpsAppConfig({ BASEROW_CONFIG_API_KEY: "config-token", SITE_ENV: "local" });
+    const env = await applyOpsAppConfig(
+      envWith([
+        { name: "sanity.project_id", value: "pn5yjro6", env: "all", service: "ops" },
+        { name: "google.oauth_client_id", value: "client.apps.googleusercontent.com", env: "all", service: "ops" },
+      ]),
+    );
     assert.equal(env.SANITY_PROJECT_ID, "pn5yjro6");
     assert.equal(env.GOOGLE_OAUTH_CLIENT_ID, "client.apps.googleusercontent.com");
   });
 });
 
 describe("setPourTargets", () => {
-  it("creates this env's pour-target rows, never Env=all", async () => {
-    const posts = [];
-    vi.spyOn(globalThis, "fetch").mockImplementation(
-      mockOpsBaserow(async (_input, init, url) => {
-        if (url.includes("/rows/table/88/") && (!init.method || init.method === "GET")) {
-          return jsonResponse({ results: [] });
-        }
-        if (init.method === "POST") {
-          posts.push(JSON.parse(init.body));
-          return jsonResponse({ id: posts.length, ...JSON.parse(init.body) }, 200);
-        }
-        throw new Error(`unexpected ${init.method} ${url}`);
-      }));
-    const next = await setPourTargets(tableEnv, { cocktail: 21 });
+  it("creates this env's pour-target records, never Env=all", async () => {
+    const env = envWith();
+    const next = await setPourTargets(env, { cocktail: 21 });
     assert.equal(next.cocktail, 21);
-    assert.equal(posts.length, 4);
-    assert.equal(posts[0].Name, "pour_target.cocktail");
-    assert.equal(posts[0].Value, "21");
-    assert.equal(posts[0].Env, "dev");
-    assert.equal(posts[0].Service, "ops");
+    const records = await env.configRepository.list();
+    assert.equal(records.length, 4);
+    const cocktail = records.find((r) => r.name === "pour_target.cocktail");
+    assert.equal(cocktail.value, "21");
+    assert.equal(cocktail.env, "dev");
+    assert.equal(cocktail.service, "ops");
   });
 });

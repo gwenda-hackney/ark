@@ -36,7 +36,7 @@
  *                              with who and when, for a copy
  *   importAll(snapshot)        replace everything with a copy's
  *
- * Born on D1: there is no Baserow adapter.
+ * Born on D1.
  */
 import { databaseFor } from "../../../../../shared/d1-env.js";
 import { d1VenueRepository } from "./adapters/d1-venue.js";

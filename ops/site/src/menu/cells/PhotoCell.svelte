@@ -9,7 +9,7 @@
 		size?: "sm" | "md" | "lg";
 	} = $props();
 
-	/** Sanity CDN can crop; Baserow files cannot — leave those alone. */
+	/** Sanity CDN can crop; other hosts cannot — leave those alone. */
 	const src = $derived.by(() => {
 		const raw = String(url || "").trim();
 		if (!raw) return "";

@@ -1,6 +1,6 @@
 /**
  * Contract tests for a repository (#186, #194): every adapter (memory,
- * Baserow, D1, …) must pass the same cases, so switching adapters is proved
+ * D1, …) must pass the same cases, so switching adapters is proved
  * by the tests rather than hoped for. Each feature supplies its adapters and
  * cases; the copy round trip (exportAll → importAll) is shared.
  *

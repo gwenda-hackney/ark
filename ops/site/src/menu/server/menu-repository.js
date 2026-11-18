@@ -17,20 +17,12 @@
  *   importAll(snapshot)             memory and D1: replace everything, keeping ids
  *
  * Rules (unique names, placements, recipe metrics) live in the stores.
- * Baserow until `store:menu` in ops D1 says d1 (shared/data-store.js).
+ * Menu and inventory live in the ops D1 database (#127).
  */
 import { databaseFor } from "../../../../../shared/d1-env.js";
-import { switchedRepository } from "../../../../../shared/data-store.js";
-import { baserowMenuRepository } from "./adapters/baserow-menu.js";
 import { d1MenuRepository } from "./adapters/d1-menu.js";
 
 /** The repository for this runtime. Tests may hand one in as env.menuRepository. */
 export function menuRepository(env) {
-  return (
-    env?.menuRepository ||
-    switchedRepository(env, "menu", {
-      baserow: (env) => baserowMenuRepository(env),
-      d1: (env) => d1MenuRepository(databaseFor(env, "ops")),
-    })
-  );
+  return env?.menuRepository || d1MenuRepository(databaseFor(env, "ops"));
 }

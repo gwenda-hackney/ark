@@ -13,20 +13,12 @@
  *   importAll(snapshot)  memory and D1: replace every user, keeping ids
  *
  * Rules (valid emails, no duplicates, names) live in user-store.js.
- * Baserow until `store:users` in ops D1 says d1 (shared/data-store.js).
+ * Users live in the ops D1 database (#127).
  */
 import { databaseFor } from "../../../../../shared/d1-env.js";
-import { switchedRepository } from "../../../../../shared/data-store.js";
-import { baserowUserRepository } from "./adapters/baserow-users.js";
 import { d1UserRepository } from "./adapters/d1-users.js";
 
 /** The repository for this runtime. Tests may hand one in as env.usersRepository. */
 export function usersRepository(env) {
-  return (
-    env?.usersRepository ||
-    switchedRepository(env, "users", {
-      baserow: (env) => baserowUserRepository(env),
-      d1: (env) => d1UserRepository(databaseFor(env, "ops")),
-    })
-  );
+  return env?.usersRepository || d1UserRepository(databaseFor(env, "ops"));
 }

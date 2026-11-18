@@ -157,7 +157,7 @@ describe("GET /api/health/errors", () => {
     });
     const response = await onRequestGet({
       request: new Request("https://gwenda-ops-dev.pages.dev/api/health/errors"),
-      env: { SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "" },
+      env: { SITE_ENV: "dev" },
       params: {},
       data: { opsEnv: { SITE_ENV: "dev" } },
       waitUntil() {},

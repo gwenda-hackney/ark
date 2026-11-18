@@ -3,7 +3,7 @@
  * (db/config/migrations/0002_config.sql). A set is one upsert on the
  * name + env + service key, so two writers at once update one row.
  *
- * list() is cached for CONFIG_CACHE_TTL_MS like the Baserow adapter's, per
+ * list() is cached for CONFIG_CACHE_TTL_MS per
  * `cacheKey` (the database, unless the caller names it).
  */
 import { exportTables, d1Table, importTables } from "../d1-table.js";
@@ -34,7 +34,7 @@ export function resetD1ConfigCacheForTests() {
   cache.clear();
 }
 
-/** Like Baserow's: "can't read config" is a 503, so callers with a default use it. */
+/** "Can't read config" is a 503, so callers with a default use it. */
 function unavailable(error) {
   const wrapped = new Error(`Config D1: ${error?.message || error}`);
   wrapped.status = 503;

@@ -4,10 +4,8 @@ compatibility_date = "2026-07-01"
 # Form emails (shared/gmail-send.js) build the message with nodemailer.
 compatibility_flags = ["nodejs_compat"]
 
-# The Baserow token (BASEROW_API_KEY, a Pages secret) picks the workspace: the
-# production token sees Gwenda. Database and table ids are resolved by table
-# names at runtime; none are configured.
-# Non-secret knobs live in the Baserow config database (docs/config.md).
+# Data lives in the D1 databases bound below.
+# Non-secret knobs live in the D1 config database (docs/config.md).
 [vars]
 SITE_ENV = "production"
 SANITY_PROJECT_ID = "pn5yjro6"

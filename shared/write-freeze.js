@@ -1,7 +1,7 @@
 /**
- * Write freeze (#191): while a feature's data moves from Baserow to D1
- * (#127), nothing may change it, or the change is lost between the copy and
- * the switch. Reads carry on.
+ * Write freeze (#191): while a feature's data is copied into a D1 database
+ * (data-move, #127), nothing may change it there, or the change is lost under
+ * the copy. Reads carry on.
  *
  * The flag lives with the data: a `write_freeze:<feature>` row in `_meta` of
  * the D1 database the feature moves into. Every runtime that writes a feature
@@ -9,8 +9,8 @@
  * next request (no config cache). Set and clear it with
  * `npm run d1:freeze -- --env <env> --feature <feature> [--off]`.
  *
- * Fails open: when the database can't be read, writes go ahead (Baserow is
- * still where they land) and the error is logged.
+ * Fails open: when the flag can't be read, writes go ahead and the error is
+ * logged.
  */
 import { D1_BINDINGS } from "./d1-databases.js";
 

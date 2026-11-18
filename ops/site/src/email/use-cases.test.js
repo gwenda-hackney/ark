@@ -98,7 +98,7 @@ describe("weekly email: this week's email, as it would go out", () => {
   it("only reads: two Sanity queries, nothing else", async () => {
     publishWeek(world);
     await callApi(world, getPreview, { path: "/api/email/preview" });
-    const outside = world.calls.filter((call) => !call.includes("api.baserow.io"));
+    const outside = world.calls;
     assert.deepEqual(outside, [
       "GET gwscpagy.api.sanity.io/v2025-01-01/data/query/production",
       "GET gwscpagy.api.sanity.io/v2025-01-01/data/query/production",
@@ -230,7 +230,7 @@ describe("weekly email: send me a test", () => {
     publishWeek(world);
     world.mailchimp.connect(world.env);
     world.env.SITE_ENV = "production";
-    world.baserow.insert("Config", { Name: "sanity.project_id", Value: "gwscpagy", Env: "production", Service: "all" });
+    world.setConfig("sanity.project_id", "gwscpagy", { env: "production", service: "all" });
     const res = await pressSendTest();
     assert.equal(res.status, 200, JSON.stringify(res.data));
     assert.deepEqual(world.mailchimp.audienceSends, []);

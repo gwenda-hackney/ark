@@ -92,7 +92,7 @@ export function d1SubscriberRepository(db) {
       return { subscribers: subscribers.map(tidy) };
     },
     async importAll({ subscribers = [] }) {
-      // A copy from before consent was kept (Baserow) is on the list, as then.
+      // A copy from before consent was kept is on the list, as then.
       await importTables(db, [
         [
           subscribersTable,

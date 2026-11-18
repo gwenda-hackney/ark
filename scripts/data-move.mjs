@@ -2,9 +2,8 @@
 /**
  * Move one feature's data between repositories (#127, scripts/lib/data-move).
  *
- *   npm run data:move -- --feature events --from baserow:production --to d1:production          dry run
- *   npm run data:move -- --feature events --from baserow:production --to d1:production --write  for real
- *   npm run data:move -- --feature events --from d1:production --to d1:dev --write
+ *   npm run data:move -- --feature events --from d1:production --to d1:dev          dry run
+ *   npm run data:move -- --feature events --from d1:production --to d1:dev --write  for real
  *
  * A dry run reads the source and imports into a local SQLite database with
  * the real migrations (shared/testing/d1-sqlite.js), so it proves the copy
@@ -16,14 +15,14 @@
  * A copy out of production (into dev) leaves behind what points at
  * production's own things, such as each series' Drive folder, and says so:
  * dev shares production's Google account and would act on the real ones.
- * Secrets come from Secrets Manager by name (bw-unlock), per environment.
+ * Cloudflare tokens come from Secrets Manager by name (bw-unlock), per environment.
  */
 import { first, run } from "../shared/d1.js";
 import { d1Http } from "../shared/d1-http.js";
 import { D1_DATABASES } from "../shared/d1-databases.js";
 import { createTestD1 } from "../shared/testing/d1-sqlite.js";
 import { FREEZE_KEY_PREFIX } from "../shared/write-freeze.js";
-import { cloudflareFor, loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
+import { cloudflareFor } from "./lib/bitwarden-sm.mjs";
 import { featureFor, leavesProduction } from "./lib/data-move/features.mjs";
 import { describeMove, moveFeature } from "./lib/data-move/index.mjs";
 import { describeMissing, missingSchema, rehearsalCopy } from "./lib/d1-rehearsal.mjs";
@@ -35,10 +34,8 @@ export function parseArgs(argv) {
   const out = { feature: "", from: null, to: null, write: false };
   const side = (value, flag) => {
     const [kind, env] = String(value || "").split(":");
-    if (!kind || !ENVS.includes(env))
-      throw new Error(
-        `${flag} must be <baserow|d1>:<dev|production>, e.g. baserow:production.`,
-      );
+    if (kind !== "d1" || !ENVS.includes(env))
+      throw new Error(`${flag} must be d1:<dev|production>, e.g. d1:production.`);
     return { kind, env };
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -50,9 +47,7 @@ export function parseArgs(argv) {
   }
   if (!out.feature || !out.from || !out.to)
     throw new Error("Needs --feature, --from and --to.");
-  if (out.to.kind !== "d1")
-    throw new Error("--to must be d1: data only ever moves onto D1.");
-  if (out.from.kind === out.to.kind && out.from.env === out.to.env)
+  if (out.from.env === out.to.env)
     throw new Error("--from and --to are the same.");
   return out;
 }
@@ -66,11 +61,6 @@ function d1For(env, role) {
     databaseId,
     token,
   };
-}
-
-function runtimeEnv(app, env) {
-  const { values } = loadAppSecretsFromSm(app, env);
-  return { ...Object.fromEntries(values), SITE_ENV: env };
 }
 
 /**
@@ -112,21 +102,17 @@ async function main() {
   loadRepoEnv({ app: "web" });
   const opts = parseArgs(process.argv.slice(2));
   const feature = featureFor(opts.feature);
-  const label = `${opts.feature} ${opts.from.kind}:${opts.from.env} → d1:${opts.to.env}${opts.write ? "" : " (dry run)"}`;
+  const label = `${opts.feature} d1:${opts.from.env} → d1:${opts.to.env}${opts.write ? "" : " (dry run)"}`;
   const log = (line) => console.log(`${label}: ${line}`);
 
-  const make = feature.adapters[opts.from.kind];
-  if (!make)
-    throw new Error(`${opts.feature} has no ${opts.from.kind} adapter.`);
-  const source =
-    opts.from.kind === "d1"
-      ? make({ db: await readableD1(d1For(opts.from.env, feature.role).db, feature, log) })
-      : make({ env: runtimeEnv(feature.app, opts.from.env) });
+  const source = feature.repository({
+    db: await readableD1(d1For(opts.from.env, feature.role).db, feature, log),
+  });
 
   let target;
   let remote = null;
   if (!opts.write) {
-    target = feature.adapters.d1({ db: createTestD1(feature.role) });
+    target = feature.repository({ db: createTestD1(feature.role) });
   } else {
     remote = d1For(opts.to.env, feature.role);
     if (opts.to.env === "production" && feature.freeze !== false) {
@@ -141,7 +127,7 @@ async function main() {
         );
     }
     log(`Time Travel bookmark before the import: ${await bookmark(remote)}`);
-    target = feature.adapters.d1({ db: remote.db });
+    target = feature.repository({ db: remote.db });
   }
 
   const moved = await moveBetween({ feature, from: opts.from, to: opts.to, source, target, log });
@@ -160,7 +146,7 @@ async function main() {
       [
         `moved:${opts.feature}`,
         JSON.stringify({
-          from: `${opts.from.kind}:${opts.from.env}`,
+          from: `d1:${opts.from.env}`,
           at: new Date().toISOString(),
           counts,
           ...(Object.keys(moved.detached).length ? { detached: moved.detached } : {}),

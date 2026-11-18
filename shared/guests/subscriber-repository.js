@@ -16,26 +16,12 @@
  *   count()                       how many there are
  *   exportAll()                   { subscribers }; importAll(snapshot) on memory and D1
  *
- * Baserow until `store:guests` says d1 (shared/data-store.js). Subscribers
- * and form submissions move together, as one feature.
+ * Subscribers live in the website D1 database (#127).
  */
-import { switchedRepository } from "../data-store.js";
 import { databaseFor } from "../d1-env.js";
-import { baserowSubscriberRepository } from "./adapters/baserow-subscribers.js";
 import { d1SubscriberRepository } from "./adapters/d1-subscribers.js";
 
-/**
- * The repository for this runtime. Tests may hand one in as
- * env.subscriberRepository. `baserow` builds the Baserow adapter, for an app
- * whose Website token isn't BASEROW_API_KEY (ops).
- */
-export function subscriberRepository(
-  env,
-  { baserow = baserowSubscriberRepository } = {},
-) {
-  if (env?.subscriberRepository) return env.subscriberRepository;
-  return switchedRepository(env, "guests", {
-    baserow,
-    d1: (env) => d1SubscriberRepository(databaseFor(env, "website")),
-  });
+/** The repository for this runtime. Tests may hand one in as env.subscriberRepository. */
+export function subscriberRepository(env) {
+  return env?.subscriberRepository || d1SubscriberRepository(databaseFor(env, "website"));
 }

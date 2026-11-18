@@ -1,14 +1,11 @@
 /**
  * What every MenuRepository adapter must do (#186, #127): the same cases run
- * on memory, Baserow (the fake world) and D1 (SQLite with the real
- * migrations), plus the copy between them that data-move relies on.
+ * on memory and D1 (SQLite with the real migrations), plus the copy between them that data-move relies on.
  */
 import assert from "node:assert/strict";
-import { afterEach, describe, it } from "vitest";
+import { describe, it } from "vitest";
 import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
 import { repositoryContract } from "../../../../../shared/testing/repository-contract.js";
-import { createFakeWorld } from "../../testing/fake-world.js";
-import { baserowMenuRepository } from "./adapters/baserow-menu.js";
 import { d1MenuRepository } from "./adapters/d1-menu.js";
 import { memoryMenuRepository } from "./adapters/memory-menu.js";
 import { MENU_COLLECTION_NAMES, menuRecord } from "./menu-model.js";
@@ -16,21 +13,8 @@ import { menuRepository } from "./menu-repository.js";
 
 const ASSET = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
 
-const worlds = [];
-afterEach(() => {
-  while (worlds.length) worlds.pop().restore();
-});
-
-async function fakeWorld() {
-  const world = await createFakeWorld();
-  world.install();
-  worlds.push(world);
-  return world;
-}
-
 const ADAPTERS = {
   memory: () => memoryMenuRepository(),
-  baserow: async () => baserowMenuRepository((await fakeWorld()).env),
   d1: () => d1MenuRepository(createTestD1("ops")),
 };
 
@@ -453,9 +437,8 @@ async function seedMenus(repo) {
   return { drinks, pickle, formulas, burgers, smash };
 }
 
-// Menus (#305) are kept by D1 and memory only: Baserow is being retired (#234).
 repositoryContract("MenuRepository menus", {
-  adapters: { memory: ADAPTERS.memory, d1: ADAPTERS.d1 },
+  adapters: ADAPTERS,
   seed: async (repo) => {
     await seedMenus(repo);
   },
@@ -528,21 +511,6 @@ repositoryContract("MenuRepository menus", {
   },
 });
 
-describe("MenuRepository (baserow) menus", () => {
-  it("has none: lists none, a chapter is on none, and won't keep one", async () => {
-    const repo = baserowMenuRepository((await fakeWorld()).env);
-    assert.deepEqual(await repo.list("menus"), []);
-    assert.equal(await repo.get("menus", 1), null);
-    const chapter = await repo.create("menu_sections", { name: "Our Formulas", kind: "bar", menuId: 3 });
-    assert.equal(chapter.menuId, null, "Baserow has no column for it");
-    assert.deepEqual(await repo.list("menu_sections", { menuId: 3 }), []);
-    await assert.rejects(
-      () => repo.create("menus", { name: "Drinks" }),
-      (error) => error.status === 503 && /on D1 only/.test(error.message),
-    );
-  });
-});
-
 describe("MenuRepository (d1) storage", () => {
   it("a copy keeps ids, and new records don't reuse them", async () => {
     const repo = d1MenuRepository(createTestD1("ops"));
@@ -594,75 +562,12 @@ describe("MenuRepository (d1) storage", () => {
   });
 });
 
-describe("MenuRepository (baserow) storage", () => {
-  it("leaves out a column the table doesn't have yet", async () => {
-    const world = await fakeWorld();
-    const table = world.baserow.tableByName("Menu Items");
-    table.fields = table.fields.filter((field) => field.name !== "Prices");
-    const repo = baserowMenuRepository(world.env);
-    const item = await repo.create("menu_items", {
-      name: "Negroni",
-      prices: [{ name: "Single", price: "9" }],
-      price: "9",
-    });
-    assert.equal(item.prices, null);
-    assert.equal(item.price, "9");
-  });
-
-  it("reads a photo from before #183 as legacyPhotoUrl, and won't export it until it's moved", async () => {
-    const world = await fakeWorld();
-    const repo = baserowMenuRepository(world.env);
-    const item = await repo.create("menu_items", { name: "Negroni" });
-    world.baserow.update("Menu Items", item.id, {
-      Photo: [world.baserow.addFile("old.jpg", new Uint8Array(4))],
-    });
-    assert.match(
-      (await repo.get("menu_items", item.id)).legacyPhotoUrl,
-      /old\.jpg$/,
-    );
-    await assert.rejects(
-      () => repo.exportAll(),
-      /1 drink photo is still a Baserow file/,
-    );
-    const { menu_items: items } = await baserowMenuRepository(world.env, {
-      leaveOutLegacyPhotos: true,
-    }).exportAll();
-    assert.equal("legacyPhotoUrl" in items[0], false);
-    const moved = await repo.update("menu_items", item.id, {
-      photoAsset: ASSET,
-    });
-    assert.equal(moved.photoAsset, ASSET);
-    assert.equal(
-      "legacyPhotoUrl" in moved,
-      false,
-      "the Baserow file goes when ops sets a photo",
-    );
-  });
-});
-
 describe("menuRepository", () => {
-  it("stays on Baserow until store:menu says d1, then reads D1", async () => {
-    const world = await fakeWorld();
+  it("reads the ops D1 database", async () => {
     const OPS_DB = createTestD1("ops");
-    await d1MenuRepository(OPS_DB).importAll({
-      menu_items: [{ id: 7, name: "On D1" }],
-    });
-    const env = { ...world.env, OPS_DB };
-    await baserowMenuRepository(world.env).create("menu_items", {
-      name: "On Baserow",
-    });
-
+    await d1MenuRepository(OPS_DB).importAll({ menu_items: [{ id: 7, name: "On D1" }] });
     assert.deepEqual(
-      (await menuRepository(env).list("menu_items")).map((item) => item.name),
-      ["On Baserow"],
-    );
-    await OPS_DB.prepare(
-      "INSERT INTO _meta (key, value) VALUES ('store:menu', 'd1')",
-    ).run();
-    // A new runtime: each one keeps the flag it read for a few seconds.
-    const onD1 = await menuRepository({ ...env }).list("menu_items");
-    assert.deepEqual(
-      onD1.map((item) => item.name),
+      (await menuRepository({ SITE_ENV: "dev", OPS_DB }).list("menu_items")).map((item) => item.name),
       ["On D1"],
     );
   });

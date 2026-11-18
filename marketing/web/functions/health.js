@@ -1,4 +1,4 @@
-/** Liveness: Pages Functions ran. Do not probe Baserow or email. */
+/** Liveness: Pages Functions ran. Do not probe the databases or email. */
 
 export async function onRequestGet(context) {
   const env = context?.env || {};

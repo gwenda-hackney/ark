@@ -8,7 +8,7 @@
  * to the repo: after `bw-unlock` they come from Secrets Manager (env `dev`)
  * into memory, through a look-aside cache in /dev/shm (scripts/lib/secrets-cache.mjs).
  * Pass `app` to also expose that app's runtime names (APP_SECRETS rename), e.g.
- * web gets BASEROW_API_KEY from BASEROW_WEBSITE_API_KEY, ops from BASEROW_OPS_API_KEY.
+ * ops gets GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON from GOOGLE_SERVICE_ACCOUNT_JSON.
  *
  * In CI (`CI` set) SM is not read here: jobs export secrets with `--github-env`.
  *

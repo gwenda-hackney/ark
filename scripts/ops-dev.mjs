@@ -6,7 +6,7 @@
  * names (secrets win). `wrangler pages dev` only reads bindings from
  * `.dev.vars` (it ignores --env-file), so `.dev.vars` is a symlink to a per-run
  * file in the RAM secrets directory; both are removed on exit.
- * Non-secret ops settings come from the Baserow config database at runtime.
+ * Non-secret ops settings come from the D1 config database at runtime.
  *
  *   npm run ops:dev
  *   npm run ops:prod    debug against PRODUCTION (see below)
@@ -203,17 +203,17 @@ async function main() {
   ************************************************************
   *  LIVE MODE: this local ops uses PRODUCTION data.         *
   *  Saves, "Update website" and "Update website now" change *
-  *  the real Ops DB and gwenda.co.uk.                        *
+  *  the real ops database and gwenda.co.uk.                  *
   ************************************************************
 `);
   } else {
-    // No database check needed: a dev machine gets BASEROW_OPS_API_KEY__DEV,
-    // a token that only opens the Gwenda Dev workspace.
+    // No database check needed: a dev machine gets dev's Cloudflare token,
+    // which only opens dev's D1 databases.
     await useDevSanityProject();
   }
 
   // Pull plain settings (e.g. Google client id) from config when missing in env.
-  if (process.env.BASEROW_CONFIG_API_KEY?.trim()) {
+  if (process.env.CLOUDFLARE_API_TOKEN?.trim()) {
     try {
       const { applyOpsAppConfig } = await import(
         "../ops/site/src/platform/config-store.js"
@@ -271,13 +271,7 @@ async function main() {
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(signal, () => void quit(130));
   }
-  try {
-    const { resolveOpsTableIds } = await import("../shared/baserow.js");
-    const { databaseId } = await resolveOpsTableIds(process.env);
-    console.log(`Baserow Ops DB ${databaseId} (${LIVE ? "Gwenda, PRODUCTION" : "Gwenda Dev"} token)`);
-  } catch (error) {
-    console.warn(`Baserow Ops DB not reachable: ${error instanceof Error ? error.message : error}`);
-  }
+  console.log(`Ops database: D1 gwenda-ops (${LIVE ? "PRODUCTION" : "dev"}), over the API`);
 
   function run(command, args, cwd, name) {
     const child = spawn(command, args, {

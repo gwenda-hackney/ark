@@ -159,10 +159,7 @@ export default withSentry(
           return jsonResponse(request, result.body, result.status);
         }
 
-        if (
-          request.method === "POST" &&
-          (url.pathname === "/dev-copy" || url.pathname === "/baserow-copy")
-        ) {
+        if (request.method === "POST" && url.pathname === "/dev-copy") {
           const result = await handleDevCopy(request, env);
           return jsonResponse(request, result.body, result.status);
         }

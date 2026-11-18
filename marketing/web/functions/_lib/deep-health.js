@@ -35,7 +35,7 @@ export const CHECKS = {
       throw new Error(`No content in dataset ${sanityDatasetForEnv(env)}.`);
     return `${count} documents in ${sanityDatasetForEnv(env)}`;
   },
-  // Wherever guests live now: Baserow, or D1 once store:guests says so.
+  // Guests, in the website D1 database.
   async subscribers(env) {
     return `${await subscriberRepository(env).count()} rows`;
   },
@@ -44,7 +44,10 @@ export const CHECKS = {
   },
   async opsArtists(env) {
     const opsEnv = opsArtistEnv(env);
-    if (!opsEnv) throw new Error("BASEROW_OPS_API_KEY not set, and no OPS_DB.");
+    if (!opsEnv)
+      throw new Error(
+        "No OPS_DB, and no CLOUDFLARE_API_TOKEN to reach the ops database.",
+      );
     const artists = await listArtists(opsEnv);
     return `${artists.length} artists`;
   },
@@ -52,7 +55,7 @@ export const CHECKS = {
     const values = await getSettings(env, "web");
     return `${Object.keys(values).length} settings`;
   },
-  // D1 (#127): every database this site binds, before features move onto them.
+  // D1 (#127): every database this site binds.
   ...Object.fromEntries(
     Object.entries(D1_BINDINGS).map(([role, binding]) => [
       `d1:${role}`,

@@ -9,11 +9,11 @@ import {
 } from "../../../shared/d1-table.js";
 import { createTestD1 } from "../../../shared/testing/d1-sqlite.js";
 import { moveBetween, parseArgs } from "../../data-move.mjs";
-import { createFakeWorld } from "../../../ops/site/src/testing/fake-world.js";
+import { memoryMenuRepository } from "../../../ops/site/src/menu/server/adapters/memory-menu.js";
 import { FEATURES, featureFor } from "./features.mjs";
 import { describeMove, diffSnapshots, keptSnapshot, moveFeature } from "./index.mjs";
 
-/** A repository in memory: exportAll / importAll only, like a Baserow source plus a target. */
+/** A repository in memory: exportAll / importAll only. */
 function memory(snapshot = {}) {
   let data = structuredClone(snapshot);
   return {
@@ -113,29 +113,6 @@ describe("diffSnapshots", () => {
     ]);
   });
 
-  it("config moves only the first row of each name + env + service", () => {
-    const row = (id, value) => ({
-      id,
-      name: "a",
-      value,
-      env: "dev",
-      service: "ops",
-    });
-    const records = [
-      row(3, "kept"),
-      row(9, "never read"),
-      { ...row(4, "x"), env: "all" },
-    ];
-    assert.deepEqual(
-      keptSnapshot(
-        { config_values: records },
-        FEATURES.config.keep,
-      ).config_values.map((r) => r.id),
-      [3, 4],
-    );
-    assert.equal(FEATURES.config.freeze, false);
-  });
-
   it("keptSnapshot filters per collection", () => {
     assert.deepEqual(
       keptSnapshot({ a: [{ id: 1 }, { id: 2 }] }, (_c, r) => r.id === 2),
@@ -151,14 +128,14 @@ describe("data-move CLI", () => {
         "--feature",
         "events",
         "--from",
-        "baserow:production",
-        "--to",
         "d1:production",
+        "--to",
+        "d1:dev",
       ]),
       {
         feature: "events",
-        from: { kind: "baserow", env: "production" },
-        to: { kind: "d1", env: "production" },
+        from: { kind: "d1", env: "production" },
+        to: { kind: "d1", env: "dev" },
         write: false,
       },
     );
@@ -170,9 +147,9 @@ describe("data-move CLI", () => {
           "--from",
           "d1:dev",
           "--to",
-          "baserow:dev",
+          "postgres:dev",
         ]),
-      /only ever moves onto D1/,
+      /--to must be d1/,
     );
     assert.throws(
       () =>
@@ -180,7 +157,7 @@ describe("data-move CLI", () => {
           "--feature",
           "e",
           "--from",
-          "baserow:staging",
+          "d1:staging",
           "--to",
           "d1:dev",
         ]),
@@ -199,16 +176,11 @@ describe("data-move CLI", () => {
 });
 
 describe("the menu feature", () => {
-  it("moves from Baserow to D1 record for record", async () => {
-    const world = await createFakeWorld();
-    world.install();
-    try {
+  it("copies record for record into D1", async () => {
+    {
       const { menu } = FEATURES;
-      assert.deepEqual(
-        [menu.app, menu.role, menu.freeze],
-        ["ops", "ops", true],
-      );
-      const source = menu.adapters.baserow({ env: world.env });
+      assert.deepEqual([menu.role, menu.freeze], ["ops", true]);
+      const source = memoryMenuRepository();
       const section = await source.create("menu_sections", {
         name: "Cocktails",
         slug: "cocktails",
@@ -247,10 +219,9 @@ describe("the menu feature", () => {
       const db = createTestD1("ops");
       const { counts } = await moveFeature({
         source,
-        target: menu.adapters.d1({ db }),
+        target: menu.repository({ db }),
       });
       assert.deepEqual(counts, {
-        // Menus (#305) are D1's only: Baserow has none to move.
         menus: 0,
         menu_sections: 1,
         pos_menus: 1,
@@ -262,11 +233,9 @@ describe("the menu feature", () => {
         inventory_suppliers: 1,
       });
       assert.deepEqual(
-        (await menu.adapters.d1({ db }).get("menu_items", drink.id)).posMenuIds,
+        (await menu.repository({ db }).get("menu_items", drink.id)).posMenuIds,
         [fall.id],
       );
-    } finally {
-      world.restore();
     }
   });
 });
@@ -302,7 +271,7 @@ describe("a copy out of production", () => {
 
   /** The events feature's own D1 repository, holding production's rows. */
   async function events(snapshot) {
-    const repo = FEATURES.events.adapters.d1({ db: createTestD1("ops") });
+    const repo = FEATURES.events.repository({ db: createTestD1("ops") });
     if (snapshot) await repo.importAll(snapshot);
     return repo;
   }
@@ -352,22 +321,8 @@ describe("a copy out of production", () => {
     );
   });
 
-  it("from Baserow production into dev does the same", async () => {
-    const target = await events();
-    await moveBetween({
-      feature: FEATURES.events,
-      from: side("baserow:production"),
-      to: side("d1:dev"),
-      // As a Baserow adapter exports them: whole records.
-      source: memory(await (await events(PRODUCTION)).exportAll()),
-      target,
-    });
-    assert.equal((await target.exportAll()).events[0].driveFolderId, "");
-  });
-
-  it("into production (the cutover), or out of dev, carries everything", async () => {
+  it("into production, out of dev, carries everything", async () => {
     for (const [from, to] of [
-      ["baserow:production", "d1:production"],
       ["d1:dev", "d1:production"],
     ]) {
       const target = await events();
@@ -398,6 +353,6 @@ describe("the registry under plain Node", () => {
       ],
       { encoding: "utf8" },
     );
-    assert.equal(out.trim(), "users,config,guests,artists,menu,events");
+    assert.equal(out.trim(), "users,config,guests,artists,menu,events,venue");
   });
 });

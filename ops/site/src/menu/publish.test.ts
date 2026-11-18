@@ -140,8 +140,8 @@ describe("publish labels", () => {
 		assert.equal(
 			formatPublishDiff({
 				field: "photo",
-				from: "https://files.baserow.io/a.jpg",
-				to: "https://files.baserow.io/b.jpg",
+				from: "https://files.example.com/a.jpg",
+				to: "https://files.example.com/b.jpg",
 			}),
 			"photo updated",
 		);

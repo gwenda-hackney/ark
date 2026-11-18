@@ -4,10 +4,9 @@
  * non-custom menu drinks: pours, packaged bottles, and draught beer.
  * Skips cocktails (Our Formulas / By the Book mixed drinks). Each photo goes
  * to Sanity, like one uploaded in ops (#183); the drink keeps its asset id
- * (Menu Items "Photo asset"). with-ops-env points at the Gwenda Dev project
- * unless SANITY_PROJECT_ID says otherwise. Drinks, recipes and supplier
- * links come through the menu repository (Baserow or D1, wherever the menu
- * lives).
+ * (photoAsset). with-ops-env points at the Gwenda Dev project unless
+ * SANITY_PROJECT_ID says otherwise. Drinks, recipes and supplier links come
+ * through the menu repository (the ops D1 database).
  *
  * Usage:
  *   node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs
@@ -37,7 +36,7 @@ function drinkType(record) {
 }
 
 function hasPhoto(record) {
-  return Boolean(parseImageAssetId(record.photoAsset) || record.legacyPhotoUrl);
+  return Boolean(parseImageAssetId(record.photoAsset));
 }
 
 function sleep(ms) {

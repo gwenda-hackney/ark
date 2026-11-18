@@ -6,7 +6,7 @@
  *   SMOKE_TEST_GATE_BYPASS_KEY=... node scripts/ci/smoke-test.mjs --url https://preview.gwenda-blue.pages.dev ...
  *
  *   --deep           also POST /api/health/deep (Bearer DEPLOY_WEBHOOK_SECRET): Sanity,
- *                    both Baserow databases, config DB, the three D1 databases
+ *                    guests, ops artists, config, the three D1 databases
  *                    (migrated, a test row written and deleted) and Gmail login
  *   --version-only   only /health and the home page's X-Gwenda-Version: after a
  *                    rollback, the old build is checked by this newer script,

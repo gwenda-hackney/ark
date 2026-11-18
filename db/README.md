@@ -1,6 +1,6 @@
 # D1 databases
 
-The data layer is moving from Baserow to Cloudflare D1, one feature at a time (#127). It sits behind each feature's repository (#186).
+Every feature's data is in Cloudflare D1 (#127, #234), behind the feature's repository (#186). RSVP and event invites are the one exception, still on Baserow until #237.
 
 ## Databases
 
@@ -48,9 +48,9 @@ Each feature has its own D1 adapter, because only that adapter knows its tables 
    - `importAll(snapshot)` calls `importTables(db, [[table, records], …])`, which keeps ids and works in dependency order.
 4. **Test it** with `repositoryContract(name, { adapters, seed, cases })` from `shared/testing/repository-contract.js`. It runs the feature's cases against every adapter, plus the shared copy round trip.
 
-## Write freeze (during a feature's move)
+## Write freeze (during a copy into production)
 
-While a feature's data is copied from Baserow and the code switches over, writes to it must wait, or a change made in between is lost.
+While a feature's data is copied into a database, writes to it there must wait, or a change made in between is lost.
 
 `npm run d1:freeze -- --env <dev|production> --feature <events|menu|artists|users|guests> [--off]` sets or clears a `write_freeze:<feature>` row in `_meta` of the database the feature moves into, and `--list` shows what's frozen. Everything that writes the feature reads that flag through its binding, and the flag takes effect on the next request:
 
@@ -63,24 +63,12 @@ A refused write gets **423** with "read-only for a few minutes", and ops shows a
 
 ## Moving a feature's data
 
-`npm run data:move -- --feature <name> --from <baserow|d1>:<env> --to d1:<env> [--write]` copies a feature from one repository to another (`scripts/data-move.mjs`). A feature can move once it has an entry in `scripts/lib/data-move/features.mjs`, which gives its D1 adapter, its source adapters and the records it never copies (the deploy smoke test's).
+`npm run data:move -- --feature <name> --from d1:<env> --to d1:<env> [--write]` copies a feature from one environment's D1 database to another's (`scripts/data-move.mjs`). A feature can move once it has an entry in `scripts/lib/data-move/features.mjs`, which gives its repository and the records it never copies (the deploy smoke test's). Copy production to dev (`npm run dev:refresh`, or ops Developer tools) runs it for every feature of the ops and website databases (`scripts/lib/dev-copy/d1.mjs`).
 
 - **Without `--write`** it's a dry run: it reads the source and imports into a local SQLite database with the real migrations, so the copy is proved without touching the target.
 - **With `--write`** it imports into the target D1. Into production it refuses unless the feature is frozen. Before importing it logs a Time Travel bookmark (restore with `wrangler d1 time-travel restore <db> --bookmark <bookmark>`). After, it checks foreign keys and records the move in `_meta` (`moved:<feature>`).
 - **Every run checks** by exporting the target again and diffing it, record by record, with what the source exported. It reports collections, ids and field names, never values.
 - **A copy out of production** (`--from …:production --to d1:dev`) leaves behind what points at things production owns and dev's logins could change: each series' Drive folder (deleting or renaming the series on dev would bin or rename the real one), a gallery photo's Drive original, and each night's ClickUp task. It happens before the import, so they never reach dev, and the run says how many (`left behind, as it points at production: driveFolderId of 12 events, …`). A feature lists them in its `detach` (`features.mjs`); when a feature gains an id of something outside the database, decide there whether a copy may carry it. Google Calendar entry ids and Sanity ids stay: dev has its own calendar and its own Sanity project.
-
-**The cutover is a flag, not a deploy.** `shared/data-store.js` reads `store:<feature>` from `_meta` of the feature's database on every request, and a feature's repository goes to D1 once it says `d1` (`switchedRepository`). `npm run d1:store -- --env <env> --feature <name> --to <d1|baserow>` sets it; `--to d1` refuses until data-move has recorded `moved:<feature>`, and `--list` shows where each feature is.
-
-A cutover, dev first, then production:
-
-1. Run `data:move` as a dry run.
-2. Freeze: `npm run d1:freeze -- --env <env> --feature <name>`.
-3. Run `data:move` again with `--write`.
-4. Switch: `npm run d1:store -- --env <env> --feature <name> --to d1`.
-5. Check the feature, then unfreeze.
-
-To roll back, run `--to baserow`. Writes made on D1 after the switch stay in D1, and its Time Travel bookmark undoes the import itself.
 
 ## Migrations
 
@@ -95,8 +83,8 @@ To roll back, run `--to baserow`. Writes made on D1 after the switch stay in D1,
 | Thing                                     | Rule                                                                                                                                          |
 | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Names                                     | snake_case. Tables are plural (`menu_items`), columns aren't (`alt_price`).                                                                   |
-| Ids                                       | `id INTEGER PRIMARY KEY AUTOINCREMENT`. The import from Baserow keeps Baserow's row ids, so routes, Sanity references and links keep working. |
-| One-choice values (Baserow single select) | `TEXT`, with the allowed values as constants in the domain model. No `CHECK`: in SQLite, adding a value would mean rebuilding the table.      |
+| Ids                                       | `id INTEGER PRIMARY KEY AUTOINCREMENT`. A copy keeps ids, so routes, Sanity references and links keep working.                                |
+| One-choice values                         | `TEXT`, with the allowed values as constants in the domain model. No `CHECK`: in SQLite, adding a value would mean rebuilding the table.      |
 | Lists of values (multi select)            | a JSON array in `TEXT`                                                                                                                        |
 | Yes/no                                    | `INTEGER NOT NULL DEFAULT 0`, 0 or 1 (`toBool`/`fromBool`)                                                                                    |
 | Dates                                     | `TEXT`: `YYYY-MM-DD`, or ISO-8601 UTC for moments. Names end in `_on` (dates) or `_at` (moments).                                             |

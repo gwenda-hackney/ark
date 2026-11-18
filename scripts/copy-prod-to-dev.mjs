@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
  * Copy production over dev: website content (Sanity) and the backend
- * databases (Baserow today; scripts/lib/dev-copy/database.mjs). Production is
- * only read. On demand only: ops Developer tools → Copy production to dev, or
+ * databases (D1, feature by feature with data-move; scripts/lib/dev-copy).
+ * Production is only read. On demand only: ops Developer tools → Copy production to dev, or
  * by hand. Runs in CI as copy-prod-to-dev.yml, which holds the production
  * read tokens.
  *
  *   node scripts/copy-prod-to-dev.mjs [--target=everything|content|ops-data|website-data] [--dry-run]
  *
- * Locally `npm run dev:refresh` does the same with your own logins.
+ * Locally `npm run dev:refresh` does the same with your own logins
+ * (bw-unlock: each environment's Cloudflare token from Secrets Manager).
  */
 import { appendFileSync } from "node:fs";
 import { COPY_TARGETS, copySteps, copySummary, runCopySteps } from "./lib/dev-copy/index.mjs";

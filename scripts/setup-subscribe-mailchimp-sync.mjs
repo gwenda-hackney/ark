@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /**
- * Deploy Baserow → Mailchimp subscribe sync Worker and sync secrets.
+ * Deploy the subscribers → Mailchimp sync Worker and sync secrets.
+ * Subscribers are on D1 (the WEBSITE_DB binding), so the retired Baserow
+ * secret is removed.
  *
- * Everything comes from Secrets Manager (bw-unlock): CLOUDFLARE_API_TOKEN, the
- * production Website Baserow token, MAILCHIMP_API_KEY and
+ * Everything comes from Secrets Manager (bw-unlock): CLOUDFLARE_API_TOKEN,
+ * MAILCHIMP_API_KEY and
  * SUBSCRIBE_MAILCHIMP_SYNC_SECRET (generated and stored if missing). CI
  * (workers.yml) reads the same keys when it redeploys the Worker.
  * Optional: MAILCHIMP_AUDIENCE_ID in the shell (defaults to the Gwenda audience).
@@ -14,7 +16,7 @@ import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadRepoEnv } from "./lib/load-env.mjs";
-import { cloudflareFor, loadAppSecretsFromSm, productionSecretValues, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
+import { cloudflareFor, productionSecretValues, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/subscribe-mailchimp-sync");
@@ -84,12 +86,10 @@ async function ensureSignedUpMergeField(mailchimpKey, audienceId) {
 }
 
 
-/** Production values from Secrets Manager: the Website token (live Subscribers) and the Mailchimp keys. */
+/** Production values from Secrets Manager: the Mailchimp keys. */
 function productionSecrets() {
-  const { values } = loadAppSecretsFromSm("web", "production");
   const production = productionSecretValues();
   return {
-    baserowKey: values.get("BASEROW_API_KEY")?.trim() || "",
     mailchimpKey: production.get("MAILCHIMP_API_KEY")?.trim() || "",
     syncSecret: production.get("SUBSCRIBE_MAILCHIMP_SYNC_SECRET")?.trim() || "",
   };
@@ -100,10 +100,9 @@ async function main() {
 
   const cloudflareToken = cloudflareFor("production").token;
   const secrets = productionSecrets();
-  const { baserowKey, mailchimpKey } = secrets;
+  const { mailchimpKey } = secrets;
   const audienceId =
     process.env.MAILCHIMP_AUDIENCE_ID?.trim() || "e2c69d5d31";
-  if (!baserowKey) throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
   if (!mailchimpKey) throw new Error("MAILCHIMP_API_KEY__PRODUCTION is missing from Secrets Manager (Ark/Web).");
 
   await ensureSignedUpMergeField(mailchimpKey, audienceId);
@@ -134,12 +133,6 @@ async function main() {
   console.log(`Worker URL: ${workerUrl}`);
 
   console.log("Syncing Worker secrets…");
-  run("npx", ["wrangler", "secret", "put", "BASEROW_API_KEY"], {
-    cwd: WORKER_DIR,
-    env: wranglerEnv,
-    input: baserowKey,
-    quiet: true,
-  });
   run("npx", ["wrangler", "secret", "put", "MAILCHIMP_API_KEY"], {
     cwd: WORKER_DIR,
     env: wranglerEnv,
@@ -152,6 +145,20 @@ async function main() {
     input: syncSecret,
     quiet: true,
   });
+  const existing = run("npx", ["wrangler", "secret", "list", "--format", "json"], {
+    cwd: WORKER_DIR,
+    env: wranglerEnv,
+    quiet: true,
+  });
+  if (/"name":\s*"BASEROW_API_KEY"/.test(existing)) {
+    run("npx", ["wrangler", "secret", "delete", "BASEROW_API_KEY"], {
+      cwd: WORKER_DIR,
+      env: wranglerEnv,
+      input: "y\n",
+      quiet: true,
+    });
+    console.log("Removed the retired BASEROW_API_KEY secret.");
+  }
   console.log("Worker secrets synced.");
 
   console.log(

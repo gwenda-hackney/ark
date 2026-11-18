@@ -9,11 +9,11 @@ import {
 
 describe("serializeError", () => {
   it("keeps name, message, status, and stack", () => {
-    const error = new Error("Baserow 429: Request was throttled.");
+    const error = new Error("D1 429: Request was throttled.");
     error.status = 429;
     const fields = serializeError(error);
     expect(fields.name).toBe("Error");
-    expect(fields.message).toBe("Baserow 429: Request was throttled.");
+    expect(fields.message).toBe("D1 429: Request was throttled.");
     expect(fields.status).toBe(429);
     expect(typeof fields.stack).toBe("string");
   });
