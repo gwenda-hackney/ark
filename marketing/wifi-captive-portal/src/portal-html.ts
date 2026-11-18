@@ -393,7 +393,7 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
           <input type="checkbox" name="marketing" value="yes" />
           <span>Send me what’s on at Gwenda<small>Now and then, by email. Unsubscribe anytime.</small></span>
         </label>
-        <button type="submit">Enter our world</button>
+        <button type="submit">Get online</button>
         <p class="consent">We use your email for the Wi‑Fi and to contact you about your visit if we need to. By connecting you agree to our <a href="https://gwenda.co.uk/wifi-terms" target="_blank" rel="noopener">Wi‑Fi terms</a> and <a href="https://gwenda.co.uk/privacy" target="_blank" rel="noopener">privacy policy</a>.</p>
       </form>
       <script>${BUSY_SCRIPT}</script>
