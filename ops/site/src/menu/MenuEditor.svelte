@@ -285,7 +285,7 @@
 		<Skeleton rows={5} lines={1} label="Loading the menu…" />
 	{:else}
 		{#if menu && tab === "items"}
-			<FormSection title="Items" description="Laid out as on the website. Click a name, a line or an item to change it; drag a section by its handle to move it.">
+			<FormSection title="Items" description="A map of the menu, in its order. Click a section's name or line to change it, an item's pencil to edit it, and drag a section by its handle to move it.">
 				<MenuItemsList
 					chapters={items}
 					menuName={menu.name}
