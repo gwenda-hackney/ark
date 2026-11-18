@@ -14,6 +14,13 @@ import { mapFlatSection, mapMenuInfo, nestMenuSections } from "../../../../marke
 import { menuShelf } from "../../../../marketing/web/src/lib/menus.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { onRequestPost as createItem } from "../../functions/api/menu/index.js";
+import {
+  onRequestDelete as deleteItem,
+  onRequestGet as getItem,
+  onRequestPatch as updateItem,
+} from "../../functions/api/menu/[id].js";
+import { menuItemPayload } from "./item-payload.ts";
+import { offMenu, withQuickEdit } from "./menu-page-items.ts";
 import { onRequestPost as createSection } from "../../functions/api/menu/sections.js";
 import { onRequestPatch as editSection } from "../../functions/api/menu/sections/[id].js";
 import { onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
@@ -91,6 +98,23 @@ function owner(world) {
     },
     async item(body) {
       return ok(await callApi(world, createItem, { method: "POST", path: "/api/menu", body }), 201).item;
+    },
+    async getItem(id) {
+      return ok(await callApi(world, getItem, { path: `/api/menu/${id}`, params: { id } })).item;
+    },
+    /** Save as the menu's page does: the item as its editor has it, changed. */
+    async saveItem(item) {
+      return ok(
+        await callApi(world, updateItem, {
+          method: "PATCH",
+          path: `/api/menu/${item._id}`,
+          params: { id: item._id },
+          body: menuItemPayload(item),
+        }),
+      ).item;
+    },
+    async deleteItem(id) {
+      return ok(await callApi(world, deleteItem, { method: "DELETE", path: `/api/menu/${id}`, params: { id } }));
     },
     async series(body) {
       return ok(await callApi(world, createEvent, { method: "POST", path: "/api/events", body }), 201).event;
@@ -176,6 +200,73 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     assert.deepEqual(popups, [
       { id: String(pickle.id), name: "Chez Pickle", startsOn: "2026-11-12", endsOn: "2026-11-28", days: ["wed", "thu", "fri", "sat"] },
     ]);
+  });
+
+  it("a menu's page lists its items as the website does: each chapter's own, then each group's, and only its own", async () => {
+    const food = await ops.addMenu({ name: "Chez Pickle", kind: "kitchen", popupSeriesId: String(pickle.id) });
+    const formulas = await ops.section("Our Formulas", { menuId: drinks.id });
+    const burgers = await ops.section("Burgers", { menuId: food.id });
+    const smash = await ops.section("Smash", { parentId: burgers._id });
+    await ops.section("Veggie", { parentId: burgers._id });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    await ops.item({ name: "Negroni", price: "11", sectionId: formulas._id });
+    await ops.item({ name: "OG Burger", price: "14", sectionId: smash._id, placements: [{ channel: "digital", sectionId: smash._id }] });
+    await ops.item({ name: "Special", price: "16", sectionId: burgers._id, placements: [{ channel: "digital", sectionId: burgers._id }] });
+    await ops.item({ name: "Fries", price: "6", sectionId: sides._id, placements: [{ channel: "digital", sectionId: sides._id }] });
+
+    const page = await ops.open(food);
+    const names = (block) => block.items.map((item) => [item.name, item.prices[0]?.price]);
+    assert.deepEqual(
+      page.items.map((chapter) => [chapter.title, names(chapter), chapter.groups.map((group) => [group.title, names(group)])]),
+      [
+        ["Burgers", [["Special", "16"]], [["Smash", [["OG Burger", "14"]]], ["Veggie", []]]],
+        ["Sides", [["Fries", "6"]], []],
+      ],
+      "an empty section is there, to add to",
+    );
+    assert.deepEqual(
+      (await ops.open(drinks)).items.map((chapter) => chapter.items.map((item) => item.name)),
+      [["Negroni"]],
+    );
+    const empty = await ops.addMenu({ name: "Brunch", kind: "kitchen" });
+    assert.deepEqual((await ops.open(empty)).items, []);
+  });
+
+  it("on a menu's page: change an item's name, line and price; take it off; add one", async () => {
+    const food = await ops.addMenu({ name: "Chez Pickle", kind: "kitchen", popupSeriesId: String(pickle.id) });
+    const brunch = await ops.addMenu({ name: "Brunch", kind: "kitchen" });
+    const sides = await ops.section("Sides", { menuId: food.id });
+    const extras = await ops.section("Extras", { menuId: brunch.id });
+    const fries = await ops.item({
+      name: "Fries",
+      price: "6",
+      sectionId: sides._id,
+      placements: [
+        { channel: "digital", sectionId: sides._id },
+        { channel: "print", sectionId: sides._id },
+        { channel: "digital", sectionId: extras._id },
+      ],
+    });
+    const slaw = await ops.item({ name: "Slaw", price: "4", sectionId: sides._id });
+    const sideNames = async (menu) => (await ops.open(menu)).items[0].items.map((item) => item.name);
+
+    await ops.saveItem(withQuickEdit(await ops.getItem(fries._id), { name: "Skin-on fries", description: "Rosemary salt", price: "£6.50" }));
+    const changed = (await ops.open(food)).items[0].items.find((item) => item.id === fries._id);
+    assert.deepEqual([changed.name, changed.description, changed.prices[0].price], ["Skin-on fries", "Rosemary salt", "6.50"]);
+
+    const here = [sides._id];
+    const plan = offMenu(await ops.getItem(fries._id), here);
+    assert.equal(plan.action, "update", "it's on Brunch too, so it only comes off");
+    await ops.saveItem(plan.item);
+    assert.deepEqual(await sideNames(food), ["Slaw"]);
+    assert.deepEqual(await sideNames(brunch), ["Skin-on fries"], "and stays on Brunch");
+
+    assert.equal(offMenu(await ops.getItem(slaw._id), here).action, "delete", "on no other menu: the page asks to delete it");
+    await ops.deleteItem(slaw._id);
+    assert.deepEqual(await sideNames(food), []);
+
+    await ops.item({ name: "Onion rings", price: "7", prices: [{ name: "", price: "7" }], sectionId: sides._id });
+    assert.deepEqual(await sideNames(food), ["Onion rings"]);
   });
 
   it("adds a menu: every day and ongoing unless told otherwise; refuses what makes no sense", async () => {
