@@ -141,7 +141,7 @@ describe("What's on by date", () => {
   });
 });
 
-describe("Coming up later", () => {
+describe("What else? (home)", () => {
   it("teases one of each thing not already shown, at its next night", () => {
     const later = comingUpLater({
       today: "2026-11-19",

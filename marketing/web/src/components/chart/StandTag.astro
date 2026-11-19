@@ -1,0 +1,34 @@
+---
+/**
+ * The sticker on a deal's or a pop-up kitchen's card: what it is, with its
+ * mark so it stands out from a night's date: a price tag on a deal, a chef's
+ * hat on a pop-up kitchen. Drawn in the sticker's print colour, so it reads
+ * on a pop-up's own colour too.
+ */
+interface Props {
+  kind: string;
+  tag: string;
+}
+
+const { kind, tag } = Astro.props;
+---
+
+<span class="ch-stand-tag">
+  {
+    kind === "deal" && (
+      <svg class="ch-stand-tag-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 4.5V11l9.5 9.5 8-8L11 3H4.5A1.5 1.5 0 0 0 3 4.5Z" />
+        <circle cx="7.5" cy="7.5" r="1.6" />
+      </svg>
+    )
+  }
+  {
+    kind === "popup" && (
+      <svg class="ch-stand-tag-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 20.5h10v-6a3.6 3.6 0 0 0 .4-7.1 5.4 5.4 0 0 0-10.8 0A3.6 3.6 0 0 0 7 14.5Z" />
+        <path d="M7 17.5h10" />
+      </svg>
+    )
+  }
+  <span>{tag}</span>
+</span>

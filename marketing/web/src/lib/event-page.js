@@ -663,6 +663,16 @@ function moreDatesHtml(rows) {
 }
 
 /**
+ * The gallery's heading, in the page's own words: food for a pop-up kitchen,
+ * drinks for a deal, the nights themselves for an event.
+ */
+export const GALLERY_HEADINGS = {
+  popup: "What’s cooking",
+  promotion: "What’s pouring",
+  event: "On the night",
+};
+
+/**
  * The page under its title. `pending` is the shell's own "check back soon"
  * block, kept only for a series with no dates yet.
  */
@@ -674,7 +684,9 @@ export function renderEventPage(model, { pending = "" } = {}) {
     )}${moreDatesHtml(model.moreDates)}${
       gallery
         ? html`<section class="ch-event-section ch-photos">
-            <h2 class="ch-poster">Photo Gallery</h2>
+            <h2 class="ch-poster">
+              ${GALLERY_HEADINGS[model.kind] || GALLERY_HEADINGS.event}
+            </h2>
             ${raw(gallery)}
           </section>`
         : ""

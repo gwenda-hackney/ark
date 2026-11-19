@@ -29,7 +29,7 @@ export function initDayCards(now = new Date()) {
         label.hidden = !text;
       }
     }
-    // Coming up later: a card goes once its series is in a day showing.
+    // What else?: a card goes once its series is in a day showing.
     const onShow = new Set(
       [...list.querySelectorAll("[data-day]:not([hidden])")].flatMap((day) =>
         (day.dataset.daySeries || "").split(" ").filter(Boolean),

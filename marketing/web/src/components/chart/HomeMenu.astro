@@ -11,17 +11,21 @@
  * booked or on, the Food side opens with who's cooking: its logo and name
  * from ops, and the way to its page (#296).
  */
-import { menuTaste } from "../../lib/home-menu.js";
+import { HOME_MENU_ITEMS, menuTaste } from "../../lib/home-menu.js";
 import { londonToday } from "../../lib/london-day.js";
 import { menuPage } from "../../lib/menu-anchors.js";
 import { boardCards, boardPick, menuShelf } from "../../lib/menus.js";
 import { eventPhotos, galleryPhotos } from "../../lib/photo-sources";
-import { homePhotoPlan } from "../../lib/photos.js";
+import { homePhotoPlan, takeTurns } from "../../lib/photos.js";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 import { fetchMenu } from "../../lib/sanity/menu";
 import MenuBoard from "./MenuBoard.astro";
 
 const today = londonToday();
+/** Dishes on a card under the lead: fewer than the lead's, so it stays the lead. */
+const NEXT_KITCHEN_ITEMS = 2;
+/** Cocktails added to the Drinks board for each card under the Food board's lead. */
+const DRINKS_PER_NEXT_KITCHEN = 5;
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
 const catalog = await fetchWhatsOnCatalog().catch(() => ({
   series: [],
@@ -61,27 +65,7 @@ function topOf(card: ReturnType<typeof boardCards>[number]) {
  * lib/photos.js homePhotoPlan, for the boards and the photo row alike.
  */
 const gallery = await galleryPhotos();
-const { kitchen: kitchenPhotos } = await eventPhotos(today);
-const photoPlan = homePhotoPlan(gallery, {
-  kitchen: kitchenPhotos?.photos || [],
-});
-const drinks = {
-  side: "drinks" as const,
-  id: "drinks",
-  title: "Drinks",
-  href: menuPage("bar"),
-  link: "All the drinks",
-  line: "Our own cocktails, the classics, cold beer, and a few with no booze in.",
-  top: null,
-  taste: boards.bar?.menu
-    ? menuTaste(boards.bar.menu.chapters, { where: shelves.bar.where })
-    : null,
-  menuLabel: boards.bar?.menuLabel || "",
-  empty: "The list’s on its way.",
-  also: boards.bar?.also || [],
-  photos: photoPlan.drinks,
-  photoAlt: "",
-};
+const { kitchen: kitchenPhotos, events: eventSets } = await eventPhotos(today);
 
 /** What every Food board says, whoever is cooking. */
 const foodFrame = {
@@ -96,7 +80,65 @@ const foodFrame = {
  * The Food board: the kitchen cooking next (lib/menus.js boardCards),
  * its logo and "Day: Name", and the others under "Also".
  */
-const lead = boardCards(shelves.kitchen, today)[0];
+const [lead, ...later] = boardCards(shelves.kitchen, today);
+/**
+ * Every other pop-up kitchen cooking this week, a card of its own under the
+ * lead (its logo, "Monday: Pinsa A Roma", a couple of dishes), so a new one
+ * isn't just a line under "Also".
+ */
+const nextKitchens = later
+  .filter((card) => card.popup)
+  .map((card) => ({
+    top: topOf(card),
+    taste: card.menu
+      ? menuTaste(card.menu.chapters, {
+          count: NEXT_KITCHEN_ITEMS,
+          where: shelves.kitchen.where,
+        })
+      : null,
+    menuLabel: card.menuLabel,
+    href: card.kitchen.href,
+  }));
+const shownAsCards = new Set(nextKitchens.map((card) => card.href));
+/** The Food board's prints: the lead kitchen's and the others' taking turns (lib/photos.js takeTurns). */
+const photoPlan = homePhotoPlan(gallery, {
+  kitchen: takeTurns([
+    kitchenPhotos?.photos || [],
+    ...later
+      .filter((card) => card.popup)
+      .map(
+        (card) =>
+          eventSets.find((set) => set.id === card.popup.id)?.photos || [],
+      ),
+  ]),
+});
+/**
+ * More cocktails on the Drinks board while the Food board has a card for
+ * another kitchen, so the two boards stay about the same length.
+ */
+const drinksCount =
+  HOME_MENU_ITEMS + DRINKS_PER_NEXT_KITCHEN * nextKitchens.length;
+const drinks = {
+  side: "drinks" as const,
+  id: "drinks",
+  title: "Drinks",
+  href: menuPage("bar"),
+  link: "All the drinks",
+  line: "Our own cocktails, the classics, cold beer, and a few with no booze in.",
+  top: null,
+  taste: boards.bar?.menu
+    ? menuTaste(boards.bar.menu.chapters, {
+        count: drinksCount,
+        where: shelves.bar.where,
+      })
+    : null,
+  menuLabel: boards.bar?.menuLabel || "",
+  empty: "The list’s on its way.",
+  also: boards.bar?.also || [],
+  photos: photoPlan.drinks,
+  photoAlt: "",
+};
+
 const food = {
   ...foodFrame,
   id: "food",
@@ -108,9 +150,17 @@ const food = {
   empty: boards.kitchen
     ? "The list’s on its way."
     : "No kitchen in right now, back soon.",
-  also: boards.kitchen?.also || [],
+  next: nextKitchens,
+  // Its own other menus; the other kitchens have their cards (nextKitchens).
+  also: (boards.kitchen?.also || []).filter(
+    (row) => !shownAsCards.has(row.href),
+  ),
   photos: photoPlan.food,
-  photoAlt: kitchenPhotos ? `Food from ${kitchenPhotos.title}` : "",
+  photoAlt: nextKitchens.length
+    ? "Food from this week’s pop-up kitchens"
+    : kitchenPhotos
+      ? `Food from ${kitchenPhotos.title}`
+      : "",
 };
 ---
 

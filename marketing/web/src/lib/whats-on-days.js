@@ -101,7 +101,7 @@ export function dayIsOn(day, todayIso) {
 }
 
 /**
- * Coming up later (home): one of each thing on later that isn't in the days
+ * What else? (home): one of each thing on later that isn't in the days
  * shown above it (an event, a deal, a pop-up kitchen), at its next night, so
  * a new pop-up or a one-off is teased before its week comes round.
  *

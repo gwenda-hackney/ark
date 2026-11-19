@@ -148,6 +148,9 @@ function parseClock(hoursText: string, minutesText: string): Clock | null {
 }
 
 function formatClock(clock: Clock): string {
+  // Twelve o'clock in words, as guests say it: "noon–9pm", "10pm–midnight".
+  if (clock.minutes === 0 && clock.hours === 12) return "noon";
+  if (clock.minutes === 0 && clock.hours === 0) return "midnight";
   const period = clock.hours >= 12 ? "pm" : "am";
   let hours = clock.hours % 12;
   if (hours === 0) hours = 12;
