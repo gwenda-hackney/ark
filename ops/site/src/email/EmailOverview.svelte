@@ -2,35 +2,53 @@
 	/**
 	 * Email's first page (#348): every email at a glance, as cards. Every
 	 * week: the weekly what's on, where it stands, when it next goes and the
-	 * last one sent. One-off: each email written here, drafts and sent, with
-	 * Promote… and New email. A card opens its email.
+	 * last one sent. One-off: each email written here, drafts and sent
+	 * (Promote… and New email are in the page's header). A card opens its email.
 	 */
 	import { Badge, Button, EmptyState, Skeleton } from "../ui";
 	import { Icon } from "../app/shell";
 	import { navigate } from "../app/nav";
-	import type { OneOffSummary, WeeklyEmailStatus } from "./email-api";
-	import { nextLine, runLine, sentLine, settingsLine, statusLine } from "./email-view";
+	import { getWeeklyEmailPreview, type EmailFrame, type OneOffSummary, type WeeklyEmailStatus } from "./email-api";
+	import { leadPicture, nextLine, runLine, sentLine, settingsLine, statusLine } from "./email-view";
+	import { sectionImageUrl } from "../../../../shared/email/sections.js";
 	import { statusBadge, writePath } from "./one-off-view";
-	import PromoteDialog from "./PromoteDialog.svelte";
 
 	let {
 		status,
+		frame,
 		emails,
 		loading = false,
 		error = "",
 		onretry,
 	}: {
 		status: WeeklyEmailStatus | null;
+		/** Where the one-off emails are drawn from (their website and pictures), for their little previews. */
+		frame: EmailFrame | null;
 		emails: OneOffSummary[];
 		loading?: boolean;
 		error?: string;
 		onretry: () => void;
 	} = $props();
 
-	let promoting = $state(false);
 
 	const weekly = $derived(status ? statusLine(status) : null);
 	const lastSent = $derived(status?.history.find((run) => run.status === "sent") || null);
+
+	/** This week's lead picture, from the email as it would go, for its card. */
+	let weeklyPicture = $state("");
+	$effect(() => {
+		void getWeeklyEmailPreview()
+			.then((data) => (weeklyPicture = leadPicture(data.email?.html || "")))
+			.catch(() => (weeklyPicture = ""));
+	});
+
+	/** A one-off email's lead picture: its first Image section's, small. */
+	function oneOffPicture(email: OneOffSummary): string {
+		const first = email.sections.find((section) => section.kind === "image" && section.assetId);
+		if (!first || first.kind !== "image" || !frame) return "";
+		const url = sectionImageUrl(first.assetId, frame.images);
+		return url ? `${url}${url.includes("?") ? "&" : "?"}w=160&h=160&fit=crop` : "";
+	}
 
 	/** What a one-off card says under its subject. */
 	function oneOffLine(email: OneOffSummary): string {
@@ -66,7 +84,11 @@
 		<div class="cards">
 			<button type="button" class="card" onclick={() => navigate("/email/week")}>
 				<span class="card-top">
-					<span class="card-icon"><Icon name="calendar" size={18} /></span>
+					{#if weeklyPicture}
+						<img class="card-picture" src={weeklyPicture} alt="" loading="lazy" />
+					{:else}
+						<span class="card-icon"><Icon name="calendar" size={20} /></span>
+					{/if}
 					{#if weekly}<Badge tone={weekly.tone} label={weekly.label} />{/if}
 				</span>
 				<span class="card-title">The weekly what's on</span>
@@ -88,16 +110,6 @@
 				<h2 id="one-off">One-off</h2>
 				<p>Written here: a promotion from a template, or your own.</p>
 			</div>
-			<div class="actions">
-				<Button type="button" size="sm" variant="outline" onclick={() => (promoting = true)}>
-					{#snippet icon()}<Icon name="send" size={14} />{/snippet}
-					Promote…
-				</Button>
-				<Button type="button" size="sm" onclick={() => navigate(writePath("new"))}>
-					{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
-					New email
-				</Button>
-			</div>
 		</header>
 		{#if error}
 			<EmptyState tone="error" title="Couldn't load the emails" text={error}>
@@ -113,9 +125,14 @@
 			<div class="cards">
 				{#each ordered as email (email.id)}
 					{@const badge = statusBadge(email.status)}
+					{@const picture = oneOffPicture(email)}
 					<button type="button" class="card" onclick={() => navigate(writePath(email.id))}>
 						<span class="card-top">
-							<span class="card-icon"><Icon name="send" size={18} /></span>
+							{#if picture}
+								<img class="card-picture" src={picture} alt="" loading="lazy" />
+							{:else}
+								<span class="card-icon"><Icon name="send" size={20} /></span>
+							{/if}
 							<Badge tone={badge.tone} label={badge.label} />
 						</span>
 						<span class="card-title">{email.subject || "(No subject)"}</span>
@@ -128,7 +145,6 @@
 	</section>
 </div>
 
-<PromoteDialog open={promoting} onclose={() => (promoting = false)} />
 
 <style>
 	.overview {
@@ -156,10 +172,6 @@
 		margin: 0.125rem 0 0;
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
-	}
-	.actions {
-		display: flex;
-		gap: var(--space-2);
 	}
 	.cards {
 		display: grid;
@@ -189,16 +201,24 @@
 	}
 	.card-top {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: space-between;
 		margin-bottom: var(--space-2);
+	}
+	/* The email's lead picture, small: enough to tell them apart */
+	.card-picture,
+	.card-icon {
+		width: 4rem;
+		height: 4rem;
+		border-radius: var(--radius-md);
+	}
+	.card-picture {
+		object-fit: cover;
+		background: var(--muted);
 	}
 	.card-icon {
 		display: grid;
 		place-items: center;
-		width: 2rem;
-		height: 2rem;
-		border-radius: var(--radius-md);
 		background: var(--muted);
 		color: var(--muted-foreground);
 	}

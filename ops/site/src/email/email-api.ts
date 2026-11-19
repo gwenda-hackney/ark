@@ -165,7 +165,7 @@ export type OneOffEmail = {
 	sentAt: string | null;
 };
 
-export type OneOffSummary = Omit<OneOffEmail, "sections"> & { sectionCount: number };
+export type OneOffSummary = OneOffEmail & { sectionCount: number };
 
 /** Where the email is sent from: its website, the Sanity project its pictures are in, the logo. */
 export type EmailFrame = {

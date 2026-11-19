@@ -25,8 +25,10 @@
 	import EmailStatus from "./EmailStatus.svelte";
 	import OneOffEmailEditor from "./OneOffEmailEditor.svelte";
 	import EmailOverview from "./EmailOverview.svelte";
-	import { listOneOffEmails, type OneOffSummary } from "./email-api";
-	import { parseShellPath } from "../app/nav";
+	import PromoteDialog from "./PromoteDialog.svelte";
+	import { writePath } from "./one-off-view";
+	import { listOneOffEmails, type EmailFrame, type OneOffSummary } from "./email-api";
+	import { navigate, parseShellPath } from "../app/nav";
 	import SentEmails from "./SentEmails.svelte";
 	import { contentsLine, shortDay } from "./email-view";
 
@@ -39,13 +41,17 @@
 	// Write: the list, and an email open over it.
 	const route = $derived(parseShellPath(path));
 	const editing = $derived(view === "write" && Boolean(route.isNew || route.slug));
+	let promoting = $state(false);
 	let oneOffs = $state<OneOffSummary[]>([]);
+	let oneOffFrame = $state<EmailFrame | null>(null);
 	let oneOffsLoading = $state(false);
 	let oneOffsError = $state("");
 	async function loadOneOffs() {
 		oneOffsLoading = true;
 		try {
-			oneOffs = (await listOneOffEmails()).emails;
+			const data = await listOneOffEmails();
+			oneOffs = data.emails;
+			oneOffFrame = data.frame;
 			oneOffsError = "";
 		} catch (err) {
 			oneOffsError = err instanceof Error ? err.message : "Could not load the emails.";
@@ -120,6 +126,16 @@
 <div class="page scrollbar-fade" class:fill={view === "sent"} class:parked={editing} inert={editing}>
 	<PageHeader title="Email" tabs={{ items: navTabs("email"), value: view === "write" ? "overview" : view }}>
 		{#snippet actions()}
+			{#if view === "overview" || view === "write"}
+				<Button variant="outline" size="sm" data-compact onclick={() => (promoting = true)}>
+					{#snippet icon()}<Icon name="send" size={16} />{/snippet}
+					Promote…
+				</Button>
+				<Button size="sm" data-compact onclick={() => navigate(writePath("new"))}>
+					{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
+					New email
+				</Button>
+			{/if}
 			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={refresh}>
 				{#snippet icon()}
 					<Icon name="refresh" size={16} />
@@ -136,7 +152,7 @@
 			<SentEmails available={status ? status.access.mailchimp : null} />
 		{/key}
 	{:else if view === "write" || view === "overview"}
-		<EmailOverview {status} emails={oneOffs} loading={oneOffsLoading} error={oneOffsError} onretry={() => void loadOneOffs()} />
+		<EmailOverview {status} frame={oneOffFrame} emails={oneOffs} loading={oneOffsLoading} error={oneOffsError} onretry={() => void loadOneOffs()} />
 	{:else if view === "settings"}
 		<div class="narrow">
 			<EmailSchedule {status} onsaved={(settings) => { if (status) status = { ...status, settings }; void loadStatus(); }} />
@@ -160,6 +176,7 @@
 		</div>
 	{/if}
 </div>
+<PromoteDialog open={promoting} onclose={() => (promoting = false)} />
 {#if view === "write" || view === "overview"}
 	<!-- Always mounted on Write: it comes forward over the list when an email opens (EditorShell). -->
 	<OneOffEmailEditor {path} {me} open={editing} onchanged={() => void loadOneOffs()} />

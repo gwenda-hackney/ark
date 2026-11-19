@@ -20,10 +20,10 @@ import { refusal, sendTestToAddress } from "./test-send.js";
 const NOT_FOUND = "That email isn't here any more.";
 const NOT_A_DRAFT = "It has been sent or scheduled, so it can't be changed.";
 
-/** Everything the Write tab lists, newest change first. */
+/** Every one-off email, newest change first, with its sections: the overview draws each card's little preview from them. */
 export async function listOneOffEmails(env) {
   const emails = await oneOffEmailRepository(env).list(200);
-  return { emails: emails.map(({ sections, ...summary }) => ({ ...summary, sectionCount: sections.length })) };
+  return { emails: emails.map((email) => ({ ...email, sectionCount: email.sections.length })) };
 }
 
 /** One email, with the frame the page draws its preview in and what can be done here. */

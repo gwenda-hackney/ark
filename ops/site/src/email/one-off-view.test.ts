@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
+import { leadPicture } from "./email-view";
 import {
 	addSection,
 	draftOf,
@@ -88,5 +89,14 @@ describe("the one-off email editor (#348)", () => {
 		assert.deepEqual(statusBadge("draft"), { label: "Draft", tone: "neutral" });
 		assert.equal(writePath(), "/email");
 		assert.equal(writePath(3), "/email/write/3");
+	});
+});
+
+describe("leadPicture", () => {
+	it("takes the first picture after the logo, or none", () => {
+		const html = '<img src="https://x/logo.png" alt="Gwenda"><h2>Hi</h2><img src="https://cdn.sanity.io/a.jpg?w=1120&amp;fit=max"><img src="https://x/b.jpg">';
+		assert.equal(leadPicture(html), "https://cdn.sanity.io/a.jpg?w=1120&fit=max");
+		assert.equal(leadPicture('<img src="https://x/logo.png">'), "");
+		assert.equal(leadPicture(""), "");
 	});
 });
