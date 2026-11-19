@@ -1,6 +1,6 @@
 /**
  * Print-shaped menu tree: chapters with optional subsections.
- * Baserow stores a flat table plus Parent; this is the nested model the app uses.
+ * Storage keeps a flat table plus parent; this is the nested model the app uses.
  */
 
 /**

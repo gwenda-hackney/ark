@@ -1,7 +1,7 @@
 /**
  * Set Cloudflare Pages secrets for gwenda-ops from Secrets Manager (env=production).
  * Keys come from APP_SECRETS.ops (minus pagesSkip). Plain settings live in the
- * Baserow config database (docs/config.md).
+ * D1 config database (docs/config.md).
  *
  * Needs ARK_LOCAL_BW_TOKEN (local .env) or BWS_ACCESS_TOKEN (CI), plus a
  * Cloudflare token from Secrets Manager (bw-unlock) / the job env.
@@ -51,10 +51,6 @@ if (clearPreview && !isProd) {
 const { token, accountId } = cloudflareFor(secretEnv);
 
 const { values, missing } = loadAppSecretsFromSm("ops", secretEnv);
-if (!values.get("BASEROW_API_KEY")) {
-  console.error(`SM BASEROW_OPS_API_KEY__${secretEnv.toUpperCase()} is required for Pages.`);
-  process.exit(1);
-}
 const skip = new Set(APP_SECRETS.ops.pagesSkip);
 const secrets = {};
 for (const key of APP_SECRETS.ops.keys) {
@@ -87,7 +83,7 @@ try {
   process.exit(1);
 }
 
-console.log("Done. Plain ops settings live in the Baserow config database.");
+console.log("Done. Plain ops settings live in the D1 config database.");
 console.log(
   "Redeploy required for secrets to go live: npm run deploy:production -w @gwenda/ops",
 );

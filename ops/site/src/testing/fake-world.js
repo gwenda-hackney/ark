@@ -2,9 +2,10 @@
  * An in-memory world for use-case tests: everything ops talks to over HTTP,
  * faked behind one global `fetch`, so tests drive the real API handlers.
  *
- * - Baserow: the ops tables (built from platform/baserow-schema.js,
- *   the same field definitions scripts/setup-baserow.mjs uses) and Gwenda Config,
- *   each reachable only with its own token, as in real life.
+ * - D1: the ops, website and config databases (SQLite with the real
+ *   migrations), bound as OPS_DB, WEBSITE_DB and CONFIG_DB. Set config with
+ *   world.setConfig(name, value, { env, service }); read what ops kept with
+ *   world.events() and world.menu() (the repositories).
  * - Sanity: documents in memory, queried with groq-js (the real GROQ engine)
  *   under the raw / published / previewDrafts perspectives.
  * - Google: service-account tokens, Drive folders, Calendar events, Gmail sends.
@@ -16,324 +17,18 @@
  * with the URL, so a new outside call shows up as a failing test.
  */
 import { evaluate, parse } from "groq-js";
-import {
-  GUEST_ARTIST_FIELDS,
-  artistFields,
-  eventDateFields,
-  eventFields,
-  ingredientFields,
-  inventoryFields,
-  inventorySupplierFields,
-  itemFields,
-  menuPlacementFields,
-  posMenuFields,
-  sectionFields,
-  supplierFields,
-  userFields,
-} from "../platform/baserow-schema.js";
+import { resetConfigCacheForTests } from "../../../../shared/config.js";
+import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
+import { d1UserRepository } from "../users/server/adapters/d1-users.js";
+import { eventRepository } from "../events/server/event-repository.js";
+import { menuRepository } from "../menu/server/menu-repository.js";
 
 const SANITY_PROJECT_ID = "gwscpagy";
 const DRIVE_EVENTS_ROOT = "drive-events-root";
-const FILES_HOST = "files.baserow.test";
 const CALENDAR_ID = "events@group.calendar.google.com";
-
-// ---------------------------------------------------------------- Baserow
 
 let nextId = 1000;
 const newId = () => (nextId += 1);
-
-function makeTable(name, databaseId, specs = [], primary = "Name") {
-  const table = {
-    id: newId(),
-    name,
-    database_id: databaseId,
-    fields: [{ id: newId(), name: primary, type: "text", primary: true }],
-    rows: new Map(),
-  };
-  return addFields(table, specs);
-}
-
-/** Specs with a null body are optional fields setup skips (no linked table). */
-function addFields(table, specs) {
-  for (const spec of specs) {
-    if (!spec.body) continue;
-    const field = { id: newId(), primary: false, ...spec.body, name: spec.name };
-    if (field.select_options) {
-      field.select_options = field.select_options.map((option) => ({ id: newId(), ...option }));
-    }
-    table.fields.push(field);
-  }
-  return table;
-}
-
-function emptyValue(field) {
-  if (field.type === "boolean") return false;
-  if (field.type === "link_row" || field.type === "file" || field.type === "multiple_select") return [];
-  return null;
-}
-
-function linkIds(value) {
-  return (Array.isArray(value) ? value : value == null || value === "" ? [] : [value])
-    .map((item) => Number(typeof item === "object" ? item.id : item))
-    .filter((id) => Number.isFinite(id));
-}
-
-class FakeBaserow {
-  constructor() {
-    this.workspaces = new Map();
-    /** Uploaded user files by Baserow name, served from FILES_HOST. */
-    this.files = new Map();
-  }
-
-  serveFile(url) {
-    const file = this.files.get(decodeURIComponent(url.pathname.slice(1)));
-    if (!file) return new Response("Not found", { status: 404 });
-    return new Response(file.bytes, { headers: { "Content-Type": file.type || "application/octet-stream" } });
-  }
-
-  addWorkspace(token, tables) {
-    this.workspaces.set(token, new Map(tables.map((table) => [table.id, table])));
-  }
-
-  tableByName(name) {
-    for (const tables of this.workspaces.values()) {
-      for (const table of tables.values()) if (table.name === name) return table;
-    }
-    throw new Error(`Fake Baserow has no table "${name}"`);
-  }
-
-  /** Rows as the API returns them. */
-  rows(tableName) {
-    const table = this.tableByName(tableName);
-    return [...table.rows.values()].map((row) => this.present(table, row));
-  }
-
-  insert(tableName, fields) {
-    const table = this.tableByName(tableName);
-    return this.present(table, this.write(table, { id: newId() }, fields));
-  }
-
-  /** Change a row behind ops' back, as someone editing Baserow would. */
-  update(tableName, id, fields) {
-    const table = this.tableByName(tableName);
-    const row = table.rows.get(Number(id));
-    if (!row) throw new Error(`Fake Baserow: no row ${id} in "${tableName}"`);
-    return this.present(table, this.write(table, row, fields));
-  }
-
-  /** A user file, as an upload made before (#183) left it. */
-  addFile(visibleName, bytes, type = "image/jpeg") {
-    const name = `${newId()}_${visibleName}`;
-    this.files.set(name, { bytes, type, visibleName });
-    return { name };
-  }
-
-  write(table, row, input) {
-    for (const [key, value] of Object.entries(input || {})) {
-      const field = table.fields.find((f) => f.name === key);
-      if (!field) {
-        const error = new Error(`Field "${key}" does not exist in table "${table.name}".`);
-        error.status = 400;
-        throw error;
-      }
-      if (field.type === "link_row") row[key] = linkIds(value);
-      else if (field.type === "single_select") {
-        if (value == null || value === "") row[key] = null;
-        else {
-          const wanted = typeof value === "object" ? value.id ?? value.value : value;
-          const option = field.select_options.find((o) => o.id === Number(wanted) || o.value === String(wanted));
-          if (!option) {
-            const error = new Error(`"${wanted}" is not an option of "${key}".`);
-            error.status = 400;
-            throw error;
-          }
-          row[key] = option.id;
-        }
-      } else if (field.type === "file") {
-        row[key] = (value || []).map((entry) => String(entry?.name || ""));
-      } else if (field.type === "number") row[key] = value == null || value === "" ? null : String(value);
-      else if (field.type === "boolean") row[key] = Boolean(value);
-      else row[key] = value;
-    }
-    table.rows.set(row.id, row);
-    return row;
-  }
-
-  present(table, row) {
-    const out = { id: row.id, order: "1.00000000000000000000" };
-    for (const field of table.fields) {
-      const value = row[field.name];
-      if (value === undefined) out[field.name] = emptyValue(field);
-      else if (field.type === "link_row") {
-        const target = this.tableById(field.link_row_table_id);
-        // Like Baserow: a link to a deleted row is gone.
-        out[field.name] = value
-          .filter((id) => !target || target.rows.has(id))
-          .map((id) => ({ id, value: target?.rows.get(id)?.Name ?? "" }));
-      } else if (field.type === "file") {
-        out[field.name] = value.map((name) => ({
-          name,
-          visible_name: this.files.get(name)?.visibleName || name,
-          url: `https://${FILES_HOST}/${name}`,
-          is_image: true,
-        }));
-      } else if (field.type === "single_select") {
-        const option = field.select_options.find((o) => o.id === value);
-        out[field.name] = option ? { id: option.id, value: option.value, color: option.color } : null;
-      } else out[field.name] = value;
-    }
-    return out;
-  }
-
-  tableById(id) {
-    for (const tables of this.workspaces.values()) if (tables.has(Number(id))) return tables.get(Number(id));
-    return null;
-  }
-
-  async handle(url, init) {
-    const token = String(init.headers?.Authorization || "").replace(/^Token /, "");
-    const tables = this.workspaces.get(token);
-    if (!tables) return json({ error: "ERROR_INVALID_ACCESS_TOKEN" }, 401);
-    const path = url.pathname;
-    const method = (init.method || "GET").toUpperCase();
-
-    if (path === "/api/database/tables/all-tables/") {
-      return json([...tables.values()].map(({ id, name, database_id }) => ({ id, name, database_id })));
-    }
-    let match = path.match(/^\/api\/database\/fields\/table\/(\d+)\/$/);
-    if (match) {
-      const table = tables.get(Number(match[1]));
-      return table ? json(table.fields.map(({ id, name, type, primary }) => ({ id, name, type, primary }))) : json({}, 404);
-    }
-    match = path.match(/^\/api\/database\/rows\/table\/(\d+)\/(?:(\d+)\/)?$/);
-    if (match) {
-      const table = tables.get(Number(match[1]));
-      if (!table) return json({ error: "ERROR_TABLE_DOES_NOT_EXIST" }, 404);
-      const rowId = match[2] ? Number(match[2]) : null;
-      const body = init.body ? JSON.parse(init.body) : {};
-      try {
-        if (rowId == null && method === "GET") return json(this.list(table, url));
-        if (rowId == null && method === "POST") return json(this.present(table, this.write(table, { id: newId() }, body)));
-        const row = table.rows.get(rowId);
-        if (!row) return json({ error: "ERROR_ROW_DOES_NOT_EXIST" }, 404);
-        if (method === "GET") return json(this.present(table, row));
-        if (method === "PATCH") return json(this.present(table, this.write(table, row, body)));
-        if (method === "DELETE") {
-          table.rows.delete(rowId);
-          return new Response(null, { status: 204 });
-        }
-      } catch (error) {
-        return json({ error: "ERROR_REQUEST_BODY_VALIDATION", detail: error.message }, error.status || 400);
-      }
-    }
-    match = path.match(/^\/api\/database\/rows\/table\/(\d+)\/batch\/$/);
-    if (match) {
-      const table = tables.get(Number(match[1]));
-      if (!table) return json({ error: "ERROR_TABLE_DOES_NOT_EXIST" }, 404);
-      const { items = [] } = init.body ? JSON.parse(init.body) : {};
-      try {
-        if (method === "POST") {
-          return json({ items: items.map((item) => this.present(table, this.write(table, { id: newId() }, item))) });
-        }
-        if (method === "PATCH") {
-          // Baserow checks the whole batch first: one missing row fails it all.
-          const missing = items.find((item) => !table.rows.has(Number(item.id)));
-          if (missing) return json({ error: "ERROR_ROW_DOES_NOT_EXIST", detail: `Row ${missing.id} does not exist.` }, 404);
-          return json({
-            items: items.map(({ id, ...fields }) => this.present(table, this.write(table, table.rows.get(Number(id)), fields))),
-          });
-        }
-      } catch (error) {
-        return json({ error: "ERROR_REQUEST_BODY_VALIDATION", detail: error.message }, error.status || 400);
-      }
-    }
-    match = path.match(/^\/api\/database\/rows\/table\/(\d+)\/batch-delete\/$/);
-    if (match && method === "POST") {
-      const table = tables.get(Number(match[1]));
-      if (!table) return json({ error: "ERROR_TABLE_DOES_NOT_EXIST" }, 404);
-      const { items = [] } = init.body ? JSON.parse(init.body) : {};
-      // Like Baserow: one missing row fails the whole batch.
-      const missing = items.find((id) => !table.rows.has(Number(id)));
-      if (missing != null) return json({ error: "ERROR_ROW_DOES_NOT_EXIST", detail: `Row ${missing} does not exist.` }, 404);
-      for (const id of items) table.rows.delete(Number(id));
-      return new Response(null, { status: 204 });
-    }
-    if (path === "/api/user-files/upload-file/" && method === "POST") {
-      const file = init.body instanceof FormData ? init.body.get("file") : null;
-      if (!file || typeof file === "string") throw new Error("Fake Baserow: upload without a file");
-      const visibleName = file.name || "upload.bin";
-      const name = `${newId()}_${visibleName}`;
-      this.files.set(name, { bytes: new Uint8Array(await file.arrayBuffer()), type: file.type, visibleName });
-      return json({ name, url: `https://${FILES_HOST}/${name}`, is_image: true, visible_name: visibleName });
-    }
-    throw new Error(`Fake Baserow: unhandled ${method} ${path}`);
-  }
-
-  list(table, url) {
-    let rows = [...table.rows.values()];
-    const filters = url.searchParams.get("filters");
-    if (filters) {
-      for (const filter of JSON.parse(filters).filters || []) {
-        if (filter.type !== "link_row_has") throw new Error(`Fake Baserow: filter ${filter.type} not faked`);
-        rows = rows.filter((row) => (row[filter.field] || []).includes(Number(filter.value)));
-      }
-    }
-    for (const [key, value] of url.searchParams) {
-      const bool = key.match(/^filter__(.+)__boolean$/);
-      if (bool) rows = rows.filter((row) => Boolean(row[bool[1]]) === (value === "true" || value === "1"));
-    }
-    const size = Number(url.searchParams.get("size")) || 100;
-    const page = Number(url.searchParams.get("page")) || 1;
-    const slice = rows.slice((page - 1) * size, page * size);
-    return {
-      count: rows.length,
-      next: page * size < rows.length ? `next-page-${page + 1}` : null,
-      previous: null,
-      results: slice.map((row) => this.present(table, row)),
-    };
-  }
-}
-
-function opsTables() {
-  const databaseId = 7;
-  // Menu tables link to each other, so they exist before their fields.
-  const sections = makeTable("Menu Sections", databaseId);
-  const items = makeTable("Menu Items", databaseId);
-  const posMenus = makeTable("POS Menus", databaseId, posMenuFields());
-  const inventory = makeTable("Inventory", databaseId, inventoryFields());
-  const suppliers = makeTable("Suppliers", databaseId, supplierFields());
-  addFields(sections, sectionFields(sections.id));
-  addFields(items, itemFields(sections.id, posMenus.id));
-  const tables = [
-    sections,
-    items,
-    makeTable("Ingredients", databaseId, ingredientFields(items.id, inventory.id)),
-    inventory,
-    suppliers,
-    makeTable("Inventory suppliers", databaseId, inventorySupplierFields(inventory.id, suppliers.id)),
-    posMenus,
-    makeTable("Menu placements", databaseId, menuPlacementFields(items.id, sections.id, posMenus.id)),
-    makeTable("Users", databaseId, userFields()),
-    makeTable("Events", databaseId, eventFields()),
-    makeTable("Artists", databaseId, artistFields()),
-    makeTable(
-      "Guest artists",
-      databaseId,
-      GUEST_ARTIST_FIELDS.map((body) => ({ name: body.name, body })),
-      "Email",
-    ),
-  ];
-  const events = tables.find((table) => table.name === "Events");
-  tables.push(makeTable("Event dates", databaseId, eventDateFields(events.id)));
-  // eventDateFields names the target as a placeholder id until setup creates it.
-  for (const field of tables.at(-1).fields) if (field.type === "link_row") field.link_row_table_id = events.id;
-  return tables;
-}
-
-function configTables() {
-  const texts = ["Value", "Env", "Service"].map((name) => ({ name, body: { name, type: "text" } }));
-  return [makeTable("Config", 9, texts)];
-}
 
 // ----------------------------------------------------------------- Sanity
 
@@ -812,31 +507,39 @@ function json(body, status = 200) {
  * fetch; `restore()` puts it back (call it in afterEach).
  */
 export async function createFakeWorld() {
-  const baserow = new FakeBaserow();
   const sanity = new FakeSanity();
   const google = new FakeGoogle();
   const suffix = crypto.randomUUID();
   const mailchimp = new FakeMailchimp(suffix);
-  const opsToken = `ops-${suffix}`;
-  const configToken = `config-${suffix}`;
-  baserow.addWorkspace(opsToken, opsTables());
-  baserow.addWorkspace(configToken, configTables());
-  for (const [name, value] of [
-    ["google.drive_events_folder_id", DRIVE_EVENTS_ROOT],
-    ["google.calendar_id", CALENDAR_ID],
-    ["sanity.project_id", SANITY_PROJECT_ID],
-  ]) {
-    baserow.insert("Config", { Name: name, Value: value, Env: "dev", Service: name.startsWith("sanity") ? "all" : "ops" });
+  // The D1 databases, each SQLite with the real migrations.
+  const opsDb = createTestD1("ops");
+  const websiteDb = createTestD1("website");
+  const configDb = createTestD1("config");
+  /**
+   * Set a config value, as an admin would in Developer tools (dev, ops unless
+   * given). Synchronous, so a test can set one anywhere.
+   */
+  function setConfig(name, value, { env: envName = "dev", service = "ops" } = {}) {
+    const sql = (text) => `'${String(text).replaceAll("'", "''")}'`;
+    configDb.exec(
+      `INSERT INTO config_values (name, value, env, service) VALUES (${sql(name)}, ${sql(value)}, ${sql(envName)}, ${sql(service)})
+       ON CONFLICT (name, env, service) DO UPDATE SET value = excluded.value`,
+    );
+    resetConfigCacheForTests();
   }
-  baserow.insert("Users", { Name: "Editor", Email: "editor@gwenda.co.uk", Active: true });
+  setConfig("google.drive_events_folder_id", DRIVE_EVENTS_ROOT);
+  setConfig("google.calendar_id", CALENDAR_ID);
+  setConfig("sanity.project_id", SANITY_PROJECT_ID, { service: "all" });
+  await d1UserRepository(opsDb).create({ name: "Editor", email: "editor@gwenda.co.uk", active: true });
 
   const serviceAccount = await testServiceAccount();
   const env = {
     SITE_ENV: "dev",
     SANITY_PROJECT_ID,
     SANITY_API_TOKEN: `sanity-${suffix}`,
-    BASEROW_API_KEY: opsToken,
-    BASEROW_CONFIG_API_KEY: configToken,
+    OPS_DB: opsDb,
+    WEBSITE_DB: websiteDb,
+    CONFIG_DB: configDb,
     GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: serviceAccount,
     GOOGLE_OAUTH_CLIENT_ID: "client-id",
     GOOGLE_OAUTH_CLIENT_SECRET: "client-secret",
@@ -853,8 +556,6 @@ export async function createFakeWorld() {
       ? { method: request.method, headers: Object.fromEntries(request.headers), body: await request.text(), ...init }
       : { ...init, headers: init.headers instanceof Headers ? Object.fromEntries(init.headers) : init.headers || {} };
     calls.push(`${(merged.method || "GET").toUpperCase()} ${url.host}${url.pathname}`);
-    if (url.host === "api.baserow.io") return baserow.handle(url, merged);
-    if (url.host === FILES_HOST) return baserow.serveFile(url);
     if (url.host.endsWith(".api.sanity.io") || url.host.endsWith(".apicdn.sanity.io")) return sanity.handle(url, merged);
     if (url.host.endsWith("googleapis.com")) return google.handle(url, merged);
     if (url.host.endsWith(".api.mailchimp.com")) return mailchimp.handle(url, merged);
@@ -867,7 +568,11 @@ export async function createFakeWorld() {
 
   return {
     env,
-    baserow,
+    setConfig,
+    /** What ops keeps of events and nights, through the repository. */
+    events: () => eventRepository(env),
+    /** What ops keeps of the menu and inventory, through the repository. */
+    menu: () => menuRepository(env),
     sanity,
     google,
     mailchimp,

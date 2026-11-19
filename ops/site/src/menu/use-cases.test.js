@@ -1,6 +1,6 @@
 /**
  * Use cases (#42): every kind of menu edit an editor makes in ops reaches
- * /menu after the menu's Update website. Real API handlers, with Baserow and
+ * /menu after the menu's Update website. Real API handlers, with D1 (SQLite) and
  * Sanity faked (testing/fake-world.js); "what /menu shows" is the website's
  * own MENU_QUERY run against the published documents.
  */
@@ -8,7 +8,6 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
 import { evaluate, parse } from "groq-js";
 import { MENU_QUERY } from "../../../../marketing/web/src/lib/sanity/queries.ts";
-import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { onRequestPost as createItem } from "../../functions/api/menu/index.js";
 import { onRequestPatch as editItem } from "../../functions/api/menu/[id].js";
@@ -136,8 +135,7 @@ function published(world, type, field, value) {
   return world.sanity.view("published").find((doc) => doc._type === type && get(doc) === value);
 }
 
-// The same edits with the menu on Baserow and on D1 (#127).
-for (const store of ["baserow", "d1"]) describe(`menu on ${store}: each edit reaches /menu after Update website`, () => {
+describe("menu: each edit reaches /menu after Update website", () => {
   let world;
   let ops;
   let cocktails;
@@ -145,7 +143,6 @@ for (const store of ["baserow", "d1"]) describe(`menu on ${store}: each edit rea
   beforeEach(async () => {
     world = await createFakeWorld();
     world.install();
-    if (store === "d1") Object.assign(world.env, { OPS_DB: createTestD1("ops"), DATA_STORE_MENU: "d1" });
     ops = editor(world);
     cocktails = await ops.section("Cocktails");
     negroni = await ops.create({
@@ -156,7 +153,6 @@ for (const store of ["baserow", "d1"]) describe(`menu on ${store}: each edit rea
       sectionId: cocktails._id,
       onDigitalMenu: true,
     });
-    if (store === "d1") assert.deepEqual(world.baserow.rows("Menu Items"), [], "on D1, Baserow isn't touched");
   });
   afterEach(() => world.restore());
 
@@ -252,7 +248,6 @@ for (const store of ["baserow", "d1"]) describe(`menu on ${store}: each edit rea
     assert.equal(assets.length, 1, "the photo went straight to Sanity (#183)");
     assert.equal(withPhoto.image.asset._id, assets[0]._id);
     assert.match(withPhoto.image.asset.url, /^https:\/\/cdn\.sanity\.io\//);
-    if (store === "baserow") assert.deepEqual(world.baserow.rows("Menu Items")[0].Photo, [], "no Baserow file");
     await ops.updateWebsite();
     assert.ok(drink(await websiteMenu(world), "Cocktails", "Negroni")?.image?.asset?.url, "photo on /menu");
     assert.equal(
@@ -263,15 +258,6 @@ for (const store of ["baserow", "d1"]) describe(`menu on ${store}: each edit rea
     await ops.removePhoto(negroni);
     await ops.updateWebsite();
     assert.ok(!drink(await websiteMenu(world), "Cocktails", "Negroni")?.image?.asset, "photo gone from /menu");
-  });
-
-  // Storage-specific on purpose: only Baserow has photos from before #183.
-  it.skipIf(store !== "baserow")("a photo from before (a Baserow file) still reaches /menu", async () => {
-    const file = world.baserow.addFile("old.jpg", new Uint8Array(1024).fill(9));
-    const [row] = world.baserow.rows("Menu Items");
-    world.baserow.update("Menu Items", row.id, { Photo: [file] });
-    await ops.updateWebsite();
-    assert.ok(drink(await websiteMenu(world), "Cocktails", "Negroni")?.image?.asset?.url, "copied in at publish");
   });
 
   it("moving a drink to another section", async () => {

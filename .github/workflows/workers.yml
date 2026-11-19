@@ -167,8 +167,8 @@ jobs:
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:ark:pull -- --github-env
-      # BASEROW_API_KEY: the production Website token (Subscribers, Subscribe
-      # sync runs). The Mailchimp credentials are script-only, exported by name.
+      # Subscribers come through the WEBSITE_DB binding. The Mailchimp
+      # credentials are script-only, exported by name.
       - name: Pull web secrets from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
@@ -201,13 +201,17 @@ jobs:
       - name: Sync Worker secrets
         run: |
           cd marketing/subscribe-mailchimp-sync
-          echo "$BASEROW_API_KEY" | npx wrangler secret put BASEROW_API_KEY
           echo "$MAILCHIMP_API_KEY" | npx wrangler secret put MAILCHIMP_API_KEY
           echo "$SUBSCRIBE_MAILCHIMP_SYNC_SECRET" | npx wrangler secret put SYNC_SECRET
+          # Subscribers moved off Baserow (#234): its token goes. Safe to run again.
+          if npx wrangler secret list --format json | grep -q '"name": *"BASEROW_API_KEY"'; then
+            npx wrangler secret delete BASEROW_API_KEY
+          else
+            echo "BASEROW_API_KEY already removed."
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          BASEROW_API_KEY: ${{ env.BASEROW_API_KEY }}
           MAILCHIMP_API_KEY: ${{ env.MAILCHIMP_API_KEY }}
           SUBSCRIBE_MAILCHIMP_SYNC_SECRET: ${{ env.SUBSCRIBE_MAILCHIMP_SYNC_SECRET }}
 
@@ -295,8 +299,15 @@ jobs:
 
   wifi-captive-portal:
     name: Wi-Fi captive portal
-    needs: changes
-    if: needs.changes.outputs.wifi_portal == 'true'
+    # After the sync: a newer portal saves Wi-Fi guests who said no to marketing,
+    # and only the newer sync knows not to send them to Mailchimp. When the sync
+    # didn't change it's skipped, and the portal still deploys; if it failed, the
+    # portal waits.
+    needs: [changes, subscribe-mailchimp-sync]
+    if: >-
+      always() && needs.changes.outputs.wifi_portal == 'true' &&
+      needs.subscribe-mailchimp-sync.result != 'failure' &&
+      needs.subscribe-mailchimp-sync.result != 'cancelled'
     runs-on: ubuntu-latest
     environment:
       name: production

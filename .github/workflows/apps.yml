@@ -338,13 +338,6 @@ jobs:
           project: ops
           auth-token: ${{ env.SENTRY_ORG_TOKEN }}
 
-      # Baserow schema changes need a user login (database tokens only touch rows);
-      # config migrations use this environment's config token.
-      - name: Baserow access for migrations
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD BASEROW_CONFIG_API_KEY
-
       # Pages keeps each deployment's secrets, so the new code's secrets go on
       # before it deploys. Adds and updates only; the running ops keeps its own.
       - name: Sync ops secrets (SM env=production)
@@ -487,13 +480,6 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/setup-ops-secrets.mjs --project gwenda-ops-dev --env dev
 
-      # Baserow schema changes need a user login (database tokens only touch rows);
-      # config migrations use this environment's config token.
-      - name: Baserow access for migrations
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD BASEROW_CONFIG_API_KEY
-
       # D1 schema first (db/<role>/migrations, #191): it only adds, and skips databases not created yet.
       - name: D1 schema migrations
         run: node scripts/d1-migrate.mjs --env dev
@@ -628,7 +614,7 @@ jobs:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Ops tools — branch preview (dev data)","rows":[
               ["Preview","[${{ steps.preview_url.outputs.url }}](${{ steps.preview_url.outputs.url }})"],
-              ["Data","Dev copies (Gwenda Dev Sanity, dev Baserow). No migrations run for previews."],
+              ["Data","Dev copies (Gwenda Dev Sanity, dev D1). No migrations run for previews."],
               ["Pages branch","`${{ steps.branch.outputs.name }}`"],
               ["Git branch","`${{ github.ref_name }}`"],
               ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"],

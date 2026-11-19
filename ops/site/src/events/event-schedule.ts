@@ -91,7 +91,7 @@ export function groupEventSchedule(
 						heroCrops: null,
 					},
 				}));
-		// One row per night. Duplicate Baserow date rows must not crash the list.
+		// One row per night. Duplicate date rows must not crash the list.
 		const byDate = new Map<string, (typeof source)[number]>();
 		for (const occurrence of source) {
 			const prev = byDate.get(occurrence.date);

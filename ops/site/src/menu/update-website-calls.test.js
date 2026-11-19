@@ -11,7 +11,6 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
 import { evaluate, parse } from "groq-js";
 import { MENU_QUERY } from "../../../../marketing/web/src/lib/sanity/queries.ts";
-import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { onRequestPost as createItem } from "../../functions/api/menu/index.js";
 import { onRequestPatch as patchItem } from "../../functions/api/menu/[id].js";
@@ -82,7 +81,6 @@ describe("the menu's Update website after a big change", () => {
   beforeEach(async () => {
     world = await createFakeWorld();
     world.install();
-    Object.assign(world.env, { OPS_DB: createTestD1("ops"), DATA_STORE_MENU: "d1", DATA_STORE_EVENTS: "d1" });
     ops = editor(world);
   });
   afterEach(() => world.restore());

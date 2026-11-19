@@ -138,12 +138,6 @@
 		const pending = takeBlockedNav();
 		if (pending?.path) navigate(pending.path, { force: true, replace: pending.replace });
 	}
-
-	const baserowHref = $derived(
-		connection?.databaseId
-			? `https://baserow.io/database/${connection.databaseId}/`
-			: "",
-	);
 </script>
 
 <div class="page scrollbar-fade">
@@ -202,7 +196,7 @@
 	</div>
 
 	<div class="panel" hidden={tab !== "environment"}>
-		<p class="lead">Which Baserow database this ops session writes to.</p>
+		<p class="lead">Which database this ops session writes to.</p>
 		{#if connection}
 			<Card>
 				<dl class="env-grid">
@@ -213,13 +207,9 @@
 					<div>
 						<dt>Database</dt>
 						<dd>
-							{#if baserowHref}
-								<a href={baserowHref} target="_blank" rel="noreferrer">
-									{connection.databaseLabel}
-									<span class="mono">({connection.databaseId})</span>
-								</a>
-							{:else}
-								{connection.databaseLabel}
+							{connection.databaseLabel}
+							{#if connection.databaseId}
+								<span class="mono">({connection.databaseId})</span>
 							{/if}
 						</dd>
 					</div>
@@ -336,15 +326,6 @@
 		font-size: var(--text-base);
 		font-weight: 500;
 		color: var(--foreground);
-	}
-
-	.env-grid a {
-		color: var(--primary);
-		text-decoration: none;
-	}
-
-	.env-grid a:hover {
-		text-decoration: underline;
 	}
 
 	.mono {

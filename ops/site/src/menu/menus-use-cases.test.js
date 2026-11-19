@@ -1,14 +1,13 @@
 /**
  * Use cases for menus (#305): what the owner does on Menu → Menus, on a
  * menu's page and from a pop-up kitchen in Events, through the real API
- * handlers, with the menu on D1 and Baserow, Sanity and Google faked
+ * handlers, with the menu on D1 (SQLite), and Sanity and Google faked
  * (testing/fake-world.js). "What the website gets" is the published
  * sections, as /bar and /kitchen read them.
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { evaluate, parse } from "groq-js";
-import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { MENU_QUERY, MENUS_QUERY } from "../../../../marketing/web/src/lib/sanity/queries.ts";
 import { mapFlatSection, mapMenuInfo, nestMenuSections } from "../../../../marketing/web/src/lib/sanity/menu.ts";
 import { menuShelf } from "../../../../marketing/web/src/lib/menus.js";
@@ -193,7 +192,6 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
     vi.useFakeTimers({ toFake: ["Date"], now: new Date(`${TODAY}T12:00:00Z`) });
     world = await createFakeWorld();
     world.install();
-    Object.assign(world.env, { OPS_DB: createTestD1("ops"), DATA_STORE_MENU: "d1" });
     ops = owner(world);
     pickle = await ops.series({
       name: "Chez Pickle",
@@ -586,7 +584,7 @@ describe("menus: Menu → Menus, a menu's page, and a pop-up's menus in Events",
   });
 
   it("with website.auto_update off, a saved menu waits on the preview for Update website", async () => {
-    world.baserow.insert("Config", { Name: "website.auto_update", Value: "off", Env: "dev", Service: "ops" });
+    world.setConfig("website.auto_update", "off");
     resetConfigCacheForTests();
     const dinner = await ops.addMenu({ name: "Dinner", kind: "kitchen" });
     const plates = await ops.section("Small plates", { menuId: dinner.id });

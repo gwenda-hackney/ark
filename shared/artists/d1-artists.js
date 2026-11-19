@@ -12,7 +12,6 @@ import {
   fail,
   guestArtistPatch,
   guestArtistRecord,
-  isFilePhoto,
 } from "./artist-model.js";
 
 export const artistsTable = d1Table({
@@ -60,18 +59,10 @@ function fromRow(row) {
 
 const assets = (list) => list.map(({ asset, label }) => ({ asset, label }));
 
-/** Record fields → row fields. D1 holds no files: a photo still in Baserow can't come in. */
-function toRow(fields, id = fields.id ?? "(new)") {
+/** Record fields → row fields. */
+function toRow(fields) {
   const patch = artistPatch(fields);
   const { portrait, art, gwenda, ...row } = patch;
-  for (const photo of [portrait, ...(art || []), ...(gwenda || [])]) {
-    if (isFilePhoto(photo)) {
-      fail(
-        409,
-        `Artist ${id} still has photos kept as Baserow files: run the backfill (2026-10-06-artist-images-backfill) first.`,
-      );
-    }
-  }
   if (portrait !== undefined) row.portraitAsset = portrait?.asset || "";
   if (art !== undefined) row.artAssets = assets(art);
   if (gwenda !== undefined) row.gwendaAssets = assets(gwenda);
@@ -94,7 +85,7 @@ export function d1ArtistRepository(db) {
     },
     async updateArtist(id, fields) {
       const artist = fromRow(
-        await artistsTable.patch(db, id, toRow(fields, id)),
+        await artistsTable.patch(db, id, toRow(fields)),
       );
       if (!artist) throw artistNotFound();
       return artist;

@@ -2,8 +2,7 @@
 /**
  * Attach inventory items to supplier rows (junction + product URL)
  * and pull ABV from those pages (Hills Prospect embeds AddFil_…_ABV).
- * Reads and writes through the menu repository (Baserow or D1, wherever
- * the menu lives).
+ * Reads and writes through the menu repository (the ops D1 database).
  *
  * Usage:
  *   npm run enrich:ops-inventory

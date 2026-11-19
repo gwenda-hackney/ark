@@ -188,7 +188,7 @@ export function draftMutations(mutations, existing = [], newId = () => crypto.ra
 
 /**
  * Save for the preview: every write becomes a draft (draftMutations). Result
- * ids are the documents' own ids, never "drafts.…", so Baserow links stay put.
+ * ids are the documents' own ids, never "drafts.…", so links kept in ops stay put.
  */
 export async function sanityMutate(env, mutations, { query = sanityQuery, send = sanityMutatePublished } = {}) {
   assertSanityWritable(env);

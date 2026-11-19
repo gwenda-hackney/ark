@@ -8,7 +8,7 @@
  *
  *   SUBSCRIBE_SECRET=... npm run env:web:push -- SUBSCRIBE_SECRET   # shared value
  *   SUBSCRIBE_SECRET=... npm run env:web:push -- --dry-run SUBSCRIBE_SECRET
- *   npm run env:ops:push -- --profile dev BASEROW_API_KEY   # BASEROW_OPS_API_KEY__DEV
+ *   npm run env:ops:push -- --profile dev SENTRY_READ_TOKEN   # SENTRY_READ_TOKEN__DEV
  *
  * Without --profile a key is pushed as the shared NAME; a PRODUCTION_ONLY key
  * always goes as NAME__PRODUCTION. Keys that already have

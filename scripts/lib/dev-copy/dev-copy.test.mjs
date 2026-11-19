@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { baserow, baserowCopyCommand } from "./baserow.mjs";
+import { d1, d1CopyCommand, featuresIn } from "./d1.mjs";
 import { copySanityContent, idsOnlyIn, sanityTokens } from "./content.mjs";
 import { databaseProvider } from "./database.mjs";
 import { COPY_TARGETS, copySteps, copySummary, runCopySteps } from "./index.mjs";
@@ -77,24 +77,31 @@ describe("runCopySteps", () => {
 });
 
 describe("databaseProvider", () => {
-  it("is Baserow today and refuses unknown providers", () => {
-    assert.equal(databaseProvider().id, "baserow");
+  it("is D1 and refuses unknown providers", () => {
+    assert.equal(databaseProvider().id, "d1");
     assert.throws(() => databaseProvider("postgres"), /Unknown database provider "postgres"/);
   });
 });
 
-describe("baserow provider", () => {
-  it("runs the clone script for the database, wiping the copy's rows", () => {
-    const [script, ...args] = baserowCopyCommand("ops");
-    assert.match(script, /scripts\/clone-baserow-ops-db\.mjs$/);
-    assert.deepEqual(args, ["--force"]);
-    assert.deepEqual(baserowCopyCommand("website", { dryRun: true }).slice(1), ["--force", "--dry-run"]);
-    assert.throws(() => baserowCopyCommand("config"), /no "config" database/);
+describe("d1 provider", () => {
+  it("copies each feature of the database with data-move, D1 production → D1 dev", () => {
+    assert.deepEqual(featuresIn("ops"), ["users", "artists", "menu", "events", "venue"]);
+    assert.deepEqual(featuresIn("website"), ["guests"]);
+    assert.throws(() => featuresIn("config"), /no "config" database/);
+    const [script, ...args] = d1CopyCommand("menu");
+    assert.match(script, /scripts\/data-move\.mjs$/);
+    assert.deepEqual(args, ["--feature", "menu", "--from", "d1:production", "--to", "d1:dev", "--write"]);
+    assert.deepEqual(d1CopyCommand("guests", { dryRun: true }).slice(-1), ["d1:dev"], "a dry run writes nothing");
   });
 
-  it("throws when the clone script fails", () => {
-    const run = () => ({ status: 1 });
-    assert.throws(() => baserow.copy("ops", { run }), /ops database failed/);
+  it("runs every feature, then says which failed", () => {
+    const ran = [];
+    const run = (_node, [, , feature]) => {
+      ran.push(feature);
+      return { status: feature === "artists" ? 1 : 0 };
+    };
+    assert.throws(() => d1.copy("ops", { run }), /ops database failed: artists\./);
+    assert.deepEqual(ran, ["users", "artists", "menu", "events", "venue"]);
   });
 });
 

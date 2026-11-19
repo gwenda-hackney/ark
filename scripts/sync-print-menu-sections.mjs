@@ -2,8 +2,7 @@
 /**
  * Align the ops menu sections + Sanity with the guest print tree.
  * Deletes leftover untitled sample rows. Does not rewrite recipes. The ops
- * side goes through the menu repository (Baserow or D1, wherever the menu
- * lives).
+ * side goes through the menu repository (the ops D1 database).
  * Writes published Sanity documents, not drafts: point it at Gwenda Dev
  * (SANITY_PROJECT_ID=gwscpagy) unless the change should go live.
  *

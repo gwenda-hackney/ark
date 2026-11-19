@@ -59,18 +59,21 @@ const gatePlugin = devSiteGate({
   open: true,
 });
 
+/** Dev's D1 databases, over the API (shared/d1-env.js). */
+const d1ApiEnv = () => ({
+  CLOUDFLARE_API_TOKEN:
+    process.env.CLOUDFLARE_API_TOKEN || env.CLOUDFLARE_API_TOKEN,
+  CLOUDFLARE_ACCOUNT_ID:
+    process.env.CLOUDFLARE_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID,
+});
+
 const subscribeEnv = () => ({
-  BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
-  BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
-  BASEROW_DATABASE_ID:
-    process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
-  BASEROW_SUBSCRIBE_TABLE_NAME:
-    process.env.BASEROW_SUBSCRIBE_TABLE_NAME ||
-    env.BASEROW_SUBSCRIBE_TABLE_NAME,
+  ...d1ApiEnv(),
   // These run in the local dev server only: a developer's machine.
   SITE_ENV: process.env.SITE_ENV || env.SITE_ENV || "local",
 });
 
+// RSVP and event invites are still on Baserow, until #237.
 const rsvpEnv = () => ({
   BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
   BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
@@ -114,9 +117,7 @@ const devApiEnv = () => ({
   ...rsvpEnv(),
   INVITE_BASE_URL: env.INVITE_BASE_URL,
   INVITE_IMAGE_URL: env.INVITE_IMAGE_URL,
-  BASEROW_OPS_API_KEY:
-    process.env.BASEROW_OPS_API_KEY || env.BASEROW_OPS_API_KEY,
-  BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
+  ...d1ApiEnv(),
 });
 
 function sendJson(res, status, data, extraHeaders = {}) {
@@ -232,15 +233,8 @@ function devFormsApi() {
         SANITY_API_TOKEN:
           process.env.SANITY_API_TOKEN?.trim() || env.SANITY_API_TOKEN?.trim(),
         SANITY_PERSPECTIVE: localSanityPerspective(),
-        BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
-        BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
-        BASEROW_DATABASE_ID:
-          process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
-        BASEROW_FORM_SUBMISSIONS_TABLE_NAME:
-          process.env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME ||
-          env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME,
-        BASEROW_CONFIG_API_KEY:
-          process.env.BASEROW_CONFIG_API_KEY || env.BASEROW_CONFIG_API_KEY,
+        // Config and form submissions are in dev's D1 databases, over the API.
+        ...d1ApiEnv(),
         FORMS_ADMIN_SECRET:
           process.env.FORMS_ADMIN_SECRET || env.FORMS_ADMIN_SECRET,
         // A developer's own inbox for form emails (repo .env); hosted

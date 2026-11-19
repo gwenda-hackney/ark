@@ -36,11 +36,11 @@ describe("Confirm", () => {
 		let tries = 0;
 		const asked = confirm.run({ title: "Delete Jo?", action: "Delete" }, async () => {
 			tries += 1;
-			if (tries === 1) throw new Error("Baserow said no.");
+			if (tries === 1) throw new Error("The database said no.");
 		});
 		await confirm.accept();
 		expect(confirm.open).toBe(true);
-		expect(confirm.error).toBe("Baserow said no.");
+		expect(confirm.error).toBe("The database said no.");
 		await confirm.accept();
 		expect(confirm.open).toBe(false);
 		await expect(asked).resolves.toBe(true);

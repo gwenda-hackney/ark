@@ -6,12 +6,11 @@ import {
 } from "../../../src/access/server/auth.js";
 import { opsConnectionInfo } from "../../../src/platform/config-store.js";
 import { opsEnv } from "../../../src/platform/ops-env.js";
-import { resolveOpsTableIds } from "../../../../../shared/baserow.js";
 import { isOpsAdmin } from "../../../src/access/server/admin.js";
 import { isOpsUser } from "../../../src/users/server/user-store.js";
 import { frozenFeatures } from "../../../../../shared/write-freeze.js";
 
-/** Current session identity and Baserow connection for the shell. */
+/** Current session identity and database connection for the shell. */
 export async function onRequestGet(context) {
   const env = await opsEnv(context);
   const auth = resolveAuth(env);
@@ -28,8 +27,7 @@ export async function onRequestGet(context) {
   if (!(await isOpsUser(env, email))) {
     return opsUserForbiddenResponse({ json: true });
   }
-  const resolved = await resolveOpsTableIds(env).catch(() => null);
-  const connection = opsConnectionInfo(env, resolved?.databaseId);
+  const connection = opsConnectionInfo(env);
   return new Response(
     JSON.stringify({
       email,

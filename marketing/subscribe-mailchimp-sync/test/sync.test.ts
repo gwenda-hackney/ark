@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { memorySubscriberRepository } from "../../../shared/guests/adapters/memory-subscribers.js";
-import type { SubscriberRecord } from "../../../shared/guests/subscribers.js";
+import { subscribe, type SubscriberRecord } from "../../../shared/guests/subscribers.js";
 import {
   isAuthorized,
   isRateLimited,
@@ -15,13 +15,12 @@ import {
   upsertMailchimpMember,
 } from "../src/sync";
 import type { Env } from "../src/types";
+import { fakeMailchimp } from "./fake-mailchimp";
 
 const env: Env = {
-  BASEROW_API_KEY: "baserow-key",
   MAILCHIMP_API_KEY: "mailchimp-key-us2",
   SYNC_SECRET: "sync-secret",
   MAILCHIMP_AUDIENCE_ID: "e2c69d5d31",
-  BASEROW_API_URL: "https://api.baserow.io",
 };
 
 describe("helpers", () => {
@@ -106,25 +105,36 @@ describe("upsertMailchimpMember", () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it("skips ESP update for unsubscribed members", async () => {
-    const hash = mailchimpSubscriberHash("a@example.com");
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.endsWith(`/members/${hash}`) && !init?.method) {
-        return Response.json({ status: "unsubscribed" });
-      }
-      throw new Error(`Unexpected mutating fetch: ${url}`);
-    });
+  it("puts a member who unsubscribed back as pending, so Mailchimp asks them to confirm", async () => {
+    const mailchimp = fakeMailchimp();
+    mailchimp.add({ email_address: "a@example.com", status: "unsubscribed" });
 
     const result = await upsertMailchimpMember({
       apiKey: "mailchimp-key-us2",
       audienceId: "e2c69d5d31",
       email: "a@example.com",
       tags: ["prelaunch"],
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: mailchimp.fetch,
     });
 
-    expect(result).toEqual({ ok: true, skippedEspUpdate: true });
+    expect(result).toEqual({ ok: true, confirming: true });
+    expect(mailchimp.member("a@example.com")).toMatchObject({
+      status: "pending",
+      tags: ["prelaunch"],
+    });
+  });
+
+  it("leaves a pending member pending", async () => {
+    const mailchimp = fakeMailchimp();
+    mailchimp.add({ email_address: "a@example.com", status: "pending" });
+    await upsertMailchimpMember({
+      apiKey: "mailchimp-key-us2",
+      audienceId: "e2c69d5d31",
+      email: "a@example.com",
+      fetchImpl: mailchimp.fetch,
+    });
+    expect(mailchimp.puts[0]?.body).not.toHaveProperty("status");
+    expect(mailchimp.member("a@example.com")?.status).toBe("pending");
   });
 
   it("counts an address Mailchimp rejects for good as done, so it isn't retried", async () => {
@@ -157,8 +167,12 @@ describe("upsertMailchimpMember", () => {
     expect(permanentRejection(400, '{"title":"Member Exists"}')).toBe("");
     expect(permanentRejection(500, '{"title":"Invalid Resource"}')).toBe("");
     expect(permanentRejection(400, "not json")).toBe("");
+    expect(permanentRejection(400, '{"title":"Member In Compliance State","detail":"x"}')).toBe("x");
+    expect(permanentRejection(400, '{"title":"Forgotten Email Not Subscribed","detail":"y"}')).toBe("y");
   });
 });
+
+const noUnsubscribes = () => Response.json({ members: [], total_items: 0 });
 
 describe("syncUnsyncedSubscribers", () => {
   /** Subscribers in memory, with these records (ids kept). */
@@ -169,6 +183,10 @@ describe("syncUnsyncedSubscribers", () => {
         email: "",
         tags: [],
         signedUpOn: null,
+        marketing: true,
+        marketingOn: null,
+        marketingOffOn: null,
+        lastSeenOn: null,
         synced: false,
         ...record,
       })),
@@ -221,6 +239,7 @@ describe("syncUnsyncedSubscribers", () => {
     const puts: unknown[] = [];
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/members?status=unsubscribed")) return noUnsubscribes();
       if (url.endsWith(`/members/${hash}`) && !init?.method) {
         return new Response("{}", { status: 404 });
       }
@@ -249,10 +268,32 @@ describe("syncUnsyncedSubscribers", () => {
     expect(await repository.listUnsynced()).toEqual([]);
   });
 
-  it("never sends the deploy smoke test's sign-up to Mailchimp", async () => {
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      throw new Error(`Unexpected Mailchimp call: ${String(input)}`);
+  it("never sends a Wi-Fi guest who left the newsletter box unticked", async () => {
+    const mailchimp = fakeMailchimp();
+    const fetchImpl = vi.fn(mailchimp.fetch);
+    const repository = memorySubscriberRepository();
+    // The Wi-Fi portal's save for a guest who didn't tick the box.
+    await subscribe(repository, {
+      email: "guest@example.com",
+      tag: "wifi",
+      marketing: false,
+      visit: true,
     });
+
+    for (const all of [false, true]) {
+      const summary = await syncUnsyncedSubscribers(env, {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        repository,
+        all,
+      });
+      expect(summary).toMatchObject({ ok: true, scanned: 0, synced: 0 });
+    }
+    expect(mailchimp.puts).toEqual([]);
+  });
+
+  it("never sends the deploy smoke test's sign-up to Mailchimp", async () => {
+    const mailchimp = fakeMailchimp();
+    const fetchImpl = vi.fn(mailchimp.fetch);
     const repository = await subscribers([
       { id: 9, email: "Alerts+Signup-Smoke@gwenda.co.uk", tags: ["prelaunch"] },
     ]);
@@ -264,6 +305,7 @@ describe("syncUnsyncedSubscribers", () => {
 
     expect(summary).toMatchObject({ ok: true, synced: 0, errors: 0 });
     expect(summary.results[0]).toMatchObject({ rowId: 9, status: "skipped", detail: "Smoke test" });
+    expect(mailchimp.puts).toEqual([]);
     expect((await repository.listUnsynced()).map((r) => r.id)).toEqual([9]);
   });
 
@@ -272,6 +314,7 @@ describe("syncUnsyncedSubscribers", () => {
     const hashA = mailchimpSubscriberHash("a@example.com");
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/members?status=unsubscribed")) return noUnsubscribes();
       if (url.includes(`/members/${hashA}`) && !init?.method) {
         return new Response("{}", { status: 404 });
       }
@@ -299,4 +342,130 @@ describe("syncUnsyncedSubscribers", () => {
     expect(summary.results).toHaveLength(1);
     expect(summary.results[0]?.status).toBe("error");
   });
+});
+
+describe("unsubscribes and joining again", () => {
+  const sync = (mailchimp: ReturnType<typeof fakeMailchimp>, repository: ReturnType<typeof memorySubscriberRepository>, options = {}) =>
+    syncUnsyncedSubscribers(env, { fetchImpl: mailchimp.fetch, repository, ...options });
+
+  /** Ada signed up on the website, was synced, then unsubscribed in Mailchimp on 10 November. */
+  async function unsubscribedAda() {
+    const mailchimp = fakeMailchimp();
+    const repository = memorySubscriberRepository();
+    await subscribe(repository, {
+      email: "ada@example.com",
+      tag: "website",
+      now: new Date("2026-10-01T12:00:00Z"),
+    });
+    await sync(mailchimp, repository);
+    expect(mailchimp.member("ada@example.com")?.status).toBe("subscribed");
+    mailchimp.add({
+      ...mailchimp.member("ada@example.com")!,
+      status: "unsubscribed",
+      last_changed: "2026-11-10T09:30:00+00:00",
+    });
+    mailchimp.puts.length = 0;
+    return { mailchimp, repository };
+  }
+
+  const ada = async (repository: ReturnType<typeof memorySubscriberRepository>) =>
+    (await repository.listByEmail("ada@example.com"))[0];
+
+  it("an unsubscribe in Mailchimp takes the address off our list", async () => {
+    const { mailchimp, repository } = await unsubscribedAda();
+    const summary = await sync(mailchimp, repository);
+
+    expect(summary).toMatchObject({ ok: true, unsubscribed: 1 });
+    expect(await ada(repository)).toMatchObject({
+      marketing: false,
+      marketingOffOn: "2026-11-10",
+      marketingOn: "2026-10-01",
+    });
+    expect(mailchimp.puts).toEqual([]);
+
+    // The next run asks only for unsubscribes since the latest one it has.
+    await sync(mailchimp, repository);
+    expect(mailchimp.listQueries.at(-1)?.get("since_last_changed")).toBe(
+      "2026-11-10T00:00:00+00:00",
+    );
+  });
+
+  it("reads every page of unsubscribes", async () => {
+    const mailchimp = fakeMailchimp();
+    const repository = memorySubscriberRepository();
+    for (const email of ["a@example.com", "b@example.com", "c@example.com"]) {
+      await subscribe(repository, { email, tag: "website" });
+      mailchimp.add({ email_address: email, status: "unsubscribed" });
+    }
+    for (const record of await repository.listUnsynced({ limit: 10 }))
+      await repository.update(record.id, { synced: true });
+
+    const summary = await sync(mailchimp, repository, { pageSize: 2 });
+
+    expect(summary).toMatchObject({ ok: true, unsubscribed: 3 });
+    expect(await repository.listUnsynced({ all: true })).toEqual([]);
+  });
+
+  it("signing up again on the website after unsubscribing asks Mailchimp to confirm", async () => {
+    const { mailchimp, repository } = await unsubscribedAda();
+    await sync(mailchimp, repository);
+
+    await subscribe(repository, {
+      email: "ada@example.com",
+      tag: "website",
+      now: new Date("2026-11-18T12:00:00Z"),
+    });
+    const summary = await sync(mailchimp, repository);
+
+    expect(summary).toMatchObject({ ok: true, synced: 1 });
+    expect(mailchimp.puts.map((put) => put.body.status)).toEqual(["pending"]);
+    expect(mailchimp.member("ada@example.com")?.status).toBe("pending");
+    expect(await ada(repository)).toMatchObject({
+      marketing: true,
+      marketingOn: "2026-11-18",
+      marketingOffOn: null,
+      synced: true,
+    });
+
+    // Waiting for them to confirm isn't an unsubscribe.
+    await sync(mailchimp, repository);
+    expect((await ada(repository)).marketing).toBe(true);
+  });
+
+  it("a Wi-Fi visit with the box unticked after unsubscribing sends nothing", async () => {
+    const { mailchimp, repository } = await unsubscribedAda();
+    await sync(mailchimp, repository);
+
+    await subscribe(repository, {
+      email: "ada@example.com",
+      tag: "wifi",
+      marketing: false,
+      visit: true,
+    });
+    await sync(mailchimp, repository);
+
+    expect(mailchimp.puts).toEqual([]);
+    expect(mailchimp.member("ada@example.com")?.status).toBe("unsubscribed");
+    expect((await ada(repository)).marketing).toBe(false);
+  });
+
+  it.each(["cleaned", "archived"] as const)(
+    "never re-adds a %s member, and doesn't retry",
+    async (status) => {
+      const mailchimp = fakeMailchimp();
+      const repository = memorySubscriberRepository();
+      mailchimp.add({ email_address: "ada@example.com", status });
+      await subscribe(repository, { email: "ada@example.com", tag: "website" });
+
+      const summary = await sync(mailchimp, repository);
+
+      expect(mailchimp.puts).toEqual([]);
+      expect(summary.results[0]).toMatchObject({
+        status: "synced",
+        detail: `Mailchimp member is ${status}; not re-added`,
+      });
+      expect(await repository.listUnsynced()).toEqual([]);
+      expect((await ada(repository)).marketing).toBe(true);
+    },
+  );
 });

@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * Method field: TipTap (ProseMirror) WYSIWYG, stored as light Markdown
-	 * for Baserow / SpecBook / dilution parsing.
+	 * for storage / SpecBook / dilution parsing.
 	 *
 	 * `kind="description"` is the event description (#33): only what the
 	 * website shows: bold, italic, links, bullet lists and line breaks

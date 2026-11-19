@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeAll, describe, it, vi } from "vitest";
-import { resetBaserowClientForTests } from "../../../../../shared/baserow.js";
+import { d1ArtistRepository } from "../../../../../shared/artists/d1-artists.js";
+import { d1FormSubmissionRepository } from "../../../../../shared/guests/adapters/d1-form-submissions.js";
+import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
 import {
   approvedArtists,
   artistLink,
@@ -11,18 +13,25 @@ import {
   setFormDecision,
   withGuestRecords,
 } from "./form-submissions.js";
-import { jsonResponse, opsCatalogTables } from "../../testing/test-baserow-mock.js";
 import { EMPTY_FORM_SUBMISSION } from "../../../../../shared/guests/form-submissions.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
-  resetBaserowClientForTests();
 });
 
-const env = {
-  BASEROW_API_KEY: "ops-token",
-  BASEROW_WEBSITE_API_KEY: "web-token",
-};
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
+
+/** A dev env with fresh ops and website databases. */
+function databases(extra = {}) {
+  return { SITE_ENV: "dev", OPS_DB: createTestD1("ops"), WEBSITE_DB: createTestD1("website"), ...extra };
+}
+
+/** Save a form submission in the env's website database. */
+function submit(env, fields) {
+  return d1FormSubmissionRepository(env.WEBSITE_DB).create({ ...EMPTY_FORM_SUBMISSION, ...fields });
+}
 
 describe("mapFormSubmission", () => {
   const record = (fields) => ({ ...EMPTY_FORM_SUBMISSION, id: 4, ...fields });
@@ -88,26 +97,12 @@ const PLAY_FORM = {
   fields: [{ key: "name", label: "Name", type: "text" }],
 };
 
-/**
- * Website Baserow + Sanity + Gmail, all mocked. Returns what was sent and
- * which rows were patched.
- */
-function mockResend({ row, form = PLAY_FORM }) {
+/** Sanity and Gmail, mocked. Returns what was sent and where Sanity was asked. */
+function mockResend({ form = PLAY_FORM } = {}) {
   const sent = [];
-  const patches = [];
   const sanityUrls = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
-    if (url.includes("/tables/all-tables/")) {
-      return jsonResponse([{ id: 42, name: "Form Submissions", database_id: 7 }]);
-    }
-    if (url.includes("/rows/table/42/")) {
-      if (init?.method === "PATCH") {
-        patches.push(JSON.parse(init.body));
-        return jsonResponse({ id: row?.id });
-      }
-      return row ? jsonResponse(row) : jsonResponse({ error: "ERROR_ROW_DOES_NOT_EXIST" }, 404);
-    }
     if (url.includes(".api.sanity.io/")) {
       sanityUrls.push(new URL(url));
       return jsonResponse({ result: form });
@@ -123,26 +118,25 @@ function mockResend({ row, form = PLAY_FORM }) {
     // The email logo: not an image here, so the email goes without it.
     return new Response("", { status: 404 });
   });
-  return { sent, patches, sanityUrls };
+  return { sent, sanityUrls };
 }
 
-const playRow = (extra = {}) => ({
-  id: 501,
-  "Form Slug": "play",
-  "Reply To": "alex@example.com",
-  Answers: JSON.stringify({
+const playSubmission = (extra = {}) => ({
+  formSlug: "play",
+  replyTo: "alex@example.com",
+  current: true,
+  answers: {
     entries: [
       { key: "name", label: "Name", value: "Alex" },
       { key: "email", label: "Email", value: "alex@example.com" },
     ],
-  }),
+  },
   ...extra,
 });
 
 describe("resendFormEmail", () => {
   let resendEnv;
   const baseEnv = {
-    BASEROW_WEBSITE_API_KEY: "web-token",
     SANITY_API_TOKEN: "sanity",
     SANITY_PROJECT_ID: "gwscpagy",
     SITE_ENV: "local",
@@ -169,11 +163,14 @@ describe("resendFormEmail", () => {
   });
 
   it("sends the notification to this environment's notify address", async () => {
-    const { sent, patches, sanityUrls } = mockResend({ row: playRow() });
-    const result = await resendFormEmail(resendEnv, "501", "notify");
+    const env = databases(resendEnv);
+    const row = await submit(env, playSubmission());
+    const { sent, sanityUrls } = mockResend();
+    const result = await resendFormEmail(env, String(row.id), "notify");
     assert.match(sent[0], /^To: dev@example\.com/m);
-    assert.deepEqual(Object.keys(patches[0]), ["Notify Sent"]);
-    assert.equal(result.sentAt, patches[0]["Notify Sent"]);
+    const saved = await d1FormSubmissionRepository(env.WEBSITE_DB).get(row.id);
+    assert.ok(result.sentAt);
+    assert.equal(saved.notifySentAt, result.sentAt);
     // The live site's form: production dataset, no drafts.
     assert.match(sanityUrls[0].pathname, /\/data\/query\/production$/);
     assert.equal(sanityUrls[0].searchParams.get("perspective"), "published");
@@ -181,20 +178,24 @@ describe("resendFormEmail", () => {
   });
 
   it("does not stamp the row when mail is not set up (dry run)", async () => {
-    const { sent, patches } = mockResend({ row: playRow() });
-    const result = await resendFormEmail(baseEnv, "501", "notify");
+    const env = databases(baseEnv);
+    const row = await submit(env, playSubmission());
+    const { sent } = mockResend();
+    const result = await resendFormEmail(env, String(row.id), "notify");
     assert.deepEqual(result, { ok: true, dryRun: true });
     assert.equal(sent.length, 0);
-    assert.equal(patches.length, 0);
+    assert.equal((await d1FormSubmissionRepository(env.WEBSITE_DB).get(row.id)).notifySentAt, null);
   });
 
   it("rejects unknown kinds, missing rows and forms", async () => {
-    mockResend({ row: null });
-    await assert.rejects(resendFormEmail(baseEnv, "1", "verify"), { status: 400 });
-    await assert.rejects(resendFormEmail(baseEnv, "1", "notify"), { status: 404 });
+    const env = databases(baseEnv);
+    mockResend();
+    await assert.rejects(resendFormEmail(env, "1", "verify"), { status: 400 });
+    await assert.rejects(resendFormEmail(env, "1", "notify"), { status: 404 });
     vi.restoreAllMocks();
-    mockResend({ row: playRow(), form: null });
-    await assert.rejects(resendFormEmail(baseEnv, "501", "notify"), {
+    const row = await submit(env, playSubmission());
+    mockResend({ form: null });
+    await assert.rejects(resendFormEmail(env, String(row.id), "notify"), {
       status: 404,
       message: 'Form "play" is not in Sanity.',
     });
@@ -202,66 +203,22 @@ describe("resendFormEmail", () => {
 });
 
 describe("listFormSubmissions", () => {
-  it("uses the website token and keeps only current rows, newest first", async () => {
-    const auths = [];
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-      const url = String(input);
-      auths.push([url, init?.headers?.Authorization || ""]);
-      if (url.includes("/tables/all-tables/")) {
-        return jsonResponse([
-          { id: 42, name: "Form Submissions", database_id: 7 },
-          { id: 9, name: "Subscribers", database_id: 7 },
-          // Ops' own database, with no Guest artists table yet.
-          ...opsCatalogTables(90),
-        ]);
-      }
-      return jsonResponse({
-        results: [
-          {
-            id: 1,
-            "Form Title": "Play",
-            "Reply To": "old@example.com",
-            Submitted: "2026-01-01T00:00:00Z",
-            Current: true,
-            Answers: JSON.stringify([{ key: "name", label: "Name", value: "Old" }]),
-          },
-          {
-            id: 2,
-            "Form Title": "Play",
-            "Reply To": "new@example.com",
-            Submitted: "2026-09-01T00:00:00Z",
-            Current: true,
-            Answers: JSON.stringify([{ key: "name", label: "Name", value: "New" }]),
-          },
-          {
-            id: 3,
-            "Form Title": "Play",
-            "Reply To": "gone@example.com",
-            Submitted: "2026-08-01T00:00:00Z",
-            Current: false,
-            Answers: "[]",
-          },
-        ],
-      });
-    });
+  it("keeps only current submissions, newest first", async () => {
+    const env = databases();
+    const answers = (name) => [{ key: "name", label: "Name", value: name }];
+    await submit(env, { formTitle: "Play", replyTo: "old@example.com", submittedAt: "2026-01-01T00:00:00Z", current: true, answers: answers("Old") });
+    await submit(env, { formTitle: "Play", replyTo: "new@example.com", submittedAt: "2026-09-01T00:00:00Z", current: true, answers: answers("New") });
+    await submit(env, { formTitle: "Play", replyTo: "gone@example.com", submittedAt: "2026-08-01T00:00:00Z", current: false, answers: [] });
 
     const rows = await listFormSubmissions(env);
     assert.deepEqual(
       rows.map((row) => row.email),
       ["new@example.com", "old@example.com"],
     );
-    // Submissions with the website token; only Guest artists lookups use ops'.
-    const submissionReads = auths.filter(([url]) => url.includes("/rows/table/42/"));
-    assert.ok(submissionReads.length);
-    assert.ok(submissionReads.every(([, header]) => header === "Token web-token"));
-    assert.ok(auths.every(([, header]) => header === "Token web-token" || header === "Token ops-token"));
   });
 
-  it("fails when the website token is missing", async () => {
-    await assert.rejects(
-      () => listFormSubmissions({ BASEROW_API_KEY: "ops-token" }),
-      (error) => error.status === 503 && /BASEROW_WEBSITE_API_KEY/.test(error.message),
-    );
+  it("fails when the website database can't be reached", async () => {
+    await assert.rejects(() => listFormSubmissions({ SITE_ENV: "dev" }), /WEBSITE_DB/);
   });
 });
 
@@ -315,70 +272,37 @@ describe("play applicants: ops' own record", () => {
 });
 
 describe("setFormDecision / setFormArtist", () => {
-  /** Website DB (Form Submissions, 42) and Ops DB (with Guest artists, 60). */
-  function mockBaserow({ guestTable = true, guests = [], submission = { formSlug: "play" } } = {}) {
-    const writes = [];
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-      const url = String(input);
-      if (url.includes("/tables/all-tables/")) {
-        return jsonResponse([
-          { id: 42, name: "Form Submissions", database_id: 7 },
-          ...opsCatalogTables(9),
-          ...(guestTable ? [{ id: 60, name: "Guest artists", database_id: 9 }] : []),
-          { id: 61, name: "Events", database_id: 9 },
-          { id: 62, name: "Event dates", database_id: 9 },
-        ]);
-      }
-      // No events here: planArtistUpdate has its own tests.
-      if (url.includes("/rows/table/61/") || url.includes("/rows/table/62/")) {
-        return jsonResponse({ results: [], next: null });
-      }
-      if (url.includes("/fields/table/")) return jsonResponse([]);
-      if (url.includes("/rows/table/42/5/")) {
-        return jsonResponse({
-          id: 5,
-          "Form Slug": submission.formSlug,
-          "Reply To": "Artist@X.com",
-          Current: true,
-          Answers: "[]",
-        });
-      }
-      if (url.includes("/rows/table/60/")) {
-        if (init?.method === "POST" || init?.method === "PATCH") {
-          const body = JSON.parse(init.body);
-          writes.push([init.method, url.match(/table\/60\/(\d+)\//)?.[1] || "", body]);
-          return jsonResponse({ id: 77, Email: "artist@x.com", ...body, Decision: body.Decision ? { value: body.Decision } : null });
-        }
-        return jsonResponse({ results: guests, next: null });
-      }
-      throw new Error(`unexpected ${url}`);
-    });
-    return writes;
+  /** A play application (id returned) from artist@x.com, and ops' guest artists. */
+  async function application({ guests = [], formSlug = "play" } = {}) {
+    const env = databases();
+    if (guests.length) await d1ArtistRepository(env.OPS_DB).importAll({ artists: [], guestArtists: guests });
+    const row = await submit(env, { formSlug, replyTo: "Artist@X.com", current: true, answers: [] });
+    return { env, id: String(row.id), guests: () => d1ArtistRepository(env.OPS_DB).listGuestArtists() };
   }
 
   it("keeps the decision in Guest artists by email, never on the submission", async () => {
-    const writes = mockBaserow();
-    assert.deepEqual(await setFormDecision(env, "5", "Approved"), { ok: true, decision: "Approved" });
-    assert.deepEqual(writes, [["POST", "", { Email: "artist@x.com", Decision: "Approved" }]]);
+    const { env, id, guests } = await application();
+    assert.deepEqual(await setFormDecision(env, id, "Approved"), { ok: true, decision: "Approved" });
+    const [guest] = await guests();
+    assert.deepEqual([guest.email, guest.decision], ["artist@x.com", "Approved"]);
+    const submission = await d1FormSubmissionRepository(env.WEBSITE_DB).get(Number(id));
+    assert.equal("decision" in submission, false);
   });
 
   it("updates the existing record for that email", async () => {
-    const writes = mockBaserow({ guests: [{ id: 3, Email: "artist@x.com", Decision: { value: "Approved" } }] });
-    await setFormArtist(env, "5", { name: "DJ Bee", link: "@djbee" });
-    assert.deepEqual(writes, [
-      ["PATCH", "3", { "Artist name": "DJ Bee", "Artist link": "https://www.instagram.com/djbee/" }],
+    const { env, id, guests } = await application({
+      guests: [{ id: 3, email: "artist@x.com", decision: "Approved", artistName: "", artistLink: "" }],
+    });
+    await setFormArtist(env, id, { name: "DJ Bee", link: "@djbee" });
+    assert.deepEqual(await guests(), [
+      { id: 3, email: "artist@x.com", decision: "Approved", artistName: "DJ Bee", artistLink: "https://www.instagram.com/djbee/" },
     ]);
   });
 
-  it("says so when the Guest artists table is missing", async () => {
-    mockBaserow({ guestTable: false });
-    await assert.rejects(setFormDecision(env, "5", "Approved"), { status: 503 });
-  });
-
   it("only for play applications, and only real decisions and links", async () => {
-    mockBaserow({ submission: { formSlug: "collaborate" } });
-    await assert.rejects(setFormDecision(env, "5", "Approved"), { status: 400 });
-    await assert.rejects(setFormDecision(env, "5", "Maybe"), { status: 400 });
-    await assert.rejects(setFormArtist(env, "5", { link: "not a link" }), { status: 400 });
+    const { env, id } = await application({ formSlug: "collaborate" });
+    await assert.rejects(setFormDecision(env, id, "Approved"), { status: 400 });
+    await assert.rejects(setFormDecision(env, id, "Maybe"), { status: 400 });
+    await assert.rejects(setFormArtist(env, id, { link: "not a link" }), { status: 400 });
   });
 });

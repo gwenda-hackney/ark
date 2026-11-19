@@ -92,12 +92,6 @@ describe("handleDevCopy", () => {
     expect(url).toContain("/actions/workflows/copy-prod-to-dev.yml/dispatches");
     expect(body).toEqual({ ref: "release", inputs: { target: "everything" } });
   });
-
-  it("maps the targets older ops sends to /baserow-copy", async () => {
-    const { result, body } = await dispatched("/baserow-copy", "website-dev");
-    expect(result.body.target).toBe("website-data");
-    expect(body.inputs).toEqual({ target: "website-data" });
-  });
 });
 
 describe("runOpsTick", () => {

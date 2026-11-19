@@ -1,33 +1,17 @@
 /**
  * What every ArtistRepository adapter must do (#186, #127): the same cases
- * run on memory, Baserow (the fake world) and D1 (SQLite with the real
- * migrations), plus the copy between them that data-move relies on.
+ * run on memory and D1 (SQLite with the real migrations), plus the copy between them that data-move relies on.
  */
 import assert from "node:assert/strict";
-import { afterEach, describe, it } from "vitest";
+import { describe, it } from "vitest";
 import { artistRepository } from "../../../../../shared/artists/artist-repository.js";
-import { baserowArtistRepository } from "../../../../../shared/artists/baserow-artists.js";
 import { d1ArtistRepository } from "../../../../../shared/artists/d1-artists.js";
 import { memoryArtistRepository } from "../../../../../shared/artists/memory-artists.js";
 import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
 import { repositoryContract } from "../../../../../shared/testing/repository-contract.js";
-import { createFakeWorld } from "../../testing/fake-world.js";
-
-const worlds = [];
-afterEach(() => {
-  while (worlds.length) worlds.pop().restore();
-});
-
-async function fakeWorld() {
-  const world = await createFakeWorld();
-  world.install();
-  worlds.push(world);
-  return world;
-}
 
 const ADAPTERS = {
   memory: () => memoryArtistRepository(),
-  baserow: async () => baserowArtistRepository((await fakeWorld()).env),
   d1: () => d1ArtistRepository(createTestD1("ops")),
 };
 
@@ -242,23 +226,6 @@ repositoryContract("ArtistRepository", {
 });
 
 describe("D1 artists", () => {
-  it("refuses a photo still kept as a Baserow file: the backfill moves it first", async () => {
-    const repo = d1ArtistRepository(createTestD1("ops"));
-    const file = {
-      name: "abc_face.jpg",
-      label: "face.jpg",
-      url: "https://files/abc_face.jpg",
-      thumb: "",
-    };
-    await assert.rejects(
-      repo.importAll({
-        artists: [{ id: 3, ...amina({ portrait: file }) }],
-        guestArtists: [],
-      }),
-      /backfill/,
-    );
-  });
-
   it("keeps imported ids, and new rows come after them", async () => {
     const repo = d1ArtistRepository(createTestD1("ops"));
     await repo.importAll({
@@ -301,29 +268,13 @@ describe("artists in data-move", () => {
 });
 
 describe("artistRepository", () => {
-  it("stays on Baserow until store:artists says d1, then reads D1", async () => {
-    const world = await fakeWorld();
+  it("reads the ops D1 database", async () => {
     const OPS_DB = createTestD1("ops");
     await d1ArtistRepository(OPS_DB).importAll({
       artists: [{ id: 7, ...amina({ name: "On D1" }) }],
       guestArtists: [],
     });
-    const env = { ...world.env, OPS_DB };
-
-    await baserowArtistRepository(world.env).createArtist({
-      name: "On Baserow",
-      slot: "current",
-    });
-    assert.deepEqual(
-      (await artistRepository(env).listArtists()).map((artist) => artist.name),
-      ["On Baserow"],
-    );
-
-    await OPS_DB.prepare(
-      "INSERT INTO _meta (key, value) VALUES ('store:artists', 'd1')",
-    ).run();
-    // A new runtime: each one keeps the flag it read for a few seconds.
-    const onD1 = await artistRepository({ ...env }).listArtists();
+    const onD1 = await artistRepository({ SITE_ENV: "dev", OPS_DB }).listArtists();
     assert.deepEqual(
       onD1.map((artist) => artist.name),
       ["On D1"],

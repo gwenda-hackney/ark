@@ -18,10 +18,10 @@ describe("runSignupSmoke", () => {
     const detail = await runSignupSmoke(env);
     expect(detail).toContain(SIGNUP_SMOKE_EMAIL);
     expect(create.mock.calls.map(([fields]) => fields.tags)).toEqual([
-      ["prelaunch"],
+      ["website"],
     ]);
     expect(update.mock.calls.map(([, fields]) => fields.tags)).toEqual([
-      ["prelaunch", "wifi"],
+      ["website", "wifi"],
     ]);
     expect(await subscribers.count()).toBe(0);
   });
@@ -40,7 +40,7 @@ describe("runSignupSmoke", () => {
   it("names the step that failed, and still cleans up", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(subscribers, "create").mockRejectedValue(
-      Object.assign(new Error("Baserow 500"), { status: 502 }),
+      Object.assign(new Error("D1 500"), { status: 502 }),
     );
     await expect(runSignupSmoke(env)).rejects.toThrow(/^Signing up failed/);
     expect(await subscribers.count()).toBe(0);

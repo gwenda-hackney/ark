@@ -40,10 +40,7 @@ let world;
 const later = (minutes) => new Date(TUESDAY_SEND.getTime() + minutes * 60_000);
 
 function setting(name, value, envName = world.env.SITE_ENV) {
-  const row = world.baserow.rows("Config").find((config) => config.Name === name && config.Env === envName);
-  if (row) world.baserow.update("Config", row.id, { Value: value });
-  else world.baserow.insert("Config", { Name: name, Value: value, Env: envName, Service: "ops" });
-  resetConfigCacheForTests();
+  world.setConfig(name, value, { env: envName });
 }
 
 /** Production ops with Mailchimp connected, one admin, and a week of nights published. */

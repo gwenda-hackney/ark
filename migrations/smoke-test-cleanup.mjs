@@ -4,14 +4,11 @@
  * its own row, so normally there's nothing to do; this catches a run that
  * died before cleaning up, and the address reaching Mailchimp if a sync
  * picked the row up first. After the deploy, so it runs after that deploy's
- * smoke test. Safe to re-run. Subscribers are cleaned wherever they live:
- * Baserow, or D1 once store:guests says so (#127).
+ * smoke test. Safe to re-run. Subscribers live in the website D1 database.
  */
 import { createHash } from "node:crypto";
-import { storeOf } from "../shared/data-store.js";
-import { D1_BINDINGS } from "../shared/d1-databases.js";
 import { d1SubscriberRepository } from "../shared/guests/adapters/d1-subscribers.js";
-import { SIGNUP_SMOKE_EMAIL, isSmokeSubscriber } from "../shared/smoke-test.js";
+import { SIGNUP_SMOKE_EMAIL } from "../shared/smoke-test.js";
 
 export const app = "web";
 export const phase = "post";
@@ -37,39 +34,16 @@ export async function archiveSmokeMember(apiKey, { audienceId = MAILCHIMP_AUDIEN
   return `archived (was ${status})`;
 }
 
-/** The website D1 database when subscribers live there, else null (Baserow; or D1 out of reach). */
-async function subscribersOnD1(d1) {
-  let db;
-  try {
-    db = d1?.("website");
-  } catch {
-    return null;
-  }
-  if (!db) return null;
-  return (await storeOf({ [D1_BINDINGS.website]: db }, "guests")) === "d1" ? db : null;
-}
-
 /** Remove the test sign-up's records; returns how many there were. */
-async function removeSmokeSubscribers({ database, d1, dryRun }) {
-  const db = await subscribersOnD1(d1);
-  if (db) {
-    const subscribers = d1SubscriberRepository(db);
-    const records = await subscribers.listByEmail(SIGNUP_SMOKE_EMAIL);
-    if (!dryRun) for (const record of records) await subscribers.remove(record.id);
-    return records.length;
-  }
-  const website = await database("website");
-  const rows = (await website.rows("Subscribers")).filter((row) => isSmokeSubscriber(row.Email));
-  if (!dryRun)
-    await website.deleteRows(
-      "Subscribers",
-      rows.map((row) => row.id),
-    );
-  return rows.length;
+async function removeSmokeSubscribers({ d1, dryRun }) {
+  const subscribers = d1SubscriberRepository(await d1("website"));
+  const records = await subscribers.listByEmail(SIGNUP_SMOKE_EMAIL);
+  if (!dryRun) for (const record of records) await subscribers.remove(record.id);
+  return records.length;
 }
 
-export async function up({ database, d1, processEnv, log, dryRun = false, fetchImpl }) {
-  const removed = await removeSmokeSubscribers({ database, d1, dryRun });
+export async function up({ d1, processEnv, log, dryRun = false, fetchImpl }) {
+  const removed = await removeSmokeSubscribers({ d1, dryRun });
   const verb = dryRun ? "would remove" : "removed";
   log(removed ? `Subscribers: ${verb} ${removed} test row(s)` : "Subscribers: no test rows");
 

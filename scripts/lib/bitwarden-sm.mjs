@@ -9,8 +9,8 @@
  *   NAME__DEV         the dev value
  *   NAME__PRODUCTION  the production value
  * A runtime in env E reads NAME and gets NAME__E, else NAME. Code never picks
- * an env itself. The one reader that spans envs (ops comparing production with
- * its dev copy) asks for the suffixed name, e.g. BASEROW_OPS_API_KEY__DEV.
+ * an env itself; a script that spans envs asks for the suffixed name, e.g.
+ * SANITY_API_TOKEN__DEV.
  *
  * Projects record ownership, in pairs like everything else (#61): Ark, Ark/Ops
  * and Ark/Web are production and hold the NAME__PRODUCTION values; Ark-Dev,
@@ -119,7 +119,6 @@ export const SECRET_OWNERS = {
   ark: [
     "CLOUDFLARE_API_TOKEN",
     "CLOUDFLARE_ACCOUNT_ID",
-    "BASEROW_CONFIG_API_KEY",
     // Script-only (sm-export): the site-deploy Worker's GitHub token.
     "DISPATCH_TOKEN",
     // Script-only: UptimeRobot main API key (setup:uptime, alerts@ account).
@@ -130,7 +129,6 @@ export const SECRET_OWNERS = {
     "SENTRY_ORG_TOKEN",
   ],
   ops: [
-    "BASEROW_OPS_API_KEY",
     "GOOGLE_SERVICE_ACCOUNT_JSON",
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "OPS_SESSION_SECRET",
@@ -139,11 +137,12 @@ export const SECRET_OWNERS = {
     "SITE_HEALTH_STATUS_TOKEN",
     // Read-only Sentry token (Issue & Event: Read) for the dashboard's errors card (#156).
     "SENTRY_READ_TOKEN",
-    // Script-only (sm-export): the automation@ Baserow login for schema changes.
+    // Script-only: the automation@ Baserow login, for setup:baserow-rsvp until RSVP moves to D1 (#237).
     "BASEROW_JWT_EMAIL",
     "BASEROW_JWT_PASSWORD",
   ],
   web: [
+    // RSVP and event invites, the last thing on Baserow until #237.
     "BASEROW_WEBSITE_API_KEY",
     "FORMS_ADMIN_SECRET",
     "SANITY_API_TOKEN",
@@ -188,11 +187,6 @@ export const APP_SECRETS = {
   },
   ops: {
     keys: [
-      "BASEROW_API_KEY",
-      // The dev copies, so production ops can compare with them (db-diff.js).
-      "BASEROW_OPS_API_KEY__DEV",
-      "BASEROW_WEBSITE_API_KEY",
-      "BASEROW_CONFIG_API_KEY",
       "GOOGLE_OAUTH_CLIENT_SECRET",
       "GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON",
       "OPS_SESSION_SECRET",
@@ -212,7 +206,6 @@ export const APP_SECRETS = {
       "MAILCHIMP_API_KEY",
     ],
     rename: {
-      BASEROW_API_KEY: "BASEROW_OPS_API_KEY",
       GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
       GMAIL_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
     },
@@ -220,9 +213,8 @@ export const APP_SECRETS = {
   },
   web: {
     keys: [
+      // RSVP and event invites on Baserow, until #237.
       "BASEROW_API_KEY",
-      "BASEROW_OPS_API_KEY",
-      "BASEROW_CONFIG_API_KEY",
       "SUBSCRIBE_SECRET",
       "FORMS_ADMIN_SECRET",
       "SANITY_API_TOKEN",

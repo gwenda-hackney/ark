@@ -114,7 +114,7 @@ describe("cardPhotoUrl", () => {
 			cardPhotoUrl("https://cdn.sanity.io/images/x/y/abc.jpg?w=96"),
 			"https://cdn.sanity.io/images/x/y/abc.jpg?w=640&h=480&fit=crop&auto=format",
 		);
-		assert.equal(cardPhotoUrl("https://files.baserow.io/a.jpg"), "https://files.baserow.io/a.jpg");
+		assert.equal(cardPhotoUrl("https://files.example.com/a.jpg"), "https://files.example.com/a.jpg");
 		assert.equal(cardPhotoUrl(""), "");
 	});
 });

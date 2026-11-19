@@ -54,4 +54,4 @@ Needs Mailchimp **Standard** (or higher) to send custom-coded HTML.
 - Type: Cormorant Garamond (eyebrows/headings), Lora (body); fallback Garamond → Baskerville → Palatino → Times.
 - Gmail strips web fonts. Local fallback preview: open [`mailchimp-grand-opening.gmail-preview.html`](mailchimp-grand-opening.gmail-preview.html).
 
-Subscriber sync (Baserow → Mailchimp Worker) is separate and not required to test this template.
+Subscriber sync (D1 → Mailchimp Worker) is separate and not required to test this template.

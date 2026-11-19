@@ -1,20 +1,18 @@
 /**
- * What every FormSubmissionRepository adapter must do (#186): memory,
- * Baserow (a fake Website database) and D1 (SQLite with the real migrations).
+ * What every FormSubmissionRepository adapter must do (#186): memory and
+ * D1 (SQLite with the real migrations).
  */
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
 import { createTestD1 } from "../testing/d1-sqlite.js";
-import { fakeBaserow } from "../testing/fake-baserow.js";
 import {
   copyRoundTrip,
   repositoryContract,
 } from "../testing/repository-contract.js";
-import { baserowFormSubmissionRepository } from "./adapters/baserow-form-submissions.js";
 import { memoryFormSubmissionRepository } from "./adapters/memory-form-submissions.js";
 import { memorySubscriberRepository } from "./adapters/memory-subscribers.js";
 import { d1Guests, guestsCopy } from "./guests-copy.js";
-import { FORM_SUBMISSION_ADAPTERS, WEBSITE_TABLES } from "./testing.js";
+import { FORM_SUBMISSION_ADAPTERS } from "./testing.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -152,23 +150,6 @@ repositoryContract("FormSubmissionRepository", {
       assert.deepEqual(await repo.capabilities(), { editLink: true });
     },
   },
-});
-
-describe("FormSubmissionRepository (baserow) before the Edit Link column", () => {
-  it("saves everything else, and says it can't keep the link yet", async () => {
-    const { "Edit Link": _gone, ...columns } =
-      WEBSITE_TABLES["Form Submissions"];
-    const baserow = fakeBaserow({ tables: { "Form Submissions": columns } });
-    vi.stubGlobal("fetch", baserow.fetch);
-    const repo = baserowFormSubmissionRepository({
-      BASEROW_API_KEY: baserow.token,
-      BASEROW_API_URL: baserow.url,
-    });
-    const created = await repo.create(submission());
-    assert.equal(created.formTitle, "Play at Gwenda");
-    assert.deepEqual(await repo.capabilities(), { editLink: false });
-    assert.ok(await repo.update(created.id, { editLink: "https://x.test" }));
-  });
 });
 
 describe("guests copy", () => {

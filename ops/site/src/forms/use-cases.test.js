@@ -46,12 +46,7 @@ beforeEach(async () => {
   world.install();
   world.sanity.docs.set(PARTY_FORM._id, PARTY_FORM);
   // Outside production every email goes to the safe inbox instead.
-  world.baserow.insert("Config", {
-    Name: "forms.notify_email",
-    Value: "safe-inbox@example.com",
-    Env: "dev",
-    Service: "web",
-  });
+  world.setConfig("forms.notify_email", "safe-inbox@example.com", { service: "web" });
   submissions = memoryFormSubmissionRepository();
   const gmail = world.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON;
   Object.assign(world.env, {
@@ -65,7 +60,7 @@ beforeEach(async () => {
       SITE_ENV: "dev",
       SANITY_PROJECT_ID: world.env.SANITY_PROJECT_ID,
       SANITY_API_TOKEN: world.env.SANITY_API_TOKEN,
-      BASEROW_CONFIG_API_KEY: world.env.BASEROW_CONFIG_API_KEY,
+      CONFIG_DB: world.env.CONFIG_DB,
       GMAIL_SERVICE_ACCOUNT_JSON: gmail,
       FORMS_ADMIN_SECRET: ADMIN_SECRET,
       SUBSCRIBE_SECRET: KEY_NOW,

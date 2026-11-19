@@ -9,7 +9,7 @@ ark/
 │   ├── brand/                    ← brand guidelines (→ brand.gwenda.co.uk)
 │   ├── studio/                   ← Sanity CMS (guest-facing website content)
 │   ├── site-deploy-webhook/      ← Studio → site rebuild Worker
-│   ├── subscribe-mailchimp-sync/ ← Baserow → Mailchimp sync Worker
+│   ├── subscribe-mailchimp-sync/ ← subscribers → Mailchimp sync Worker
 │   └── wifi-captive-portal/      ← UniFi captive portal Worker
 ├── ops/                          ← internal ops Pages app
 ├── docs/
@@ -23,7 +23,7 @@ ark/
 npm install
 bw-unlock                 # the login; npm scripts then load secrets in memory (docs/env.md)
 git config user.email you@gwenda.co.uk   # your local form emails go here too; no .env needed
-npm run dev:refresh           # copy real data into your dev copies (Sanity + Baserow)
+npm run dev:refresh           # copy real data into your dev copies (Sanity + D1)
 npm run web:dev               # website, dev copy → http://localhost:4321 (web:dev:live → :4322)
 npm run ops:dev               # ops, dev copy → http://localhost:5174
 npm run studio:dev            # Sanity Studio, dev copy → http://localhost:3333
@@ -71,7 +71,7 @@ There are two environments, built the same way. Each is a complete, separate cop
 **CMS:** Sanity project "Gwenda Web" (`pn5yjro6`), [manage](https://www.sanity.io/manage/project/pn5yjro6)
 - Studio: [gwenda.sanity.studio](https://gwenda.sanity.studio). It saves drafts only; ops publishes.
 
-**Databases:** Baserow workspace "Gwenda", [dashboard](https://baserow.io/dashboard): "Gwenda Ops" and "Website" (found by name; no ids are configured, see [docs/config.md](docs/config.md#baserow-no-ids))
+**Databases:** Cloudflare D1 in the production account: `gwenda-ops`, `gwenda-website` and `gwenda-config` ([db/README.md](db/README.md))
 
 **Other:** [brand.gwenda.co.uk](https://brand.gwenda.co.uk) (brand guidelines), [health.gwenda.co.uk](https://health.gwenda.co.uk) (site health)
 
@@ -89,7 +89,7 @@ There are two environments, built the same way. Each is a complete, separate cop
 
 **CMS:** Sanity project "Gwenda Dev" (`gwscpagy`), [manage](https://www.sanity.io/manage/project/gwscpagy). Studio: `npm run studio:dev`.
 
-**Databases:** Baserow workspace "Gwenda Dev", [dashboard](https://baserow.io/dashboard): copies of "Gwenda Ops" and "Website"
+**Databases:** Cloudflare D1 in the gwenda-dev account: the same three databases, with copies of production's data
 
 ### Dev on your machine
 
@@ -117,7 +117,7 @@ Open the repo in VS Code and choose "Reopen in Container" ([.devcontainer/](.dev
 
 ### Shared by both
 
-- **Settings:** the "Gwenda Config" Baserow database, one per environment (Gwenda for production, Gwenda Dev for dev).
+- **Settings:** the `gwenda-config` D1 database, one per environment.
 - **Secrets:** Bitwarden Secrets Manager. Dev (your machine and the dev sites) uses the `__DEV` versions.
 - **Builds:** the deploy webhook Worker sends each ops app's builds to its own website.
 

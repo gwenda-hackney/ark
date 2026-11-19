@@ -5,29 +5,25 @@
  *
  *   node scripts/migrate.mjs --app web --phase pre --env production
  *   npm run migrate -- --app web --phase pre --env dev      # by hand
- *   ... --only 2026-10-05-event-images-backfill --dry-run  # one migration, reporting only
+ *   ... --only 2026-11-17-chez-pickle-wed-sun --dry-run  # one migration, reporting only
  *
  * --only <name> runs just that migration (its file name without .mjs).
  * --dry-run passes `dryRun` to the migrations, which then change nothing;
  * use it with --only, since not every migration supports it.
  *
- * Baserow changes log in as BASEROW_JWT_EMAIL / BASEROW_JWT_PASSWORD (CI:
- * scripts/sm-export.mjs), or prompt on a developer's machine. The login only
- * happens if a migration opens a database. D1 (`d1(role)`) uses this env's
- * CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID; its schema is applied first by
- * scripts/d1-migrate.mjs.
+ * D1 (`d1(role)`) uses this env's CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID;
+ * its schema is applied first by scripts/d1-migrate.mjs. Sanity (`sanity()`)
+ * uses SANITY_API_TOKEN.
  */
 import { appendFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { databaseFor } from "../shared/d1-env.js";
-import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
 import {
   APPS,
   ENVS,
   PHASES,
   loadMigrations,
-  openDatabase,
   runMigrations,
   sanityContent,
   selectMigrations,
@@ -66,16 +62,8 @@ if (only && !migrations.length) {
 console.log(`${app} ${phase}-deploy migrations for ${env}: ${migrations.length || "none"}`);
 if (!migrations.length) process.exit(0);
 
-const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(/\/$/, "");
 // What the migrations change that the website build reads.
 const site = siteChanges();
-let jwt = null;
-const opened = new Map();
-async function database(key) {
-  jwt ??= await getBaserowJwt(apiBase, { hint: `${env} migrations` });
-  if (!opened.has(key)) opened.set(key, await openDatabase({ apiBase, jwt, key, env, site }));
-  return opened.get(key);
-}
 const d1 = (role) => databaseFor({ ...process.env, SITE_ENV: env }, role);
 let content = null;
 const sanity = () => (content ??= sanityContent({ env, processEnv: process.env, site }));
@@ -83,7 +71,6 @@ const sanity = () => (content ??= sanityContent({ env, processEnv: process.env, 
 const { rebuild, changes } = await runMigrations(migrations, {
   env,
   processEnv: process.env,
-  database,
   d1,
   sanity,
   site,

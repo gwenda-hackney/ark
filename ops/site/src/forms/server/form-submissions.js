@@ -1,11 +1,10 @@
 /**
  * Website form submissions, through the guests repository
- * (shared/guests/form-submission-repository.js). On Baserow it uses the
- * website's token (BASEROW_WEBSITE_API_KEY), not the Ops database token.
+ * (shared/guests/form-submission-repository.js): the website D1 database,
+ * which ops binds as WEBSITE_DB.
  */
 import { FORM_QUERY } from "../../../../../shared/forms/format.js";
 import { sendFormNotificationEmail } from "../../../../../shared/forms/form-email.js";
-import { baserowFormSubmissionRepository } from "../../../../../shared/guests/adapters/baserow-form-submissions.js";
 import { formSubmissionRepository } from "../../../../../shared/guests/form-submission-repository.js";
 import { FORM_EMAIL_SENT, answersDocument } from "../../../../../shared/guests/form-submissions.js";
 import { sanityQuery } from "../../platform/sanity.js";
@@ -24,27 +23,9 @@ const PLAY_FORM = "play";
 
 const NAME_KEYS = ["name", "full_name", "fullname", "your_name"];
 
-function websiteEnv(env) {
-  const key = env.BASEROW_WEBSITE_API_KEY?.trim();
-  if (!key) {
-    const error = new Error(
-      "BASEROW_WEBSITE_API_KEY is not configured. Locally, run bw-unlock and restart.",
-    );
-    error.status = 503;
-    throw error;
-  }
-  return {
-    ...env,
-    BASEROW_API_KEY: key,
-    BASEROW_DATABASE_ID: env.BASEROW_WEBSITE_DATABASE_ID?.trim() || "",
-  };
-}
-
-/** Submissions wherever guests live; on Baserow with the website's token. */
+/** Submissions in the website database. */
 function submissions(env) {
-  return formSubmissionRepository(env, {
-    baserow: (env) => baserowFormSubmissionRepository(websiteEnv(env)),
-  });
+  return formSubmissionRepository(env);
 }
 
 function personName(entries) {

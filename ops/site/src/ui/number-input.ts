@@ -1,6 +1,6 @@
 /**
  * Typed figures for NumberField and MoneyField. Values stay strings (the
- * forms and Baserow keep them as text); these read what was typed, tidy it
+ * forms and storage keep them as text); these read what was typed, tidy it
  * on blur and say what's wrong in words.
  */
 

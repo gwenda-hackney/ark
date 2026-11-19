@@ -1,0 +1,88 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import "../styles/chart-text.css";
+import { siteConfig } from "../config/site";
+---
+
+<BaseLayout
+  title={siteConfig.seo.wifiTerms.title}
+  description={siteConfig.seo.wifiTerms.description}
+  showBooking={false}
+>
+  <ChartPage class="ch-text" title="Wi-Fi Terms">
+    <p class="ch-caps ch-text-updated" slot="head">
+      Last updated: November 2026
+    </p>
+
+    <section id="about">
+      <h2>About these terms</h2>
+      <p>
+        Our guest Wi-Fi is free, run by White Post Partners Ltd (company number
+        17258295), which trades as {siteConfig.name}. By connecting, you agree
+        to these terms.
+      </p>
+    </section>
+
+    <section id="fair-use">
+      <h2>Using it fairly</h2>
+      <p>Please don't use our Wi-Fi to:</p>
+      <ul>
+        <li>break the law, or help anyone else to;</li>
+        <li>
+          download or share films, music, games or software you don't have the
+          right to;
+        </li>
+        <li>view or share illegal, abusive or obscene material;</li>
+        <li>
+          attack, hack or interfere with any network, device or other guest;
+        </li>
+        <li>send spam, or hog the connection so others can't use it.</li>
+      </ul>
+    </section>
+
+    <section id="our-side">
+      <h2>Our side</h2>
+      <ul>
+        <li>
+          We may limit speed or time online, block sites or services, and cut
+          off anyone at any time, without notice.
+        </li>
+        <li>
+          We may monitor how the network is used, to keep it running and safe,
+          and share records with the police or other authorities when the law
+          requires it.
+        </li>
+      </ul>
+    </section>
+
+    <section id="no-guarantee">
+      <h2>No guarantee</h2>
+      <p>
+        The Wi-Fi is provided as it is. We don't promise it will always work, be
+        fast, or be secure: it's a public network, so don't send anything
+        sensitive without a secure connection (look for https). You use it at
+        your own risk, and as far as the law allows, we aren't responsible for
+        any loss or damage, including to your device or data, from using it.
+      </p>
+    </section>
+
+    <section id="your-data">
+      <h2>Your data</h2>
+      <p>
+        What we keep when you connect, and why, is in our
+        <a href="/privacy#how-we-use-your-data">privacy policy</a>. Joining our
+        mailing list is a separate choice, and never needed for the Wi-Fi.
+      </p>
+    </section>
+
+    <section id="changes">
+      <h2>Changes</h2>
+      <p>
+        We may change these terms. The version on this page is the one that
+        applies. These terms are governed by the law of England and Wales.
+        Questions: <a href="mailto:hello@gwenda.co.uk">hello@gwenda.co.uk</a>.
+      </p>
+    </section>
+  </ChartPage>
+</BaseLayout>

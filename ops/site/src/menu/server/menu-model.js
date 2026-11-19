@@ -1,10 +1,9 @@
 /**
  * The menu and inventory records (#186, #127): what the MenuRepository
  * (menu-repository.js) stores, whatever stores it. No I/O and no storage
- * names; the adapters map these to Baserow columns or D1 tables.
+ * names; the adapters map these to D1 tables.
  *
- * One collection per table. Ids are numbers (Baserow's row ids, kept by the
- * copy to D1). A link to one record is `<thing>Id` (a number or null); the
+ * One collection per table. Ids are numbers. A link to one record is `<thing>Id` (a number or null); the
  * one link to many, a drink's POS menus, is `posMenuIds` (ids, ascending),
  * which D1 keeps in a junction table.
  *
@@ -39,8 +38,7 @@
  * YYYY-MM-DD or "", `days` "thu,fri" or "" for every day), and may belong to
  * a pop-up kitchen: `popupSeriesId`, the id of an event series whose
  * category is "popup" (the events domain's, so a plain number here, not a
- * link the menu follows). Only the D1 and memory adapters keep menus; on
- * Baserow, which is being retired (#234), there are none.
+ * link the menu follows).
  *
  * A chapter (a section with no parent) belongs to a menu, `menuId`, and is
  * drinks or food, and a pop-up kitchen's, as its menu is. Its own `kind` and

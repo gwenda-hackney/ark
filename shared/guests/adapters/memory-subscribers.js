@@ -4,7 +4,17 @@
  */
 import { duplicateSubscriberError, normalizeTags } from "../subscribers.js";
 
-const EMPTY = { email: "", tags: [], signedUpOn: null, synced: false };
+const EMPTY = {
+  email: "",
+  tags: [],
+  signedUpOn: null,
+  marketing: true,
+  marketingOn: null,
+  marketingOffOn: null,
+  lastSeenOn: null,
+  synced: false,
+};
+const DATES = ["signedUpOn", "marketingOn", "marketingOffOn", "lastSeenOn"];
 
 const copy = (value) => structuredClone(value);
 const sameEmail = (a, b) => a.toLowerCase() === String(b).toLowerCase();
@@ -17,7 +27,8 @@ export function memorySubscriberRepository() {
     const out = {};
     if ("email" in fields) out.email = String(fields.email ?? "");
     if ("tags" in fields) out.tags = normalizeTags(fields.tags);
-    if ("signedUpOn" in fields) out.signedUpOn = fields.signedUpOn || null;
+    for (const key of DATES) if (key in fields) out[key] = fields[key] || null;
+    if ("marketing" in fields) out.marketing = Boolean(fields.marketing);
     if ("synced" in fields) out.synced = Boolean(fields.synced);
     return out;
   };
@@ -31,7 +42,7 @@ export function memorySubscriberRepository() {
     },
     async listUnsynced({ limit = 100, all = false } = {}) {
       return sorted()
-        .filter((record) => all || !record.synced)
+        .filter((record) => record.marketing && (all || !record.synced))
         .slice(0, limit)
         .map(copy);
     },
@@ -51,6 +62,13 @@ export function memorySubscriberRepository() {
     },
     async remove(id) {
       records.delete(Number(id));
+    },
+    async latestMarketingOff() {
+      const days = sorted()
+        .map((record) => record.marketingOffOn)
+        .filter(Boolean)
+        .sort();
+      return days.at(-1) ?? null;
     },
     async count() {
       return records.size;

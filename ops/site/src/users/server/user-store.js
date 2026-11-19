@@ -1,5 +1,5 @@
 /**
- * Ops membership: who may use the app (UserRepository: Baserow Users, then D1).
+ * Ops membership: who may use the app (UserRepository, in the ops D1 database).
  * Google OAuth authenticates; this list decides who gets in.
  */
 import { normalizeEmail, text } from "./user-model.js";

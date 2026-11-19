@@ -3,8 +3,8 @@
  * the data but not yet in the built pages ("waiting for the website").
  *
  * A snapshot holds a short content fingerprint per Sanity document and per
- * artist row (artists come from the Ops Baserow DB). The deploy job captures
- * it before building and saves it to Gwenda Config after the deploy succeeds
+ * artist row (artists come from the ops D1 database). The deploy job captures
+ * it before building and saves it to the config database after the deploy succeeds
  * (key site.build_snapshot, Service web, Env preview|production), in the
  * environment's own config database. Ops compares
  * it with the current data; anything added, changed or removed since is

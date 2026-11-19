@@ -7,17 +7,20 @@ export type SubscriberRepository = {
     limit?: number;
     all?: boolean;
   }): Promise<SubscriberRecord[]>;
-  create(fields: Omit<SubscriberRecord, "id">): Promise<SubscriberRecord>;
+  /** Fields left out take their defaults: on the list, no dates, unsynced. */
+  create(
+    fields: Pick<SubscriberRecord, "email"> &
+      Partial<Omit<SubscriberRecord, "id" | "email">>,
+  ): Promise<SubscriberRecord>;
   update(
     id: number,
     fields: Partial<Omit<SubscriberRecord, "id">>,
   ): Promise<SubscriberRecord | null>;
   remove(id: number): Promise<void>;
+  /** The latest marketingOffOn (YYYY-MM-DD), or null: where the sync picks up Mailchimp's unsubscribes. */
+  latestMarketingOff(): Promise<string | null>;
   count(): Promise<number>;
   exportAll(): Promise<{ subscribers: SubscriberRecord[] }>;
 };
 
-export function subscriberRepository(
-  env: unknown,
-  options?: { baserow?: (env: any) => SubscriberRepository },
-): SubscriberRepository;
+export function subscriberRepository(env: unknown): SubscriberRepository;

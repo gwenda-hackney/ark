@@ -13,6 +13,10 @@ export const subscribersTable = d1Table({
     email: "text",
     tags: "json",
     signedUpOn: "date",
+    marketing: "bool",
+    marketingOn: "date",
+    marketingOffOn: "date",
+    lastSeenOn: "date",
     synced: "bool",
   },
   orderBy: "id",
@@ -40,7 +44,8 @@ export function d1SubscriberRepository(db) {
     async listUnsynced({ limit = 100, all: every = false } = {}) {
       const rows = await all(
         db,
-        `${SELECT}${every ? "" : " WHERE synced = 0"} ORDER BY id LIMIT ?`,
+        // Only addresses on the mailing list ever go to Mailchimp.
+        `${SELECT} WHERE marketing = 1${every ? "" : " AND synced = 0"} ORDER BY id LIMIT ?`,
         [Number(limit)],
       );
       return rows.map((row) => tidy(subscribersTable.toRecord(row)));
@@ -67,6 +72,16 @@ export function d1SubscriberRepository(db) {
     async remove(id) {
       await subscribersTable.remove(db, id);
     },
+    async latestMarketingOff() {
+      return (
+        (
+          await first(
+            db,
+            "SELECT MAX(marketing_off_on) AS day FROM subscribers",
+          )
+        )?.day ?? null
+      );
+    },
     async count() {
       return Number(
         (await first(db, "SELECT COUNT(*) AS n FROM subscribers"))?.n ?? 0,
@@ -77,8 +92,12 @@ export function d1SubscriberRepository(db) {
       return { subscribers: subscribers.map(tidy) };
     },
     async importAll({ subscribers = [] }) {
+      // A copy from before consent was kept is on the list, as then.
       await importTables(db, [
-        [subscribersTable, subscribers.map((r) => writable(r))],
+        [
+          subscribersTable,
+          subscribers.map((r) => writable({ marketing: true, ...r })),
+        ],
       ]);
     },
   };

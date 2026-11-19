@@ -26,7 +26,7 @@ export const onRequestPatch = withApiHandler(async (context) => {
   if (!body || typeof body !== "object") {
     return jsonResponse({ error: "Invalid request." }, 400);
   }
-  // Saving only writes Baserow. Calendar and website copy follow in the
+  // Saving only writes the database. Calendar and website copy follow in the
   // background (website-jobs.js), so the save returns quickly.
   const event = await updateEvent(context.env, id, body);
   return jsonResponse({ ok: true, event });

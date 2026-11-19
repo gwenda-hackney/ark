@@ -1,16 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { getSetting, resetConfigCacheForTests } from "../../shared/config.js";
-import { run } from "../../shared/d1.js";
 import { createTestD1 } from "../../shared/testing/d1-sqlite.js";
 import { parseArgs, settingRow } from "../config-set.mjs";
 
 const KEY = "website.auto_update";
 
-async function configDb({ store = "d1" } = {}) {
-  const db = createTestD1("config");
-  if (store) await run(db, "INSERT INTO _meta (key, value) VALUES ('store:config', ?)", [store]);
-  return db;
+async function configDb() {
+  return createTestD1("config");
 }
 
 describe("config:set", () => {
@@ -36,9 +33,5 @@ describe("config:set", () => {
 
     assert.deepEqual(await settingRow(db, { env: "production", key: KEY, value: "" }), { before: "off", after: "" });
     assert.equal(await reads("production"), "");
-  });
-
-  it("refuses while the environment's settings are still on Baserow", async () => {
-    await assert.rejects(settingRow(await configDb({ store: "" }), { env: "dev", key: KEY, value: "off" }), /aren't on D1/);
   });
 });

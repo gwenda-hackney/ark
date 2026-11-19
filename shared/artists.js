@@ -4,10 +4,8 @@
  * the website reads them with listArtists.
  *
  * Storage is behind the ArtistRepository (shared/artists/artist-repository.js):
- * Baserow's Gwenda Ops database until the move to D1 (#127). Their photos
- * live in Sanity (#183) and both ops and the website show them from
- * cdn.sanity.io; photos still kept as Baserow files show until the backfill
- * moves them.
+ * the ops D1 database (#127). Their photos live in Sanity (#183) and both
+ * ops and the website show them from cdn.sanity.io.
  */
 import { artistRepository } from "./artists/artist-repository.js";
 import { artistImageProject, artistView, orderArtists } from "./artists/artist-model.js";

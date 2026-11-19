@@ -84,13 +84,6 @@ jobs:
         run: npm run env:web:pull -- --github-env --profile production
 
 
-      # Baserow schema changes need a user login (database tokens only touch rows).
-      - name: Baserow login for migrations
-        if: inputs.reason != 'content'
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
-
       # D1 schema first (db/<role>/migrations, #191): it only adds, and skips databases not created yet.
       - name: D1 schema migrations
         run: node scripts/d1-migrate.mjs --env production
@@ -124,7 +117,6 @@ jobs:
           sanity-dataset: production
           secrets-profile: production
           snapshot-site: production
-          baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
 
       - name: Ensure apex custom domain
         if: inputs.reason != 'content'

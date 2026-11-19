@@ -1,8 +1,8 @@
 /**
  * Admins see developer tools (code, databases, resetting the preview site).
- * Everyone else sees the plain editor screens. The list is a setting in Gwenda
- * Config (ops.admin_emails, comma-separated) rather than a Users column, so
- * it needs no Baserow schema change. Local ops: everyone is an admin.
+ * Everyone else sees the plain editor screens. The list is a setting in the
+ * config database (ops.admin_emails, comma-separated) rather than a Users
+ * column. Local ops: everyone is an admin.
  */
 import { resolveAuth, resolveSessionEmail } from "./auth.js";
 import { getConfigString, siteEnvName } from "../../platform/config-store.js";

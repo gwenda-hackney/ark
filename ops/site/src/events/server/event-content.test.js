@@ -220,7 +220,7 @@ test("publishState stays current when image URL tokens rotate", async () => {
     extraDates: [],
     mainImage: {
       name: "flyer.jpg",
-      url: "https://files.baserow.io/user_files/flyer.jpg?token=aaa",
+      url: "https://files.example.com/user_files/flyer.jpg?token=aaa",
     },
     heroCrops: framing,
   };
@@ -238,7 +238,7 @@ test("publishState stays current when image URL tokens rotate", async () => {
     ...event,
     mainImage: {
       name: "flyer.jpg",
-      url: "https://files.baserow.io/user_files/flyer.jpg?token=zzz",
+      url: "https://files.example.com/user_files/flyer.jpg?token=zzz",
     },
   };
   assert.equal(publishState(rotated, dates, "2026-09-22").preview, "current");

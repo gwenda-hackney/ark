@@ -20,13 +20,13 @@
 
 	const rows = $derived(tabPages("more", visibleRoutes(NAV_ROUTES, Boolean(me?.isAdmin))));
 	const envSummary = $derived(
-		!me ? "" : me.databaseId ? `${me.envLabel} · Baserow DB ${me.databaseId}` : me.envLabel,
+		!me ? "" : `${me.envLabel} · ${me.databaseLabel}`,
 	);
 	const envNote = $derived(
 		!me
 			? ""
 			: me.risk
-				? "Check which Baserow database this copy uses before you edit."
+				? "Check which database this copy uses before you edit."
 				: me.siteEnv === "production"
 					? `Edits go to ${me.databaseLabel}.`
 					: `Edits go to ${me.databaseLabel}, not production.`,

@@ -29,6 +29,7 @@ describe("sign-up", () => {
     const result = await subscribeEmail(repoEnv, {
       email: "Guest@Example.com",
       tag: "wifi",
+      marketing: true,
     });
     expect(result.ok).toBe(true);
     expect(await repo.listByEmail("guest@example.com")).toMatchObject([
@@ -44,23 +45,140 @@ describe("sign-up", () => {
       signedUpOn: "2026-07-04",
       synced: true,
     });
-    await subscribeEmail(repoEnv, { email: "guest@example.com", tag: "wifi" });
+    await subscribeEmail(repoEnv, {
+      email: "guest@example.com",
+      tag: "wifi",
+      marketing: true,
+    });
     expect(await repo.listByEmail("guest@example.com")).toMatchObject([
       { tags: ["prelaunch", "wifi"], signedUpOn: "2026-07-04", synced: false },
     ]);
   });
 
-  it("no-ops when the email already has the wifi tag", async () => {
+  it("a tick from someone already tagged wifi records their consent again", async () => {
     const { repo, env: repoEnv } = withRepo();
     await repo.create({
       email: "guest@example.com",
       tags: ["prelaunch", "wifi"],
       signedUpOn: "2026-07-04",
+      marketing: false,
+      marketingOffOn: "2026-10-01",
       synced: true,
     });
-    const update = vi.spyOn(repo, "update");
-    await subscribeEmail(repoEnv, { email: "guest@example.com", tag: "wifi" });
-    expect(update).not.toHaveBeenCalled();
+    await subscribeEmail(repoEnv, {
+      email: "guest@example.com",
+      tag: "wifi",
+      marketing: true,
+    });
+    expect(await repo.listByEmail("guest@example.com")).toMatchObject([
+      { tags: ["prelaunch", "wifi"], marketing: true, marketingOffOn: null, synced: false },
+    ]);
+  });
+});
+
+describe("marketing consent", () => {
+  const guestEnv = () => {
+    const subscriberRepository = memorySubscriberRepository();
+    return {
+      subscribers: subscriberRepository,
+      env: { ...env, subscriberRepository } as Env,
+    };
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const authorize = async () => ({ ok: true as const });
+  const submit = (testEnv: Env, fields: Record<string, string>) =>
+    handlePortalRequest(
+      new Request("https://wifi.example/authorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ id: "aa:bb:cc:dd:ee:ff", ...fields }),
+      }),
+      testEnv,
+      { authorize },
+    );
+
+  it("shows the newsletter box unticked, apart from the required email", async () => {
+    const page = await handlePortalRequest(
+      new Request("https://wifi.example/guest/s/default/?id=aa:bb:cc:dd:ee:ff"),
+      env,
+    );
+    const html = await page.text();
+    const box = html.match(/<input[^>]*name="marketing"[^>]*>/)?.[0];
+    expect(box).toBeDefined();
+    expect(box).toContain('type="checkbox"');
+    expect(box).not.toMatch(/\bchecked\b/);
+    expect(box).not.toMatch(/\brequired\b/);
+    expect(html).toContain("Send me what’s on at Gwenda");
+    expect(html).not.toContain("The occasional note from Gwenda");
+  });
+
+  it("without the box: gets online, kept with today's visit, not on the mailing list", async () => {
+    const { env: testEnv, subscribers } = guestEnv();
+    const post = await submit(testEnv, { email: "Guest@Example.com" });
+    expect(post.status).toBe(200);
+    expect(await post.text()).toContain("Connected");
+    expect(await subscribers.listByEmail("guest@example.com")).toMatchObject([
+      { tags: ["wifi"], marketing: false, marketingOn: null, lastSeenOn: today },
+    ]);
+    expect(await subscribers.listUnsynced({ all: true })).toEqual([]);
+  });
+
+  it("with the box: on the mailing list, tagged wifi, to sync", async () => {
+    const { env: testEnv, subscribers } = guestEnv();
+    const post = await submit(testEnv, {
+      email: "guest@example.com",
+      marketing: "yes",
+    });
+    expect(post.status).toBe(200);
+    expect(await subscribers.listUnsynced()).toMatchObject([
+      {
+        email: "guest@example.com",
+        tags: ["wifi"],
+        marketing: true,
+        marketingOn: today,
+        lastSeenOn: today,
+        synced: false,
+      },
+    ]);
+  });
+
+  it("without the box leaves an existing subscriber as they were, but for the visit", async () => {
+    const { env: testEnv, subscribers } = guestEnv();
+    await subscribers.create({
+      email: "guest@example.com",
+      tags: ["prelaunch"],
+      signedUpOn: "2026-07-04",
+      marketingOn: "2026-07-04",
+      synced: true,
+    });
+    await submit(testEnv, { email: "guest@example.com" });
+    expect(await subscribers.listByEmail("guest@example.com")).toMatchObject([
+      {
+        tags: ["prelaunch"],
+        signedUpOn: "2026-07-04",
+        marketing: true,
+        marketingOn: "2026-07-04",
+        lastSeenOn: today,
+        synced: true,
+      },
+    ]);
+  });
+
+  it("gets the guest online when the sign-up can't be saved, and logs it", async () => {
+    const { env: testEnv, subscribers } = guestEnv();
+    vi.spyOn(subscribers, "listByEmail").mockRejectedValue(
+      new Error("D1_ERROR: no such column: marketing"),
+    );
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const post = await submit(testEnv, { email: "guest@example.com" });
+    expect(post.status).toBe(200);
+    expect(await post.text()).toContain("Connected");
+    expect(logged).toHaveBeenCalledWith(
+      "[wifi-captive-portal] Sign-up not saved; guest let on anyway",
+      502,
+      expect.any(String),
+    );
+    logged.mockRestore();
   });
 });
 
@@ -141,10 +259,10 @@ describe("handler", () => {
     );
       expect(page.status).toBe(200);
       const html = await page.text();
-      expect(html).toContain('alt="Gwenda"');
-      expect(html).toContain('src="/logo.png"');
-      expect(html).toContain("Cormorant Garamond");
-      expect(html).toContain("Enter our world");
+      expect(html).toContain('alt="Gwenda Social"');
+      expect(html).toContain('src="/logo.svg"');
+      expect(html).toContain("Protest Strike");
+      expect(html).toContain("Get online");
       expect(html).toContain("Guest Wi‑Fi");
       expect(html).toContain('value="aa:bb:cc:dd:ee:ff"');
 
@@ -158,6 +276,7 @@ describe("handler", () => {
           ap: "11:22:33:44:55:66",
           url: "https://gwenda.co.uk",
           site: "default",
+          marketing: "yes",
         }),
       }),
       env,
@@ -168,6 +287,7 @@ describe("handler", () => {
     expect(subscribe).toHaveBeenCalledWith(env, {
       email: "guest@example.com",
       tag: "wifi",
+      marketing: true,
     });
     expect(authorize).toHaveBeenCalledWith(
       env,
@@ -191,7 +311,7 @@ describe("handler", () => {
       new Request("https://wifi.example/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ email: "guest@example.com", id: "aa:bb:cc:dd:ee:ff" }),
+        body: new URLSearchParams({ email: "guest@example.com", id: "aa:bb:cc:dd:ee:ff", marketing: "yes" }),
       }),
       env,
       { subscribe: subscribe as never, authorize },

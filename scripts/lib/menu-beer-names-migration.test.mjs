@@ -141,7 +141,6 @@ describe("2026-11-11-menu-beer-names", () => {
     beforeEach(async () => {
       world = await createFakeWorld();
       world.install();
-      Object.assign(world.env, { OPS_DB: createTestD1("ops"), DATA_STORE_MENU: "d1" });
     });
     afterEach(() => world.restore());
 
