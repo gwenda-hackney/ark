@@ -14,7 +14,7 @@
 import {
   COLOURS,
   FONTS,
-  button,
+  bookingButton,
   esc,
   heading,
   href,
@@ -278,7 +278,7 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
   rows.push(
     rule(),
     row(
-      `<p class="slab" style="margin:0 0 18px;font-family:${FONTS.slab};font-size:18px;line-height:1.4;color:${COLOURS.ink};text-align:center;">Coming down? Grab a table before they go.</p>${button(site.bookingLabel, site.booking)}`,
+      `<p class="slab" style="margin:0 0 18px;font-family:${FONTS.slab};font-size:18px;line-height:1.4;color:${COLOURS.ink};text-align:center;">Coming down? Grab a table before they go.</p>${bookingButton({ label: site.bookingLabel, link: site.booking, origin: site.origin })}`,
       { align: "center" },
     ),
   );

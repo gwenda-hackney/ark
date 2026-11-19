@@ -21,7 +21,7 @@ export const SECTION_CHOICES: { kind: SectionKind; label: string }[] = [
 
 /** A button's looks, for its switch. */
 export const BUTTON_LOOK_ITEMS = [
-	{ id: "filled", label: "Filled" },
+	{ id: "link", label: "Link" },
 	{ id: "outline", label: "Outline" },
 ] as const;
 
@@ -36,8 +36,10 @@ export function blankSection(kind: SectionKind): OneOffSection {
 }
 
 export function editorSections(sections: OneOffSection[]): EditorSection[] {
-	// A button saved before it had a look is filled, as it was drawn.
-	return sections.map((section) => keyed(section.kind === "button" ? { ...section, look: section.look || "filled" } : { ...section }));
+	// A button saved before it had a look is a link.
+	return sections.map((section) =>
+		keyed(section.kind === "button" ? { ...section, look: section.look === "outline" ? "outline" : "link" } : { ...section }),
+	);
 }
 
 export function addSection(list: EditorSection[], kind: SectionKind): EditorSection[] {

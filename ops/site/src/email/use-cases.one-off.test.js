@@ -42,7 +42,7 @@ afterEach(() => {
 const SECTIONS = [
   { kind: "heading", text: "New Year's Eve" },
   { kind: "copy", text: "Doors at **9**.\n\nSee [the page](https://gwenda.co.uk/nye)." },
-  { kind: "button", label: "Get tickets", link: "https://gwenda.co.uk/nye", look: "filled" },
+  { kind: "button", label: "Get tickets", link: "https://gwenda.co.uk/nye", look: "link" },
 ];
 
 async function api(handler, { email = "someone@example.com", ...options } = {}) {

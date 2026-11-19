@@ -4,8 +4,9 @@
 	 * buttons to move it or take it out (always there; disabled at an end),
 	 * and its fields. Image: the picture (upload or replace) and its words
 	 * for screen readers. Heading: a line. Copy: paragraphs, with **bold**
-	 * and [links](https://…). Button: its label, where it goes and its look (filled or
-	 * outline). Book a table: nothing to fill in, it's the same every time.
+	 * and [links](https://…). Button: its label, where it goes and its look (an underlined
+	 * link or a gold frame). Book a table: nothing to fill in, it's the
+	 * website's own button, the same every time.
 	 */
 	import { Field, PhotoActions, Segmented, TextArea, TextField } from "../ui";
 	import { Icon } from "../app/shell";
@@ -129,7 +130,7 @@
 				</Field>
 			</div>
 		{:else if section.kind === "booking"}
-			<p class="fixed"><Icon name="calendar" size={15} /> The Book a table panel, the same in every email, to {frame ? `${frame.site.origin.replace(/^https?:\/\//, "")}/bookings` : "the booking page"}.</p>
+			<p class="fixed"><Icon name="calendar" size={15} /> The website's Book a table button, the same in every email, to OpenTable.</p>
 		{/if}
 	</div>
 </section>

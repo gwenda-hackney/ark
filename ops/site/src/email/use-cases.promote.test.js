@@ -109,7 +109,7 @@ describe("promoting a pop-up kitchen", () => {
     );
     assert.notEqual(email.sections[0].assetId, email.sections[5].assetId, "two different pictures");
     assert.deepEqual(email.sections.slice(6), [
-      { kind: "button", label: "See the menu", link: "https://gwenda-web-dev.pages.dev/whats-on/pinsa-a-roma/", look: "filled" },
+      { kind: "button", label: "See the menu →", link: "https://gwenda-web-dev.pages.dev/whats-on/pinsa-a-roma/", look: "link" },
       { kind: "booking" },
     ]);
 

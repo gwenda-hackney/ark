@@ -10,7 +10,9 @@
  * Everything else is escaped; a link that isn't http(s) or mailto is dropped
  * and its words kept. No raw HTML ever reaches the email.
  */
-import { BUTTON_LOOKS, COLOURS, bookingBlock, button, esc, heading, paragraph, row } from "./shell.js";
+import { COLOURS, bookingButton, esc, heading, outlineButton, paragraph, row, textLink } from "./shell.js";
+import { bookingUrl } from "../../marketing/web/src/config/booking.ts";
+import { siteConfig } from "../../marketing/web/src/config/site.ts";
 import { emailPicture } from "./image.js";
 import { sanityImageUrl } from "../sanity-image.js";
 
@@ -98,6 +100,16 @@ export function sectionImageUrl(assetId, images) {
  *   text: (section: any, context: SectionContext) => string[] }} SectionKind
  */
 
+/**
+ * How a button that isn't Book a table looks, as the website's are: an
+ * underlined link in gold capitals (the site's "See the menu →"), or a gold
+ * frame. Never a gold block: that's Book a table's.
+ */
+export const BUTTON_LOOKS = ["link", "outline"];
+
+/** Book a table, word for word and link for link the website's (config/site.ts, config/booking.ts). */
+export const BOOKING = { label: siteConfig.copy.bookingCta, link: bookingUrl };
+
 /** @type {Record<string, SectionKind>} */
 export const SECTION_KINDS = {
   image: {
@@ -131,33 +143,37 @@ export const SECTION_KINDS = {
   },
   button: {
     label: "Button",
-    blank: () => ({ kind: "button", label: "", link: "", look: "filled" }),
+    blank: () => ({ kind: "button", label: "", link: "", look: "link" }),
     clean: (raw) => ({
       kind: "button",
       label: line(raw?.label, 40),
       link: line(raw?.link, 1000),
-      look: BUTTON_LOOKS.includes(raw?.look) ? raw.look : "filled",
+      look: BUTTON_LOOKS.includes(raw?.look) ? raw.look : "link",
     }),
     empty: (section) => !section.label || !safeLink(section.link),
-    html: (section) => [
-      row(button(section.label, safeLink(section.link), { look: section.look }), { top: 6, bottom: 26, align: "center" }),
-    ],
+    html(section) {
+      const link = safeLink(section.link);
+      const drawn =
+        section.look === "outline" ? outlineButton(section.label, link) : textLink(section.label, link, { size: 16 });
+      return [row(drawn, { top: 6, bottom: 26, align: "center" })];
+    },
     text: (section) => [`${section.label}: ${safeLink(section.link).replace(/^mailto:/i, "")}`, ""],
   },
   booking: {
-    label: "Book a table",
+    label: BOOKING.label,
     blank: () => ({ kind: "booking" }),
     clean: () => ({ kind: "booking" }),
     empty: () => false,
-    html: (_section, { site }) => [row(bookingBlock(bookingLink(site)), { top: 10, bottom: 30, align: "center" })],
-    text: (_section, { site }) => [`Book a table: ${bookingLink(site)}`, ""],
+    html: (_section, { site }) => [
+      row(bookingButton({ ...BOOKING, origin: site?.origin }), {
+        top: 6,
+        bottom: 28,
+        align: "center",
+      }),
+    ],
+    text: () => [`${BOOKING.label}: ${BOOKING.link}`, ""],
   },
 };
-
-/** The site's booking page, where every Book a table goes. */
-export function bookingLink(site) {
-  return `${String(site?.origin || "").replace(/\/+$/, "")}/bookings`;
-}
 
 /** The kinds the editor offers, in its order. */
 export const SECTION_KIND_IDS = Object.keys(SECTION_KINDS);

@@ -37,7 +37,7 @@ describe("the one-off email editor (#348)", () => {
 			list.map((entry) => entry.section),
 			[
 				{ kind: "heading", text: "" },
-				{ kind: "button", label: "", link: "", look: "filled" },
+				{ kind: "button", label: "", link: "", look: "link" },
 			],
 		);
 		assert.notEqual(list[0].key, list[1].key);

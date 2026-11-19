@@ -149,8 +149,8 @@ export type OneOffSection =
 	/** Book a table: always the same, to the site's booking page. */
 	| { kind: "booking" };
 
-/** Filled: the thing to do. Outline: a second, quieter way on. */
-export type ButtonLook = "filled" | "outline";
+/** Link: underlined gold capitals, as the website's. Outline: a gold frame. Book a table has its own section. */
+export type ButtonLook = "link" | "outline";
 
 export type OneOffStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
 
