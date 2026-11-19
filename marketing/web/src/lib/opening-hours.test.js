@@ -86,7 +86,7 @@ describe("times, the British casual way", () => {
     expect(timeText("01:00")).toBe("1am");
     expect(timeText("09:15")).toBe("9:15am");
     expect(timeText("00:00")).toBe("midnight");
-    expect(timeText("12:00")).toBe("midday");
+    expect(timeText("12:00")).toBe("noon");
     expect(timeText("12:30")).toBe("12:30pm");
     expect(timeText("00:30")).toBe("12:30am");
   });
@@ -98,7 +98,7 @@ describe("times, the British casual way", () => {
     expect(hoursText(day("fri"))).toBe("4–11:30pm");
     // Past midnight: both ends say which
     expect(hoursText(day("sat"))).toBe("4pm–1am");
-    expect(hoursText({ opens: "12:00", closes: "23:00" })).toBe("midday–11pm");
+    expect(hoursText({ opens: "12:00", closes: "23:00" })).toBe("noon–11pm");
     expect(hoursText({ opens: "18:00", closes: "00:00" })).toBe("6pm–midnight");
   });
 });

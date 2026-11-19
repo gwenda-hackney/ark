@@ -168,3 +168,54 @@ describe("menuTaste", () => {
     expect(menuTaste([{ id: "food", title: "Food", items: [] }])).toBeNull();
   });
 });
+
+describe("menuTaste with a cap on the first chapter (the Drinks board beside two kitchens)", () => {
+  const ours = (n) => ({
+    id: "our-own",
+    title: "Our Own",
+    items: Array.from({ length: n }, (_, i) => drink(`Ours ${i + 1}`, "11")),
+  });
+  const beer = {
+    id: "beer",
+    title: "Beer",
+    items: ["Pilsner", "IPA", "Stout", "Lager"].map((name) => drink(name, "6")),
+  };
+  const noBooze = {
+    id: "no-booze",
+    title: "No Booze",
+    items: [drink("Dry Spritz", "7")],
+  };
+  const names = (taste) => [
+    taste.lead.items.map((item) => item.name),
+    ...taste.extra.map((part) => [
+      part.title,
+      ...part.items.map((item) => item.name),
+    ]),
+  ];
+
+  it("lists at most the cap from the first, then fills from the parts after it, in the menu's order", () => {
+    const taste = menuTaste([ours(8), beer, noBooze], { count: 9, lead: 6 });
+    expect(names(taste)).toEqual([
+      ["Ours 1", "Ours 2", "Ours 3", "Ours 4", "Ours 5", "Ours 6"],
+      ["Beer", "Pilsner", "IPA", "Stout"],
+    ]);
+    expect(taste.lead.total).toBe(8);
+    expect(taste.extra[0]).toMatchObject({ href: "/bar#beer", total: 4 });
+    expect(taste.more.map((part) => part.title)).toEqual(["No Booze"]);
+  });
+
+  it("keeps about its length when cocktails come off: the next parts fill in, three of each at most", () => {
+    const taste = menuTaste([ours(2), beer, noBooze], { count: 9, lead: 6 });
+    expect(names(taste)).toEqual([
+      ["Ours 1", "Ours 2"],
+      ["Beer", "Pilsner", "IPA", "Stout"],
+      ["No Booze", "Dry Spritz"],
+    ]);
+    expect(taste.extra[0].total).toBe(4);
+    expect(taste.more).toEqual([]);
+  });
+
+  it("without a cap lists only the first chapter, as before", () => {
+    expect(menuTaste([ours(2), beer]).extra).toEqual([]);
+  });
+});

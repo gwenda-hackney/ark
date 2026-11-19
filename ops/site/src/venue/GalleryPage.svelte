@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Publish → Photos (#291, moved in #312): the venue's own photos on the website, in
+	 * What's on → Photos (#291, moved in #312 and again with the weekly email): the venue's own photos on the website, in
 	 * home's photo strip and at the top of the Photos page, in this order.
 	 * The photos are tiles like an event's Images tab (events/tabs/GalleryTab):
 	 * drop or add photos, drag one to move it, the cross takes one out.

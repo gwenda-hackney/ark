@@ -162,7 +162,7 @@ export async function sendFormVerifyEmail(
   const title = form.title || form.heading || "Gwenda";
   const copy = formVerifyCopy({ title, updated: Boolean(updated) });
 
-  // Embed the mark like RSVP mail so inboxes that block remote images still show it.
+  // Embed the mark so inboxes that block remote images still show it.
   const logoBuffer = await fetchImageBuffer(LOGO_URL);
   const html = buildFormVerifyEmailHtml({
     eyebrow: copy.eyebrow,

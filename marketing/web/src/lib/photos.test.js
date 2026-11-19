@@ -15,6 +15,8 @@ import {
   listPhotos,
   menuPhotos,
   photoSlug,
+  photosPageWall,
+  takeTurns,
 } from "./photos.js";
 
 const image = (width, height) => ({ src: `/x-${width}.webp`, width, height });
@@ -740,5 +742,68 @@ describe("src/data/photos.json", () => {
         menu,
       ).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("takeTurns", () => {
+  it("gives each kitchen a print in turn, the lead's first", () => {
+    const a = [{ url: "a1" }, { url: "a2" }, { url: "a3" }];
+    const b = [{ url: "b1" }];
+    expect(takeTurns([a, b]).map((photo) => photo.url)).toEqual([
+      "a1",
+      "b1",
+      "a2",
+      "a3",
+    ]);
+    expect(takeTurns([[], b]).map((photo) => photo.url)).toEqual(["b1"]);
+    expect(takeTurns([])).toEqual([]);
+  });
+});
+
+describe("photosPageWall", () => {
+  const shot = (name, added = "2026-10-01T20:00:00Z") => ({
+    url: `https://cdn.test/${name}.jpg`,
+    width: 1600,
+    height: 1200,
+    alt: "",
+    added,
+    hash: `hash-${name}`,
+  });
+  const names = (photos) =>
+    photos.map((photo) => photo.url.replace(/^.*\/|\.jpg$/g, ""));
+
+  it("mixes the venue's photos and the events' in one wall, taking turns, each event's wearing its name", () => {
+    const wall = photosPageWall(
+      [shot("v1"), shot("v2"), shot("v3")],
+      [
+        {
+          id: "pinsa",
+          title: "Pinsa A Roma",
+          href: "/whats-on/pinsa-a-roma/",
+          photos: [shot("p1", "2026-11-18T12:00:00Z"), shot("p2")],
+        },
+        {
+          id: "karaoke",
+          title: "Karaoke",
+          href: "",
+          photos: [shot("k1")],
+        },
+      ],
+    );
+    expect(names(wall)).toEqual(["v1", "p1", "k1", "v2", "p2", "v3"]);
+    expect(wall[0].event).toBeUndefined();
+    expect(wall[1].event).toEqual({
+      title: "Pinsa A Roma",
+      href: "/whats-on/pinsa-a-roma/",
+    });
+    expect(wall[2].event).toEqual({ title: "Karaoke", href: "" });
+  });
+
+  it("shows a photo on the venue's wall once, not again under its event", () => {
+    const wall = photosPageWall(
+      [shot("same")],
+      [{ id: "e", title: "E", href: "", photos: [shot("same"), shot("e1")] }],
+    );
+    expect(names(wall)).toEqual(["same", "e1"]);
   });
 });

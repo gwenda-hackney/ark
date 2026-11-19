@@ -59,7 +59,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Page address",
-		body: "On a series, Page address is the end of its page link (letters, numbers and dashes): gwenda.co.uk/whats-on/… It starts from the name and stays the same when you rename the series. Change it here if you want a different link. The website changes a minute or two after you save, and old links still lead to the page. RSVPs and tickets people already have keep working.",
+		body: "On a series, Page address is the end of its page link (letters, numbers and dashes): gwenda.co.uk/whats-on/… It starts from the name and stays the same when you rename the series. Change it here if you want a different link. The website changes a minute or two after you save, and old links still lead to the page.",
 	},
 	{
 		title: "Default hero",

@@ -58,7 +58,7 @@ describe("buildRawMessage", () => {
 });
 
 describe("safe recipients outside production (#15)", () => {
-  const rsvp = {
+  const message = {
     from: "Gwenda <events@gwenda.co.uk>",
     to: "Guest <guest@example.com>",
     cc: ["friend@example.com"],
@@ -71,12 +71,14 @@ describe("safe recipients outside production (#15)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("leaves production mail alone", async () => {
-    expect(await safeMail({ SITE_ENV: "production" }, rsvp, safe)).toBe(rsvp);
+    expect(await safeMail({ SITE_ENV: "production" }, message, safe)).toBe(
+      message,
+    );
   });
 
   it("sends dev and local mail to the safe inbox, naming who it was for", async () => {
     for (const SITE_ENV of ["dev", "local"]) {
-      const mail = await safeMail({ SITE_ENV }, rsvp, safe);
+      const mail = await safeMail({ SITE_ENV }, message, safe);
       expect(mail.to).toBe("alerts@gwenda.co.uk");
       expect(mail.cc).toBeUndefined();
       expect(mail.bcc).toBeUndefined();
@@ -92,7 +94,7 @@ describe("safe recipients outside production (#15)", () => {
 
   it("leaves mail already addressed to the safe inbox unchanged", async () => {
     const alert = {
-      ...rsvp,
+      ...message,
       to: "alerts@gwenda.co.uk",
       cc: undefined,
       bcc: undefined,
@@ -102,7 +104,7 @@ describe("safe recipients outside production (#15)", () => {
 
   it("refuses to send outside production without a safe address", async () => {
     await expect(
-      safeMail({ SITE_ENV: "dev" }, rsvp, { safeAddress: async () => "" }),
+      safeMail({ SITE_ENV: "dev" }, message, { safeAddress: async () => "" }),
     ).rejects.toThrow(/not sending outside production/);
   });
 
@@ -111,7 +113,10 @@ describe("safe recipients outside production (#15)", () => {
     vi.stubGlobal("fetch", fetch);
     // No config database in this env, so there is no safe address to find.
     await expect(
-      sendGmail({ SITE_ENV: "dev", GMAIL_SERVICE_ACCOUNT_JSON: account }, rsvp),
+      sendGmail(
+        { SITE_ENV: "dev", GMAIL_SERVICE_ACCOUNT_JSON: account },
+        message,
+      ),
     ).rejects.toThrow(/outside production/);
     expect(fetch).not.toHaveBeenCalled();
   });

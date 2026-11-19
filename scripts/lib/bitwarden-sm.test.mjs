@@ -89,15 +89,15 @@ describe("resolveSecretsForEnv", () => {
 describe("pickAppSecrets", () => {
   it("gives each app a secret under its own runtime name", () => {
     const resolved = new Map([
-      ["BASEROW_WEBSITE_API_KEY", "web"],
+      ["SUBSCRIBE_SECRET", "web"],
       ["GOOGLE_SERVICE_ACCOUNT_JSON", "{}"],
     ]);
     const ops = pickAppSecrets("ops", resolved).values;
     assert.equal(ops.get("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON"), "{}");
     assert.equal(ops.get("GMAIL_SERVICE_ACCOUNT_JSON"), "{}");
-    assert.equal(ops.has("BASEROW_API_KEY"), false, "ops has no Baserow token any more");
+    assert.equal(ops.has("SUBSCRIBE_SECRET"), false, "ops has no website secret");
     const web = pickAppSecrets("web", resolved).values;
-    assert.equal(web.get("BASEROW_API_KEY"), "web");
+    assert.equal(web.get("SUBSCRIBE_SECRET"), "web");
     assert.equal(web.get("GMAIL_SERVICE_ACCOUNT_JSON"), "{}");
   });
 

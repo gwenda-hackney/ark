@@ -1,34 +1,23 @@
 ---
 /**
- * Home's what's on (#240), one block: this week's nights as cards, the same
- * as the What's on page (NightCards) but only this week's, and next week's
- * too at the weekend (homeWeek, `thisWeek`), under a line saying which;
- * then the deals and the pop-up kitchen side by side
- * (StandingCards); then the way to the lot, where all three are.
+ * Home's what's on (#240, #352), one block: the next few days, each with its
+ * event big and the deal and pop-up running that day beside it, as on the
+ * What's on page (DayCards) but without the weeks; then the way to the lot.
  */
-import { getUpcomingEvents } from "../../data/events";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 import { fetchMenu } from "../../lib/sanity/menu";
-import { nightsOnly } from "../../lib/promotions.js";
 import { closedDays } from "../../lib/opening-hours.js";
-import { londonToday } from "../../lib/london-day.js";
-import { homeWeek } from "../../lib/night-cards.js";
 import { fetchOpeningHours } from "../../lib/sanity/opening-hours";
-import NightCards from "./NightCards.astro";
-import StandingCards from "./StandingCards.astro";
+import DayCards from "./DayCards.astro";
 
-/** The big one, then a row of four. */
-const HOME_NIGHTS = 5;
+/** Tonight and the next two days with anything on. */
+const HOME_DAYS = 3;
 
 const { series, occurrences } = await fetchWhatsOnCatalog().catch(() => ({
   series: [],
   occurrences: [],
 }));
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
-/** NightCards shows the first few, an event over several days as one. */
-const nights = getUpcomingEvents(nightsOnly(occurrences));
-/** Which days the nights are from, and what they're called: "This week". */
-const week = homeWeek(londonToday());
 /** "Shut Mondays." from the opening hours; nothing without them. */
 const shut = closedDays(await fetchOpeningHours());
 ---
@@ -47,17 +36,16 @@ const shut = closedDays(await fetchOpeningHours());
     </p>
   </header>
 
-  <h3 class="ch-poster ch-home-sub" data-this-week-label>{week.label}</h3>
-  <NightCards
-    nights={nights}
+  <DayCards
     series={series}
-    shown={HOME_NIGHTS}
-    thisWeek
+    occurrences={occurrences}
+    menu={menu}
+    shown={HOME_DAYS}
+    weeks={false}
     leadEager={false}
-    empty="Nothing on this week. The bar’s open anyway."
+    later
+    empty="Nothing on just now. The bar’s open anyway."
   />
-
-  <StandingCards series={series} occurrences={occurrences} menu={menu} home />
 
   <div class="ch-home-actions">
     <a href="/whats-on" class="ch-menu-all">

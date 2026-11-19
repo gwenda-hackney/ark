@@ -103,15 +103,6 @@ export const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug 
   }
 }`;
 
-/** All published events with slugs — used to prerender RSVP pages and social previews. */
-export const RSVP_EVENTS_QUERY = `*[_type == "event" && defined(slug.current) && removed != true] | order(date asc) {
-  "slug": slug.current,
-  title,
-  date,
-  seriesId,
-  description
-}`;
-
 /**
  * Menu sections with nested items — ordered for display (Studio drag rank).
  * A section's `id` is its slug: ops writes it once and leaves it alone, so

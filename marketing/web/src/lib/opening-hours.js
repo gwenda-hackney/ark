@@ -75,11 +75,11 @@ function pastMidnight(day) {
   return minutesOf(day.closes) <= minutesOf(day.opens);
 }
 
-/** "17:00" → "5pm", "22:30" → "10:30pm", "01:00" → "1am", "00:00" → "midnight". */
+/** "17:00" → "5pm", "22:30" → "10:30pm", "01:00" → "1am", "00:00" → "midnight", "12:00" → "noon". */
 export function timeText(hhmm) {
   const total = minutesOf(hhmm);
   if (total === 0) return "midnight";
-  if (total === 12 * 60) return "midday";
+  if (total === 12 * 60) return "noon";
   const hours = Math.floor(total / 60);
   const minutes = total % 60;
   const clock = `${hours % 12 || 12}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;

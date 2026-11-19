@@ -374,7 +374,7 @@ function dayName(day, today) {
  *   line: string,
  *   menu: null | ReturnType<typeof menuShelf>["menus"][number],
  *   menuLabel: string,
- *   also: Array<{ text: string, href: string }>,
+ *   also: Array<{ text: string, href: string, logo?: null | { url: string } }>,
  * }} null when the page has nothing to show
  */
 export function boardPick(shelf, today) {
@@ -390,6 +390,8 @@ export function boardPick(shelf, today) {
       .map((card) => ({
         text: `${card.popup.days}, ${card.popup.title}`,
         href: card.kitchen.href,
+        // Its logo beside it, when ops has one.
+        logo: card.popup.logo || null,
       })),
   ];
   return {
@@ -404,7 +406,7 @@ export function boardPick(shelf, today) {
 /**
  * The kitchens for home's board (#306), in the order they next cook: the
  * first leads the board (boardPick), the rest go under "Also". Each says
- * who and when ("In the kitchen: Chez Pickle", "Monday: Crust Fund"),
+ * who and when ("In the kitchen today: Chez Pickle", "Monday: Pinsa A Roma"),
  * which of its menus runs that day ("Saturday's menu" when a later one),
  * and its day in a word ("Today", "Thursday"). Kitchens that cook on the
  * same day keep their week order.
@@ -446,7 +448,7 @@ export function boardCards(shelf, today) {
           : dayName(day, today);
       const line = kitchen.popup
         ? day === today
-          ? `In the kitchen: ${kitchen.popup.title}`
+          ? `In the kitchen today: ${kitchen.popup.title}`
           : `${when}: ${kitchen.popup.title}`
         : "";
       const said = kitchen.popup ? day : today;

@@ -967,7 +967,7 @@ html[data-chart-leaving] .ch-page {
     animation: ch-hero-logo 0.52s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
 
-  html:not(.navigation-restore):not([data-chart-leaving])
+  html.fonts-ready:not(.navigation-restore):not([data-chart-leaving])
     :is(.ch-hero-social, .ch-hero-line, .ch-hero-nav li) {
     animation: ch-hero-in 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) var(--ch-hero-at)
       both;
@@ -1023,6 +1023,23 @@ html[data-chart-leaving] .ch-page {
   from {
     opacity: 0.6;
     transform: translateY(14px) scale(0.98);
+  }
+}
+
+/*
+ * The words under the logo wait for their fonts (scripts/fonts-ready.js):
+ * drawn first in a stand-in face, SOCIAL and the links jumped when theirs
+ * arrived. They come in once the fonts are there, or after 2.5s whatever
+ * happens; without the script, the animation shows them after 3s.
+ */
+html:not(.fonts-ready) :is(.ch-hero-social, .ch-hero-line, .ch-hero-nav) {
+  visibility: hidden;
+  animation: ch-fonts-late 0s 3s forwards;
+}
+
+@keyframes ch-fonts-late {
+  to {
+    visibility: visible;
   }
 }
 

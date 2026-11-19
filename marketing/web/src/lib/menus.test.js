@@ -35,6 +35,12 @@ const menuInfo = (id, name, kind, extra = {}) => ({
   days: [],
   ...extra,
 });
+/** Chez Pickle's logo in ops: home's "Also" shows it beside its name. */
+const CHEZ_LOGO = {
+  url: "https://cdn.sanity.io/images/p/d/chez-120x120.png",
+  width: 120,
+  height: 120,
+};
 const popup = (seriesId, title) => ({ seriesId, title, category: "popup" });
 
 /** A pop-up's nights on these weekdays for three weeks from Mon 16 Nov. */
@@ -71,7 +77,7 @@ function twoKitchens() {
     },
     catalog: {
       series: [
-        popup("chez-pickle", "Chez Pickle"),
+        { ...popup("chez-pickle", "Chez Pickle"), logo: CHEZ_LOGO },
         popup("monday-dumplings", "Monday Dumplings"),
       ],
       occurrences: [
@@ -162,18 +168,22 @@ describe("two pop-up kitchens in one week", () => {
 
   it("leads home's Food board with whoever cooks today, the other under Also", () => {
     const monday = boardPick(menuShelf("kitchen", menu, catalog, MON), MON);
-    expect(monday.line).toBe("In the kitchen: Monday Dumplings");
+    expect(monday.line).toBe("In the kitchen today: Monday Dumplings");
     expect(monday.menu.id).toBe("dumplings");
     expect(monday.menuLabel).toBe("");
     expect(monday.also).toEqual([
-      { text: "Wed–Sun, Chez Pickle", href: "/kitchen#chez-pickle" },
+      {
+        text: "Wed–Sun, Chez Pickle",
+        href: "/kitchen#chez-pickle",
+        logo: CHEZ_LOGO,
+      },
     ]);
 
     const thursday = boardPick(menuShelf("kitchen", menu, catalog, THU), THU);
-    expect(thursday.line).toBe("In the kitchen: Chez Pickle");
+    expect(thursday.line).toBe("In the kitchen today: Chez Pickle");
     expect(thursday.menu.id).toBe("chez-pickle");
     expect(thursday.also).toEqual([
-      { text: "Mon, Monday Dumplings", href: "/kitchen#dumplings" },
+      { text: "Mon, Monday Dumplings", href: "/kitchen#dumplings", logo: null },
     ]);
   });
 
@@ -279,7 +289,7 @@ describe("a pop-up with a menu for each day", () => {
     };
     const wed = "2026-11-25";
     const pick = boardPick(menuShelf("kitchen", menu, wednesdayToo, wed), wed);
-    expect(pick.line).toBe("In the kitchen: Chez Pickle");
+    expect(pick.line).toBe("In the kitchen today: Chez Pickle");
     expect(pick.menu.name).toBe("Dinner");
     expect(pick.menuLabel).toBe("Thursday’s menu");
   });

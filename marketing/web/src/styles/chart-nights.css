@@ -126,6 +126,8 @@
 .ch-night-date,
 .ch-stand-tag,
 .ch-night-label,
+.ch-day-label,
+.ch-occasion-tag,
 .ch-night-offer {
   --paper: var(--ch-mustard);
   --print: var(--ch-bg);
@@ -152,6 +154,8 @@
 .ch-night-date::before,
 .ch-stand-tag::before,
 .ch-night-label::before,
+.ch-day-label::before,
+.ch-occasion-tag::before,
 .ch-night-offer::before {
   content: "";
   position: absolute;
@@ -170,11 +174,13 @@
   mask: var(--cut) center / 100% 100% no-repeat;
 }
 
-/* Red paper, cream print: today, Tonight, a deal. The deeper red, so the
+/* Red paper, cream print: today, Tonight, a deal (Tomorrow keeps the
+   mustard, so the two days read apart). The deeper red, so the
    print reads under the paper's sheen too (4.5:1 at its top, 5.7:1 in the
    middle); the logo's own --ch-pop is 3.3:1 there */
 .ch-night--tonight .ch-night-date,
 .ch-night-label,
+.ch-day--tonight .ch-day-label,
 .ch-stand--deal .ch-stand-tag,
 .ch-stand--next .ch-stand-tag {
   --paper: var(--ch-red);
@@ -594,17 +600,33 @@
 /* What it is, stuck on the corner like a night's date */
 .ch-stand-tag {
   position: absolute;
-  top: -0.75rem;
-  left: -0.625rem;
-  max-width: calc(100% + 0.5rem);
-  padding: 0.4375rem 0.75rem 0.5rem;
-  font-size: 1rem;
+  top: -0.875rem;
+  left: -0.75rem;
+  /* On one line, so the mark sits by the words; it may reach past the picture */
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.5rem 0.875rem 0.5625rem 0.75rem;
+  font-size: 1.125rem;
   line-height: 1.05;
   --tilt: -4deg;
 }
 
 .ch-stand--deal .ch-stand-tag {
-  font-size: 1.25rem;
+  font-size: 1.375rem;
+}
+
+/* Its mark: a price tag on a deal, a chef's hat on a pop-up kitchen */
+.ch-stand-tag-icon {
+  flex: none;
+  width: 1.3em;
+  height: 1.3em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .ch-stand:nth-child(even) .ch-stand-tag {
@@ -757,12 +779,12 @@
     left: 0;
     max-width: none;
     white-space: nowrap;
-    padding: 0.25rem 0.4375rem 0.3125rem;
-    font-size: 0.75rem;
+    padding: 0.3125rem 0.5rem 0.375rem;
+    font-size: 0.875rem;
   }
 
   .ch-stand--deal .ch-stand-tag {
-    font-size: 1rem;
+    font-size: 1.125rem;
   }
 
   .ch-stand-name,
@@ -777,4 +799,167 @@
   .ch-stand .ch-night-note {
     font-size: 1rem;
   }
+}
+
+/*
+ * What's on by date (#352, DayCards.astro): each day under its week, the
+ * night's event big on the left, the deals and pop-ups running that day
+ * smaller beside it. A day with no event lays its small cards out in a row.
+ * On a phone it all goes into one column, the event first.
+ */
+.ch-day-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 3.5rem;
+}
+
+.ch-day[hidden],
+.ch-night-week[hidden] {
+  display: none;
+}
+
+.ch-day-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1.5rem;
+  font-family: var(--ch-caps);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ch-ink-2);
+}
+
+.ch-day--tonight .ch-day-name {
+  color: var(--ch-cream);
+}
+
+.ch-day-label {
+  padding: 0.3125rem 0.75rem 0.375rem;
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.ch-day-label[hidden] {
+  display: none;
+}
+
+.ch-day-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 2.5rem 3rem;
+  align-items: start;
+}
+
+.ch-day--stands .ch-day-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ch-day-events {
+  display: grid;
+  gap: 2.5rem;
+}
+
+/* The event: its picture big, the words beside it */
+.ch-day-event {
+  grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: center;
+}
+
+.ch-day-event .ch-night-name {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  line-height: 1.05;
+}
+
+.ch-day-event .ch-night-time {
+  margin-top: 0.25rem;
+  font-size: 2rem;
+}
+
+.ch-day-event .ch-night-note {
+  font-size: 1.1875rem;
+}
+
+/* The deals and pop-ups: small, one under another */
+.ch-day-stands {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2rem;
+}
+
+.ch-day--stands .ch-day-stands {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+.ch-day-stand {
+  --stand-h: 9rem;
+  gap: 1.25rem;
+}
+
+.ch-day-stand .ch-stand-tag {
+  font-size: 0.875rem;
+  padding: 0.3125rem 0.5625rem 0.375rem;
+}
+
+.ch-day-stand.ch-stand--deal .ch-stand-tag {
+  font-size: 1rem;
+}
+
+.ch-day-stand .ch-stand-name {
+  font-size: clamp(1.375rem, 2vw, 1.625rem);
+}
+
+.ch-day-stand .ch-night-time {
+  font-size: 1.5rem;
+}
+
+.ch-day-stand .ch-stand-links {
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 64rem) {
+  .ch-day-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ch-day-stands {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  }
+}
+
+@media (max-width: 40rem) {
+  .ch-day-event {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .ch-day-stand {
+    --stand-h: 7.5rem;
+  }
+}
+
+/* What else? (home): one of each thing on after the days shown */
+.ch-day-later {
+  margin-top: 4rem;
+}
+
+.ch-day-later[hidden],
+.ch-day-stand[hidden] {
+  display: none;
+}
+
+.ch-day-later-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+/* What else?: the day on its own line over the hours */
+.ch-day-when {
+  display: block;
 }

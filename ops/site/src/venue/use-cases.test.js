@@ -100,8 +100,8 @@ describe("opening hours: ops to the website", () => {
     );
     assert.equal(res.status, 200, JSON.stringify(res.data));
     const week = await websiteWeek();
-    assert.equal(weekRows(week)[0].hours, "midday–6pm");
-    assert.equal(todayLine(week, new Date("2026-11-09T10:00:00Z")), "Open today midday–6pm");
+    assert.equal(weekRows(week)[0].hours, "noon–6pm");
+    assert.equal(todayLine(week, new Date("2026-11-09T10:00:00Z")), "Open today noon–6pm");
   });
 
   it("with website.auto_update off, the hours wait on the preview for Update website", async () => {

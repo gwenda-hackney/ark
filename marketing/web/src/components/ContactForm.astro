@@ -51,6 +51,14 @@ function inputType(field: FormField) {
     "We sent a link to {email}. Open it to finish (valid for 48 hours)."}
   novalidate
 >
+  {
+    /* Opened from an occasion on home (#353): ?occasion= marks the enquiry with it
+       (scripts/contact-form.js initOccasionField) and says so here. */
+  }
+  <input type="hidden" name="occasion" value="" data-occasion-field />
+  <p class="contact-occasion-note" data-occasion-note hidden>
+    About: <strong data-occasion-name></strong>
+  </p>
   <p class="contact-required-note">
     We need the ones marked
     <span class="contact-required">

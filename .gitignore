@@ -10,13 +10,11 @@ node_modules
 .env.ark.bak
 .env.secrets
 .env.secrets.bak
-.baserow-jwt.json
 # Google service-account key downloads (store in Ark/Ops SM, never commit)
 gwenda-ops-*.json
 *-service-account*.json
 .bw-session
 **/.bw-session
-.apple-wallet/
 .wrangler/
 .dev.vars
 marketing/**/.dev.vars
@@ -40,3 +38,6 @@ marketing/brand/node_modules/
 
 # Worker bundles built in CI before deploy (source maps for Sentry, #35)
 marketing/*/dist/
+
+# Worktrees for parallel work (.worktrees/<area>-<topic>)
+.worktrees/

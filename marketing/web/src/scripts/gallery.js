@@ -37,12 +37,12 @@ export function initGallery(doc = document) {
       }
       return;
     }
-    const link = target?.closest(".series-gallery-item a");
+    const link = target?.closest(".series-gallery-item a[data-full]");
     if (!link || event.metaKey || event.ctrlKey || event.shiftKey) return;
     const links = [
       ...link
         .closest(".series-gallery-list")
-        .querySelectorAll(".series-gallery-item a"),
+        .querySelectorAll(".series-gallery-item a[data-full]"),
     ];
     event.preventDefault();
     openLightbox(doc, links, links.indexOf(link));

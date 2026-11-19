@@ -386,19 +386,19 @@ describe("runTimes", () => {
   it("gives the hours day by day when they differ", () => {
     expect(
       runTimes([
-        { date: "2026-11-21", span: "12–8pm" },
+        { date: "2026-11-21", span: "noon–8pm" },
         { date: "2026-11-22", span: "1–6pm" },
       ]),
-    ).toEqual(["Sat 12–8pm", "Sun 1–6pm"]);
+    ).toEqual(["Sat noon–8pm", "Sun 1–6pm"]);
   });
 
   it("gives them once when every day is the same, or there is one day", () => {
     expect(
       runTimes([
-        { date: "2026-11-21", span: "12–8pm" },
-        { date: "2026-11-22", span: "12–8pm" },
+        { date: "2026-11-21", span: "noon–8pm" },
+        { date: "2026-11-22", span: "noon–8pm" },
       ]),
-    ).toEqual(["12–8pm"]);
+    ).toEqual(["noon–8pm"]);
     expect(runTimes([{ date: "2026-11-21", span: "7–10pm" }])).toEqual([
       "7–10pm",
     ]);

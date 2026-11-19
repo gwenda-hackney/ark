@@ -4,6 +4,7 @@ import {
   eventPageModel,
   renderEventPage,
   siteFormLink,
+  GALLERY_HEADINGS,
 } from "./event-page.js";
 import { recordSvg } from "./chart-record.js";
 import { oversizedPictures } from "../../scripts/ci/smoke-test-lib.mjs";
@@ -235,7 +236,7 @@ describe("an event over several days", () => {
     expect(html).toContain("Sat 10 Jan to Sun 11 Jan");
     expect(html).toContain("Day by day");
     expect(model.days.map((day) => [day.date, day.when])).toEqual([
-      ["2099-01-10", "12–8pm"],
+      ["2099-01-10", "noon–8pm"],
       ["2099-01-11", "1–6pm"],
     ]);
     expect(html).toContain("DJs and a live band.");
@@ -496,5 +497,35 @@ describe("an event that sends people to a form", () => {
     expect(html).toContain("Book a table");
     expect(html).toContain('href="https://partiful.com/e/x"');
     expect(html).not.toContain("Book your party");
+  });
+});
+
+describe("the gallery's heading", () => {
+  const photos = [
+    {
+      url: "https://cdn.sanity.io/images/p/d/a-1600x1200.jpg",
+      width: 1600,
+      height: 1200,
+    },
+    {
+      url: "https://cdn.sanity.io/images/p/d/b-1600x1200.jpg",
+      width: 1600,
+      height: 1200,
+    },
+  ];
+  const heading = (category) =>
+    page(karaoke({ gallery: photos }), { category }).html.match(
+      /ch-photos">\s*<h2 class="ch-poster">\s*([^<]*?)\s*<\/h2>/,
+    )?.[1];
+
+  it("says What's cooking on a pop-up kitchen, What's pouring on a deal, On the night on an event", () => {
+    expect(heading("popup")).toBe(GALLERY_HEADINGS.popup);
+    expect(heading("promotion")).toBe(GALLERY_HEADINGS.promotion);
+    expect(heading("event")).toBe(GALLERY_HEADINGS.event);
+    expect(GALLERY_HEADINGS).toEqual({
+      popup: "What’s cooking",
+      promotion: "What’s pouring",
+      event: "On the night",
+    });
   });
 });

@@ -65,7 +65,7 @@ describe("weeklyEmailModel: what each entry says", () => {
       start: "2026-11-14",
       end: "2026-11-15",
       sticker: { weekday: "Sat–Sun", day: "14–15", month: "Nov" },
-      times: ["Sat 12–8pm", "Sun 1–6pm"],
+      times: ["Sat noon–8pm", "Sun 1–6pm"],
     });
     expect(model.nights.filter((card) => card.title === "EPIC Jam")).toHaveLength(1);
   });

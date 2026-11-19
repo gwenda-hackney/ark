@@ -12,6 +12,7 @@
  * logic lives inside the components today.
  */
 import { siteConfig } from "../../marketing/web/src/config/site.ts";
+import { emailSite } from "../email/site.js";
 import { bookingUrl } from "../../marketing/web/src/config/booking.ts";
 import { formatEventSpan } from "../../marketing/web/src/data/events.ts";
 import { isWholeFit } from "../../marketing/web/functions/_lib/sanity-image-url.js";
@@ -52,7 +53,7 @@ function photoOf(url, alt) {
   return { url: value.replace(/#.*$/, ""), whole: isWholeFit(value), alt };
 }
 
-/** "One event, 12–8pm": the clock for a deal or a kitchen. */
+/** "One event, noon–8pm": the clock for a deal or a kitchen. */
 function whenLine(days, row) {
   return [days, formatEventSpan(row.startTime, row.endTime, row.time)].filter(Boolean).join(", ");
 }
@@ -83,7 +84,7 @@ function nightCards(occurrences, series, todayIso, origin) {
         /** On the day the email goes out: the red sticker, "Tonight". */
         tonight: run.start <= todayIso && todayIso <= run.end,
         title,
-        /** The hours, day by day where they differ: "Sat 12–8pm", "Sun 1–6pm". */
+        /** The hours, day by day where they differ: "Sat noon–8pm", "Sun 1–6pm". */
         times: runTimes(
           days.map((day) => ({
             date: day.date,
@@ -191,15 +192,9 @@ export function weeklyEmailModel(catalog, { today, origin = siteConfig.domain } 
     },
     bookings: bookingsSection(site),
     site: {
-      name: siteConfig.name,
-      social: siteConfig.copy.social,
-      origin: site,
-      whatsOn: absolute(site, "/whats-on"),
+      ...emailSite(site),
       booking: bookingUrl,
       bookingLabel: siteConfig.copy.bookingCta,
-      instagram: siteConfig.social.instagram,
-      address: siteConfig.location.address,
-      mapsUrl: siteConfig.location.mapsUrl,
     },
   };
 }

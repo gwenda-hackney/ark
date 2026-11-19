@@ -146,7 +146,7 @@ describe("2026-11-12-popup-logo", () => {
     const { popup, header } = await website();
     assert.match(popup.logo.url, new RegExp(logoSha1));
     assert.equal(popup.pageUrl, popupLogo.INSTAGRAM);
-    assert.equal(header.line, "In the kitchen: Chez Pickle");
+    assert.equal(header.line, "In the kitchen today: Chez Pickle");
     assert.equal(header.href, "/whats-on/chez-pickle/");
     assert.match(text, /added chez-pickle\.png as the logo of "Chez Pickle"/);
     assert.match(text, /its Instagram is now https:\/\/www\.instagram\.com\/chezpickle/);

@@ -17,41 +17,26 @@ import {
   campaignUrl,
   canReachAudience,
   createCampaign,
-  deleteCampaign,
   getAudience,
   getCampaign,
   listSentReports,
   mailchimpConfigured,
-  sendCampaignTest,
   sendCampaignToAudience,
   setCampaignContent,
   updateCampaign,
 } from "../../platform/mailchimp.js";
 import { EMPTY_WEEK, buildWeeklyEmail } from "./weekly-email-build.js";
+import { NO_MAILCHIMP, refusal, sendTestToAddress, upstream } from "./test-send.js";
+import { londonToday } from "../../../../../marketing/web/src/lib/london-day.js";
 import {
   isStuck,
   scheduleAt,
   settingsChange,
   settingsFromValues,
-  testLimitReason,
 } from "./weekly-email-model.js";
 import { weeklyEmailRepository } from "./weekly-email-repository.js";
 
-/** An error whose message is for the person on the page (a 4xx, so it's shown as it is). */
-export function refusal(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
-
-/** A step outside ops that failed: Mailchimp, or building the email. 424, so the page shows why. */
-function upstream(what, error) {
-  const known = error instanceof MailchimpError || error?.status === 502;
-  if (!known) return error;
-  return refusal(424, `${what} ${error.message}`);
-}
-
-export const NO_MAILCHIMP = "Mailchimp isn't connected here, so this page is preview only.";
+export { NO_MAILCHIMP, refusal };
 
 /** What this runtime can do, for the page. */
 export function emailAccess(env) {
@@ -75,56 +60,13 @@ function shortDate(iso) {
  * member signed in (`email` comes from their session, never from the page).
  * A draft campaign is made for it and deleted again; the list gets nothing.
  */
-export async function sendTestToSelf(env, { email, now = new Date() }) {
-  if (!mailchimpConfigured(env)) throw refusal(409, NO_MAILCHIMP);
-  const to = String(email || "").trim().toLowerCase();
-  if (!to) throw refusal(403, "Sign in with Google to send yourself a test: it goes to your own address.");
-  const repo = weeklyEmailRepository(env);
-  const limited = testLimitReason(await repo.testsSince(nowIso(new Date(now.getTime() - 86_400_000))), to, now);
-  if (limited) throw refusal(429, limited);
-  // Counted before it's tried, so hammering the button can't hammer Mailchimp.
-  await repo.logTest({ email: to, sentAt: nowIso(now) });
-
-  let built;
-  try {
-    built = await buildWeeklyEmail(env, { now });
-  } catch (error) {
-    throw upstream("The test didn't send.", error);
-  }
-  const title = `Test of the weekly email, ${shortDate(built.today)} (safe to delete)`;
-  let campaign = null;
-  let failure = null;
-  try {
-    const audience = await getAudience(env);
-    campaign = await createCampaign(env, {
-      title,
-      subject: built.subject,
-      preheader: built.preheader,
-      fromName: audience.fromName,
-      replyTo: audience.replyTo,
-    });
-    await setCampaignContent(env, campaign.id, { html: built.html, text: built.text });
-    await sendCampaignTest(env, campaign.id, to);
-  } catch (error) {
-    failure = error;
-  }
-  // The draft was only a vehicle for the test: take it away again, sent or not.
-  let leftover = "";
-  if (campaign) {
-    await deleteCampaign(env, campaign.id).catch(() => {
-      leftover = ` Its draft is still in Mailchimp: delete "${title}" there.`;
-    });
-  }
-  if (failure) {
-    const shown = upstream("The test didn't send.", failure);
-    if (shown !== failure) shown.message += leftover;
-    throw shown;
-  }
-  return {
-    sentTo: to,
-    subject: built.subject,
-    warning: leftover ? `The test went.${leftover}` : "",
-  };
+export function sendTestToSelf(env, { email, now = new Date() }) {
+  return sendTestToAddress(env, {
+    email,
+    now,
+    title: `Test of the weekly email, ${shortDate(londonToday(now))} (safe to delete)`,
+    build: () => buildWeeklyEmail(env, { now }),
+  });
 }
 
 // ---------------------------------------------------------------- settings

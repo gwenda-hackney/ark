@@ -29,6 +29,7 @@
 		onerrors,
 		onsave,
 		start,
+		end,
 	}: {
 		/** Say what gets saved: "Save series", "Save night", "Save drink". */
 		saveLabel?: string;
@@ -45,6 +46,8 @@
 		onsave?: () => void;
 		/** Extra controls on the left, after the status. */
 		start?: Snippet;
+		/** Controls beside Save, before the "⋯" (Send me a test): they never move as the status changes. */
+		end?: Snippet;
 	} = $props();
 
 	const errorText = $derived(errorCountLabel(errorCount));
@@ -73,6 +76,7 @@
 		{#if start}{@render start()}{/if}
 	</div>
 	<div class="actions">
+		{#if end}{@render end()}{/if}
 		{#if menuItems.length}
 			<OverflowMenu items={menuItems} disabled={saving} />
 		{/if}

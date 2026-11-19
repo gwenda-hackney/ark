@@ -5,7 +5,6 @@
 import { describe, expect, it } from "vitest";
 
 const modules = [
-  "../api/rsvp.js",
   "../api/subscribe.js",
   "../api/forms/index.js",
   "../api/forms/verify.js",
@@ -17,12 +16,8 @@ const modules = [
   "../api/whats-on/schedule.js",
   "../api/whats-on/[series].js",
   "../whats-on/[[path]].js",
-  "../og/events/[slug].js",
   "../api/auth.js",
-  "./event-password.js",
   "./event-series.js",
-  "./rsvp.js",
-  "./sanity-event.js",
   "./form-submit.js",
 ];
 

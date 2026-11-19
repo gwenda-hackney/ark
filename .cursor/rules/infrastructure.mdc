@@ -19,7 +19,7 @@ This checkout often sits inside the **Gwenda nest** (`~/dev/gwenda`, or `/worksp
 | `gh` CLI | When logged in as the repo owner: `repo` + `workflow`. Use `gh secret set`, `gh workflow run`, `gh variable list`. **Not always authenticated** in a new Codespace. |
 | GitHub Actions secrets / Cloudflare Pages secrets | Set via `gh secret set` or `wrangler pages secret put`. **Never readable after write** (names only). |
 
-Do **not** regenerate Cloudflare / Sanity / Baserow tokens on a fresh clone when Bitwarden already has them. Only run `setup:ci-secrets` / `setup:site-deploy` for first-time wiring or repair.
+Do **not** regenerate Cloudflare / Sanity tokens on a fresh clone when Bitwarden already has them. Only run `setup:ci-secrets` / `setup:site-deploy` for first-time wiring or repair.
 
 ## Sanity tokens
 

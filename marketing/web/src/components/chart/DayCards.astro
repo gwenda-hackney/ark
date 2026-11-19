@@ -1,0 +1,432 @@
+---
+/**
+ * What's on by date (#352): under each week, a day at a time, the night's
+ * event big with the deals and pop-up kitchens running that day beside it,
+ * smaller (lib/whats-on-days.js). A day with no event shows its deal and
+ * pop-up alone. Each small card leads to its series' page, as on home; a
+ * pop-up's links go on to its menu and the cooks' own page.
+ *
+ * The site is built ahead of time, so the browser drops the days that have
+ * passed and names the rest again (Tonight, Tomorrow), as it does for the
+ * night cards (scripts/day-cards.js).
+ */
+import "../../styles/chart-nights.css";
+import ChartRecord from "./ChartRecord.astro";
+import DayStand from "./DayStand.astro";
+import { formatEventSpan } from "../../data/events";
+import {
+  imageSrcset,
+  isWholeFit,
+  sizedImageUrl,
+  tinyImageUrl,
+} from "../../../functions/_lib/sanity-image-url.js";
+import { londonToday } from "../../lib/london-day.js";
+import {
+  frameRatio,
+  nightDay,
+  runDay,
+  runTimes,
+  weekLabel,
+} from "../../lib/night-cards.js";
+import { dayLabel, dayName } from "../../lib/day-label.js";
+import { popupMenuLinks } from "../../lib/menus.js";
+import { popupKitchens } from "../../lib/popup-kitchen.js";
+import { promotionDeals } from "../../lib/promotions.js";
+import { comingUpLater, whatsOnDays } from "../../lib/whats-on-days.js";
+import type { Event, EventSeries } from "../../types/events";
+import type { Menu } from "../../types/menu";
+
+interface Props {
+  series: EventSeries[];
+  occurrences: Event[];
+  /** The menu as fetched: a pop-up's "See the menu" goes to its own menus. */
+  menu?: Menu;
+  empty?: string;
+  /** How many days show at once (home's); all of them when left out. */
+  shown?: number;
+  /** Under a heading for each week: This week, Next week (What's on). */
+  weeks?: boolean;
+  /** The first picture loads with the page: it's in the first view. */
+  leadEager?: boolean;
+  /** Under the days, one of each thing on later that they don't show (home's). */
+  later?: boolean;
+}
+
+const {
+  series,
+  occurrences,
+  menu = { sections: [] },
+  empty = "Nothing in the diary just now. Get on the list and we’ll tell you first.",
+  shown,
+  weeks: headed = true,
+  leadEager = true,
+  later = false,
+} = Astro.props;
+
+/** Rendered beyond the ones that show, for the days that pass before the next build. */
+const SPARE = 3;
+const today = londonToday();
+
+/** Each deal's and pop-up's card, as on home: its picture, words and links. */
+const deals = new Map(
+  promotionDeals(series, occurrences, today).map((deal) => [
+    deal.id,
+    {
+      tag: "Deal",
+      title: deal.title,
+      note: deal.note,
+      offer: deal.offer,
+      href: deal.href,
+      photo: deal.photo,
+      photoPosition: deal.photoPosition,
+      logo: null as { url: string } | null,
+      colourStyle: "",
+      links: [] as Array<{ href: string; text: string; external: boolean }>,
+    },
+  ]),
+);
+const kitchens = new Map(
+  popupKitchens(
+    series,
+    occurrences,
+    popupMenuLinks(menu, { series, occurrences }, today),
+    today,
+  ).map((kitchen) => [
+    kitchen.id,
+    {
+      tag: "Pop-up kitchen",
+      title: kitchen.title,
+      note: kitchen.note,
+      offer: "",
+      href: kitchen.href,
+      photo: kitchen.logo ? "" : kitchen.photo,
+      photoPosition: kitchen.photoPosition,
+      logo: kitchen.logo,
+      colourStyle: kitchen.colourStyle,
+      links: [
+        { href: kitchen.menuHref, text: "See the menu →", external: false },
+        ...(kitchen.pageUrl
+          ? [
+              {
+                href: kitchen.pageUrl,
+                text: /instagram\.com/i.test(kitchen.pageUrl)
+                  ? "Instagram"
+                  : "Their page",
+                external: true,
+              },
+            ]
+          : []),
+      ],
+    },
+  ]),
+);
+
+const days = whatsOnDays({
+  occurrences,
+  series,
+  today,
+  stands: new Set([...deals.keys(), ...kitchens.keys()]),
+}).slice(0, shown ? shown + SPARE : undefined);
+
+function picture(photo: string) {
+  const whole = isWholeFit(photo);
+  return {
+    src: sizedImageUrl(photo, 640),
+    srcset: imageSrcset(photo),
+    whole,
+    ratio: frameRatio(photo, whole),
+    placeholder: tinyImageUrl(photo),
+  };
+}
+
+/** The night's event card: its picture, name, hours, line and offer. */
+function eventCard(run: { start: string; end: string; nights: Event[] }) {
+  const [night] = run.nights;
+  const photo = night.seriesHeroImageUrl || night.heroImage?.url || "";
+  return {
+    ...runDay(run.start, run.end),
+    run: run.end !== run.start,
+    title:
+      run.nights.length > 1
+        ? night.seriesTitle || night.title
+        : night.seriesTitle && night.title !== night.seriesTitle
+          ? night.title
+          : night.seriesTitle || night.title,
+    times: runTimes(
+      run.nights.map((day) => ({
+        date: day.date,
+        span: formatEventSpan(day.startTime, day.endTime, day.time),
+      })),
+    ),
+    note: night.shortDescription || night.artist || "",
+    offer: night.offer || "",
+    photoPosition: night.seriesHeroObjectPosition || "",
+    picture: photo ? picture(photo) : null,
+    href: night.seriesId
+      ? `/whats-on/${encodeURIComponent(night.seriesId)}`
+      : "/whats-on",
+  };
+}
+
+/** A deal's or pop-up's card for one day: that day's hours. */
+function standCard(stand: { kind: "deal" | "popup"; night: Event }) {
+  const card = (stand.kind === "deal" ? deals : kitchens).get(
+    stand.night.seriesId,
+  );
+  if (!card) return null;
+  return {
+    ...card,
+    kind: stand.kind,
+    when: formatEventSpan(
+      stand.night.startTime,
+      stand.night.endTime,
+      stand.night.time,
+    ),
+    offer: stand.night.offer || card.offer,
+    picture: card.photo ? picture(card.photo) : null,
+    logo: card.logo
+      ? {
+          src: sizedImageUrl(card.logo.url, 240),
+          srcset: `${sizedImageUrl(card.logo.url, 240)} 1x, ${sizedImageUrl(card.logo.url, 480)} 2x`,
+        }
+      : null,
+  };
+}
+
+/** Days rendered beyond `shown` wait hidden until the ones before them pass. */
+const showing = new Set(days.slice(0, shown).map((day) => day.date));
+
+/** The series in a day: the browser hides a later card once its day shows. */
+function daySeries(day: (typeof days)[number]) {
+  return [
+    ...day.events.flatMap((run) => run.nights.map((night) => night.seriesId)),
+    ...day.stands.map((stand) => stand.night.seriesId),
+  ].filter(Boolean);
+}
+
+/** "Wed 25 Nov". */
+function shortDay(dateIso: string) {
+  const { weekday, day, month } = nightDay(dateIso);
+  return `${weekday} ${day} ${month}`;
+}
+
+const shownDays = days.filter((day) => showing.has(day.date));
+const laterCards = later
+  ? comingUpLater({
+      occurrences,
+      series,
+      today,
+      shown: new Set(shownDays.flatMap(daySeries)),
+      after: shownDays.at(-1)?.date ?? "",
+    }).map(({ kind, night }) => {
+      const hours = formatEventSpan(night.startTime, night.endTime, night.time);
+      const stand =
+        kind === "deal"
+          ? deals.get(night.seriesId)
+          : kind === "popup"
+            ? kitchens.get(night.seriesId)
+            : undefined;
+      if (stand) {
+        return {
+          ...stand,
+          kind,
+          series: night.seriesId,
+          whenDay: `From ${shortDay(night.date)}`,
+          when: hours,
+          picture: stand.photo ? picture(stand.photo) : null,
+          logo: stand.logo
+            ? {
+                src: sizedImageUrl(stand.logo.url, 240),
+                srcset: `${sizedImageUrl(stand.logo.url, 240)} 1x, ${sizedImageUrl(stand.logo.url, 480)} 2x`,
+              }
+            : null,
+        };
+      }
+      const event = eventCard({
+        start: night.date,
+        end: night.date,
+        nights: [night],
+      });
+      return {
+        kind: "event" as const,
+        tag: "",
+        title: event.title,
+        href: event.href,
+        whenDay: shortDay(night.date),
+        when: hours,
+        offer: event.offer,
+        photoPosition: event.photoPosition,
+        colourStyle: "",
+        picture: event.picture,
+        logo: null,
+        links: [],
+        series: night.seriesId,
+      };
+    })
+  : [];
+const groups = headed
+  ? [...new Set(days.map((day) => day.week))]
+  : [days[0]?.week ?? ""];
+const weeks = groups.map((start) => ({
+  start,
+  label: weekLabel(start, today),
+  days: days
+    .filter((day) => !headed || day.week === start)
+    .map((day) => ({
+      ...day,
+      name: dayName(day.date),
+      label: dayLabel(day.date, today, day.end),
+      eventCards: day.events.map(eventCard),
+      standCards: day.stands.map(standCard).filter((card) => card !== null),
+    })),
+}));
+/** The first picture on the page loads with it when it's in the first view. */
+let eager = leadEager;
+const loading = () => {
+  const now = eager;
+  eager = false;
+  return now ? "eager" : "lazy";
+};
+---
+
+<div class="ch-nights ch-days" data-day-cards data-shown={shown}>
+  {
+    weeks.map((week) => (
+      <section
+        class="ch-night-week"
+        data-day-week={headed ? week.start : undefined}
+      >
+        {headed && (
+          <h2 class="ch-poster ch-night-week-title" data-day-week-label>
+            {week.label}
+          </h2>
+        )}
+        <ol class="ch-day-list">
+          {week.days.map((day) => (
+            <li
+              class:list={[
+                "ch-day",
+                day.eventCards.length === 0 && "ch-day--stands",
+                day.date <= today && today <= day.end && "ch-day--tonight",
+              ]}
+              data-day={day.date}
+              data-day-end={day.end}
+              data-day-series={daySeries(day).join(" ") || undefined}
+              hidden={!showing.has(day.date)}
+            >
+              <h3 class="ch-day-title">
+                <span class="ch-day-label" data-day-label hidden={!day.label}>
+                  {day.label}
+                </span>
+                <span class="ch-day-name">{day.name}</span>
+              </h3>
+              <div class="ch-day-grid">
+                {day.eventCards.length > 0 && (
+                  <div class="ch-day-events">
+                    {day.eventCards.map((card) => (
+                      <a
+                        href={card.href}
+                        class:list={[
+                          "ch-night-card",
+                          "ch-day-event",
+                          card.run && "ch-night--run",
+                        ]}
+                        style={`--shape: ${card.picture?.ratio ?? 0.8}`}
+                      >
+                        <span
+                          class:list={[
+                            "ch-night-photo",
+                            card.picture?.whole && "ch-night-photo--whole",
+                          ]}
+                          style={
+                            card.picture?.whole && card.picture.placeholder
+                              ? `--placeholder: url("${card.picture.placeholder}")`
+                              : undefined
+                          }
+                        >
+                          {card.picture && (
+                            <img
+                              src={card.picture.src}
+                              srcset={card.picture.srcset || undefined}
+                              sizes={
+                                card.picture.srcset
+                                  ? "(max-width: 40rem) 92vw, 22rem"
+                                  : undefined
+                              }
+                              alt=""
+                              loading={loading()}
+                              style={
+                                card.photoPosition
+                                  ? `object-position: ${card.photoPosition}`
+                                  : undefined
+                              }
+                            />
+                          )}
+                          {!card.picture && (
+                            <ChartRecord size="large" class="ch-night-mark" />
+                          )}
+                        </span>
+                        <span class="ch-night-body">
+                          <span class="ch-night-name">{card.title}</span>
+                          {card.times.length > 0 && (
+                            <span class="ch-night-time">
+                              {card.times.map((time, at) => (
+                                <>
+                                  {at > 0 && " "}
+                                  <span>
+                                    {time}
+                                    {at < card.times.length - 1 && " ·"}
+                                  </span>
+                                </>
+                              ))}
+                            </span>
+                          )}
+                          {card.note && (
+                            <span class="ch-night-note">{card.note}</span>
+                          )}
+                          {card.offer && (
+                            <span class="ch-night-offer">{card.offer}</span>
+                          )}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {day.standCards.length > 0 && (
+                  <ul class="ch-day-stands">
+                    {day.standCards.map((card) => (
+                      <DayStand card={card} loading={loading()} />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+    ))
+  }
+  {
+    laterCards.length > 0 && (
+      <section class="ch-day-later" aria-labelledby="what-else">
+        <h3 class="ch-poster ch-home-sub" id="what-else">
+          What else?
+        </h3>
+        <ul class="ch-day-stands ch-day-later-list">
+          {laterCards.map((card) => (
+            <DayStand card={card} loading="lazy" />
+          ))}
+        </ul>
+      </section>
+    )
+  }
+  <p class="ch-night-empty" data-day-cards-empty hidden={days.length > 0}>
+    {empty}
+  </p>
+</div>
+
+<script>
+  import { initDayCards } from "../../scripts/day-cards.js";
+  initDayCards();
+  document.addEventListener("astro:page-load", () => initDayCards());
+</script>

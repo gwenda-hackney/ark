@@ -22,6 +22,7 @@
 	import FormsPage from "../forms/FormsPage.svelte";
 	import EventsPage from "../events/EventsPage.svelte";
 	import ArtistsPage from "../artists/ArtistsPage.svelte";
+	import OccasionsPage from "../occasions/OccasionsPage.svelte";
 	import MorePage from "./shell/MorePage.svelte";
 	import { parseShellPath, readPath } from "./nav";
 	import { NAV_ROUTES } from "./nav-routes";
@@ -111,7 +112,11 @@
 							<WebPage />
 						{/if}
 					{:else if key === "email"}
-						<WeeklyEmailPage {me} view={route.view === "sent" || route.view === "settings" ? route.view : "week"} />
+						<WeeklyEmailPage
+							{me}
+							path={current}
+							view={route.view === "week" || route.view === "sent" || route.view === "settings" || route.view === "write" ? route.view : "overview"}
+						/>
 					{:else if key === "events"}
 						<EventsPage path={current} />
 					{:else if key === "artists"}
@@ -121,6 +126,8 @@
 						{:else}
 							<ArtistsPage path={current} />
 						{/if}
+					{:else if key === "occasions"}
+						<OccasionsPage path={current} />
 					{:else if key === "config"}
 						<ConfigPage path={current} />
 					{:else if key === "more"}

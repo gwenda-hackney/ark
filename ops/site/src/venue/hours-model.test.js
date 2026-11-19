@@ -95,7 +95,7 @@ describe("opening hours in words, for staff", () => {
     assert.equal(timeLabel("22:30"), "10:30pm");
     assert.equal(timeLabel("01:00"), "1am");
     assert.equal(timeLabel("00:00"), "midnight");
-    assert.equal(timeLabel("12:00"), "midday");
+    assert.equal(timeLabel("12:00"), "noon");
   });
 
   it("says which morning a late close falls on", () => {
