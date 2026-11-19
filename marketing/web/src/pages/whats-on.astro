@@ -1,8 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
-import NightCards from "../components/chart/NightCards.astro";
-import StandingCards from "../components/chart/StandingCards.astro";
+import DayCards from "../components/chart/DayCards.astro";
 import { siteConfig } from "../config/site";
 import { getUpcomingEvents } from "../data/events";
 import { nightsOnly } from "../lib/promotions.js";
@@ -17,7 +16,7 @@ const { series, occurrences } = await fetchWhatsOnCatalog().catch(() => ({
   occurrences: [],
 }));
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
-/** The next few weeks of nights; the deal and the pop-up kitchen go once, on their own cards. */
+/** The next nights, for search engines; the page lists them by date with the deals and pop-ups. */
 const nights = getUpcomingEvents(nightsOnly(occurrences)).slice(0, 24);
 const { title: pageTitle, description: pageDescription } =
   siteConfig.seo.whatsOn;
@@ -38,7 +37,6 @@ const events = {
     set:html={JSON.stringify(events)}
   />
   <ChartPage title="What's on" lead={lead}>
-    <StandingCards series={series} occurrences={occurrences} menu={menu} top />
-    <NightCards nights={nights} series={series} weeks leadEager={false} />
+    <DayCards series={series} occurrences={occurrences} menu={menu} />
   </ChartPage>
 </BaseLayout>

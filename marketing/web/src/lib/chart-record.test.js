@@ -66,8 +66,10 @@ describe("a night with no flyer (#240)", () => {
   );
 
   // A night's own page draws its frame itself (event-page.js, tested there)
-  it("is drawn in the night cards and the deals", () => {
+  it("is drawn in the night cards, the deals and What's on by date", () => {
     expect(marks.map((mark) => mark.file).sort()).toEqual([
+      "components/chart/DayCards.astro",
+      "components/chart/DayCards.astro",
       "components/chart/NightCards.astro",
       "components/chart/StandingCards.astro",
     ]);
