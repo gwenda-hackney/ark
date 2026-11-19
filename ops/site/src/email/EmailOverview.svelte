@@ -33,6 +33,7 @@
 
 
 	const weekly = $derived(status ? statusLine(status) : null);
+	const lastSent = $derived(status?.history.find((run) => run.status === "sent") || null);
 
 	/** This week's lead picture, from the email as it would go, for its card. */
 	let weeklyPicture = $state("");
@@ -50,16 +51,12 @@
 		return url ? `${url}${url.includes("?") ? "&" : "?"}w=160&h=160&fit=crop` : "";
 	}
 
-	/** What a one-off card says under its subject. */
-	function oneOffLine(email: OneOffSummary): string {
-		if (email.status === "sent") {
-			return [`Sent ${sentLine(email.sentAt)}`, email.recipients ? `${email.recipients.toLocaleString("en-GB")} people` : ""]
-				.filter(Boolean)
-				.join(" · ");
-		}
-		if (email.status === "scheduled" && email.scheduledFor) return `Goes ${sentLine(email.scheduledFor)}`;
-		if (email.status === "failed") return email.reason || "Didn't send";
-		return `Changed ${sentLine(email.updatedAt)}`;
+	/** A one-off card's footer: when it last went, goes, or was edited. */
+	function oneOffFooter(email: OneOffSummary): { label: string; value: string } {
+		if (email.status === "sent") return { label: "Last sent", value: sentLine(email.sentAt) };
+		if (email.status === "scheduled" && email.scheduledFor) return { label: "Goes", value: sentLine(email.scheduledFor) };
+		if (email.status === "failed") return { label: "Didn't send", value: email.reason || "" };
+		return { label: "Last edited", value: sentLine(email.updatedAt) };
 	}
 
 	/** One-offs set to go: under Scheduled, soonest first. */
@@ -98,8 +95,8 @@
 					{#if weekly}<Badge tone={weekly.tone} label={weekly.label} />{/if}
 				</span>
 				<span class="card-name">Weekly what's on</span>
-				<span class="card-sub">Built from What's on</span>
-				<span class="card-meta">{status ? `Next: ${nextLine(status)}` : "Loading…"}</span>
+				<span class="card-sub">{status ? `Next: ${nextLine(status)}` : "Loading…"}</span>
+				{@render footer("Last sent", lastSent ? sentLine(lastSent.sentAt) : "Not yet")}
 			</button>
 			{#each scheduled as email (email.id)}
 				{@render oneOffCard(email)}
@@ -134,9 +131,15 @@
 	</section>
 </div>
 
+{#snippet footer(label: string, value: string)}
+	<span class="card-gap"></span>
+	<span class="card-foot"><span class="card-foot-label">{label}:</span> {value || "–"}</span>
+{/snippet}
+
 {#snippet oneOffCard(email: OneOffSummary)}
 	{@const badge = statusBadge(email.status)}
 	{@const picture = oneOffPicture(email)}
+	{@const foot = oneOffFooter(email)}
 	<button type="button" class="card" onclick={() => navigate(writePath(email.id))}>
 		<span class="card-top">
 			{#if picture}
@@ -148,7 +151,7 @@
 		</span>
 		<span class="card-name">{emailName(email) || "No name yet"}</span>
 		{#if email.subject && email.subject !== emailName(email)}<span class="card-sub">{email.subject}</span>{/if}
-		<span class="card-meta">{oneOffLine(email)}</span>
+		{@render footer(foot.label, foot.value)}
 	</button>
 {/snippet}
 
@@ -185,9 +188,10 @@
 		grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
 		gap: var(--space-3);
 	}
+	/* A column, its footer at the bottom: side by side, the footers line up */
 	.card {
-		display: grid;
-		align-content: start;
+		display: flex;
+		flex-direction: column;
 		gap: var(--space-1);
 		padding: var(--space-4);
 		border: 1px solid var(--border);
@@ -246,10 +250,19 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	/* When it goes, or when it last changed */
-	.card-meta {
-		margin-top: var(--space-2);
+	/* When it last went or was edited, at the foot of every card alike */
+	/* Takes up what's left, at least a little: the footer goes to the bottom */
+	.card-gap {
+		flex: 1;
+		min-height: var(--space-2);
+	}
+	.card-foot {
+		padding-top: var(--space-3);
+		border-top: 1px solid var(--border);
 		font-size: var(--text-xs);
 		color: var(--muted-foreground);
+	}
+	.card-foot-label {
+		font-weight: 600;
 	}
 </style>
