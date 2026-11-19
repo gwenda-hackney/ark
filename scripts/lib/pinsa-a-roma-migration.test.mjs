@@ -74,7 +74,7 @@ describe("2026-11-19-pinsa-a-roma", () => {
     const popup = await findPopup(env);
     assert.deepEqual(
       [popup.name, popup.category, popup.repeatUnit, popup.weekdays, popup.startsOn, popup.endsOn, popup.startTime, popup.endTime, popup.pageUrl],
-      ["Pinsa A Roma", "popup", "week", ["mon"], "2026-11-23", "", "17:00", "22:00", "https://www.instagram.com/aroma.ldn/"],
+      ["Pinsa A Roma", "popup", "week", ["mon"], "2026-11-23", "", "17:00", "22:00", "https://aroma.london/"],
     );
     assert.deepEqual(popup.dates.slice(0, 3).map((night) => night.date), ["2026-11-23", "2026-11-30", "2026-12-07"]);
     assert.equal(popup.publish.live, "current", "on the website");
