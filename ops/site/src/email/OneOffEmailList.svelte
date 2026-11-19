@@ -13,6 +13,7 @@
 	import type { OneOffSummary } from "./email-api";
 	import { sentLine } from "./email-view";
 	import { statusBadge, writePath } from "./one-off-view";
+	import PromoteDialog from "./PromoteDialog.svelte";
 
 	let {
 		emails,
@@ -22,6 +23,7 @@
 	}: { emails: OneOffSummary[]; loading?: boolean; error?: string; onretry: () => void } = $props();
 
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	let promoting = $state(false);
 	const columnDefs = $derived.by((): ColDef<OneOffSummary>[] => [
 		{
 			headerName: "Subject",
@@ -63,10 +65,16 @@
 <div class="write">
 	<div class="bar">
 		<p class="count">{loading && !emails.length ? "Loading…" : `${emails.length} ${emails.length === 1 ? "email" : "emails"}`}</p>
-		<Button type="button" size="sm" onclick={() => navigate(writePath("new"))}>
-			{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
-			New email
-		</Button>
+		<div class="actions">
+			<Button type="button" size="sm" variant="outline" onclick={() => (promoting = true)}>
+				{#snippet icon()}<Icon name="send" size={14} />{/snippet}
+				Promote…
+			</Button>
+			<Button type="button" size="sm" onclick={() => navigate(writePath("new"))}>
+				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
+				New email
+			</Button>
+		</div>
 	</div>
 	{#if error}
 		<EmptyState tone="error" title="Couldn't load the emails" text={error}>
@@ -97,7 +105,13 @@
 	{/if}
 </div>
 
+<PromoteDialog open={promoting} onclose={() => (promoting = false)} />
+
 <style>
+	.actions {
+		display: flex;
+		gap: var(--space-2);
+	}
 	.write {
 		display: grid;
 		gap: var(--space-3);

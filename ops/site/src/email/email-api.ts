@@ -222,3 +222,19 @@ export function uploadEmailImage(file: File) {
 	body.set("file", file);
 	return request<{ assetId: string; url: string }>("/api/email/images", { method: "POST", body });
 }
+
+/** Something an email can promote (#348): a template, and what it can promote now. */
+export type PromoteTemplate = {
+	id: string;
+	label: string;
+	choices: Array<{ id: string; name: string; when: string }>;
+};
+
+export function getPromoteChoices() {
+	return request<{ templates: PromoteTemplate[] }>("/api/email/promote");
+}
+
+/** A draft built from a template for one thing, saved, to open in the editor. */
+export function promoteInEmail(template: string, id: string) {
+	return request<{ email: OneOffEmail }>("/api/email/promote", post({ template, id }));
+}
