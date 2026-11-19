@@ -40,6 +40,12 @@ interface Props {
   /** The menu as fetched: a pop-up's "See the menu" goes to its own menus. */
   menu?: Menu;
   empty?: string;
+  /** How many days show at once (home's); all of them when left out. */
+  shown?: number;
+  /** Under a heading for each week: This week, Next week (What's on). */
+  weeks?: boolean;
+  /** The first picture loads with the page: it's in the first view. */
+  leadEager?: boolean;
 }
 
 const {
@@ -47,7 +53,13 @@ const {
   occurrences,
   menu = { sections: [] },
   empty = "Nothing in the diary just now. Get on the list and we’ll tell you first.",
+  shown,
+  weeks: headed = true,
+  leadEager = true,
 } = Astro.props;
+
+/** Rendered beyond the ones that show, for the days that pass before the next build. */
+const SPARE = 3;
 const today = londonToday();
 
 /** Each deal's and pop-up's card, as on home: its picture, words and links. */
@@ -109,7 +121,7 @@ const days = whatsOnDays({
   series,
   today,
   stands: new Set([...deals.keys(), ...kitchens.keys()]),
-});
+}).slice(0, shown ? shown + SPARE : undefined);
 
 function picture(photo: string) {
   const whole = isWholeFit(photo);
@@ -176,11 +188,16 @@ function standCard(stand: { kind: "deal" | "popup"; night: Event }) {
   };
 }
 
-const weeks = [...new Set(days.map((day) => day.week))].map((start) => ({
+/** Days rendered beyond `shown` wait hidden until the ones before them pass. */
+const showing = new Set(days.slice(0, shown).map((day) => day.date));
+const groups = headed
+  ? [...new Set(days.map((day) => day.week))]
+  : [days[0]?.week ?? ""];
+const weeks = groups.map((start) => ({
   start,
   label: weekLabel(start, today),
   days: days
-    .filter((day) => day.week === start)
+    .filter((day) => !headed || day.week === start)
     .map((day) => ({
       ...day,
       name: dayName(day.date),
@@ -189,8 +206,8 @@ const weeks = [...new Set(days.map((day) => day.week))].map((start) => ({
       standCards: day.stands.map(standCard).filter((card) => card !== null),
     })),
 }));
-/** The first picture on the page loads with it: it's in the first view. */
-let eager = true;
+/** The first picture on the page loads with it when it's in the first view. */
+let eager = leadEager;
 const loading = () => {
   const now = eager;
   eager = false;
@@ -198,13 +215,18 @@ const loading = () => {
 };
 ---
 
-<div class="ch-nights ch-days" data-day-cards>
+<div class="ch-nights ch-days" data-day-cards data-shown={shown}>
   {
     weeks.map((week) => (
-      <section class="ch-night-week" data-day-week={week.start}>
-        <h2 class="ch-poster ch-night-week-title" data-day-week-label>
-          {week.label}
-        </h2>
+      <section
+        class="ch-night-week"
+        data-day-week={headed ? week.start : undefined}
+      >
+        {headed && (
+          <h2 class="ch-poster ch-night-week-title" data-day-week-label>
+            {week.label}
+          </h2>
+        )}
         <ol class="ch-day-list">
           {week.days.map((day) => (
             <li
@@ -215,6 +237,7 @@ const loading = () => {
               ]}
               data-day={day.date}
               data-day-end={day.end}
+              hidden={!showing.has(day.date)}
             >
               <h3 class="ch-day-title">
                 <span class="ch-day-label" data-day-label hidden={!day.label}>
