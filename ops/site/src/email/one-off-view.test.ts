@@ -7,6 +7,7 @@ import {
 	editorSections,
 	moveSection,
 	notReady,
+	oneOffSendBlocked,
 	oneOffTestBlocked,
 	previewOf,
 	removeSection,
@@ -98,5 +99,16 @@ describe("leadPicture", () => {
 		assert.equal(leadPicture(html), "https://cdn.sanity.io/a.jpg?w=1120&fit=max");
 		assert.equal(leadPicture('<img src="https://x/logo.png">'), "");
 		assert.equal(leadPicture(""), "");
+	});
+
+	it("says why Send to the list can't be pressed: production, admins, saved, ready, not sent", () => {
+		const ok = { status: "draft" as const, saved: true, dirty: false, audience: true, admin: true, notReady: "" };
+		assert.equal(oneOffSendBlocked(ok), "");
+		assert.equal(oneOffSendBlocked({ ...ok, audience: false }), "Only production ops sends to the list");
+		assert.equal(oneOffSendBlocked({ ...ok, admin: false }), "Admins only");
+		assert.equal(oneOffSendBlocked({ ...ok, dirty: true }), "Save first");
+		assert.equal(oneOffSendBlocked({ ...ok, notReady: "Give it a subject first." }), "Give it a subject first.");
+		assert.equal(oneOffSendBlocked({ ...ok, status: "sent" }), "Already sent");
+		assert.equal(oneOffSendBlocked({ ...ok, status: "failed" }), "", "one that didn't send can go again");
 	});
 });
