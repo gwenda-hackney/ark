@@ -142,7 +142,7 @@ export function sendWeeklyEmailAgain(after: number) {
 
 /** A part of a one-off email, between its fixed logo and foot (shared/email/sections.js). */
 export type OneOffSection =
-	| { kind: "image"; assetId: string; alt: string }
+	| { kind: "image"; assetId: string; alt: string; size: ImageSize }
 	| { kind: "heading"; text: string }
 	| { kind: "copy"; text: string }
 	| { kind: "button"; label: string; link: string; look: ButtonLook }
@@ -150,6 +150,8 @@ export type OneOffSection =
 	| { kind: "booking" };
 
 /** Link: underlined gold capitals, as the website's. Outline: a gold frame. Book a table has its own section. */
+/** An Image section's size: the column's width; small and whole, as a logo; or "GWENDA ×" and the logo. */
+export type ImageSize = "full" | "logo" | "collab";
 export type ButtonLook = "link" | "outline";
 
 export type OneOffStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";

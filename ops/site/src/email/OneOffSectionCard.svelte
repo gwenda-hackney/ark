@@ -12,7 +12,7 @@
 	import { Icon } from "../app/shell";
 	import { sanityImageUrl } from "../../../../shared/sanity-image.js";
 	import type { EmailFrame, OneOffSection } from "./email-api";
-	import { BUTTON_LOOK_ITEMS, SECTION_CHOICES } from "./one-off-view";
+	import { BUTTON_LOOK_ITEMS, IMAGE_SIZE_ITEMS, SECTION_CHOICES } from "./one-off-view";
 
 	let {
 		section = $bindable(),
@@ -106,6 +106,9 @@
 					/>
 					<Field label="Alt text" for={`${id}-alt`} hint="What it shows, for screen readers.">
 						<TextField id={`${id}-alt`} size="sm" bind:value={section.alt} maxlength={300} {disabled} placeholder="The bar on New Year's Eve" />
+					</Field>
+					<Field label="Size" for={`${id}-size`} hint="Logo: small and centred. Gwenda ×: our logo, then theirs, for a collaboration.">
+						<Segmented bind:value={section.size} items={IMAGE_SIZE_ITEMS} tone="soft" size="sm" ariaLabel="Image size" />
 					</Field>
 				</div>
 			</div>

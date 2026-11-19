@@ -82,7 +82,7 @@ describe("the one-off email editor (#348)", () => {
 		assert.equal(oneOffTestBlocked({ ...ok, mailchimp: false }), "Mailchimp not connected here");
 		assert.equal(oneOffTestBlocked({ ...ok, notReady: "Give it a subject first" }), "Give it a subject first");
 		assert.equal(notReady(draftOf("", "", "", [])), "Give it a subject first.");
-		assert.equal(notReady(draftOf("", "Hi", "", editorSections([{ kind: "image", assetId: "", alt: "" }]))), "Add something to it first.");
+		assert.equal(notReady(draftOf("", "Hi", "", editorSections([{ kind: "image", assetId: "", alt: "", size: "full" }]))), "Add something to it first.");
 	});
 
 	it("names statuses and paths", () => {

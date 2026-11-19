@@ -19,7 +19,7 @@ const ADAPTERS = {
 const NOW = new Date("2026-11-18T10:00:00Z");
 const LATER = new Date("2026-11-18T10:05:00Z");
 const SECTIONS = [
-  { kind: "image", assetId: "image-abc123-1600x1200-jpg", alt: "The bar" },
+  { kind: "image", assetId: "image-abc123-1600x1200-jpg", alt: "The bar", size: "full" },
   { kind: "heading", text: "New Year's Eve" },
   { kind: "copy", text: "Doors at **9**.\n\nSee [the page](https://gwenda.co.uk/nye)." },
   { kind: "button", label: "Get tickets", link: "https://gwenda.co.uk/nye", look: "link" },
