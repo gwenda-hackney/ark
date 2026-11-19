@@ -24,7 +24,9 @@
 		getOneOffEmail,
 		listOneOffEmails,
 		saveOneOffEmail,
+		getWeeklyEmailAudience,
 		sendOneOffTest,
+		sendOneOffToList,
 		uploadEmailImage,
 		type EmailFrame,
 		type OneOffDraft,
@@ -42,6 +44,7 @@
 		editorSections,
 		moveSection,
 		notReady,
+		oneOffSendBlocked,
 		oneOffTestBlocked,
 		previewOf,
 		removeSection,
@@ -89,6 +92,10 @@
 	let uploading = $state<string | null>(null);
 	let discardOpen = $state(false);
 	let deleteOpen = $state(false);
+	let sendOpen = $state(false);
+	let sendingToList = $state(false);
+	/** How many are on the list, for the confirm: asked for when it opens. */
+	let listSize = $state<number | null>(null);
 
 	const draft = $derived(draftOf(name, subject, previewText, sections));
 	const dirty = $derived(!loading && !error && !sameDraft(draft, saved));
@@ -101,6 +108,16 @@
 			dirty,
 			mailchimp: Boolean(access?.mailchimp),
 			signedIn: Boolean(me.email),
+			notReady: notReady(saved),
+		}),
+	);
+	const sendReason = $derived(
+		oneOffSendBlocked({
+			status: email?.status ?? null,
+			saved: Boolean(email),
+			dirty,
+			audience: Boolean(access?.audience),
+			admin: Boolean(me.isAdmin),
 			notReady: notReady(saved),
 		}),
 	);
@@ -186,6 +203,35 @@
 		}
 	}
 
+	async function openSend() {
+		if (sendReason || sendingToList) return;
+		listSize = null;
+		sendOpen = true;
+		try {
+			listSize = (await getWeeklyEmailAudience()).audience.memberCount;
+		} catch {
+			listSize = null;
+		}
+	}
+
+	async function sendToList() {
+		sendOpen = false;
+		if (!email || sendReason || sendingToList) return;
+		sendingToList = true;
+		try {
+			const { email: sent } = await sendOneOffToList(email.id);
+			email = sent;
+			fill(sent);
+			toast.ok(sent.status === "sent" ? `Sent to ${sent.recipients.toLocaleString("en-GB")} people.` : "It's on its way.");
+			onchanged?.();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "It didn't send.");
+			if (email) void load(email.id, false);
+		} finally {
+			sendingToList = false;
+		}
+	}
+
 	async function remove() {
 		deleteOpen = false;
 		if (!email || deleting) return;
@@ -235,7 +281,7 @@
 	$effect(() => {
 		if (!open || typeof window === "undefined") return;
 		function onKey(e: KeyboardEvent) {
-			if (e.key !== "Escape" || e.defaultPrevented || saving || discardOpen || deleteOpen) return;
+			if (e.key !== "Escape" || e.defaultPrevented || saving || discardOpen || deleteOpen || sendOpen) return;
 			if (document.querySelector("[role=dialog], [role=menu], dialog[open]")) return;
 			e.preventDefault();
 			back();
@@ -297,6 +343,17 @@
 	>
 		{#snippet icon()}<Icon name="send" size={14} />{/snippet}
 		{testing ? "Sending…" : "Send me a test"}
+	</Button>
+	<Button
+		size="sm"
+		type="button"
+		disabled={Boolean(sendReason) || sendingToList || saving || testing}
+		reason={sendReason || undefined}
+		busy={sendingToList}
+		onclick={() => void openSend()}
+	>
+		{#snippet icon()}<Icon name="send" size={14} />{/snippet}
+		{sendingToList ? "Sending…" : "Send to the list…"}
 	</Button>
 {/snippet}
 
@@ -415,6 +472,14 @@
 	cancelLabel="Keep editing"
 	oncancel={keepEditing}
 	onconfirm={discardAndLeave}
+/>
+<ConfirmDialog
+	open={sendOpen}
+	title="Send it to the mailing list?"
+	message={`"${email?.subject || ""}" goes to ${listSize === null ? "everyone" : `${listSize.toLocaleString("en-GB")} people`} on the mailing list, now, as it's saved. It can't be taken back.`}
+	action={listSize === null ? "Send" : `Send to ${listSize.toLocaleString("en-GB")}`}
+	oncancel={() => (sendOpen = false)}
+	onconfirm={() => void sendToList()}
 />
 <ConfirmDialog
 	open={deleteOpen}

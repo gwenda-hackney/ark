@@ -223,6 +223,11 @@ export function sendOneOffTest(id: number) {
 	});
 }
 
+/** Send to the list (admins, production only): the saved email to everyone on the mailing list, now. */
+export function sendOneOffToList(id: number) {
+	return request<{ email: OneOffEmail }>(`/api/email/one-off/${id}/send`, post({ confirm: "send" }));
+}
+
 /** A picture for an Image section: uploaded to Sanity. */
 export function uploadEmailImage(file: File) {
 	const body = new FormData();
