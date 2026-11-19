@@ -10,7 +10,7 @@
 	import { Icon } from "../app/shell";
 	import { navigate } from "../app/nav";
 	import { getWeeklyEmailPreview, type EmailFrame, type OneOffSummary, type WeeklyEmailStatus } from "./email-api";
-	import { leadPicture, nextLine, runLine, sentLine, settingsLine, statusLine } from "./email-view";
+	import { leadPicture, nextLine, sentLine, statusLine } from "./email-view";
 	import { sectionImageUrl } from "../../../../shared/email/sections.js";
 	import { emailName, statusBadge, writePath } from "./one-off-view";
 
@@ -33,7 +33,6 @@
 
 
 	const weekly = $derived(status ? statusLine(status) : null);
-	const lastSent = $derived(status?.history.find((run) => run.status === "sent") || null);
 
 	/** This week's lead picture, from the email as it would go, for its card. */
 	let weeklyPicture = $state("");
@@ -60,8 +59,7 @@
 		}
 		if (email.status === "scheduled" && email.scheduledFor) return `Goes ${sentLine(email.scheduledFor)}`;
 		if (email.status === "failed") return email.reason || "Didn't send";
-		const parts = email.sectionCount === 1 ? "1 section" : `${email.sectionCount} sections`;
-		return `Changed ${sentLine(email.updatedAt)} · ${parts}`;
+		return `Changed ${sentLine(email.updatedAt)}`;
 	}
 
 	/** One-offs set to go: under Scheduled, soonest first. */
@@ -100,14 +98,8 @@
 					{#if weekly}<Badge tone={weekly.tone} label={weekly.label} />{/if}
 				</span>
 				<span class="card-name">Weekly what's on</span>
-				{#if status}
-					<span class="card-line">{settingsLine(status.settings)}</span>
-					<span class="card-line">Next: {nextLine(status)}</span>
-					{#if lastSent}<span class="card-line muted">Last sent: {runLine(lastSent).detail}</span>{/if}
-				{:else}
-					<span class="card-line muted">Loading…</span>
-				{/if}
-				<span class="card-go">This week's email <Icon name="chevron-right" size={14} /></span>
+				<span class="card-sub">Built from What's on</span>
+				<span class="card-meta">{status ? `Next: ${nextLine(status)}` : "Loading…"}</span>
 			</button>
 			{#each scheduled as email (email.id)}
 				{@render oneOffCard(email)}
@@ -155,9 +147,8 @@
 			<Badge tone={badge.tone} label={badge.label} />
 		</span>
 		<span class="card-name">{emailName(email) || "No name yet"}</span>
-		{#if email.subject && email.subject !== emailName(email)}<span class="card-subject">{email.subject}</span>{/if}
-		{#if email.previewText}<span class="card-line">{email.previewText}</span>{/if}
-		<span class="card-line muted">{oneOffLine(email)}</span>
+		{#if email.subject && email.subject !== emailName(email)}<span class="card-sub">{email.subject}</span>{/if}
+		<span class="card-meta">{oneOffLine(email)}</span>
 	</button>
 {/snippet}
 
@@ -238,36 +229,27 @@
 		background: var(--muted);
 		color: var(--muted-foreground);
 	}
-	/* Its name, in the page titles' face: what it is, at a glance */
+	/* Its name, in the page titles' face and the gold: what it is, at a glance */
 	.card-name {
 		font-family: var(--font-display);
 		font-size: var(--text-xl);
 		font-weight: 600;
 		line-height: 1.1;
+		color: var(--primary);
 	}
-	.card-subject {
-		font-weight: 600;
-		line-height: 1.3;
-	}
-	.card-line {
+	/* One quiet line under it: the subject the list sees */
+	.card-sub {
 		font-size: var(--text-sm);
 		line-height: 1.4;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		-webkit-box-orient: vertical;
+		color: var(--foreground);
+		white-space: nowrap;
 		overflow: hidden;
+		text-overflow: ellipsis;
 	}
-	.muted {
-		color: var(--muted-foreground);
-	}
-	.card-go {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-1);
+	/* When it goes, or when it last changed */
+	.card-meta {
 		margin-top: var(--space-2);
-		color: var(--primary);
-		font-size: var(--text-sm);
-		font-weight: 500;
+		font-size: var(--text-xs);
+		color: var(--muted-foreground);
 	}
 </style>
