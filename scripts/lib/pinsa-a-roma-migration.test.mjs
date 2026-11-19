@@ -1,7 +1,7 @@
 /**
  * migrations/2026-11-19-pinsa-a-roma.mjs, run as a deploy runs it against a
  * D1 with the real schema, with Sanity, Google Calendar and Drive faked: for
- * real (the pop-up, its Monday nights, its menu, the website), again (nothing
+ * real (the pop-up, its Monday and Tuesday nights, its menu, the website), again (nothing
  * to do), with a dish name already taken (stops before writing), and as a
  * dry run.
  */
@@ -64,7 +64,7 @@ describe("2026-11-19-pinsa-a-roma", () => {
     await createMenuItem(env, { name: "Fries", price: "6", sectionId: sides._id, placements: [{ channel: "digital", sectionId: sides._id }] });
   }
 
-  it("adds the pop-up on Mondays from the 23rd, its menu and dishes beside Chez Pickle's, puts it on the website; then nothing to do", async () => {
+  it("adds the pop-up on Mondays and Tuesdays from the 23rd, its menu and dishes beside Chez Pickle's, puts it on the website; then nothing to do", async () => {
     const db = createTestD1("ops");
     const env = opsEnv(db);
     await seedChezPickle(env);
@@ -74,16 +74,16 @@ describe("2026-11-19-pinsa-a-roma", () => {
     const popup = await findPopup(env);
     assert.deepEqual(
       [popup.name, popup.category, popup.repeatUnit, popup.weekdays, popup.startsOn, popup.endsOn, popup.startTime, popup.endTime, popup.pageUrl],
-      ["Pinsa A Roma", "popup", "week", ["mon"], "2026-11-23", "", "17:00", "22:00", "https://aroma.london/"],
+      ["Pinsa A Roma", "popup", "week", ["mon", "tue"], "2026-11-23", "", "17:00", "22:00", "https://aroma.london/"],
     );
-    assert.deepEqual(popup.dates.slice(0, 3).map((night) => night.date), ["2026-11-23", "2026-11-30", "2026-12-07"]);
+    assert.deepEqual(popup.dates.slice(0, 3).map((night) => night.date), ["2026-11-23", "2026-11-24", "2026-11-30"]);
     assert.equal(popup.publish.live, "current", "on the website");
     assert.ok(popup.logo?.asset, "its logo");
     assert.ok(popup.mainImage?.asset, "its main picture");
     assert.equal(popup.gallery.length, pinsa.PICTURES.gallery.length, "its gallery");
 
     const menu = (await listMenus(env)).menus.find((row) => row.slug === SLUG);
-    assert.deepEqual([menu.name, menu.kind, menu.popupSeriesId, menu.startsOn, menu.endsOn, menu.days], ["Pinsa A Roma", "kitchen", String(popup.id), "2026-11-23", "", ["mon"]]);
+    assert.deepEqual([menu.name, menu.kind, menu.popupSeriesId, menu.startsOn, menu.endsOn, menu.days], ["Pinsa A Roma", "kitchen", String(popup.id), "2026-11-23", "", ["mon", "tue"]]);
 
     const { sections, items } = await loadMenuTree(env);
     const chapter = sections.find((section) => section.slug === SLUG);
@@ -98,7 +98,7 @@ describe("2026-11-19-pinsa-a-roma", () => {
     for (const item of ours) assert.deepEqual(item.placements.map((row) => row.channel), ["digital"], `${item.name}: digital menu only`);
 
     assert.deepEqual(result, { popup: "added", menu: 14, published: true });
-    assert.match(text, /added the pop-up kitchen "Pinsa A Roma" \(event \d+\): every Monday from 2026-11-23, 17:00–22:00, no end date/);
+    assert.match(text, /added the pop-up kitchen "Pinsa A Roma" \(event \d+\): every Monday and Tuesday from 2026-11-23, 17:00–22:00, no end date/);
     assert.match(text, /Pinsa: Trastevere \(V\) £13\.50, Colosseo £14\.50, Villa Borghese \(V\) £15\.50, Giulio Cesare £16/);
     assert.match(text, /is on the website: \/whats-on\/pinsa-a-roma/);
     assert.match(text, /added to its gallery: trastevere\.jpg, colosseo\.jpg, villa-borghese\.jpg, focaccia\.jpg/);

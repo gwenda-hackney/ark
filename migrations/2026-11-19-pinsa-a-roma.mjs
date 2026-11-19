@@ -1,16 +1,16 @@
 /**
- * Pinsa A Roma, the Monday pizza: a pop-up kitchen in Events, cooking every
- * Monday from 23 November 2026 with no end date, and its Food menu (Menus)
+ * Pinsa A Roma, the pizza pop-up: a pop-up kitchen in Events, cooking every
+ * Monday and Tuesday from 23 November 2026 with no end date, and its Food menu (Menus)
  * with its dishes, from the menu the owner sent on 19 November.
  *
  * It goes the way ops does it:
  *
  * 1. The pop-up kitchen is added with the Add's own save (event-store.js
- *    createEvent): weekly on Mondays from the 23rd, no end date (a rolling
+ *    createEvent): weekly on Mondays and Tuesdays from the 23rd, no end date (a rolling
  *    run: its nights reach 12 weeks ahead and grow as the days pass), with
  *    its own website as its link. Its logo comes later, from the owner, in ops.
  * 2. Its Food menu (menus.js createMenu, the Menus page's own save) belongs
- *    to it and runs on Mondays from the 23rd, ongoing. Its chapter and
+ *    to it and runs on Mondays and Tuesdays from the 23rd, ongoing. Its chapter and
  *    groups go on it (menu-store.js createMenuSection) and the dishes in
  *    them (createMenuItem), on the digital menu only: not on print, and
  *    food gets no place on the till.
@@ -61,7 +61,7 @@ import { eventInStepWithWebsite, opsDataForMigration, putEventOnWebsiteNow } fro
 
 export const app = "ops";
 export const phase = "post";
-export const about = "Events and Menus: Pinsa A Roma, the Monday pizza pop-up, with its menu";
+export const about = "Events and Menus: Pinsa A Roma, the pizza pop-up on Mondays and Tuesdays, with its menu";
 
 /** /whats-on/pinsa-a-roma, and the menu's own web address. */
 export const SLUG = "pinsa-a-roma";
@@ -69,19 +69,19 @@ export const SLUG = "pinsa-a-roma";
 export const POPUP = {
   name: "Pinsa A Roma",
   category: "popup",
-  description: "Roman pinsa on Mondays: a light, crisp base with tomato, mozzarella and good olive oil, plus fries, dips and tiramisù.",
+  description: "Roman pinsa on Mondays and Tuesdays: a light, crisp base with tomato, mozzarella and good olive oil, plus fries, dips and tiramisù.",
   startsOn: "2026-11-23",
   startTime: "17:00",
   endTime: "22:00",
   repeatUnit: "week",
   repeatEvery: 1,
-  weekdays: ["mon"],
+  weekdays: ["mon", "tue"],
   endsOn: "",
   /** Its own website, as its link (Details). Instagram: https://www.instagram.com/aroma.ldn/ */
   pageUrl: "https://aroma.london/",
 };
 
-export const MENU = { name: "Pinsa A Roma", slug: SLUG, kind: "kitchen", startsOn: "2026-11-23", endsOn: "", days: "mon" };
+export const MENU = { name: "Pinsa A Roma", slug: SLUG, kind: "kitchen", startsOn: "2026-11-23", endsOn: "", days: "mon,tue" };
 
 export const CHAPTER = {
   title: "Pinsa A Roma",
@@ -225,7 +225,7 @@ async function popupFor(env, say) {
     return { event: found, added: false };
   }
   const event = await createEvent(env, POPUP);
-  say(`added the pop-up kitchen ${title(event)}: every Monday from ${POPUP.startsOn}, ${POPUP.startTime}–${POPUP.endTime}, no end date`);
+  say(`added the pop-up kitchen ${title(event)}: every Monday and Tuesday from ${POPUP.startsOn}, ${POPUP.startTime}–${POPUP.endTime}, no end date`);
   say(`    its first nights: ${event.dates.slice(0, 6).map((night) => night.date).join(", ")}`);
   return { event, added: true };
 }
@@ -236,7 +236,7 @@ async function addMenu(env, popup, say) {
   let added = 0;
   if (!menu) {
     menu = await createMenu(env, { ...MENU, popupSeriesId: popup.id });
-    say(`added the Food menu "${menu.name}" (menu ${menu.id}): Pinsa A Roma's, on Mondays from ${MENU.startsOn}, ongoing`);
+    say(`added the Food menu "${menu.name}" (menu ${menu.id}): Pinsa A Roma's, on Mondays and Tuesdays from ${MENU.startsOn}, ongoing`);
     added += 1;
   }
   let state = await menuTree(env);
@@ -344,8 +344,8 @@ export async function up({ env, d1, processEnv, log, dryRun = false }) {
     const state = await menuTree(data.env);
     const menuThere = (await listMenus(data.env)).menus.some((row) => row.slug === MENU.slug);
     const count = planned(state, menuThere);
-    say(`added the pop-up kitchen "${POPUP.name}": every Monday from ${POPUP.startsOn}, ${POPUP.startTime}–${POPUP.endTime}, no end date`);
-    say(`added its Food menu "${MENU.name}", on Mondays from ${MENU.startsOn}, ongoing, with ${count} menu, sections and dishes`);
+    say(`added the pop-up kitchen "${POPUP.name}": every Monday and Tuesday from ${POPUP.startsOn}, ${POPUP.startTime}–${POPUP.endTime}, no end date`);
+    say(`added its Food menu "${MENU.name}", on Mondays and Tuesdays from ${MENU.startsOn}, ongoing, with ${count} menu, sections and dishes`);
     for (const group of CHAPTER.groups) say(`    ${group.title}: ${group.items.map((dish) => `${dish.name} £${dish.price}`).join(", ")}`);
     for (const line of await plannedPictures(data.env, null)) say(`added ${line}`);
     log(`would put it on the website (/whats-on/${SLUG}), and its menu`);
