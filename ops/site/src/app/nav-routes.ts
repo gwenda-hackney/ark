@@ -5,11 +5,12 @@ import { FEATURED_ARTIST_CLOSED } from "../artists/featured-artist.js";
 
 /**
  * Side rail (#312): one level, grouped by the job. What's on is everything
- * on at Gwenda: the Schedule (every night in one calendar), then Events,
- * Pop-ups and Deals, each its own list of one kind, and Artists. Bar &
- * kitchen is the menus, their items and the stock behind them. Publish is
- * what goes out: the website, the weekly email and the venue's own photos
- * (event photos stay on each event's Images tab). Settings is the rest.
+ * on at Gwenda and how it's marketed: the Schedule (every night in one
+ * calendar), then Events, Pop-ups, Deals and Occasions, each its own list of
+ * one kind, Artists, the weekly email and the venue's own photos (event
+ * photos stay on each event's Images tab). Bar & kitchen is the menus, their
+ * items and the stock behind them. Publish is the website: what's waiting to
+ * go live. Settings is the rest.
  *
  * A page with tabs lists them here, each with its own address: old
  * addresses (/suppliers, /forms, /lightspeed/export) are those tabs.
@@ -45,6 +46,20 @@ export const NAV_ROUTES: NavRoute[] = [
 					},
 				],
 			},
+			{
+				id: "email",
+				path: "/email",
+				name: "Weekly email",
+				short: "Email",
+				icon: "send",
+				hint: "This week's what's on email",
+				tabs: [
+					{ id: "week", label: "This week", path: "/email" },
+					{ id: "sent", label: "Sent", path: "/email/sent" },
+					{ id: "settings", label: "Settings", path: "/email/settings" },
+				],
+			},
+			{ id: "photos", path: "/venue/gallery", name: "Photos", icon: "camera", hint: "The venue's own photos, on the website" },
 		],
 	},
 	{
@@ -75,20 +90,6 @@ export const NAV_ROUTES: NavRoute[] = [
 		heading: true,
 		children: [
 			{ id: "web", path: "/web", name: "Website", icon: "web", badge: "website", hint: "What's waiting to go live" },
-			{
-				id: "email",
-				path: "/email",
-				name: "Weekly email",
-				short: "Email",
-				icon: "send",
-				hint: "This week's what's on email",
-				tabs: [
-					{ id: "week", label: "This week", path: "/email" },
-					{ id: "sent", label: "Sent", path: "/email/sent" },
-					{ id: "settings", label: "Settings", path: "/email/settings" },
-				],
-			},
-			{ id: "photos", path: "/venue/gallery", name: "Photos", icon: "camera", hint: "The venue's own photos, on the website" },
 		],
 	},
 	{

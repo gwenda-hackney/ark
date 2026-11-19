@@ -247,7 +247,7 @@ export function parseShellPath(path) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
-  // Venue, and (#291) the venue's photos (Publish → Photos, #312)
+  // Venue, and (#291) the venue's photos (What's on → Photos)
   if (p === "/venue" || p.startsWith("/venue/")) {
     return {
       page: "venue",

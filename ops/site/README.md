@@ -121,7 +121,7 @@ Ops does **not** store recipes in Sanity. **Publish to digital menu** copies gue
 
 ## Weekly email
 
-The "what's on" email to the Mailchimp mailing list, managed at `/email` (Publish → Weekly email). Code: `src/email/` (rules in `server/weekly-email-model.js`, use cases in `server/weekly-email.js`), the Mailchimp client `src/platform/mailchimp.js`, the generator `shared/weekly-email/`.
+The "what's on" email to the Mailchimp mailing list, managed at `/email` (What's on → Weekly email). Code: `src/email/` (rules in `server/weekly-email-model.js`, use cases in `server/weekly-email.js`), the Mailchimp client `src/platform/mailchimp.js`, the generator `shared/weekly-email/`.
 
 **What the page shows.** This week's email as it would go out right now (subject, preview line, the email at phone and desktop width), built from the published website data, so it matches What's on. "Send me a test" sends it to your own address only. Status says where this week's stands, when the next is due, and lists the last few with a link to each campaign in Mailchimp. Everyone signed in can look and send themselves a test; only admins (`ops.admin_emails`) change the schedule or send.
 
