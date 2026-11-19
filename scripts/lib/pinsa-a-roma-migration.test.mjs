@@ -78,6 +78,9 @@ describe("2026-11-19-pinsa-a-roma", () => {
     );
     assert.deepEqual(popup.dates.slice(0, 3).map((night) => night.date), ["2026-11-23", "2026-11-30", "2026-12-07"]);
     assert.equal(popup.publish.live, "current", "on the website");
+    assert.ok(popup.logo?.asset, "its logo");
+    assert.ok(popup.mainImage?.asset, "its main picture");
+    assert.equal(popup.gallery.length, pinsa.PICTURES.gallery.length, "its gallery");
 
     const menu = (await listMenus(env)).menus.find((row) => row.slug === SLUG);
     assert.deepEqual([menu.name, menu.kind, menu.popupSeriesId, menu.startsOn, menu.endsOn, menu.days], ["Pinsa A Roma", "kitchen", String(popup.id), "2026-11-23", "", ["mon"]]);
@@ -90,12 +93,16 @@ describe("2026-11-19-pinsa-a-roma", () => {
     const ours = items.filter((item) => DISHES.includes(item.name));
     assert.deepEqual(ours.map((item) => item.name).sort(), [...DISHES].sort());
     assert.equal(ours.find((item) => item.name === "Giulio Cesare").price, "16");
+    const photographed = ours.filter((item) => item.image?.asset?._id).map((item) => item.name).sort();
+    assert.deepEqual(photographed, Object.keys(pinsa.PICTURES.dishes).sort(), "a photo on each dish there is one of");
     for (const item of ours) assert.deepEqual(item.placements.map((row) => row.channel), ["digital"], `${item.name}: digital menu only`);
 
     assert.deepEqual(result, { popup: "added", menu: 14, published: true });
     assert.match(text, /added the pop-up kitchen "Pinsa A Roma" \(event \d+\): every Monday from 2026-11-23, 17:00–22:00, no end date/);
     assert.match(text, /Pinsa: Trastevere \(V\) £13\.50, Colosseo £14\.50, Villa Borghese \(V\) £15\.50, Giulio Cesare £16/);
     assert.match(text, /is on the website: \/whats-on\/pinsa-a-roma/);
+    assert.match(text, /added to its gallery: trastevere\.jpg, colosseo\.jpg, villa-borghese\.jpg, focaccia\.jpg/);
+    assert.match(text, /added a photo to: Trastevere \(V\), Colosseo, Villa Borghese \(V\)/);
 
     const before = await dump(db);
     const again = await run(db);

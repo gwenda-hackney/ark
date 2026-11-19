@@ -14,7 +14,14 @@
  *    groups go on it (menu-store.js createMenuSection) and the dishes in
  *    them (createMenuItem), on the digital menu only: not on print, and
  *    food gets no place on the till.
- * 3. The website then gets both as after a save: the pop-up's nights
+ * 3. Its pictures, from the collaborator's own website (aroma.london), as
+ *    the Images tab and a dish's photo add them (event-store.js setEventLogo,
+ *    setEventImage, addGalleryImage; menu-store.js setMenuItemPhoto): the
+ *    logo, its main picture, a few pinsas in its gallery (home's Food board
+ *    tapes those up), and a photo on each dish there is one of. Each only
+ *    when that place has none of its own; a picture is known by its bytes
+ *    (Sanity names an image by their SHA-1), so none goes up twice.
+ * 4. The website then gets both as after a save: the pop-up's nights
  *    (ops-migration.mjs putEventOnWebsiteNow) and the menu
  *    (menu-website.js menuToWebsite).
  *
@@ -34,10 +41,20 @@
  * (scripts/lib/d1-rehearsal.mjs). For the website it says what would happen,
  * since Sanity has no copy to rehearse on.
  */
-import { createEvent, listEvents } from "../ops/site/src/events/server/event-store.js";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { parseImageAssetId } from "../shared/sanity-image.js";
+import {
+  addGalleryImage,
+  createEvent,
+  getEvent,
+  listEvents,
+  setEventImage,
+  setEventLogo,
+} from "../ops/site/src/events/server/event-store.js";
 import { namesClash } from "../ops/site/src/menu/item-key.js";
 import { flattenMenuSections } from "../ops/site/src/menu/menu-sections.js";
-import { createMenuItem, createMenuSection, loadMenuTree } from "../ops/site/src/menu/server/menu-store.js";
+import { createMenuItem, createMenuSection, loadMenuTree, setMenuItemPhoto } from "../ops/site/src/menu/server/menu-store.js";
 import { menuToWebsite } from "../ops/site/src/menu/server/menu-website.js";
 import { createMenu, listMenus } from "../ops/site/src/menu/server/menus.js";
 import { eventInStepWithWebsite, opsDataForMigration, putEventOnWebsiteNow } from "../scripts/lib/ops-migration.mjs";
@@ -115,6 +132,31 @@ export const CHAPTER = {
     },
   ],
 };
+
+/** Its pictures, from aroma.london, in assets/2026-11-19-pinsa-a-roma. */
+const ASSETS = "./assets/2026-11-19-pinsa-a-roma/";
+export const PICTURES = {
+  logo: "logo.png",
+  main: "hero.jpg",
+  gallery: ["trastevere.jpg", "colosseo.jpg", "villa-borghese.jpg", "focaccia.jpg"],
+  dishes: { "Trastevere (V)": "trastevere.jpg", Colosseo: "colosseo.jpg", "Villa Borghese (V)": "villa-borghese.jpg" },
+};
+
+/** A picture as the Images tab uploads it: { filename, bytes, contentType, sha1 }. */
+export async function picture(filename) {
+  const file = new URL(ASSETS + filename, import.meta.url);
+  const bytes = await readFile(file).catch(() => {
+    throw new Error(`${filename} isn't at ${file.pathname}: the migration needs it.`);
+  });
+  return {
+    filename: `pinsa-a-roma-${filename}`,
+    bytes,
+    contentType: filename.endsWith(".png") ? "image/png" : "image/jpeg",
+    sha1: createHash("sha1").update(bytes).digest("hex"),
+  };
+}
+
+const hashOf = (asset) => parseImageAssetId(typeof asset === "string" ? asset : asset?._id || asset?._ref || "")?.sha1 || "";
 
 const title = (event) => `"${event.name}" (event ${event.id})`;
 
@@ -229,6 +271,63 @@ async function addMenu(env, popup, say) {
   return added;
 }
 
+/**
+ * The logo, main picture, gallery and dish photos, each where there is none.
+ * @returns {Promise<number>} how many went up
+ */
+async function addPictures(env, eventId, say) {
+  let added = 0;
+  let event = await getEvent(env, eventId);
+  if (!event.logo?.asset) {
+    event = await setEventLogo(env, event.id, await picture(PICTURES.logo));
+    say(`added its logo (${PICTURES.logo})`);
+    added += 1;
+  }
+  if (!event.mainImage?.asset) {
+    event = await setEventImage(env, event.id, await picture(PICTURES.main));
+    say(`added its main picture (${PICTURES.main})`);
+    added += 1;
+  }
+  const inGallery = new Set((event.gallery || []).map((photo) => hashOf(photo.asset)));
+  const toGallery = [];
+  for (const name of PICTURES.gallery) {
+    const photo = await picture(name);
+    if (inGallery.has(photo.sha1)) continue;
+    event = await addGalleryImage(env, event.id, photo);
+    toGallery.push(name);
+    added += 1;
+  }
+  if (toGallery.length) say(`added to its gallery: ${toGallery.join(", ")}`);
+  const { items } = await menuTree(env);
+  const { sections } = await loadMenuTree(env);
+  const ours = new Set(
+    flattenMenuSections(sections)
+      .filter((section) => CHAPTER.groups.some((group) => group.slug === section.slug))
+      .map((section) => section._id),
+  );
+  const dishes = [];
+  for (const [name, file] of Object.entries(PICTURES.dishes)) {
+    const item = items.find((row) => ours.has(row.sectionId) && namesClash(row.name, name));
+    if (!item || item.image?.asset?._id) continue;
+    const photo = await picture(file);
+    await setMenuItemPhoto(env, item._id, photo.bytes, photo);
+    dishes.push(name);
+    added += 1;
+  }
+  if (dishes.length) say(`added a photo to: ${dishes.join(", ")}`);
+  return added;
+}
+
+/** What addPictures would add, for a dry run: nothing goes up. */
+async function plannedPictures(env, event) {
+  const lines = [];
+  if (!event?.logo?.asset) lines.push(`its logo (${PICTURES.logo})`);
+  if (!event?.mainImage?.asset) lines.push(`its main picture (${PICTURES.main})`);
+  if (!event?.gallery?.length) lines.push(`its gallery: ${PICTURES.gallery.join(", ")}`);
+  lines.push(`a photo on each of ${Object.keys(PICTURES.dishes).join(", ")} without one`);
+  return lines;
+}
+
 export async function up({ env, d1, processEnv, log, dryRun = false }) {
   const data = await opsDataForMigration({ env, d1, dryRun, log, processEnv });
   const say = (line) => log(dryRun ? `would have: ${line}` : line);
@@ -248,14 +347,19 @@ export async function up({ env, d1, processEnv, log, dryRun = false }) {
     say(`added the pop-up kitchen "${POPUP.name}": every Monday from ${POPUP.startsOn}, ${POPUP.startTime}–${POPUP.endTime}, no end date`);
     say(`added its Food menu "${MENU.name}", on Mondays from ${MENU.startsOn}, ongoing, with ${count} menu, sections and dishes`);
     for (const group of CHAPTER.groups) say(`    ${group.title}: ${group.items.map((dish) => `${dish.name} £${dish.price}`).join(", ")}`);
+    for (const line of await plannedPictures(data.env, null)) say(`added ${line}`);
     log(`would put it on the website (/whats-on/${SLUG}), and its menu`);
     return { popup: "added", menu: count, published: false };
   }
 
   const { event, added: popupAdded } = await popupFor(data.env, say);
   const added = await addMenu(data.env, event, say);
+  if (dryRun) {
+    for (const line of await plannedPictures(data.env, event)) say(`added ${line}`);
+  }
+  const pictures = dryRun ? 0 : await addPictures(data.env, event.id, say);
 
-  if (!popupAdded && !added && eventInStepWithWebsite(event)) {
+  if (!popupAdded && !added && !pictures && eventInStepWithWebsite(await getEvent(data.env, event.id))) {
     log(`Nothing to do: ${title(event)} and its menu are there, and the website is in step.`);
     return { popup: "there", menu: 0, published: false };
   }
@@ -265,7 +369,7 @@ export async function up({ env, d1, processEnv, log, dryRun = false }) {
   }
   const live = await putEventOnWebsiteNow(data.env, event.id);
   log(`${title(live)} is on the website: /whats-on/${live.slug}`);
-  if (added) {
+  if (added || pictures) {
     const result = await menuToWebsite(data.env);
     for (const warning of result.warnings) log(`warning: ${warning}`);
     log(
