@@ -22,7 +22,7 @@ const SECTIONS = [
   { kind: "image", assetId: "image-abc123-1600x1200-jpg", alt: "The bar" },
   { kind: "heading", text: "New Year's Eve" },
   { kind: "copy", text: "Doors at **9**.\n\nSee [the page](https://gwenda.co.uk/nye)." },
-  { kind: "button", label: "Get tickets", link: "https://gwenda.co.uk/nye" },
+  { kind: "button", label: "Get tickets", link: "https://gwenda.co.uk/nye", look: "filled" },
 ];
 
 repositoryContract("OneOffEmailRepository", {

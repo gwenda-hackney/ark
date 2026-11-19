@@ -131,10 +131,35 @@ export function paragraph(html, { size = 18, colour = COLOURS.ink, margin = "0",
   return `<p class="slab" style="margin:${margin};font-family:${FONTS.slab};font-size:${size}px;line-height:1.45;${italic ? "font-style:italic;" : ""}color:${colour};${align ? `text-align:${align};` : ""}">${html}</p>`;
 }
 
+/**
+ * How a button looks. Filled: mustard, the thing to do. Outline: a mustard
+ * edge on the board, for a second, quieter way on.
+ */
+export const BUTTON_LOOKS = ["filled", "outline"];
+
 /** A button that's a button in Outlook too (VML there, a padded link elsewhere). */
-export function button(text, link) {
+export function button(text, link, { look = "filled", width = 230, fill = COLOURS.mustard, ink = COLOURS.dark } = {}) {
   const label = esc(text);
-  return `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${href(link)}" style="height:50px;v-text-anchor:middle;width:230px;" arcsize="8%" stroke="f" fillcolor="${COLOURS.mustard}"><w:anchorlock/><center style="color:${COLOURS.dark};font-family:Georgia,serif;font-size:16px;font-weight:bold;letter-spacing:1px;">${label.toUpperCase()}</center></v:roundrect><![endif]--><!--[if !mso]><!--><a href="${href(link)}" class="slab" style="display:inline-block;background-color:${COLOURS.mustard};border-radius:4px;color:${COLOURS.dark};font-family:${FONTS.slab};font-size:16px;line-height:50px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-align:center;text-decoration:none;width:230px;-webkit-text-size-adjust:none;">${label}</a><!--<![endif]-->`;
+  const outline = look === "outline";
+  const back = outline ? "transparent" : fill;
+  const colour = outline ? fill : ink;
+  const vml = outline ? `filled="f" strokecolor="${fill}" strokeweight="2px"` : `stroke="f" fillcolor="${fill}"`;
+  const edge = outline ? `border:2px solid ${fill};line-height:46px;` : "line-height:50px;";
+  return `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${href(link)}" style="height:50px;v-text-anchor:middle;width:${width}px;" arcsize="8%" ${vml}><w:anchorlock/><center style="color:${colour};font-family:Georgia,serif;font-size:16px;font-weight:bold;letter-spacing:1px;">${label.toUpperCase()}</center></v:roundrect><![endif]--><!--[if !mso]><!--><a href="${href(link)}" class="slab" style="display:inline-block;background-color:${back};${edge}border-radius:4px;color:${colour};font-family:${FONTS.slab};font-size:16px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-align:center;text-decoration:none;width:${width}px;-webkit-text-size-adjust:none;">${label}</a><!--<![endif]-->`;
+}
+
+/**
+ * Book a table, the same in every email: a panel on the lighter board, a
+ * line in the pen face over a wide cream button to the site's booking page.
+ * One table, so it stays a block in every client.
+ */
+export function bookingBlock(link) {
+  return table(
+    `<tr><td align="center" style="padding:22px 20px 24px;background-color:${COLOURS.board2};border:1px dashed ${COLOURS.rule};border-radius:6px;">` +
+      `<p class="pen" style="margin:0 0 12px;font-family:${FONTS.pen};font-size:26px;line-height:1.1;font-weight:600;color:${COLOURS.mustard};">Save yourself a seat</p>` +
+      button("Book a table", link, { width: 280, fill: COLOURS.cream }) +
+      `</td></tr>`,
+  );
 }
 
 /** A link in capitals, mustard, underlined. */

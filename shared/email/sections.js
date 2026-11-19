@@ -10,7 +10,7 @@
  * Everything else is escaped; a link that isn't http(s) or mailto is dropped
  * and its words kept. No raw HTML ever reaches the email.
  */
-import { COLOURS, button, esc, heading, paragraph, row } from "./shell.js";
+import { BUTTON_LOOKS, COLOURS, bookingBlock, button, esc, heading, paragraph, row } from "./shell.js";
 import { emailPicture } from "./image.js";
 import { sanityImageUrl } from "../sanity-image.js";
 
@@ -131,13 +131,33 @@ export const SECTION_KINDS = {
   },
   button: {
     label: "Button",
-    blank: () => ({ kind: "button", label: "", link: "" }),
-    clean: (raw) => ({ kind: "button", label: line(raw?.label, 40), link: line(raw?.link, 1000) }),
+    blank: () => ({ kind: "button", label: "", link: "", look: "filled" }),
+    clean: (raw) => ({
+      kind: "button",
+      label: line(raw?.label, 40),
+      link: line(raw?.link, 1000),
+      look: BUTTON_LOOKS.includes(raw?.look) ? raw.look : "filled",
+    }),
     empty: (section) => !section.label || !safeLink(section.link),
-    html: (section) => [row(button(section.label, safeLink(section.link)), { top: 6, bottom: 26, align: "center" })],
+    html: (section) => [
+      row(button(section.label, safeLink(section.link), { look: section.look }), { top: 6, bottom: 26, align: "center" }),
+    ],
     text: (section) => [`${section.label}: ${safeLink(section.link).replace(/^mailto:/i, "")}`, ""],
   },
+  booking: {
+    label: "Book a table",
+    blank: () => ({ kind: "booking" }),
+    clean: () => ({ kind: "booking" }),
+    empty: () => false,
+    html: (_section, { site }) => [row(bookingBlock(bookingLink(site)), { top: 10, bottom: 30, align: "center" })],
+    text: (_section, { site }) => [`Book a table: ${bookingLink(site)}`, ""],
+  },
 };
+
+/** The site's booking page, where every Book a table goes. */
+export function bookingLink(site) {
+  return `${String(site?.origin || "").replace(/\/+$/, "")}/bookings`;
+}
 
 /** The kinds the editor offers, in its order. */
 export const SECTION_KIND_IDS = Object.keys(SECTION_KINDS);

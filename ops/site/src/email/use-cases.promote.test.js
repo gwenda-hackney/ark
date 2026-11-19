@@ -94,7 +94,7 @@ describe("promoting a pop-up kitchen", () => {
     assert.equal(email.previewText, "Roman pinsa on Mondays and Tuesdays: a light, crisp base.");
     assert.deepEqual(
       email.sections.map((section) => section.kind),
-      ["image", "heading", "copy", "heading", "copy", "image", "button", "button"],
+      ["image", "heading", "copy", "heading", "copy", "image", "button", "booking"],
     );
     assert.equal(email.sections[1].text, "New at Gwenda: Pinsa A Roma");
     assert.match(email.sections[2].text, new RegExp(`\\*\\*Mondays and Tuesdays from Monday 23 November, ${NOON} – 9pm\\.\\*\\*$`));
@@ -109,8 +109,8 @@ describe("promoting a pop-up kitchen", () => {
     );
     assert.notEqual(email.sections[0].assetId, email.sections[5].assetId, "two different pictures");
     assert.deepEqual(email.sections.slice(6), [
-      { kind: "button", label: "See the menu", link: "https://gwenda-web-dev.pages.dev/whats-on/pinsa-a-roma/" },
-      { kind: "button", label: "Book a table", link: "https://gwenda-web-dev.pages.dev/bookings" },
+      { kind: "button", label: "See the menu", link: "https://gwenda-web-dev.pages.dev/whats-on/pinsa-a-roma/", look: "filled" },
+      { kind: "booking" },
     ]);
 
     // It is an ordinary draft: it opens in the editor and renders as the email that would go.

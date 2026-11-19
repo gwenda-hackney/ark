@@ -145,7 +145,12 @@ export type OneOffSection =
 	| { kind: "image"; assetId: string; alt: string }
 	| { kind: "heading"; text: string }
 	| { kind: "copy"; text: string }
-	| { kind: "button"; label: string; link: string };
+	| { kind: "button"; label: string; link: string; look: ButtonLook }
+	/** Book a table: always the same, to the site's booking page. */
+	| { kind: "booking" };
+
+/** Filled: the thing to do. Outline: a second, quieter way on. */
+export type ButtonLook = "filled" | "outline";
 
 export type OneOffStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
 

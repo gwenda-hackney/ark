@@ -4,13 +4,14 @@
 	 * buttons to move it or take it out (always there; disabled at an end),
 	 * and its fields. Image: the picture (upload or replace) and its words
 	 * for screen readers. Heading: a line. Copy: paragraphs, with **bold**
-	 * and [links](https://…). Button: its label and where it goes.
+	 * and [links](https://…). Button: its label, where it goes and its look (filled or
+	 * outline). Book a table: nothing to fill in, it's the same every time.
 	 */
-	import { Field, PhotoActions, TextArea, TextField } from "../ui";
+	import { Field, PhotoActions, Segmented, TextArea, TextField } from "../ui";
 	import { Icon } from "../app/shell";
 	import { sanityImageUrl } from "../../../../shared/sanity-image.js";
 	import type { EmailFrame, OneOffSection } from "./email-api";
-	import { SECTION_CHOICES } from "./one-off-view";
+	import { BUTTON_LOOK_ITEMS, SECTION_CHOICES } from "./one-off-view";
 
 	let {
 		section = $bindable(),
@@ -123,7 +124,12 @@
 				<Field label="Link" for={`${id}-link`} hint="https:// or mailto:">
 					<TextField id={`${id}-link`} size="sm" type="url" bind:value={section.link} maxlength={1000} {disabled} placeholder="https://gwenda.co.uk/whats-on" />
 				</Field>
+				<Field label="Look" for={`${id}-look`}>
+					<Segmented bind:value={section.look} items={BUTTON_LOOK_ITEMS} tone="soft" size="sm" ariaLabel="Button look" />
+				</Field>
 			</div>
+		{:else if section.kind === "booking"}
+			<p class="fixed"><Icon name="calendar" size={15} /> The Book a table panel, the same in every email, to {frame ? `${frame.site.origin.replace(/^https?:\/\//, "")}/bookings` : "the booking page"}.</p>
 		{/if}
 	</div>
 </section>
@@ -181,6 +187,14 @@
 		outline: 2px solid var(--ring);
 		outline-offset: 1px;
 	}
+	.fixed {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin: 0;
+		font-size: var(--text-sm);
+		color: var(--muted-foreground);
+	}
 	.fields {
 		display: grid;
 		gap: var(--space-3);
@@ -220,7 +234,7 @@
 	}
 	.pair {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
 		gap: var(--space-3);
 	}
 	@media (max-width: 600px) {

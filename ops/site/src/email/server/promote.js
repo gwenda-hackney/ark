@@ -126,8 +126,8 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
         ]
       : []),
     ...(second ? [{ kind: "image", assetId: second, alt: `Food from ${name}` }] : []),
-    { kind: "button", label: "See the menu", link: page },
-    { kind: "button", label: "Book a table", link: `${site.origin}/bookings` },
+    { kind: "button", label: "See the menu", link: page, look: "filled" },
+    { kind: "booking" },
   ];
   const days = event.repeatUnit === "week" ? daysWords(event.weekdays) : "";
   return {

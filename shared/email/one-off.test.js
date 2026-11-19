@@ -70,6 +70,28 @@ describe("a one-off email", () => {
     expect(text).toContain("Get tickets: https://gwenda.co.uk/nye");
   });
 
+  it("draws a button filled or outlined, filled unless it says otherwise", () => {
+    const [filled, outline, odd] = cleanSections([
+      { kind: "button", label: "Menu", link: "https://a.example" },
+      { kind: "button", label: "Menu", link: "https://a.example", look: "outline" },
+      { kind: "button", label: "Menu", link: "https://a.example", look: "sparkly" },
+    ]);
+    expect([filled.look, outline.look, odd.look]).toEqual(["filled", "outline", "filled"]);
+    expect(render([filled]).html).toContain("background-color:#dba63c;");
+    expect(render([outline]).html).toContain("background-color:transparent;border:2px solid #dba63c;");
+  });
+
+  it("draws Book a table the same every time, to the site's booking page", () => {
+    const [booking] = cleanSections([{ kind: "booking", label: "Ignored", link: "https://elsewhere.example" }]);
+    expect(booking).toEqual({ kind: "booking" });
+    const { html, text } = render([booking]);
+    expect(html).toContain('href="https://gwenda-web-dev.pages.dev/bookings"');
+    expect(html).toContain(">Book a table</a>");
+    expect(html).toContain("Save yourself a seat");
+    expect(html).not.toContain("elsewhere.example");
+    expect(text).toContain("Book a table: https://gwenda-web-dev.pages.dev/bookings");
+  });
+
   it("keeps sections in their order, and skips ones with nothing in them yet", () => {
     const { html } = render([
       { kind: "heading", text: "One" },
@@ -119,7 +141,7 @@ describe("sections", () => {
       ]),
     ).toEqual([
       { kind: "heading", text: "Hi there" },
-      { kind: "button", label: "x".repeat(40), link: "https://a.example" },
+      { kind: "button", label: "x".repeat(40), link: "https://a.example", look: "filled" },
       { kind: "image", assetId: ASSET, alt: "A" },
     ]);
     expect(cleanSections("nope")).toEqual([]);
@@ -131,7 +153,8 @@ describe("sections", () => {
       const blank = kind.blank();
       expect(blank.kind).toBe(id);
       expect(kind.clean(blank)).toEqual(blank);
-      expect(kind.empty(blank)).toBe(true);
+      // Book a table has nothing to fill in: it is whole as soon as it is added.
+      expect(kind.empty(blank)).toBe(id !== "booking");
     }
   });
 
