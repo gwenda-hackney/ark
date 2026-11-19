@@ -23,6 +23,7 @@ export const SECTION_CHOICES: { kind: SectionKind; label: string }[] = [
 export const IMAGE_SIZE_ITEMS = [
 	{ id: "full", label: "Full width" },
 	{ id: "logo", label: "Logo" },
+	{ id: "collab", label: "Gwenda ×" },
 ] as const;
 
 export const BUTTON_LOOK_ITEMS = [

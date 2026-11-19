@@ -51,6 +51,13 @@ describe("a one-off email", () => {
     expect(html).toContain('alt="Pinsa A Roma logo"');
   });
 
+  it("draws a collaboration as GWENDA × and the logo, on one line", () => {
+    const { html, text } = render([{ kind: "image", assetId: ASSET, alt: "Pinsa A Roma", size: "collab" }]);
+    expect(html).toMatch(/>Gwenda<\/td><td[^>]*>&times;<\/td><td[^>]*><img src="[^"]+" width="120"/);
+    expect(html).toContain('alt="Pinsa A Roma"');
+    expect(text).toContain("GWENDA × PINSA A ROMA");
+  });
+
   it("draws a heading in the poster face, and in capitals in the text", () => {
     const { html, text } = render([{ kind: "heading", text: "Party <time>" }]);
     expect(html).toMatch(/<h2 class="display"[^>]*>Party &lt;time&gt;<\/h2>/);

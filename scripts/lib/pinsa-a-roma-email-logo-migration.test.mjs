@@ -32,7 +32,7 @@ describe("2026-11-22-pinsa-a-roma-email-logo", () => {
     return { text: lines.join("\n"), result };
   };
   const emails = (db) => d1OneOffEmailRepository(db);
-  const logoOf = (email) => email.sections.find((part) => part.kind === "image" && part.size === "logo");
+  const logoOf = (email) => email.sections.find((part) => part.kind === "image" && part.size === "collab");
 
   /** The livelier draft without the logo, as production has it. */
   async function withLivelyDraft(db) {
@@ -42,7 +42,7 @@ describe("2026-11-22-pinsa-a-roma-email-logo", () => {
     const { sections } = await emails(db).get(made.id);
     return emails(db).updateDraft(
       made.id,
-      { sections: sections.filter((part) => part.size !== "logo"), subject: made.subject },
+      { sections: sections.filter((part) => part.size !== "collab"), subject: made.subject },
       { by: livelier.BY },
     );
   }
@@ -58,7 +58,7 @@ describe("2026-11-22-pinsa-a-roma-email-logo", () => {
     assert.equal(result.changed, true);
     const at = fresh.sections.indexOf(logoOf(fresh));
     assert.ok(at >= 0, "the logo is in it");
-    assert.equal(fresh.sections[at].alt, "Pinsa A Roma logo");
+    assert.equal(fresh.sections[at].alt, "Pinsa A Roma");
     assert.deepEqual(fresh.sections[at + 1], { kind: "heading", text: "Pinsa A Roma is coming to Gwenda!" });
     assert.equal(fresh.updatedBy, withLogo.BY.toLowerCase());
     assert.match(text, /added the logo to email \d+/);

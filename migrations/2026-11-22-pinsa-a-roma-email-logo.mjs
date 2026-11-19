@@ -1,6 +1,6 @@
 /**
  * The Pinsa A Roma email with its logo: the pop-up kitchen's template
- * (ops/site/src/email/server/promote.js) now puts the pop-up's logo, small,
+ * (ops/site/src/email/server/promote.js) now puts "GWENDA ×" and the pop-up's logo
  * above "Pinsa A Roma is coming to Gwenda!". The draft
  * 2026-11-21-pinsa-a-roma-email-livelier.mjs made is made again from it.
  *
@@ -51,7 +51,7 @@ export async function up({ env, d1, processEnv, log, dryRun = false, now = new D
 
   const fresh = await promoteDraft(data.env, { template: "popup", id: String(popup.id) }, { site: emailFrame(data.env).site });
   const saved = await emails.updateDraft(draft.id, fresh, { by: BY, now });
-  const logo = fresh.sections.some((part) => part.kind === "image" && part.size === "logo");
+  const logo = fresh.sections.some((part) => part.kind === "image" && part.size === "collab");
   log(`${dryRun ? "would add" : "added"} the logo to email ${draft.id}: "${saved?.subject || fresh.subject}"${logo ? "" : " (it has no logo in ops yet, so none shows)"}`);
   return { changed: true, id: draft.id };
 }

@@ -96,7 +96,7 @@ const price = (value) => (value ? `£${value}` : "");
 export const POPUP_NUDGE = "Come hungry, bring your mates, and stay for a drink.";
 
 /**
- * The pop-up kitchen's email, with some go in it: its picture, its logo, "… is coming
+ * The pop-up kitchen's email, with some go in it: its picture, Gwenda × its logo, "… is coming
  * to Gwenda!" while it hasn't started (else "… is cooking at Gwenda!"), its line, when, and a nudge;
  * a few dishes to order first, a second picture from its gallery, then the
  * whole menu and Book a table.
@@ -119,8 +119,8 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
   const headline = `${name} is ${isNew ? "coming to" : "cooking at"} Gwenda!`;
   const sections = [
     ...(picture ? [{ kind: "image", assetId: picture, alt: name, size: "full" }] : []),
-    // Its logo above its name, so people know it at a glance.
-    ...(logo ? [{ kind: "image", assetId: logo, alt: `${name} logo`, size: "logo" }] : []),
+    // Gwenda × its logo: a pop-up kitchen is the two of us together.
+    ...(logo ? [{ kind: "image", assetId: logo, alt: name, size: "collab" }] : []),
     { kind: "heading", text: headline },
     { kind: "copy", text: [line, when ? `**${when}.**` : "", POPUP_NUDGE].filter(Boolean).join("\n\n") },
     ...(dishes.length

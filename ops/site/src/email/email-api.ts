@@ -150,8 +150,8 @@ export type OneOffSection =
 	| { kind: "booking" };
 
 /** Link: underlined gold capitals, as the website's. Outline: a gold frame. Book a table has its own section. */
-/** An Image section's size: the column's width, or small and whole, as a logo. */
-export type ImageSize = "full" | "logo";
+/** An Image section's size: the column's width; small and whole, as a logo; or "GWENDA ×" and the logo. */
+export type ImageSize = "full" | "logo" | "collab";
 export type ButtonLook = "link" | "outline";
 
 export type OneOffStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";

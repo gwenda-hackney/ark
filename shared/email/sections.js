@@ -10,7 +10,7 @@
  * Everything else is escaped; a link that isn't http(s) or mailto is dropped
  * and its words kept. No raw HTML ever reaches the email.
  */
-import { COLOURS, bookingButton, esc, heading, outlineButton, paragraph, row, textLink } from "./shell.js";
+import { COLOURS, FONTS, bookingButton, esc, heading, outlineButton, paragraph, row, textLink } from "./shell.js";
 import { bookingUrl } from "../../marketing/web/src/config/booking.ts";
 import { siteConfig } from "../../marketing/web/src/config/site.ts";
 import { emailPicture } from "./image.js";
@@ -110,8 +110,22 @@ export const BUTTON_LOOKS = ["link", "outline"];
 /** Book a table, word for word and link for link the website's (config/site.ts, config/booking.ts). */
 export const BOOKING = { label: siteConfig.copy.bookingCta, link: bookingUrl };
 
-/** How big an Image section shows: the column's width, or small and whole, as a logo. */
-export const IMAGE_SIZES = ["full", "logo"];
+/**
+ * How an Image section shows: the column's width; small and whole, as a
+ * logo; or as a collaboration, "GWENDA × " and then the logo (a pop-up
+ * kitchen is Gwenda and them together).
+ */
+export const IMAGE_SIZES = ["full", "logo", "collab"];
+
+/** A collaboration's logo, beside Gwenda's name: a little smaller than a logo alone. */
+export const COLLAB_LOGO_WIDTH = 120;
+
+/** "GWENDA ×" then the logo, on one centred line. */
+function collabLockup(picture) {
+  const word = `font-family:${FONTS.display};font-size:30px;line-height:1;letter-spacing:0.04em;color:${COLOURS.cream};text-transform:uppercase;`;
+  const times = `font-family:${FONTS.slab};font-size:28px;line-height:1;color:${COLOURS.mustard};padding:0 14px;`;
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="border-collapse:collapse;margin:0 auto;"><tr><td valign="middle" style="${word}">Gwenda</td><td valign="middle" style="${times}">&times;</td><td valign="middle">${picture}</td></tr></table>`;
+}
 
 /** A logo's width in the email: big enough to read, small beside a photo. */
 export const LOGO_WIDTH = 160;
@@ -130,13 +144,21 @@ export const SECTION_KINDS = {
     empty: (section) => !section.assetId,
     html(section, { images }) {
       const url = sectionImageUrl(section.assetId, images);
+      const photo = { url, whole: true, alt: section.alt };
+      if (section.size === "collab") {
+        const picture = emailPicture(photo, COLLAB_LOGO_WIDTH);
+        return picture ? [row(collabLockup(picture), { top: 4, bottom: 20, align: "center" })] : [];
+      }
       const logo = section.size === "logo";
-      const picture = logo
-        ? emailPicture({ url, whole: true, alt: section.alt }, LOGO_WIDTH)
-        : emailPicture({ url, whole: true, alt: section.alt }, COLUMN, { fluid: true });
+      const picture = logo ? emailPicture(photo, LOGO_WIDTH) : emailPicture(photo, COLUMN, { fluid: true });
       return picture ? [row(picture, { bottom: logo ? 16 : 24, align: "center" })] : [];
     },
-    text: (section) => (section.alt ? [`[${section.alt}]`, ""] : []),
+    text: (section) =>
+      section.size === "collab"
+        ? [`GWENDA × ${(section.alt || "").toUpperCase()}`, ""]
+        : section.alt
+          ? [`[${section.alt}]`, ""]
+          : [],
   },
   heading: {
     label: "Heading",
