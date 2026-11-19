@@ -12,6 +12,7 @@
  * logic lives inside the components today.
  */
 import { siteConfig } from "../../marketing/web/src/config/site.ts";
+import { emailSite } from "../email/site.js";
 import { bookingUrl } from "../../marketing/web/src/config/booking.ts";
 import { formatEventSpan } from "../../marketing/web/src/data/events.ts";
 import { isWholeFit } from "../../marketing/web/functions/_lib/sanity-image-url.js";
@@ -191,15 +192,9 @@ export function weeklyEmailModel(catalog, { today, origin = siteConfig.domain } 
     },
     bookings: bookingsSection(site),
     site: {
-      name: siteConfig.name,
-      social: siteConfig.copy.social,
-      origin: site,
-      whatsOn: absolute(site, "/whats-on"),
+      ...emailSite(site),
       booking: bookingUrl,
       bookingLabel: siteConfig.copy.bookingCta,
-      instagram: siteConfig.social.instagram,
-      address: siteConfig.location.address,
-      mapsUrl: siteConfig.location.mapsUrl,
     },
   };
 }

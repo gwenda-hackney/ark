@@ -137,3 +137,111 @@ export function prepareWeeklyEmail() {
 export function sendWeeklyEmailAgain(after: number) {
 	return request<WeeklyEmailStatus>("/api/email/send-again", post({ confirm: "send-again", after }));
 }
+
+// ------------------------------------------------------- one-off emails (#348)
+
+/** A part of a one-off email, between its fixed logo and foot (shared/email/sections.js). */
+export type OneOffSection =
+	| { kind: "image"; assetId: string; alt: string }
+	| { kind: "heading"; text: string }
+	| { kind: "copy"; text: string }
+	| { kind: "button"; label: string; link: string; look: ButtonLook }
+	/** Book a table: always the same, to the site's booking page. */
+	| { kind: "booking" };
+
+/** Link: underlined gold capitals, as the website's. Outline: a gold frame. Book a table has its own section. */
+export type ButtonLook = "link" | "outline";
+
+export type OneOffStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
+
+export type OneOffEmail = {
+	id: number;
+	/** What ops calls it, on its card and in the editor; the list never sees it. */
+	name: string;
+	subject: string;
+	previewText: string;
+	sections: OneOffSection[];
+	status: OneOffStatus;
+	recipients: number;
+	reason: string;
+	createdBy: string;
+	updatedBy: string;
+	createdAt: string;
+	updatedAt: string;
+	scheduledFor: string | null;
+	sentAt: string | null;
+};
+
+export type OneOffSummary = OneOffEmail & { sectionCount: number };
+
+/** Where the email is sent from: its website, the Sanity project its pictures are in, the logo. */
+export type EmailFrame = {
+	site: {
+		origin: string;
+		name: string;
+		social: string;
+		instagram: string;
+		whatsOn: string;
+		mapsUrl: string;
+		address: string;
+	};
+	images: { projectId: string; dataset: string };
+	logoUrl?: string;
+};
+
+export type OneOffContext = { frame: EmailFrame; access: WeeklyEmailAccess };
+
+export function listOneOffEmails() {
+	return request<{ emails: OneOffSummary[] } & OneOffContext>("/api/email/one-off");
+}
+
+export function getOneOffEmail(id: number | string) {
+	return request<{ email: OneOffEmail } & OneOffContext>(`/api/email/one-off/${encodeURIComponent(String(id))}`);
+}
+
+export type OneOffDraft = Pick<OneOffEmail, "name" | "subject" | "previewText" | "sections">;
+
+export function createOneOffEmail(draft: OneOffDraft) {
+	return request<{ email: OneOffEmail }>("/api/email/one-off", post(draft));
+}
+
+export function saveOneOffEmail(id: number, draft: OneOffDraft) {
+	return request<{ email: OneOffEmail }>(`/api/email/one-off/${id}`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(draft),
+	});
+}
+
+export function deleteOneOffEmail(id: number) {
+	return request<{ deleted: boolean }>(`/api/email/one-off/${id}`, { method: "DELETE" });
+}
+
+export function sendOneOffTest(id: number) {
+	return request<{ sentTo: string; subject: string; warning: string }>(`/api/email/one-off/${id}/test`, {
+		method: "POST",
+	});
+}
+
+/** A picture for an Image section: uploaded to Sanity. */
+export function uploadEmailImage(file: File) {
+	const body = new FormData();
+	body.set("file", file);
+	return request<{ assetId: string; url: string }>("/api/email/images", { method: "POST", body });
+}
+
+/** Something an email can promote (#348): a template, and what it can promote now. */
+export type PromoteTemplate = {
+	id: string;
+	label: string;
+	choices: Array<{ id: string; name: string; when: string }>;
+};
+
+export function getPromoteChoices() {
+	return request<{ templates: PromoteTemplate[] }>("/api/email/promote");
+}
+
+/** A draft built from a template for one thing, saved, to open in the editor. */
+export function promoteInEmail(template: string, id: string) {
+	return request<{ email: OneOffEmail }>("/api/email/promote", post({ template, id }));
+}

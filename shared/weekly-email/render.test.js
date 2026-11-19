@@ -50,7 +50,12 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
   });
 
   it("gives every picture an absolute address, alt text and a width", () => {
-    const images = tags(email.html, "img");
+    const all = tags(email.html, "img");
+    // Book a table's bell is decoration: no words for a screen reader
+    const bell = all.filter((tag) => attr(tag, "src").endsWith("/brand/email-bell.png"));
+    expect(bell).toHaveLength(1);
+    expect(attr(bell[0], "alt")).toBe("");
+    const images = all.filter((tag) => !bell.includes(tag));
     // The logo, the karaoke flyer, the jam photo, the deal's flyer
     expect(images).toHaveLength(4);
     for (const tag of images) {
@@ -149,7 +154,7 @@ describe("renderWeeklyEmail: the top", () => {
 
 describe("renderWeeklyEmail: Bookings", () => {
   const words = bookingsWords();
-  const section = email.html.slice(email.html.indexOf(`>${words.heading}</h2>`), email.html.indexOf(">Book a table</a>"));
+  const section = email.html.slice(email.html.indexOf(`>${words.heading}</h2>`), email.html.indexOf("Coming down?"));
 
   it("has the website's Bookings, in its words: the note, then each half's heading, line and button", () => {
     expect(section).toContain(esc(words.note));

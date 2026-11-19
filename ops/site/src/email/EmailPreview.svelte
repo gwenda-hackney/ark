@@ -1,30 +1,70 @@
 <script lang="ts">
 	/**
-	 * This week's email as it would go out: subject, preview line, and the
-	 * email itself in a locked-down frame at phone or desktop width.
+	 * An email as it would arrive: subject, preview line, and the email itself
+	 * in a locked-down frame at phone or desktop width. The weekly email's
+	 * This week tab and the one-off email editor (#348) both show it here.
 	 */
 	import { Card, Segmented } from "../ui";
-	import type { WeeklyEmailPreview } from "./email-api";
-	import { contentsLine, previewDocument, shortDay } from "./email-view";
+	import { previewDocument } from "./email-view";
 
-	let { email, problem = "", loading = false }: { email: WeeklyEmailPreview | null; problem?: string; loading?: boolean } =
-		$props();
+	let {
+		email,
+		title,
+		subtitle = "",
+		problem = "",
+		warning = "",
+		note = "",
+		blank = "Loading…",
+		loading = false,
+		frameHeight = "",
+	}: {
+		email: { subject: string; preheader: string; html: string } | null;
+		title: string;
+		subtitle?: string;
+		/** Why there's no email to show. */
+		problem?: string;
+		/** Something to know about the email shown. */
+		warning?: string;
+		/** The small print under the frame. */
+		note?: string;
+		/** What the empty frame says. */
+		blank?: string;
+		loading?: boolean;
+		/** The frame's height, when it should fit beside an editor rather than its usual 44rem. */
+		frameHeight?: string;
+	} = $props();
 
 	const WIDTHS = [
 		{ id: "phone", label: "Phone" },
 		{ id: "desktop", label: "Desktop" },
 	];
 	let width = $state("phone");
+
+	// The frame keeps its place while the email changes under it (typing in
+	// the editor redraws it): where it was is read before the new one loads
+	// and put back once it has. Same-origin only so ops can read the scroll;
+	// no scripts run in it either way.
+	let frameEl = $state<HTMLIFrameElement | null>(null);
+	let scrollTop = 0;
+	const srcdoc = $derived(email ? previewDocument(email.html) : "");
+	$effect.pre(() => {
+		void srcdoc;
+		try {
+			scrollTop = frameEl?.contentWindow?.scrollY ?? scrollTop;
+		} catch {
+			// Not readable: it starts at the top.
+		}
+	});
+	function restoreScroll() {
+		try {
+			if (scrollTop) frameEl?.contentWindow?.scrollTo(0, scrollTop);
+		} catch {
+			// Not readable: it stays at the top.
+		}
+	}
 </script>
 
-<Card
-	title="This week's email"
-	subtitle={email
-		? `${shortDay(email.today)} – ${shortDay(email.week.end)} · ${contentsLine(email)}`
-		: problem
-			? "Couldn't be built just now."
-			: "Building it from the website…"}
->
+<Card {title} {subtitle}>
 	{#snippet actions()}
 		<Segmented bind:value={width} items={WIDTHS} tone="soft" size="sm" ariaLabel="Preview width" />
 	{/snippet}
@@ -32,8 +72,8 @@
 	{#if problem}
 		<p class="note danger" role="alert">{problem}</p>
 	{/if}
-	{#if email?.empty}
-		<p class="note warn">{email.emptyReason}</p>
+	{#if warning}
+		<p class="note warn">{warning}</p>
 	{/if}
 
 	<dl class="lines">
@@ -48,23 +88,22 @@
 	</dl>
 
 	<div class="stage" class:busy={loading}>
-		<div class="frame {width}">
+		<div class="frame {width}" style:height={frameHeight || undefined}>
 			{#if email}
 				<iframe
-					title="This week's email"
-					sandbox="allow-popups allow-popups-to-escape-sandbox"
+					bind:this={frameEl}
+					{title}
+					sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
 					referrerpolicy="no-referrer"
-					srcdoc={previewDocument(email.html)}
+					{srcdoc}
+					onload={restoreScroll}
 				></iframe>
 			{:else}
-				<div class="blank">{problem ? "No preview" : "Loading…"}</div>
+				<div class="blank">{problem ? "No preview" : blank}</div>
 			{/if}
 		</div>
 	</div>
-	<p class="muted small">
-		From the live website, as it would go now · links to {email?.origin || "the website"} · Gmail's fonts (Apple Mail
-		shows the website's)
-	</p>
+	{#if note}<p class="muted small">{note}</p>{/if}
 	</div>
 </Card>
 

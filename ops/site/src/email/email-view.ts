@@ -232,3 +232,12 @@ export function audienceLine(memberCount: number): string {
 export function countAndRate(count: number, rate: number): string {
 	return `${count.toLocaleString("en-GB")} · ${Math.round(rate * 100)}%`;
 }
+
+/**
+ * An email's lead picture for its card: the first picture after the logo
+ * (every email opens with the logo), or "" when it has none.
+ */
+export function leadPicture(html: string): string {
+	const sources = [...String(html || "").matchAll(/<img\b[^>]*\bsrc="([^"]+)"/gi)].map((match) => match[1].replace(/&amp;/g, "&"));
+	return sources[1] || "";
+}
