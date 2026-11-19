@@ -38,3 +38,6 @@ marketing/brand/node_modules/
 
 # Worker bundles built in CI before deploy (source maps for Sentry, #35)
 marketing/*/dist/
+
+# Worktrees for parallel work (.worktrees/<area>-<topic>)
+.worktrees/
