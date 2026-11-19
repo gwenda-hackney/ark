@@ -96,8 +96,8 @@ const price = (value) => (value ? `£${value}` : "");
 export const POPUP_NUDGE = "Come hungry, bring your mates, and stay for a drink.";
 
 /**
- * The pop-up kitchen's email, with some go in it: its picture, Gwenda × its logo, "… is coming
- * to Gwenda!" while it hasn't started (else "… is cooking at Gwenda!"), its line, when, and a nudge;
+ * The pop-up kitchen's email, with some go in it: its picture, our logo × its logo, "
+ * Gwenda is teaming up with …!" while it hasn't started (else "Gwenda has teamed up with …!"), its line, when, and a nudge;
  * a few dishes to order first, a second picture from its gallery, then the
  * whole menu and Book a table.
  * @param {{ origin: string }} site the website the links go to
@@ -115,11 +115,11 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
   const picture = event.mainImage?.asset || "";
   const second = (event.gallery || []).find((photo) => photo.asset && photo.asset !== picture)?.asset || "";
   const line = text(event.shortDescription) || text(event.description);
-  /** "Pinsa A Roma is coming to Gwenda!", or once it has started, "… is cooking at Gwenda!" */
-  const headline = `${name} is ${isNew ? "coming to" : "cooking at"} Gwenda!`;
+  /** Gwenda and the pop-up together: "Gwenda is teaming up with Pinsa A Roma!", once it has started "Gwenda has teamed up with …!" */
+  const headline = `Gwenda ${isNew ? "is teaming up" : "has teamed up"} with ${name}!`;
   const sections = [
     ...(picture ? [{ kind: "image", assetId: picture, alt: name, size: "full" }] : []),
-    // Gwenda × its logo: a pop-up kitchen is the two of us together.
+    // Our logo × its logo: a pop-up kitchen is the two of us together.
     ...(logo ? [{ kind: "image", assetId: logo, alt: name, size: "collab" }] : []),
     { kind: "heading", text: headline },
     { kind: "copy", text: [line, when ? `**${when}.**` : "", POPUP_NUDGE].filter(Boolean).join("\n\n") },

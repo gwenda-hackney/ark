@@ -1,8 +1,8 @@
 /**
- * migrations/2026-11-22-pinsa-a-roma-email-logo.mjs, run as a deploy runs it,
+ * migrations/2026-11-22-pinsa-a-roma-email-teaming-up.mjs, run as a deploy runs it,
  * after the pop-up, its first draft and the livelier one, against a D1 with
  * the real schema and Sanity, Calendar and Drive faked: the untouched draft
- * gets the logo, one someone changed is left alone, and a dry run.
+ * becomes a team-up, one someone changed is left alone, and a dry run.
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
@@ -12,9 +12,9 @@ import { createTestD1 } from "../../shared/testing/d1-sqlite.js";
 import * as pinsa from "../../migrations/2026-11-19-pinsa-a-roma.mjs";
 import * as drafted from "../../migrations/2026-11-20-pinsa-a-roma-email.mjs";
 import * as livelier from "../../migrations/2026-11-21-pinsa-a-roma-email-livelier.mjs";
-import * as withLogo from "../../migrations/2026-11-22-pinsa-a-roma-email-logo.mjs";
+import * as teamUp from "../../migrations/2026-11-22-pinsa-a-roma-email-teaming-up.mjs";
 
-describe("2026-11-22-pinsa-a-roma-email-logo", () => {
+describe("2026-11-22-pinsa-a-roma-email-teaming-up", () => {
   let world;
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-20T12:00:00Z") });
@@ -47,23 +47,23 @@ describe("2026-11-22-pinsa-a-roma-email-logo", () => {
     );
   }
 
-  it("gives the untouched draft the pop-up's logo above its name, once", async () => {
+  it("makes the untouched draft a team-up: our logo × theirs, then the headline, once", async () => {
     const db = createTestD1("ops");
     const old = await withLivelyDraft(db);
     assert.equal(logoOf(old), undefined);
 
-    const { text, result } = await run(withLogo, db);
+    const { text, result } = await run(teamUp, db);
 
     const fresh = await emails(db).get(old.id);
     assert.equal(result.changed, true);
     const at = fresh.sections.indexOf(logoOf(fresh));
     assert.ok(at >= 0, "the logo is in it");
     assert.equal(fresh.sections[at].alt, "Pinsa A Roma");
-    assert.deepEqual(fresh.sections[at + 1], { kind: "heading", text: "Pinsa A Roma is coming to Gwenda!" });
-    assert.equal(fresh.updatedBy, withLogo.BY.toLowerCase());
-    assert.match(text, /added the logo to email \d+/);
+    assert.deepEqual(fresh.sections[at + 1], { kind: "heading", text: "Gwenda is teaming up with Pinsa A Roma!" });
+    assert.equal(fresh.updatedBy, teamUp.BY.toLowerCase());
+    assert.match(text, /made email \d+ a team-up/);
 
-    assert.equal((await run(withLogo, db)).result.changed, false, "the second time it's no longer the livelier draft");
+    assert.equal((await run(teamUp, db)).result.changed, false, "the second time it's no longer the livelier draft");
   });
 
   it("leaves a draft someone has changed alone", async () => {
@@ -71,7 +71,7 @@ describe("2026-11-22-pinsa-a-roma-email-logo", () => {
     const old = await withLivelyDraft(db);
     await emails(db).updateDraft(old.id, { name: "My pizza email" }, { by: "owner@example.com" });
 
-    const { text, result } = await run(withLogo, db);
+    const { text, result } = await run(teamUp, db);
 
     assert.equal(result.changed, false);
     assert.equal(logoOf(await emails(db).get(old.id)), undefined);
@@ -81,8 +81,8 @@ describe("2026-11-22-pinsa-a-roma-email-logo", () => {
   it("dry run: says what it would do and changes nothing", async () => {
     const db = createTestD1("ops");
     const old = await withLivelyDraft(db);
-    const { text } = await run(withLogo, db, { dryRun: true });
+    const { text } = await run(teamUp, db, { dryRun: true });
     assert.equal(logoOf(await emails(db).get(old.id)), undefined);
-    assert.match(text, /would add the logo to email \d+/);
+    assert.match(text, /would make email \d+ a team-up/);
   });
 });

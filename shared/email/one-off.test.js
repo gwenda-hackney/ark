@@ -51,9 +51,9 @@ describe("a one-off email", () => {
     expect(html).toContain('alt="Pinsa A Roma logo"');
   });
 
-  it("draws a collaboration as GWENDA × and the logo, on one line", () => {
+  it("draws a collaboration as Gwenda's logo × theirs, on one line", () => {
     const { html, text } = render([{ kind: "image", assetId: ASSET, alt: "Pinsa A Roma", size: "collab" }]);
-    expect(html).toMatch(/>Gwenda<\/td><td[^>]*>&times;<\/td><td[^>]*><img src="[^"]+" width="120"/);
+    expect(html).toMatch(/<img src="[^"]+\/brand\/logo-email-social\.png" width="130" alt="Gwenda"[^>]*><\/td><td[^>]*>&times;<\/td><td[^>]*><img src="[^"]+" width="130"/);
     expect(html).toContain('alt="Pinsa A Roma"');
     expect(text).toContain("GWENDA × PINSA A ROMA");
   });

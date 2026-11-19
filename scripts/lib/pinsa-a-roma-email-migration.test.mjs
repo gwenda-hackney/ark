@@ -42,7 +42,7 @@ describe("2026-11-20-pinsa-a-roma-email", () => {
     assert.equal(made.status, "draft");
     assert.equal(made.createdBy, email.BY.toLowerCase());
     assert.equal(made.name, "Pinsa A Roma promo");
-    assert.equal(made.subject, "Pinsa A Roma is coming to Gwenda! Mondays and Tuesdays");
+    assert.equal(made.subject, "Gwenda is teaming up with Pinsa A Roma! Mondays and Tuesdays");
     assert.deepEqual(
       made.sections.map((section) => section.kind),
       ["image", "image", "heading", "copy", "heading", "copy", "image", "button", "booking"],
@@ -50,7 +50,7 @@ describe("2026-11-20-pinsa-a-roma-email", () => {
     assert.equal(made.sections[1].size, "collab", "Gwenda × its logo, above its name");
     assert.match(made.sections[5].text, /\*\*Trastevere \(V\)\*\* £13\.50/);
     assert.equal(made.sections[7].link, "https://gwenda-web-dev.pages.dev/whats-on/pinsa-a-roma/");
-    assert.match(text, /drafted "Pinsa A Roma is coming to Gwenda! Mondays and Tuesdays"/);
+    assert.match(text, /drafted "Gwenda is teaming up with Pinsa A Roma! Mondays and Tuesdays"/);
 
     const again = await run(email, db);
     assert.equal(again.result.drafted, false);
@@ -71,6 +71,6 @@ describe("2026-11-20-pinsa-a-roma-email", () => {
     await run(pinsa, db);
     const { text } = await run(email, db, { dryRun: true });
     assert.equal((await drafts(db)).length, 0);
-    assert.match(text, /would draft "Pinsa A Roma is coming to Gwenda!/);
+    assert.match(text, /would draft "Gwenda is teaming up with Pinsa A Roma!/);
   });
 });
