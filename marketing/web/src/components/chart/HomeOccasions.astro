@@ -58,7 +58,9 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
           <div class="ch-occasion-body">
             <span class="ch-occasion-tag">Booking now</span>
             <h2 class="ch-poster ch-occasion-name">{occasion.name}</h2>
-            {occasion.covers && <p class="ch-occasion-covers">{occasion.covers}</p>}
+            {occasion.covers && (
+              <p class="ch-occasion-covers">{occasion.covers}</p>
+            )}
             {occasion.line && <p class="ch-occasion-line">{occasion.line}</p>}
             {occasion.included.length > 0 && (
               <ul class="ch-occasion-included">

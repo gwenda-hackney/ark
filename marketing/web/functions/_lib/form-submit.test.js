@@ -82,9 +82,9 @@ describe("validateFormAnswers", () => {
       result.ok && result.answers.some((row) => row.key === "somethingElse"),
     ).toBe(false);
     const plain = validateFormAnswers(sampleForm, { ...base, occasion: "" });
-    expect(plain.ok && plain.answers.some((row) => row.key === "occasion")).toBe(
-      false,
-    );
+    expect(
+      plain.ok && plain.answers.some((row) => row.key === "occasion"),
+    ).toBe(false);
     const long = validateFormAnswers(sampleForm, {
       ...base,
       occasion: "x".repeat(200),
