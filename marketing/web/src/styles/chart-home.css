@@ -333,6 +333,20 @@
   color: var(--ch-mustard);
 }
 
+/* Another pop-up kitchen this week, its own card under the lead. */
+.ch-menu-next {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1.5px dashed rgb(242 232 210 / 0.2);
+}
+
+.ch-menu-next > * {
+  width: 100%;
+}
+
 .ch-menu-also {
   margin: 0;
   font-family: var(--ch-pen);

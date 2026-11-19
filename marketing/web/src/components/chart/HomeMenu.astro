@@ -22,6 +22,8 @@ import { fetchMenu } from "../../lib/sanity/menu";
 import MenuBoard from "./MenuBoard.astro";
 
 const today = londonToday();
+/** Dishes on a card under the lead: fewer than the lead's, so it stays the lead. */
+const NEXT_KITCHEN_ITEMS = 2;
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
 const catalog = await fetchWhatsOnCatalog().catch(() => ({
   series: [],
@@ -96,7 +98,26 @@ const foodFrame = {
  * The Food board: the kitchen cooking next (lib/menus.js boardCards),
  * its logo and "Day: Name", and the others under "Also".
  */
-const lead = boardCards(shelves.kitchen, today)[0];
+const [lead, ...later] = boardCards(shelves.kitchen, today);
+/**
+ * Every other pop-up kitchen cooking this week, a card of its own under the
+ * lead (its logo, "Monday: Pinsa A Roma", a couple of dishes), so a new one
+ * isn't just a line under "Also".
+ */
+const nextKitchens = later
+  .filter((card) => card.popup)
+  .map((card) => ({
+    top: topOf(card),
+    taste: card.menu
+      ? menuTaste(card.menu.chapters, {
+          count: NEXT_KITCHEN_ITEMS,
+          where: shelves.kitchen.where,
+        })
+      : null,
+    menuLabel: card.menuLabel,
+    href: card.kitchen.href,
+  }));
+const shownAsCards = new Set(nextKitchens.map((card) => card.href));
 const food = {
   ...foodFrame,
   id: "food",
@@ -108,7 +129,9 @@ const food = {
   empty: boards.kitchen
     ? "The list’s on its way."
     : "No kitchen in right now, back soon.",
-  also: boards.kitchen?.also || [],
+  next: nextKitchens,
+  // Its own other menus; the other kitchens have their cards (nextKitchens).
+  also: (boards.kitchen?.also || []).filter((row) => !shownAsCards.has(row.href)),
   photos: photoPlan.food,
   photoAlt: kitchenPhotos ? `Food from ${kitchenPhotos.title}` : "",
 };
