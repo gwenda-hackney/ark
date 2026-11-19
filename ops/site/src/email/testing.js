@@ -13,6 +13,18 @@ export const MONDAY_SEND = new Date("2026-11-09T11:02:00Z");
 /** The Monday that week starts on. */
 export const WEEK = "2026-11-09";
 
+/**
+ * The monthly email's own clock: it goes on the first Tuesday of the month.
+ * Tuesday 1 December 2026 is December's (London is on GMT then).
+ */
+export const FIRST_TUESDAY_MORNING = new Date("2026-12-01T10:05:00Z");
+/** Tuesday 1 December 2026, 11:02 in London: just after the default send time. */
+export const FIRST_TUESDAY_SEND = new Date("2026-12-01T11:02:00Z");
+/** Monday 7 December 2026, 11:02 in London: the first Monday, for a send set to Mondays. */
+export const FIRST_MONDAY_SEND = new Date("2026-12-07T11:02:00Z");
+/** The month those go in. */
+export const MONTH = "2026-12-01";
+
 const block = (text) => [{ _type: "block", children: [{ _type: "span", text }] }];
 
 function publish(world, doc) {
@@ -49,6 +61,17 @@ export function publishWeek(world) {
   publishNight(world, "2026-11-12", "quiz", "Quiz Night");
   publishNight(world, "2026-11-14", "jazz", "Canalside Jazz");
   publishNight(world, "2026-11-19", "quiz", "Quiz Night");
+}
+
+/**
+ * December 2026 with nights on: the quiz on two Thursdays (one card, "Also
+ * 10 Dec") and jazz on a Saturday, and one night in January.
+ */
+export function publishMonth(world) {
+  publishNight(world, "2026-12-03", "quiz", "Quiz Night");
+  publishNight(world, "2026-12-05", "jazz", "Canalside Jazz");
+  publishNight(world, "2026-12-10", "quiz", "Quiz Night");
+  publishNight(world, "2027-01-07", "quiz", "Quiz Night");
 }
 
 /** Headers of someone signed in to ops with Google. */

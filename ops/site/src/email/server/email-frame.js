@@ -1,7 +1,7 @@
 /**
  * Where ops' emails are sent from, for this runtime: the website their
  * links and logo point at (website/server/site-urls.js publicSiteOrigin), and
- * the Sanity project their pictures are in. The weekly email and one-off
+ * the Sanity project their pictures are in. The monthly email and one-off
  * emails are built in this frame, on the server and in the page's preview.
  */
 import { emailLogoUrl } from "../../../../../shared/email/shell.js";

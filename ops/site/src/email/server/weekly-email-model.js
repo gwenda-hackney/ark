@@ -1,12 +1,14 @@
 /**
- * The weekly "what's on" email as ops sees it (#240): its settings, when
- * it's due, and what can happen to a week's email. Plain objects and rules;
- * no I/O, no tables, no Mailchimp.
+ * The monthly "what's on" email as ops sees it (#240; weekly until one-off
+ * emails could carry the rest): its settings, when it's due, and what can
+ * happen to a month's email. Plain objects and rules; no I/O, no tables, no
+ * Mailchimp.
  *
- * A week is named by its Monday in London ("2026-11-09"); weeks at the bar
- * run Monday to Sunday (marketing/web/src/lib/london-day.js).
+ * A month is named by its first day in London ("2026-12-01"). It goes on the
+ * first of the settings' weekday in the month (the first Tuesday) and covers
+ * from then to the month's end. Settings keep their weekly_email.* names:
+ * they're where the values are stored.
  */
-import { weekStart } from "../../../../../marketing/web/src/lib/london-day.js";
 
 // ------------------------------------------------------------- settings
 
@@ -27,9 +29,8 @@ export const DEFAULT_SEND = Object.freeze({ day: "tue", time: "11:00" });
 
 /**
  * With nothing set: off. Once an admin switches it on, it sends by itself at
- * its time, Tuesday late morning (the venue is shut on Mondays, so the week's
- * first night is still ahead), unless an admin has asked to approve each one
- * first. The email covers Monday to Sunday of the week it's sent in.
+ * its time, the first Tuesday of the month late morning, unless an admin has
+ * asked to approve each one first. The email covers the rest of that month.
  */
 export const DEFAULT_SETTINGS = Object.freeze({
   sending: false,
@@ -102,7 +103,7 @@ export function settingsChange(patch = {}) {
 
 // ------------------------------------------------------------- schedule
 
-/** How long after its time a week's email can still start by itself. */
+/** How long after its time a month's email can still start by itself. */
 export const GRACE_HOURS = 6;
 
 /** The wall clock in London: { date: "2026-11-10", time: "10:05" }. */
@@ -135,45 +136,59 @@ function wallMinutes({ date, time }) {
   return Date.UTC(year, month - 1, day, hour, minute) / 60000;
 }
 
-/** When a week's email is due: the settings' day and time in that week. */
-export function scheduledFor(weekStartIso, settings) {
-  return { date: addDays(weekStartIso, DAYS.indexOf(settings.day)), time: settings.time };
+/** The first day of the month a London date is in: "2026-12-17" → "2026-12-01". */
+export function monthStart(dateIso) {
+  return `${String(dateIso).slice(0, 7)}-01`;
+}
+
+/** The first day of the month after. */
+export function nextMonthStart(monthIso) {
+  const [year, month] = String(monthIso).split("-").map(Number);
+  return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+}
+
+/** When a month's email is due: the first of the settings' weekday in that month, at its time. */
+export function scheduledFor(monthIso, settings) {
+  const [year, month] = String(monthIso).split("-").map(Number);
+  const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7; // Monday 0
+  const offset = (DAYS.indexOf(settings.day) - firstWeekday + 7) % 7;
+  return { date: addDays(monthIso, offset), time: settings.time };
 }
 
 /**
- * Where this moment sits against this week's time:
+ * Where this moment sits against this month's time:
  *   before  it hasn't come yet
  *   due     it has, within the last GRACE_HOURS: the schedule may start it
- *   missed  it passed longer ago (sending was switched on mid-week, or ops
- *           was down): the schedule leaves the week alone, so switching on
- *           on a Thursday never sends Tuesday's email by surprise
+ *   missed  it passed longer ago (sending was switched on mid-month, or ops
+ *           was down): the schedule leaves the month alone, so switching on
+ *           on the 20th never sends the first Tuesday's email by surprise
  * `next` is the next time the schedule could start one.
  *
- * @returns {{ week: string, state: "before" | "due" | "missed",
+ * @returns {{ month: string, state: "before" | "due" | "missed",
  *   scheduled: { date: string, time: string }, next: { date: string, time: string } }}
  */
 export function scheduleAt(settings, now = new Date()) {
   const clock = londonNow(now);
-  const week = weekStart(clock.date);
-  const scheduled = scheduledFor(week, settings);
+  const month = monthStart(clock.date);
+  const scheduled = scheduledFor(month, settings);
   const late = wallMinutes(clock) - wallMinutes(scheduled);
   const state = late < 0 ? "before" : late <= GRACE_HOURS * 60 ? "due" : "missed";
   return {
-    week,
+    month,
     state,
     scheduled,
-    next: state === "before" ? scheduled : scheduledFor(addDays(week, 7), settings),
+    next: state === "before" ? scheduled : scheduledFor(nextMonthStart(month), settings),
   };
 }
 
-// ----------------------------------------------------------- a week's run
+// ---------------------------------------------------------- a month's run
 
 /**
  * preparing  claimed; the email is being built and its Mailchimp draft made
  * waiting    the draft is ready and waits for an admin's Approve and send
  * sending    a send was started; nothing else may start one
  * sent       it went to the list
- * skipped    not sent on purpose (`reason`: no nights that week)
+ * skipped    not sent on purpose (`reason`: no nights left that month)
  * failed     something went wrong (`reason`); an admin can try again
  */
 export const WEEKLY_EMAIL_STATUSES = ["preparing", "waiting", "sending", "sent", "skipped", "failed"];
@@ -183,11 +198,11 @@ export const STARTED_BY = ["schedule", "manual"];
 
 const text = (value) => String(value ?? "").trim();
 
-/** One week's email, as every adapter keeps it. */
-export function weekRun(fields = {}) {
+/** One month's email, as every adapter keeps it. */
+export function monthRun(fields = {}) {
   return {
     id: fields.id == null ? null : Number(fields.id),
-    weekStart: text(fields.weekStart),
+    monthStart: text(fields.monthStart),
     attempt: Math.max(1, Number(fields.attempt) || 1),
     status: WEEKLY_EMAIL_STATUSES.includes(fields.status) ? fields.status : "preparing",
     startedBy: STARTED_BY.includes(fields.startedBy) ? fields.startedBy : "schedule",

@@ -1,52 +1,55 @@
 import { describe, expect, it } from "vitest";
 import { londonToday } from "../../marketing/web/src/lib/london-day.js";
-import { nightWeeks } from "../../marketing/web/src/lib/night-cards.js";
 import { nightsOnly } from "../../marketing/web/src/lib/promotions.js";
 import { weeklyEmailModel } from "./model.js";
 import { night, testCatalog } from "./testing.js";
 
 const names = (model) => model.nights.map((card) => `${card.sticker.weekday} ${card.title}`);
 
-describe("weeklyEmailModel: which nights are this week", () => {
-  it("on a Monday, has the whole week to Sunday and none of next week's", () => {
-    const model = weeklyEmailModel(testCatalog(), { today: "2026-11-09" });
-    expect(model.week).toEqual({ start: "2026-11-09", end: "2026-11-15", span: "9 to 15 Nov" });
+const also = (model) => Object.fromEntries(model.nights.map((card) => [card.title, card.also]));
+
+describe("weeklyEmailModel: which nights are this month", () => {
+  it("on the first Tuesday, has the rest of the month, each series once with its other dates", () => {
+    const model = weeklyEmailModel(testCatalog(), { today: "2026-11-03" });
+    expect(model.month).toEqual({ start: "2026-11-01", end: "2026-11-30", name: "November", span: "3 to 30 Nov" });
     expect(names(model)).toEqual(["Tue Negroni Society", "Thu Karaoke with Ross", "Sat–Sun EPIC Jam"]);
+    expect(also(model)).toEqual({
+      "Negroni Society": "Also 10, 17 and 24 Nov",
+      "Karaoke with Ross": "Also 19 Nov",
+      "EPIC Jam": "",
+    });
   });
 
-  it("on a Wednesday, leaves out the nights that have passed", () => {
+  it("later in the month, leaves out the nights that have passed", () => {
     const model = weeklyEmailModel(testCatalog(), { today: "2026-11-11" });
-    expect(names(model)).toEqual(["Thu Karaoke with Ross", "Sat–Sun EPIC Jam"]);
-    expect(model.week.span).toBe("11 to 15 Nov");
+    expect(names(model)).toEqual(["Thu Karaoke with Ross", "Sat–Sun EPIC Jam", "Tue Negroni Society"]);
+    expect(also(model)["Negroni Society"]).toBe("Also 24 Nov");
+    expect(model.month.span).toBe("11 to 30 Nov");
   });
 
-  it("on a Sunday, has that day only, and an event still running counts", () => {
+  it("an event still running counts, as tonight", () => {
     const model = weeklyEmailModel(testCatalog(), { today: "2026-11-15" });
-    expect(names(model)).toEqual(["Sat–Sun EPIC Jam"]);
+    expect(names(model)).toEqual(["Sat–Sun EPIC Jam", "Tue Negroni Society", "Thu Karaoke with Ross"]);
     expect(model.nights[0].tonight).toBe(true);
-    expect(model.week.span).toBe("15 Nov");
-    expect(model.nextWeek.nights.map((card) => card.title)).toEqual(["Negroni Society", "Karaoke with Ross"]);
   });
 
   it("takes the day from London, not from the machine's clock", () => {
-    // 00:30 on Monday in London (GMT) is still Sunday evening in New York.
-    const today = londonToday(new Date("2026-11-16T00:30:00Z"));
-    expect(today).toBe("2026-11-16");
-    expect(weeklyEmailModel(testCatalog(), { today }).week.start).toBe("2026-11-16");
-    // In summer London is an hour ahead: 23:30 UTC on Sunday is already Monday.
-    expect(londonToday(new Date("2026-07-12T23:30:00Z"))).toBe("2026-07-13");
+    // 00:30 on 1 December in London (GMT) is still 30 November in New York.
+    const today = londonToday(new Date("2026-12-01T00:30:00Z"));
+    expect(today).toBe("2026-12-01");
+    expect(weeklyEmailModel(testCatalog(), { today }).month.start).toBe("2026-12-01");
+    // In summer London is an hour ahead: 23:30 UTC on the 31st is already the 1st.
+    expect(londonToday(new Date("2026-07-31T23:30:00Z"))).toBe("2026-08-01");
   });
 
-  it("agrees with the website's What's on about this week's nights", () => {
+  it("agrees with the website's What's on about the month's nights", () => {
     const catalog = testCatalog();
     const today = "2026-11-11";
-    const nights = nightsOnly(catalog.occurrences);
-    const [thisWeek] = nightWeeks(
-      nights.map((row) => row.date),
-      today,
+    const onSite = new Set(
+      nightsOnly(catalog.occurrences)
+        .filter((row) => row.date >= today && row.date <= "2026-11-30")
+        .map((row) => row.seriesId),
     );
-    expect(thisWeek.label).toBe("This week");
-    const onSite = new Set(thisWeek.indexes.map((index) => nights[index].seriesId));
     const inEmail = new Set(weeklyEmailModel(catalog, { today }).nights.map((card) => card.href.split("/").at(-1)));
     expect(inEmail).toEqual(onSite);
   });
@@ -57,7 +60,7 @@ describe("weeklyEmailModel: which nights are this week", () => {
 });
 
 describe("weeklyEmailModel: what each entry says", () => {
-  const model = weeklyEmailModel(testCatalog(), { today: "2026-11-09" });
+  const model = weeklyEmailModel(testCatalog(), { today: "2026-11-03" });
 
   it("makes an event over several days one entry, with each day's hours", () => {
     const jam = model.nights.find((card) => card.title === "EPIC Jam");
@@ -129,29 +132,42 @@ describe("weeklyEmailModel: what each entry says", () => {
     expect(names(model).join()).not.toContain("Chez Pickle");
   });
 
-  it("teases next week: Monday to Sunday after this one, no further", () => {
-    expect(model.nextWeek.start).toBe("2026-11-16");
-    expect(model.nextWeek.span).toBe("16 to 22 Nov");
-    expect(model.nextWeek.nights.map((card) => `${card.sticker.weekday} ${card.sticker.day} ${card.title}`)).toEqual([
-      "Tue 17 Negroni Society",
-      "Thu 19 Karaoke with Ross",
+  /** The catalog with December's nights, and one in January. */
+  function withDecember() {
+    const catalog = testCatalog();
+    catalog.occurrences.push(
+      night("2026-12-01", "chess", "Negroni Society"),
+      night("2026-12-03", "karaoke", "Karaoke with Ross"),
+      night("2026-12-10", "karaoke", "Karaoke with Ross"),
+      night("2027-01-05", "chess", "Negroni Society"),
+    );
+    return catalog;
+  }
+
+  it("teases next month: its nights, each series once, no further", () => {
+    const next = weeklyEmailModel(withDecember(), { today: "2026-11-03" }).nextMonth;
+    expect([next.start, next.name]).toEqual(["2026-12-01", "December"]);
+    expect(next.nights.map((card) => `${card.sticker.weekday} ${card.sticker.day} ${card.title}`)).toEqual([
+      "Tue 1 Negroni Society",
+      "Thu 3 Karaoke with Ross",
     ]);
-    expect(model.nextWeek.more).toBe(0);
+    expect(next.nights[1].also).toBe("Also 10 Dec");
+    expect(next.more).toBe(0);
   });
 
-  it("names a few of a busy next week and counts the rest", () => {
+  it("names a few of a busy next month and counts the rest", () => {
     const catalog = testCatalog();
-    for (let day = 16; day <= 22; day += 1) {
+    for (let day = 1; day <= 9; day += 1) {
       catalog.series.push({ seriesId: `one-${day}`, title: `One-off ${day}`, schedule: "once" });
-      catalog.occurrences.push(night(`2026-11-${day}`, `one-${day}`, `One-off ${day}`));
+      catalog.occurrences.push(night(`2026-12-0${day}`, `one-${day}`, `One-off ${day}`));
     }
-    const busy = weeklyEmailModel(catalog, { today: "2026-11-09" });
-    expect(busy.nextWeek.nights).toHaveLength(6);
-    expect(busy.nextWeek.more).toBe(3);
+    const busy = weeklyEmailModel(catalog, { today: "2026-11-03" });
+    expect(busy.nextMonth.nights).toHaveLength(6);
+    expect(busy.nextMonth.more).toBe(3);
   });
 
   it("points links at another site when asked (a preview)", () => {
-    const preview = weeklyEmailModel(testCatalog(), { today: "2026-11-09", origin: "https://preview.example.com/" });
+    const preview = weeklyEmailModel(testCatalog(), { today: "2026-11-03", origin: "https://preview.example.com/" });
     expect(preview.nights[0].href).toBe("https://preview.example.com/whats-on/chess");
     expect(preview.site.whatsOn).toBe("https://preview.example.com/whats-on");
     expect(preview.site.booking).toMatch(/^https:\/\/www\.opentable\./);
@@ -162,22 +178,21 @@ describe("weeklyEmailModel: what each entry says", () => {
   });
 });
 
-describe("weeklyEmailModel: a quiet week", () => {
-  it("has no nights, and still the deal and next week", () => {
+describe("weeklyEmailModel: a quiet month", () => {
+  it("has no nights, and still the deal and next month", () => {
     const catalog = testCatalog();
-    catalog.occurrences = catalog.occurrences.filter(
-      (row) => row.category !== "event" || row.date < "2026-11-09" || row.date > "2026-11-15",
-    );
-    const model = weeklyEmailModel(catalog, { today: "2026-11-09" });
+    catalog.occurrences = catalog.occurrences.filter((row) => row.category !== "event");
+    catalog.occurrences.push(night("2026-12-01", "chess", "Negroni Society"));
+    const model = weeklyEmailModel(catalog, { today: "2026-11-03" });
     expect(model.nights).toEqual([]);
     expect(model.deals).toHaveLength(1);
-    expect(model.nextWeek.nights).toHaveLength(2);
+    expect(model.nextMonth.nights).toHaveLength(1);
   });
 
   it("copes with nothing at all", () => {
     for (const catalog of [undefined, {}, { series: [], occurrences: [] }]) {
-      const model = weeklyEmailModel(catalog, { today: "2026-11-09" });
-      expect(model).toMatchObject({ nights: [], deals: [], kitchens: [], nextWeek: { nights: [], more: 0 } });
+      const model = weeklyEmailModel(catalog, { today: "2026-11-03" });
+      expect(model).toMatchObject({ nights: [], deals: [], kitchens: [], nextMonth: { nights: [], more: 0 } });
     }
   });
 });

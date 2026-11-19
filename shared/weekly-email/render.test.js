@@ -5,7 +5,13 @@ import { weeklyEmailModel } from "./model.js";
 import { emailImageUrl, MAILCHIMP_TAGS, renderWeeklyEmail } from "./render.js";
 import { night, testCatalog } from "./testing.js";
 
-const model = weeklyEmailModel(testCatalog(), { today: "2026-11-10" });
+/** November's nights, and a couple of December's for Early December. */
+function catalogWithDecember() {
+  const catalog = testCatalog();
+  catalog.occurrences.push(night("2026-12-01", "chess", "Negroni Society"), night("2026-12-03", "karaoke", "Karaoke with Ross"));
+  return catalog;
+}
+const model = weeklyEmailModel(catalogWithDecember(), { today: "2026-11-10" });
 const email = renderWeeklyEmail(model);
 
 function tags(html, name) {
@@ -17,26 +23,26 @@ function attr(tag, name) {
 }
 
 describe("renderWeeklyEmail: subject and preview line", () => {
-  it("names two or three of the week's nights", () => {
-    expect(email.subject).toBe("This week at Gwenda: Negroni Society, Karaoke with Ross, EPIC Jam");
+  it("names the month and two or three of its nights", () => {
+    expect(email.subject).toBe("November at Gwenda: Negroni Society, Karaoke with Ross, EPIC Jam");
     expect(email.html).toContain(`<title>${email.subject}</title>`);
   });
 
-  it("keeps a long week's subject short, with the first night always in", () => {
+  it("keeps a long month's subject short, with the first night always in", () => {
     const catalog = testCatalog();
     catalog.occurrences.push(
       night("2026-11-10", "long", "A Very Long Name For A Night That Goes On And On And On, Volume Two"),
     );
     const subject = renderWeeklyEmail(weeklyEmailModel(catalog, { today: "2026-11-10" })).subject;
     expect(subject.length).toBeLessThanOrEqual(110);
-    expect(subject).toMatch(/^This week at Gwenda: /);
+    expect(subject).toMatch(/^November at Gwenda: /);
   });
 
-  it("goes through the week in the preview line, deal last", () => {
+  it("goes through the month in the preview line, date by date, deal last", () => {
     expect(email.preheader).toBe(
-      "Tonight: Negroni Society · Thu: Karaoke with Ross · Sat–Sun: EPIC Jam · Cocktail Hour, Wed to Sat, 5–6:30pm",
+      "Tonight: Negroni Society · Thu 12: Karaoke with Ross · Sat–Sun 14–15: EPIC Jam · Cocktail Hour, Wed to Sat, 5–6:30pm",
     );
-    expect(email.html).toContain("Tonight: Negroni Society · Thu: Karaoke with Ross");
+    expect(email.html).toContain("Tonight: Negroni Society · Thu 12: Karaoke with Ross");
   });
 });
 
@@ -124,7 +130,7 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
   });
 
   it("has every section, in the site's words", () => {
-    for (const words of ["What’s on this week", "Deals", "Pop-up kitchen", "Next week", "Tonight"]) {
+    for (const words of ["What’s on in November", "Deals", "Pop-up kitchen", "Early December", "Tonight", "Also 17 and 24 Nov"]) {
       expect(email.html).toContain(words);
     }
     expect(email.html).toContain("Sat noon–8pm · Sun 1–6pm");
@@ -143,7 +149,7 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
 });
 
 describe("renderWeeklyEmail: the top", () => {
-  it("centres the heading and the week's dates under the centred logo", () => {
+  it("centres the heading and the month's dates under the centred logo", () => {
     const top = email.html.slice(email.html.indexOf("Hackney Wick</div>"), email.html.indexOf("Deals"));
     // The heading's row, its own table (the stroke under it) and its words
     expect(top).toMatch(/<td align="center"[^>]*><table [^>]*align="center"[^>]*style="[^"]*margin:0 auto;[^"]*"><tr><td [^>]*><h1 [^>]*text-align:center;/);
@@ -175,8 +181,8 @@ describe("renderWeeklyEmail: Bookings", () => {
     expect(email.html).toContain("@media (max-width:599px){.half{max-width:100% !important}");
   });
 
-  it("comes after the week and before the table", () => {
-    expect(email.html.indexOf(words.halves[0].heading)).toBeGreaterThan(email.html.indexOf(">Next week<"));
+  it("comes after the month's nights and before the table", () => {
+    expect(email.html.indexOf(words.halves[0].heading)).toBeGreaterThan(email.html.indexOf(">Early December<"));
     expect(section).not.toBe("");
   });
 
@@ -187,12 +193,12 @@ describe("renderWeeklyEmail: Bookings", () => {
 });
 
 describe("renderWeeklyEmail: missing data", () => {
-  it("renders a week with nothing on", () => {
+  it("renders a month with nothing on", () => {
     const empty = renderWeeklyEmail(weeklyEmailModel({ series: [], occurrences: [] }, { today: "2026-11-09" }));
     expect(empty.subject).toBe("What’s on at Gwenda");
     expect(empty.html).toContain("Nothing in the diary");
     expect(empty.html).not.toContain(">Deals<");
-    expect(empty.html).not.toContain(">Next week<");
+    expect(empty.html).not.toContain(">Early December<");
     expect(empty.html).toContain("*|UNSUB|*");
     expect(empty.text).toContain("Nothing in the diary");
   });

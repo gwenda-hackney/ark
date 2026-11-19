@@ -1,13 +1,13 @@
-/** The weekly email's API, as the page calls it (functions/api/email). */
+/** The Email page's API, as the page calls it (functions/api/email). */
 import { request } from "../app/api";
 
 export type WeeklyEmailPreview = {
 	/** The day it's built for, in London: 2026-11-10. */
 	today: string;
-	/** The Monday of that week. */
-	weekStart: string;
-	week: { start: string; end: string; span: string };
-	/** No nights this week: it wouldn't be sent. */
+	/** The first day of its month. */
+	monthStart: string;
+	month: { start: string; end: string; name: string; span: string };
+	/** No nights left this month: it wouldn't be sent. */
 	empty: boolean;
 	emptyReason: string;
 	nights: number;
@@ -45,9 +45,9 @@ export type WeeklyEmailSettings = {
 
 export type WeeklyEmailRun = {
 	id: number;
-	/** The Monday of its week. */
-	weekStart: string;
-	/** 1 is the week's own; 2 and up were sent again by an admin. */
+	/** The first day of its month. */
+	monthStart: string;
+	/** 1 is the month's own; 2 and up were sent again by an admin. */
 	attempt: number;
 	status: "preparing" | "waiting" | "sending" | "sent" | "skipped" | "failed";
 	startedBy: "schedule" | "manual";
@@ -65,7 +65,7 @@ export type WeeklyEmailRun = {
 };
 
 export type WeeklyEmailSchedule = {
-	week: string;
+	month: string;
 	state: "before" | "due" | "missed";
 	scheduled: { date: string; time: string };
 	next: { date: string; time: string };
@@ -76,7 +76,7 @@ export type WeeklyEmailStatus = {
 	me: { email: string; isAdmin: boolean };
 	settings: WeeklyEmailSettings;
 	schedule: WeeklyEmailSchedule;
-	/** This week's email, when it has been started. */
+	/** This month's email, when it has been started. */
 	current: WeeklyEmailRun | null;
 	/** It was cut off mid-step; the next scheduler pass sorts it out. */
 	stuck: boolean;

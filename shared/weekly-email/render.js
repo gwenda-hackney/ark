@@ -1,10 +1,10 @@
 /**
- * The weekly "what's on" email as HTML, plain text, a subject and the
+ * The monthly "what’s on" email as HTML, plain text, a subject and the
  * preview line, from its model (model.js).
  *
  * The look (colours, faces, the logo at the top, the button, the page around
  * it) is the shell every Gwenda email shares, shared/email/shell.js; what is
- * the weekly email's own is here: date stickers, the night cards, the deals.
+ * the what's on email's own is here: date stickers, the night cards, the deals.
  *
  * The top (the logo) and the foot, with Mailchimp's merge tags, are every
  * campaign's (shared/email/campaign.js campaignHtml): this file gives only
@@ -74,6 +74,11 @@ function noteLine(text) {
   return `<div class="slab" style="font-family:${FONTS.slab};font-size:16px;line-height:1.4;color:${COLOURS.ink2};padding-top:6px;">${esc(text)}</div>`;
 }
 
+/** A series' other nights this month: "Also 11, 18 and 25 Dec". */
+function alsoLine(text) {
+  return `<div class="slab" style="font-family:${FONTS.slab};font-size:15px;line-height:1.4;font-weight:700;letter-spacing:0.04em;color:${COLOURS.cream};padding-top:6px;">${esc(text)}</div>`;
+}
+
 /** What goes beside or under a picture: the name, the hours, a line, the offer. */
 function words(card, { size, label = "", links = [] }) {
   const parts = [];
@@ -81,6 +86,7 @@ function words(card, { size, label = "", links = [] }) {
   parts.push(`<div>${name(card.title, card.href, size)}</div>`);
   const times = card.times || (card.when ? [card.when] : []);
   if (times.length) parts.push(timeLine(times.join(" · ")));
+  if (card.also) parts.push(alsoLine(card.also));
   if (card.note) parts.push(noteLine(card.note));
   if (card.offer) parts.push(`<div style="padding-top:10px;">${slip(card.offer, SLIPS.offer)}</div>`);
   if (links.length) {
@@ -178,9 +184,9 @@ function clip(text, length) {
   return value.length <= length ? value : `${value.slice(0, length - 1).trimEnd()}…`;
 }
 
-/** The subject: "This week at Gwenda: " and two or three names. */
+/** The subject: "December at Gwenda: " and two or three names. */
 export function weeklySubject(model) {
-  const start = `This week at ${model.site.name}`;
+  const start = `${model.month.name} at ${model.site.name}`;
   const names = (model.nights.length ? model.nights : [...model.deals, ...model.kitchens]).map((card) =>
     String(card.title).replace(/\s+/g, " ").trim(),
   );
@@ -188,14 +194,15 @@ export function weeklySubject(model) {
   return clip(`${start}: ${subjectNames(names, 78 - start.length - 2)}`, 110);
 }
 
-/** The line an inbox shows after the subject: the week, day by day. */
+/** The line an inbox shows after the subject: the month's first nights, date by date. */
 export function weeklyPreheader(model) {
   const days = model.nights.map(
-    (card) => `${card.tonight ? "Tonight" : card.sticker.weekday}: ${String(card.title).replace(/\s+/g, " ").trim()}`,
+    (card) =>
+      `${card.tonight ? "Tonight" : `${card.sticker.weekday} ${card.sticker.day}`}: ${String(card.title).replace(/\s+/g, " ").trim()}`,
   );
   const [deal] = model.deals;
   if (deal) days.push([deal.title, deal.when].filter(Boolean).join(", "));
-  if (!days.length) return "Nothing in the diary this week. Here’s what’s coming up.";
+  if (!days.length) return "Nothing in the diary for the rest of the month. Here’s what’s coming up.";
   return clip(days.join(" · "), 140);
 }
 
@@ -214,10 +221,10 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
   const [lead, ...rest] = model.nights;
   const rows = [];
 
-  // What's on this week, centred under the logo like the flyer below it
+  // What's on this month, centred under the logo like the flyer below it
   rows.push(
     row(
-      `${title("What’s on this week", { align: "center" })}<p class="slab" style="margin:12px 0 0;font-family:${FONTS.slab};font-size:18px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};text-align:center;">${esc(model.week.span)}.</p>`,
+      `${title(`What’s on in ${model.month.name}`, { align: "center" })}<p class="slab" style="margin:12px 0 0;font-family:${FONTS.slab};font-size:18px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};text-align:center;">${esc(model.month.span)}.</p>`,
       { bottom: 28, align: "center" },
     ),
   );
@@ -228,7 +235,7 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
   } else {
     rows.push(
       row(
-        `<p class="slab" style="margin:0;font-family:${FONTS.slab};font-size:18px;line-height:1.45;color:${COLOURS.ink};">Nothing in the diary for the rest of this week. The bar’s open all the same, so come down.</p>`,
+        `<p class="slab" style="margin:0;font-family:${FONTS.slab};font-size:18px;line-height:1.45;color:${COLOURS.ink};">Nothing in the diary for the rest of the month. The bar’s open all the same, so come down.</p>`,
       ),
     );
   }
@@ -242,23 +249,23 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
   }
 
   if (model.kitchens.length) {
-    rows.push(rule(), row(heading("Pop-up kitchen"), { bottom: 22 }));
+    rows.push(rule(), row(heading(model.kitchens.length > 1 ? "Pop-up kitchens" : "Pop-up kitchen"), { bottom: 22 }));
     model.kitchens.forEach((card, index) =>
       rows.push(row(standing(card, "Pop-up kitchen", SLIPS.popup), { top: index ? 24 : 0 })),
     );
   }
 
-  if (model.nextWeek.nights.length) {
-    const lines = model.nextWeek.nights
+  if (model.nextMonth.nights.length) {
+    const lines = model.nextMonth.nights
       .map(
         (card) =>
-          `<tr><td width="104" valign="top" class="slab" style="width:104px;padding:8px 10px 8px 0;font-family:${FONTS.slab};font-size:13px;line-height:1.5;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${COLOURS.mustard};">${esc(stickerText(card.sticker))}</td><td valign="top" style="padding:7px 0 8px;"><a href="${href(card.href)}" class="slab" style="font-family:${FONTS.slab};font-size:17px;line-height:1.3;font-weight:700;color:${COLOURS.cream};text-decoration:none;">${esc(card.title)}</a>${card.times.length ? `<div class="slab" style="font-family:${FONTS.slab};font-size:15px;line-height:1.4;color:${COLOURS.ink2};">${esc(card.times.join(" · "))}</div>` : ""}</td></tr>`,
+          `<tr><td width="104" valign="top" class="slab" style="width:104px;padding:8px 10px 8px 0;font-family:${FONTS.slab};font-size:13px;line-height:1.5;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${COLOURS.mustard};">${esc(stickerText(card.sticker))}</td><td valign="top" style="padding:7px 0 8px;"><a href="${href(card.href)}" class="slab" style="font-family:${FONTS.slab};font-size:17px;line-height:1.3;font-weight:700;color:${COLOURS.cream};text-decoration:none;">${esc(card.title)}</a>${card.times.length ? `<div class="slab" style="font-family:${FONTS.slab};font-size:15px;line-height:1.4;color:${COLOURS.ink2};">${esc(card.times.join(" · "))}</div>` : ""}${card.also ? `<div class="slab" style="font-family:${FONTS.slab};font-size:15px;line-height:1.4;color:${COLOURS.ink2};">${esc(card.also)}</div>` : ""}</td></tr>`,
       )
       .join("");
-    const more = model.nextWeek.more
-      ? `<p class="slab" style="margin:8px 0 0;font-family:${FONTS.slab};font-size:15px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};">And ${model.nextWeek.more} more.</p>`
+    const more = model.nextMonth.more
+      ? `<p class="slab" style="margin:8px 0 0;font-family:${FONTS.slab};font-size:15px;line-height:1.4;font-style:italic;color:${COLOURS.ink2};">And ${model.nextMonth.more} more.</p>`
       : "";
-    rows.push(rule(), row(heading("Next week"), { bottom: 14 }), row(`${table(lines)}${more}`));
+    rows.push(rule(), row(heading(`Early ${model.nextMonth.name}`), { bottom: 14 }), row(`${table(lines)}${more}`));
   }
 
   // Bookings: a party, or playing here, as the website's Bookings page has them
@@ -300,11 +307,12 @@ export function renderWeeklyEmail(model, { logoUrl, tags = MAILCHIMP_TAGS } = {}
 /** The same email for an app that shows no HTML. */
 function renderText(model, tags) {
   const { site } = model;
-  const out = [`WHAT'S ON THIS WEEK AT ${site.name.toUpperCase()}`, `${model.week.span}.`, ""];
+  const out = [`WHAT'S ON IN ${model.month.name.toUpperCase()} AT ${site.name.toUpperCase()}`, `${model.month.span}.`, ""];
   const card = (item, when) => {
     out.push(`${when ? `${when}: ` : ""}${item.title}`);
     const times = item.times || (item.when ? [item.when] : []);
     if (times.length) out.push(times.join(" · "));
+    if (item.also) out.push(item.also);
     if (item.note) out.push(item.note);
     if (item.offer) out.push(item.offer);
     out.push(item.href, "");
@@ -312,7 +320,7 @@ function renderText(model, tags) {
   if (model.nights.length) {
     for (const item of model.nights) card(item, `${item.tonight ? "Tonight, " : ""}${stickerText(item.sticker)}`);
   } else {
-    out.push("Nothing in the diary for the rest of this week. The bar's open all the same, so come down.", "");
+    out.push("Nothing in the diary for the rest of the month. The bar's open all the same, so come down.", "");
   }
   out.push(`Everything that's on: ${site.whatsOn}`, "");
   if (model.deals.length) {
@@ -320,18 +328,18 @@ function renderText(model, tags) {
     for (const item of model.deals) card(item, "");
   }
   if (model.kitchens.length) {
-    out.push("POP-UP KITCHEN", "");
+    out.push(model.kitchens.length > 1 ? "POP-UP KITCHENS" : "POP-UP KITCHEN", "");
     for (const item of model.kitchens) {
       card(item, "");
       for (const link of item.links) out.splice(out.length - 1, 0, `${link.text}: ${link.href}`);
     }
   }
-  if (model.nextWeek.nights.length) {
-    out.push("NEXT WEEK", "");
-    for (const item of model.nextWeek.nights) {
-      out.push(`${stickerText(item.sticker)}: ${item.title}${item.times.length ? `, ${item.times.join(" · ")}` : ""}`);
+  if (model.nextMonth.nights.length) {
+    out.push(`EARLY ${model.nextMonth.name.toUpperCase()}`, "");
+    for (const item of model.nextMonth.nights) {
+      out.push(`${stickerText(item.sticker)}: ${item.title}${item.times.length ? `, ${item.times.join(" · ")}` : ""}${item.also ? ` (${item.also})` : ""}`);
     }
-    if (model.nextWeek.more) out.push(`And ${model.nextWeek.more} more.`);
+    if (model.nextMonth.more) out.push(`And ${model.nextMonth.more} more.`);
     out.push("");
   }
   if (model.bookings?.halves?.length) {

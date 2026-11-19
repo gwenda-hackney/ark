@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * Email's first page (#348): every email at a glance, as cards.
-	 * Scheduled: the weekly what's on (where it stands, when it next goes, the
+	 * Scheduled: the monthly what's on (where it stands, when it next goes, the
 	 * last one sent) and any one-off set to go. One-off: the rest written
 	 * here, drafts and sent
 	 * (Promote… and New email are in the page's header). A card opens its email.
@@ -35,7 +35,7 @@
 	const weekly = $derived(status ? statusLine(status) : null);
 	const lastSent = $derived(status?.history.find((run) => run.status === "sent") || null);
 
-	/** This week's lead picture, from the email as it would go, for its card. */
+	/** This month's lead picture, from the email as it would go, for its card. */
 	let weeklyPicture = $state("");
 	$effect(() => {
 		void getWeeklyEmailPreview()
@@ -81,11 +81,11 @@
 		<header class="group-head">
 			<div>
 				<h2 id="scheduled">Scheduled</h2>
-				<p>They go out by themselves: the weekly what's on, and any email set to go.</p>
+				<p>They go out by themselves: the monthly what's on, and any email set to go.</p>
 			</div>
 		</header>
 		<div class="cards">
-			<button type="button" class="card" onclick={() => navigate("/email/week")}>
+			<button type="button" class="card" onclick={() => navigate("/email/monthly")}>
 				<span class="card-top">
 					{#if weeklyPicture}
 						<img class="card-picture" src={weeklyPicture} alt="" loading="lazy" />
@@ -94,7 +94,7 @@
 					{/if}
 					{#if weekly}<Badge tone={weekly.tone} label={weekly.label} />{/if}
 				</span>
-				<span class="card-name">Weekly what's on</span>
+				<span class="card-name">Monthly what's on</span>
 				<span class="card-sub">{status ? `Next: ${nextLine(status)}` : "Loading…"}</span>
 				{@render footer("Last sent", lastSent ? sentLine(lastSent.sentAt) : "Not yet")}
 			</button>

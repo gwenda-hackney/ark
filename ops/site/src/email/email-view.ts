@@ -1,4 +1,4 @@
-/** What the Weekly email page says, kept out of the components so it's tested. */
+/** What the Email page says about the monthly what's on, kept out of the components so it's tested. */
 import type { WeeklyEmailRun, WeeklyEmailSettings, WeeklyEmailStatus } from "./email-api";
 
 /**
@@ -115,7 +115,7 @@ export function howLine(settings: WeeklyEmailSettings): string {
 /** The settings in a few words: "On · Automatic · Tuesdays 11:45". */
 export function settingsLine(settings: WeeklyEmailSettings): string {
 	if (!settings.sending) return "Off";
-	return ["On", settings.mode === "approve" ? "Approve first" : "Automatic", `${dayName(settings.day)}s ${settings.time}`].join(" · ");
+	return ["On", settings.mode === "approve" ? "Approve first" : "Automatic", `first ${dayName(settings.day)} of the month, ${settings.time}`].join(" · ");
 }
 
 export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
@@ -171,7 +171,7 @@ export function statusLine(status: WeeklyEmailStatus): { label: string; tone: St
 	if (schedule.state === "due") return { label: "Due now", tone: "info", detail: "Starts within 5 min" };
 	if (schedule.state === "missed") {
 		return {
-			label: "Not sent this week",
+			label: "Not sent this month",
 			tone: "neutral",
 			detail: `Switched on after ${whenLine(schedule.scheduled)}`,
 		};
@@ -190,8 +190,8 @@ function sendBlocked(status: WeeklyEmailStatus | null): string {
 	if (!status) return "Loading…";
 	if (!status.access.mailchimp) return "Mailchimp isn't connected here.";
 	if (!status.access.audience) return "Only production ops sends to the mailing list.";
-	if (!status.me.isAdmin) return "Only admins can send the weekly email.";
-	if (!status.settings.sending) return "The weekly email is switched off.";
+	if (!status.me.isAdmin) return "Only admins can send the monthly email.";
+	if (!status.settings.sending) return "The monthly email is switched off.";
 	return "";
 }
 
@@ -200,21 +200,21 @@ export function approveBlockedReason(status: WeeklyEmailStatus | null): string {
 	return sendBlocked(status) || (status?.current?.status === "waiting" ? "" : "Nothing is waiting for approval.");
 }
 
-/** Why "Try again" can't be pressed, or "". It prepares this week's and leaves it waiting. */
+/** Why "Try again" can't be pressed, or "". It prepares this month's and leaves it waiting. */
 export function tryAgainBlockedReason(status: WeeklyEmailStatus | null): string {
 	const blocked = sendBlocked(status);
 	if (blocked || !status) return blocked;
 	const current = status.current;
-	if (!current) return status.schedule.state === "missed" ? "" : "This week's hasn't been tried yet.";
+	if (!current) return status.schedule.state === "missed" ? "" : "This month's hasn't been tried yet.";
 	if (current.status === "failed" || current.status === "skipped") return "";
-	if (current.status === "sent") return "This week's has been sent.";
-	if (current.status === "waiting") return "This week's is ready and waiting.";
-	return "This week's is on its way.";
+	if (current.status === "sent") return "This month's has been sent.";
+	if (current.status === "waiting") return "This month's is ready and waiting.";
+	return "This month's is on its way.";
 }
 
 /** Why "Send again" can't be pressed, or "". */
 export function sendAgainBlockedReason(status: WeeklyEmailStatus | null): string {
-	return sendBlocked(status) || (status?.current?.status === "sent" ? "" : "This week's hasn't been sent yet.");
+	return sendBlocked(status) || (status?.current?.status === "sent" ? "" : "This month's hasn't been sent yet.");
 }
 
 /** Why the settings can't be changed, or "". */
