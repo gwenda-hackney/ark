@@ -7,8 +7,8 @@
  *
  * 1. The pop-up kitchen is added with the Add's own save (event-store.js
  *    createEvent): weekly on Mondays from the 23rd, no end date (a rolling
- *    run: its nights reach 12 weeks ahead and grow as the days pass). Its
- *    logo comes later, from the owner, in ops.
+ *    run: its nights reach 12 weeks ahead and grow as the days pass), with
+ *    its Instagram as its link. Its logo comes later, from the owner, in ops.
  * 2. Its Food menu (menus.js createMenu, the Menus page's own save) belongs
  *    to it and runs on Mondays from the 23rd, ongoing. Its chapter and
  *    groups go on it (menu-store.js createMenuSection) and the dishes in
@@ -60,6 +60,8 @@ export const POPUP = {
   repeatEvery: 1,
   weekdays: ["mon"],
   endsOn: "",
+  /** Its Instagram, as its link (Details). */
+  pageUrl: "https://www.instagram.com/aroma.ldn/",
 };
 
 export const MENU = { name: "Pinsa A Roma", slug: SLUG, kind: "kitchen", startsOn: "2026-11-23", endsOn: "", days: "mon" };
