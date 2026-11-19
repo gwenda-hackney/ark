@@ -1,6 +1,6 @@
 ---
 /**
- * A small card on What's on by date (#352) and in Coming up later: a deal,
+ * A small card on What's on by date (#352) and in What else?: a deal,
  * a pop-up kitchen or an event, its picture with a tag on the corner, its
  * name leading to its page, when, and a pop-up's own links.
  */
@@ -23,7 +23,7 @@ export interface DayStandCard {
   } | null;
   logo: { src: string; srcset: string } | null;
   links: Array<{ href: string; text: string; external: boolean }>;
-  /** Its day over its hours ("From Mon 23 Nov"), in Coming up later. */
+  /** Its day over its hours ("From Mon 23 Nov"), in What else?. */
   whenDay?: string;
   /** Its series, for the browser to tell it's already on the page. */
   series?: string;

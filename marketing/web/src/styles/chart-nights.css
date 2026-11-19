@@ -927,7 +927,7 @@
   }
 }
 
-/* Coming up later (home): one of each thing on after the days shown */
+/* What else? (home): one of each thing on after the days shown */
 .ch-day-later {
   margin-top: 4rem;
 }
@@ -941,7 +941,7 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
 }
 
-/* Coming up later: the day on its own line over the hours */
+/* What else?: the day on its own line over the hours */
 .ch-day-when {
   display: block;
 }
