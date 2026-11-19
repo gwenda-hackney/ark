@@ -37,6 +37,11 @@ export function daysWords(weekdays = []) {
   return `${days.slice(0, -1).map(plural).join(", ")} and ${plural(days.at(-1))}`;
 }
 
+/** Its first night: its earliest date, a night added by hand included, else when its schedule starts. */
+export function firstNight(event) {
+  return (event.dates || []).map((night) => night.date).sort()[0] || event.startsOn || "";
+}
+
 /** "Monday 23 November". */
 export function dateWords(iso) {
   const [year, month, day] = String(iso).split("-").map(Number);
@@ -56,7 +61,8 @@ export function popupWhen(event, today = londonToday()) {
   if (unit === "once" || !unit || unit === "none") when = dateWords(event.startsOn);
   else {
     const days = unit === "week" ? daysWords(event.weekdays) : "";
-    const from = event.startsOn && event.startsOn > today ? ` from ${dateWords(event.startsOn)}` : "";
+    const first = firstNight(event);
+    const from = first && first > today ? ` from ${dateWords(first)}` : "";
     const until = event.endsOn ? ` until ${dateWords(event.endsOn)}` : "";
     when = `${days || "Regularly"}${from}${until}`;
   }
@@ -98,7 +104,8 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
   const name = event.name;
   const when = popupWhen(event, today);
   const page = `${site.origin}/whats-on/${event.slug}/`;
-  const isNew = Boolean(event.startsOn && event.startsOn > today);
+  const first = firstNight(event);
+  const isNew = Boolean(first && first > today);
   const dishes = (await popupDishes(env, event.id)).slice(0, PROMOTE_DISHES);
   const picture = event.mainImage?.asset || event.logo?.asset || "";
   const second = (event.gallery || []).find((photo) => photo.asset && photo.asset !== picture)?.asset || "";

@@ -140,6 +140,8 @@ describe("promote words", () => {
     const weekly = { repeatUnit: "week", weekdays: ["mon"], startsOn: "2026-11-23", startTime: "12:00", endTime: "21:00" };
     assert.equal(popupWhen(weekly, "2026-11-19"), `Mondays from Monday 23 November, ${NOON} – 9pm`);
     assert.equal(popupWhen(weekly, "2026-12-01"), `Mondays, ${NOON} – 9pm`);
+    // Already cooking, on a night added before its schedule starts: no "from", and not new.
+    assert.equal(popupWhen({ ...weekly, dates: [{ date: "2026-11-12" }, { date: "2026-11-23" }] }, "2026-11-19"), `Mondays, ${NOON} – 9pm`);
     assert.equal(popupWhen({ repeatUnit: "once", startsOn: "2026-12-05", startTime: "18:00", endTime: "22:00" }, "2026-11-19"), "Saturday 5 December, 6pm – 10pm");
   });
 });
