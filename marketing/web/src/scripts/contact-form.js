@@ -1,3 +1,4 @@
+import { initSeasonField } from "./season-field.js";
 import {
   DATE_FIELD_MAX_DAYS,
   formatErrorForFieldValue,
@@ -629,6 +630,7 @@ export function initContactForm() {
 
   if (form.dataset.gwBound === "1") {
     restoreSavedAnswers();
+    initSeasonField(form);
     return;
   }
   form.dataset.gwBound = "1";
@@ -640,6 +642,7 @@ export function initContactForm() {
   });
   initFieldValidation(form);
   restoreSavedAnswers();
+  initSeasonField(form);
 
   ensureFormAuth().catch(() => {
     /* auth loads again on submit */

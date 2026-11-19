@@ -751,3 +751,88 @@
 .ch-home .ch-stand-row .ch-stand--popup:not(.ch-stand--lead) {
   --stand-h: 14rem;
 }
+
+/*
+ * A season on sale (#353, HomeSeasons.astro): its picture and its words side
+ * by side, the tag stuck on like a night's date, Make an enquiry under them.
+ * Stacked on a phone, the picture first.
+ */
+.ch-home-seasons {
+  display: grid;
+  gap: 4rem;
+}
+
+.ch-home-seasons[hidden],
+.ch-season[hidden] {
+  display: none;
+}
+
+.ch-season {
+  display: grid;
+  grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  gap: 3rem;
+  align-items: center;
+}
+
+.ch-season:not(:has(.ch-season-photo)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ch-season-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+}
+
+.ch-season-body {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  max-width: 36rem;
+}
+
+.ch-season-tag {
+  padding: 0.3125rem 0.75rem 0.375rem;
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.ch-season-name {
+  margin: 0.25rem 0 0;
+}
+
+.ch-season-covers {
+  margin: 0;
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--ch-mustard);
+}
+
+.ch-season-line {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.45;
+  color: var(--ch-ink);
+}
+
+.ch-season-included {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--ch-ink-2);
+}
+
+.ch-season-cta {
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 48rem) {
+  .ch-season {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+}

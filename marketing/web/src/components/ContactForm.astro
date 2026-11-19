@@ -51,6 +51,14 @@ function inputType(field: FormField) {
     "We sent a link to {email}. Open it to finish (valid for 48 hours)."}
   novalidate
 >
+  {
+    /* Opened from a season on home (#353): ?season= marks the enquiry with it
+       (scripts/contact-form.js initSeasonField) and says so here. */
+  }
+  <input type="hidden" name="season" value="" data-season-field />
+  <p class="contact-season-note" data-season-note hidden>
+    About: <strong data-season-name></strong>
+  </p>
   <p class="contact-required-note">
     We need the ones marked
     <span class="contact-required">

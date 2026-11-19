@@ -52,6 +52,12 @@ function asStringArray(value) {
 }
 
 /**
+ * Answers a form may carry beyond its own questions: set by the page it was
+ * opened from, never typed. `season` is the season card on home (#353).
+ */
+export const EXTRA_ANSWERS = [{ key: "season", label: "Season", max: 80 }];
+
+/**
  * Validate answers against the Sanity field list. `today` (YYYY-MM-DD at the
  * bar) is what date fields count from; now unless given.
  * @returns {{ ok: true, answers: Array<{ key: string, label: string, value: string }> } | { ok: false, error: string }}
@@ -160,6 +166,15 @@ export function validateFormAnswers(form, answers, { today } = {}) {
       label: field.label,
       value: field.type === "date" ? formatDateAnswer(value) : value,
     });
+  }
+
+  // Where the enquiry came from (#353): home's season card opens the party
+  // form marked with the season, and it goes with the answers, last.
+  for (const extra of EXTRA_ANSWERS) {
+    const value = asString(answers[extra.key]).slice(0, extra.max);
+    if (value && !normalized.some((row) => row.key === extra.key)) {
+      normalized.push({ key: extra.key, label: extra.label, value });
+    }
   }
 
   return { ok: true, answers: normalized };

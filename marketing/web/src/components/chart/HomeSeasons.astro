@@ -1,0 +1,87 @@
+---
+/**
+ * Seasons on home (#353), under the hero: a card for each season whose
+ * show days include today (ops: What's on → Seasons), such as Christmas
+ * parties. Its picture, a "Booking now" tag, its name, when it's for, its
+ * line, what's included, and Make an enquiry, which opens the party form
+ * marked with it. The page is built ahead of time, so every season not yet
+ * over is in it, and the browser shows the ones on today
+ * (scripts/season-cards.js); with none on, the section isn't there.
+ */
+import "../../styles/chart-nights.css";
+import {
+  imageSrcset,
+  sizedImageUrl,
+} from "../../../functions/_lib/sanity-image-url.js";
+import { londonToday } from "../../lib/london-day.js";
+import { formPublicPath, PARTY_FORM_SLUG } from "../../lib/form-paths";
+import {
+  seasonEnquiryHref,
+  seasonShowing,
+  seasonsToCome,
+} from "../../lib/seasons.js";
+import { fetchSeasons } from "../../lib/sanity/seasons";
+
+const today = londonToday();
+const seasons = seasonsToCome(await fetchSeasons(), today);
+const partyForm = formPublicPath(PARTY_FORM_SLUG);
+---
+
+{
+  seasons.length > 0 && (
+    <section
+      class="ch-home-section ch-home-seasons"
+      aria-label="Booking now"
+      data-season-cards
+      hidden={!seasons.some((season) => seasonShowing(season, today))}
+    >
+      {seasons.map((season) => (
+        <article
+          class="ch-season"
+          data-season-from={season.showFrom}
+          data-season-until={season.showUntil}
+          hidden={!seasonShowing(season, today)}
+        >
+          {season.image && (
+            <span class="ch-season-photo">
+              <img
+                src={sizedImageUrl(season.image.url, 720)}
+                srcset={imageSrcset(season.image.url) || undefined}
+                sizes="(max-width: 40rem) 92vw, 26rem"
+                alt={season.image.alt}
+                width={season.image.width || undefined}
+                height={season.image.height || undefined}
+                loading="lazy"
+              />
+            </span>
+          )}
+          <div class="ch-season-body">
+            <span class="ch-season-tag">Booking now</span>
+            <h2 class="ch-poster ch-season-name">{season.name}</h2>
+            {season.covers && <p class="ch-season-covers">{season.covers}</p>}
+            {season.line && <p class="ch-season-line">{season.line}</p>}
+            {season.included.length > 0 && (
+              <ul class="ch-season-included">
+                {season.included.map((item) => (
+                  <li>{item}</li>
+                ))}
+              </ul>
+            )}
+            <a
+              href={seasonEnquiryHref(season.name, partyForm)}
+              class="ch-btn ch-btn--solid ch-season-cta"
+            >
+              Make an enquiry
+            </a>
+          </div>
+        </article>
+      ))}
+    </section>
+  )
+}
+
+<script>
+  import { initSeasonCards } from "../../scripts/season-cards.js";
+  initSeasonCards();
+  document.addEventListener("astro:page-load", () => initSeasonCards());
+</script>

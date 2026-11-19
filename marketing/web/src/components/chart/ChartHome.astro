@@ -1,7 +1,8 @@
 ---
 /**
  * Home (#240): the logo on the leather and the way in (the five numbered
- * places). Then the two things people come for: what's on (this week's
+ * places). A season on sale, when there is one (#353). Then the two things
+ * people come for: what's on (this week's
  * nights, the deals and the pop-up kitchen) and the menu. Then Bookings, a
  * table or a party, and a row of photos last. Finding us, the hours and
  * the list are in the foot; who we are on /about.
@@ -17,6 +18,7 @@ import HomeBookings from "./HomeBookings.astro";
 import HomeMenu from "./HomeMenu.astro";
 import HomeNights from "./HomeNights.astro";
 import HomePhotos from "./HomePhotos.astro";
+import HomeSeasons from "./HomeSeasons.astro";
 
 const { copy } = siteConfig;
 /**
@@ -60,6 +62,7 @@ const sections = chartSections("/");
       </div>
     </section>
 
+    <HomeSeasons />
     <HomeNights />
     <HomeMenu />
     <HomeBookings />
