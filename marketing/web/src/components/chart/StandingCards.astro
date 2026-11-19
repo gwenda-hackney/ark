@@ -16,6 +16,7 @@
  */
 import "../../styles/chart-nights.css";
 import ChartRecord from "./ChartRecord.astro";
+import StandTag from "./StandTag.astro";
 import { formatEventSpan } from "../../data/events";
 import {
   imageSrcset,
@@ -341,7 +342,7 @@ const alone = (section: { cards: unknown[] }) =>
                 {!card.photo && !card.logo && (
                   <ChartRecord size="large" class="ch-night-mark" />
                 )}
-                <span class="ch-stand-tag">{card.tag}</span>
+                <StandTag kind={card.kind} tag={card.tag} />
               </span>
               <div class="ch-stand-body">
                 <Name class="ch-stand-name">

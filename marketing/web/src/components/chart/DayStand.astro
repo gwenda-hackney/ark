@@ -5,6 +5,7 @@
  * name leading to its page, when, and a pop-up's own links.
  */
 import ChartRecord from "./ChartRecord.astro";
+import StandTag from "./StandTag.astro";
 
 export interface DayStandCard {
   kind: "deal" | "popup" | "event";
@@ -85,7 +86,7 @@ const { card, loading } = Astro.props;
         <ChartRecord size="large" class="ch-night-mark" />
       )
     }
-    {card.tag && <span class="ch-stand-tag">{card.tag}</span>}
+    {card.tag && <StandTag kind={card.kind} tag={card.tag} />}
   </span>
   <div class="ch-stand-body">
     <h4 class="ch-stand-name">
