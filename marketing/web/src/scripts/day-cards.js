@@ -29,6 +29,19 @@ export function initDayCards(now = new Date()) {
         label.hidden = !text;
       }
     }
+    // Coming up later: a card goes once its series is in a day showing.
+    const onShow = new Set(
+      [...list.querySelectorAll("[data-day]:not([hidden])")].flatMap((day) =>
+        (day.dataset.daySeries || "").split(" ").filter(Boolean),
+      ),
+    );
+    for (const card of list.querySelectorAll(".ch-day-later [data-series]")) {
+      card.hidden = onShow.has(card.dataset.series);
+    }
+    const later = list.querySelector(".ch-day-later");
+    if (later)
+      later.hidden = !later.querySelector("[data-series]:not([hidden])");
+
     for (const week of list.querySelectorAll("[data-day-week]")) {
       week.hidden = !week.querySelector("[data-day]:not([hidden])");
       const label = week.querySelector("[data-day-week-label]");

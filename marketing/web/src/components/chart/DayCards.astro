@@ -12,6 +12,7 @@
  */
 import "../../styles/chart-nights.css";
 import ChartRecord from "./ChartRecord.astro";
+import DayStand from "./DayStand.astro";
 import { formatEventSpan } from "../../data/events";
 import {
   imageSrcset,
@@ -22,6 +23,7 @@ import {
 import { londonToday } from "../../lib/london-day.js";
 import {
   frameRatio,
+  nightDay,
   runDay,
   runTimes,
   weekLabel,
@@ -30,7 +32,7 @@ import { dayLabel, dayName } from "../../lib/day-label.js";
 import { popupMenuLinks } from "../../lib/menus.js";
 import { popupKitchens } from "../../lib/popup-kitchen.js";
 import { promotionDeals } from "../../lib/promotions.js";
-import { whatsOnDays } from "../../lib/whats-on-days.js";
+import { comingUpLater, whatsOnDays } from "../../lib/whats-on-days.js";
 import type { Event, EventSeries } from "../../types/events";
 import type { Menu } from "../../types/menu";
 
@@ -46,6 +48,8 @@ interface Props {
   weeks?: boolean;
   /** The first picture loads with the page: it's in the first view. */
   leadEager?: boolean;
+  /** Under the days, one of each thing on later that they don't show (home's). */
+  later?: boolean;
 }
 
 const {
@@ -56,6 +60,7 @@ const {
   shown,
   weeks: headed = true,
   leadEager = true,
+  later = false,
 } = Astro.props;
 
 /** Rendered beyond the ones that show, for the days that pass before the next build. */
@@ -190,6 +195,75 @@ function standCard(stand: { kind: "deal" | "popup"; night: Event }) {
 
 /** Days rendered beyond `shown` wait hidden until the ones before them pass. */
 const showing = new Set(days.slice(0, shown).map((day) => day.date));
+
+/** The series in a day: the browser hides a later card once its day shows. */
+function daySeries(day: (typeof days)[number]) {
+  return [
+    ...day.events.flatMap((run) => run.nights.map((night) => night.seriesId)),
+    ...day.stands.map((stand) => stand.night.seriesId),
+  ].filter(Boolean);
+}
+
+/** "Wed 25 Nov". */
+function shortDay(dateIso: string) {
+  const { weekday, day, month } = nightDay(dateIso);
+  return `${weekday} ${day} ${month}`;
+}
+
+const shownDays = days.filter((day) => showing.has(day.date));
+const laterCards = later
+  ? comingUpLater({
+      occurrences,
+      series,
+      today,
+      shown: new Set(shownDays.flatMap(daySeries)),
+      after: shownDays.at(-1)?.date ?? "",
+    }).map(({ kind, night }) => {
+      const hours = formatEventSpan(night.startTime, night.endTime, night.time);
+      const stand =
+        kind === "deal"
+          ? deals.get(night.seriesId)
+          : kind === "popup"
+            ? kitchens.get(night.seriesId)
+            : undefined;
+      if (stand) {
+        return {
+          ...stand,
+          kind,
+          series: night.seriesId,
+          whenDay: `From ${shortDay(night.date)}`,
+          when: hours,
+          picture: stand.photo ? picture(stand.photo) : null,
+          logo: stand.logo
+            ? {
+                src: sizedImageUrl(stand.logo.url, 240),
+                srcset: `${sizedImageUrl(stand.logo.url, 240)} 1x, ${sizedImageUrl(stand.logo.url, 480)} 2x`,
+              }
+            : null,
+        };
+      }
+      const event = eventCard({
+        start: night.date,
+        end: night.date,
+        nights: [night],
+      });
+      return {
+        kind: "event" as const,
+        tag: "",
+        title: event.title,
+        href: event.href,
+        whenDay: shortDay(night.date),
+        when: hours,
+        offer: event.offer,
+        photoPosition: event.photoPosition,
+        colourStyle: "",
+        picture: event.picture,
+        logo: null,
+        links: [],
+        series: night.seriesId,
+      };
+    })
+  : [];
 const groups = headed
   ? [...new Set(days.map((day) => day.week))]
   : [days[0]?.week ?? ""];
@@ -237,6 +311,7 @@ const loading = () => {
               ]}
               data-day={day.date}
               data-day-end={day.end}
+              data-day-series={daySeries(day).join(" ") || undefined}
               hidden={!showing.has(day.date)}
             >
               <h3 class="ch-day-title">
@@ -320,84 +395,7 @@ const loading = () => {
                 {day.standCards.length > 0 && (
                   <ul class="ch-day-stands">
                     {day.standCards.map((card) => (
-                      <li
-                        class:list={[
-                          "ch-stand",
-                          "ch-day-stand",
-                          `ch-stand--${card.kind}`,
-                        ]}
-                        style={[
-                          `--shape: ${card.logo ? 0.8 : (card.picture?.ratio ?? 0.8)}`,
-                          card.colourStyle,
-                        ]
-                          .filter(Boolean)
-                          .join("; ")}
-                      >
-                        <span
-                          class:list={[
-                            "ch-night-photo",
-                            card.picture?.whole && "ch-night-photo--whole",
-                            card.logo && "ch-stand-photo--logo",
-                          ]}
-                        >
-                          {card.picture && (
-                            <img
-                              src={card.picture.src}
-                              srcset={card.picture.srcset || undefined}
-                              sizes={card.picture.srcset ? "8rem" : undefined}
-                              alt=""
-                              loading={loading()}
-                              style={
-                                card.photoPosition
-                                  ? `object-position: ${card.photoPosition}`
-                                  : undefined
-                              }
-                            />
-                          )}
-                          {!card.picture && card.logo && (
-                            <img
-                              src={card.logo.src}
-                              srcset={card.logo.srcset}
-                              alt=""
-                              loading={loading()}
-                            />
-                          )}
-                          {!card.picture && !card.logo && (
-                            <ChartRecord size="large" class="ch-night-mark" />
-                          )}
-                          <span class="ch-stand-tag">{card.tag}</span>
-                        </span>
-                        <div class="ch-stand-body">
-                          <h4 class="ch-stand-name">
-                            <a href={card.href} class="ch-stand-link">
-                              {card.title}
-                            </a>
-                          </h4>
-                          {card.when && (
-                            <p class="ch-night-time">{card.when}</p>
-                          )}
-                          {card.offer && (
-                            <p class="ch-night-offer">{card.offer}</p>
-                          )}
-                          {card.links.length > 0 && (
-                            <p class="ch-stand-links">
-                              {card.links.map((link) =>
-                                link.external ? (
-                                  <a
-                                    href={link.href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    {link.text}
-                                  </a>
-                                ) : (
-                                  <a href={link.href}>{link.text}</a>
-                                ),
-                              )}
-                            </p>
-                          )}
-                        </div>
-                      </li>
+                      <DayStand card={card} loading={loading()} />
                     ))}
                   </ul>
                 )}
@@ -407,6 +405,20 @@ const loading = () => {
         </ol>
       </section>
     ))
+  }
+  {
+    laterCards.length > 0 && (
+      <section class="ch-day-later" aria-labelledby="coming-up-later">
+        <h3 class="ch-poster ch-home-sub" id="coming-up-later">
+          Coming up later
+        </h3>
+        <ul class="ch-day-stands ch-day-later-list">
+          {laterCards.map((card) => (
+            <DayStand card={card} loading="lazy" />
+          ))}
+        </ul>
+      </section>
+    )
   }
   <p class="ch-night-empty" data-day-cards-empty hidden={days.length > 0}>
     {empty}

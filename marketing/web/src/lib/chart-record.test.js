@@ -69,7 +69,7 @@ describe("a night with no flyer (#240)", () => {
   it("is drawn in the night cards, the deals and What's on by date", () => {
     expect(marks.map((mark) => mark.file).sort()).toEqual([
       "components/chart/DayCards.astro",
-      "components/chart/DayCards.astro",
+      "components/chart/DayStand.astro",
       "components/chart/NightCards.astro",
       "components/chart/StandingCards.astro",
     ]);

@@ -926,3 +926,22 @@
     --stand-h: 7.5rem;
   }
 }
+
+/* Coming up later (home): one of each thing on after the days shown */
+.ch-day-later {
+  margin-top: 4rem;
+}
+
+.ch-day-later[hidden],
+.ch-day-stand[hidden] {
+  display: none;
+}
+
+.ch-day-later-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+/* Coming up later: the day on its own line over the hours */
+.ch-day-when {
+  display: block;
+}
