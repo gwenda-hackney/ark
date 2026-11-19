@@ -96,7 +96,7 @@ const price = (value) => (value ? `£${value}` : "");
 export const POPUP_NUDGE = "Come hungry, bring your mates, and stay for a drink.";
 
 /**
- * The pop-up kitchen's email, with some go in it: its picture, "… is coming
+ * The pop-up kitchen's email, with some go in it: its picture, its logo, "… is coming
  * to Gwenda!" while it hasn't started (else "… is cooking at Gwenda!"), its line, when, and a nudge;
  * a few dishes to order first, a second picture from its gallery, then the
  * whole menu and Book a table.
@@ -111,13 +111,16 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
   const first = firstNight(event);
   const isNew = Boolean(first && first > today);
   const dishes = (await popupDishes(env, event.id)).slice(0, PROMOTE_DISHES);
-  const picture = event.mainImage?.asset || event.logo?.asset || "";
+  const logo = event.logo?.asset || "";
+  const picture = event.mainImage?.asset || "";
   const second = (event.gallery || []).find((photo) => photo.asset && photo.asset !== picture)?.asset || "";
   const line = text(event.shortDescription) || text(event.description);
   /** "Pinsa A Roma is coming to Gwenda!", or once it has started, "… is cooking at Gwenda!" */
   const headline = `${name} is ${isNew ? "coming to" : "cooking at"} Gwenda!`;
   const sections = [
-    ...(picture ? [{ kind: "image", assetId: picture, alt: name }] : []),
+    ...(picture ? [{ kind: "image", assetId: picture, alt: name, size: "full" }] : []),
+    // Its logo above its name, so people know it at a glance.
+    ...(logo ? [{ kind: "image", assetId: logo, alt: `${name} logo`, size: "logo" }] : []),
     { kind: "heading", text: headline },
     { kind: "copy", text: [line, when ? `**${when}.**` : "", POPUP_NUDGE].filter(Boolean).join("\n\n") },
     ...(dishes.length
@@ -131,7 +134,7 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
           },
         ]
       : []),
-    ...(second ? [{ kind: "image", assetId: second, alt: `Food from ${name}` }] : []),
+    ...(second ? [{ kind: "image", assetId: second, alt: `Food from ${name}`, size: "full" }] : []),
     { kind: "button", label: "See the whole menu →", link: page, look: "link" },
     { kind: "booking" },
   ];

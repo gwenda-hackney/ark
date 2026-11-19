@@ -41,6 +41,16 @@ describe("a one-off email", () => {
     expect(text).toContain("[The bar at night]");
   });
 
+  it("draws a logo small, whole and centred", () => {
+    const { html } = render([{ kind: "image", assetId: ASSET, alt: "Pinsa A Roma logo", size: "logo" }]);
+    const src = /<img src="([^"]+)" width="160"/.exec(html)?.[1].replace(/&amp;/g, "&");
+    expect(src).toBeTruthy();
+    expect(new URL(src).searchParams.get("w")).toBe("320");
+    expect(new URL(src).searchParams.has("fit")).toBe(false);
+    expect(html).not.toContain('width="560"');
+    expect(html).toContain('alt="Pinsa A Roma logo"');
+  });
+
   it("draws a heading in the poster face, and in capitals in the text", () => {
     const { html, text } = render([{ kind: "heading", text: "Party <time>" }]);
     expect(html).toMatch(/<h2 class="display"[^>]*>Party &lt;time&gt;<\/h2>/);
@@ -145,7 +155,7 @@ describe("sections", () => {
     ).toEqual([
       { kind: "heading", text: "Hi there" },
       { kind: "button", label: "x".repeat(40), link: "https://a.example", look: "link" },
-      { kind: "image", assetId: ASSET, alt: "A" },
+      { kind: "image", assetId: ASSET, alt: "A", size: "full" },
     ]);
     expect(cleanSections("nope")).toEqual([]);
     expect(cleanSections(Array.from({ length: 99 }, () => ({ kind: "copy", text: "x" }))).length).toBe(40);

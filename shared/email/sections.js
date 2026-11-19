@@ -110,17 +110,31 @@ export const BUTTON_LOOKS = ["link", "outline"];
 /** Book a table, word for word and link for link the website's (config/site.ts, config/booking.ts). */
 export const BOOKING = { label: siteConfig.copy.bookingCta, link: bookingUrl };
 
+/** How big an Image section shows: the column's width, or small and whole, as a logo. */
+export const IMAGE_SIZES = ["full", "logo"];
+
+/** A logo's width in the email: big enough to read, small beside a photo. */
+export const LOGO_WIDTH = 160;
+
 /** @type {Record<string, SectionKind>} */
 export const SECTION_KINDS = {
   image: {
     label: "Image",
-    blank: () => ({ kind: "image", assetId: "", alt: "" }),
-    clean: (raw) => ({ kind: "image", assetId: line(raw?.assetId, 200), alt: line(raw?.alt, 300) }),
+    blank: () => ({ kind: "image", assetId: "", alt: "", size: "full" }),
+    clean: (raw) => ({
+      kind: "image",
+      assetId: line(raw?.assetId, 200),
+      alt: line(raw?.alt, 300),
+      size: IMAGE_SIZES.includes(raw?.size) ? raw.size : "full",
+    }),
     empty: (section) => !section.assetId,
     html(section, { images }) {
       const url = sectionImageUrl(section.assetId, images);
-      const picture = emailPicture({ url, whole: true, alt: section.alt }, COLUMN, { fluid: true });
-      return picture ? [row(picture, { bottom: 24, align: "center" })] : [];
+      const logo = section.size === "logo";
+      const picture = logo
+        ? emailPicture({ url, whole: true, alt: section.alt }, LOGO_WIDTH)
+        : emailPicture({ url, whole: true, alt: section.alt }, COLUMN, { fluid: true });
+      return picture ? [row(picture, { bottom: logo ? 16 : 24, align: "center" })] : [];
     },
     text: (section) => (section.alt ? [`[${section.alt}]`, ""] : []),
   },

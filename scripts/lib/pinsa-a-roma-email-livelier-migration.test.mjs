@@ -39,7 +39,7 @@ describe("2026-11-21-pinsa-a-roma-email-livelier", () => {
     const [made] = await emails(db).list(5);
     return emails(db).updateDraft(
       made.id,
-      { subject: "New at Gwenda: Pinsa A Roma, Mondays and Tuesdays", sections: made.sections.map((part, i) => (i === 1 ? { kind: "heading", text: "New at Gwenda: Pinsa A Roma" } : part)) },
+      { subject: "New at Gwenda: Pinsa A Roma, Mondays and Tuesdays", sections: made.sections.map((part, i) => (part.kind === "heading" && part.text.endsWith("Gwenda!") ? { kind: "heading", text: "New at Gwenda: Pinsa A Roma" } : part)) },
       { by: drafted.BY },
     );
   }
@@ -54,7 +54,7 @@ describe("2026-11-21-pinsa-a-roma-email-livelier", () => {
     assert.equal(result.changed, true);
     assert.equal(fresh.status, "draft");
     assert.equal(fresh.subject, "Pinsa A Roma is coming to Gwenda! Mondays and Tuesdays");
-    assert.equal(fresh.sections[1].text, "Pinsa A Roma is coming to Gwenda!");
+    assert.ok(fresh.sections.some((part) => part.kind === "heading" && part.text === "Pinsa A Roma is coming to Gwenda!"));
     assert.ok(fresh.sections.some((part) => part.kind === "heading" && part.text === "What to order first"));
     assert.equal(fresh.updatedBy, livelier.BY.toLowerCase());
     assert.match(text, /made email \d+ livelier/);
