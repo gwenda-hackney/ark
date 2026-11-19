@@ -317,7 +317,7 @@
 		if (pending?.path) navigate(pending.path, { force: true, replace: pending.replace });
 	}
 
-	const heading = $derived(emailName({ name, subject }) || (isNew ? "New email" : "No name"));
+	const heading = $derived(error ? "Email" : emailName({ name, subject }) || (isNew ? "New email" : "No name"));
 	const subtitle = $derived(
 		email && !isNew
 			? [`Changed ${sentLine(email.updatedAt)}`, email.updatedBy ? `by ${email.updatedBy}` : ""].filter(Boolean).join(" ")
@@ -328,7 +328,7 @@
 
 {#snippet kicker()}
 	<p class="eyebrow">Email</p>
-	<Badge tone={badge.tone} label={isNew ? "New" : badge.label} />
+	{#if !error}<Badge tone={badge.tone} label={isNew ? "New" : badge.label} />{/if}
 {/snippet}
 
 {#snippet testButton()}
