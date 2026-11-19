@@ -42,14 +42,14 @@ describe("2026-11-20-pinsa-a-roma-email", () => {
     assert.equal(made.status, "draft");
     assert.equal(made.createdBy, email.BY.toLowerCase());
     assert.equal(made.name, "Pinsa A Roma promo");
-    assert.equal(made.subject, "New at Gwenda: Pinsa A Roma, Mondays and Tuesdays");
+    assert.equal(made.subject, "Just landed at Gwenda: Pinsa A Roma, Mondays and Tuesdays");
     assert.deepEqual(
       made.sections.map((section) => section.kind),
       ["image", "heading", "copy", "heading", "copy", "image", "button", "booking"],
     );
     assert.match(made.sections[4].text, /\*\*Trastevere \(V\)\*\* £13\.50/);
     assert.equal(made.sections[6].link, "https://gwenda-web-dev.pages.dev/whats-on/pinsa-a-roma/");
-    assert.match(text, /drafted "New at Gwenda: Pinsa A Roma, Mondays and Tuesdays"/);
+    assert.match(text, /drafted "Just landed at Gwenda: Pinsa A Roma, Mondays and Tuesdays"/);
 
     const again = await run(email, db);
     assert.equal(again.result.drafted, false);
@@ -70,6 +70,6 @@ describe("2026-11-20-pinsa-a-roma-email", () => {
     await run(pinsa, db);
     const { text } = await run(email, db, { dryRun: true });
     assert.equal((await drafts(db)).length, 0);
-    assert.match(text, /would draft "New at Gwenda: Pinsa A Roma/);
+    assert.match(text, /would draft "Just landed at Gwenda: Pinsa A Roma/);
   });
 });

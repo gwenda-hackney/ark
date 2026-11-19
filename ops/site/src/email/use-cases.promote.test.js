@@ -4,6 +4,7 @@
  * database a real SQLite with the migrations.
  */
 import assert from "node:assert/strict";
+import { POPUP_NUDGE } from "./server/promote.js";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { resetConfigCacheForTests } from "../../../../shared/config.js";
 import { renderOneOffEmail } from "../../../../shared/email/one-off.js";
@@ -84,21 +85,21 @@ describe("promoting a pop-up kitchen", () => {
     ]);
   });
 
-  it("saves a draft from the template: picture, New at Gwenda, when, three dishes, a second picture, the menu and booking", async () => {
+  it("saves a draft from the template: picture, Just landed, when, three dishes, a second picture, the menu and booking", async () => {
     const event = await seedPinsa();
     const res = await api(promote, { method: "POST", path: "/api/email/promote", body: { template: "popup", id: String(event.id) } });
     assert.equal(res.status, 200, JSON.stringify(res.data));
     const email = res.data.email;
     assert.equal(email.status, "draft");
     assert.equal(email.name, "Pinsa A Roma promo", "named for its card");
-    assert.equal(email.subject, "New at Gwenda: Pinsa A Roma, Mondays and Tuesdays");
+    assert.equal(email.subject, "Just landed at Gwenda: Pinsa A Roma, Mondays and Tuesdays");
     assert.equal(email.previewText, "Roman pinsa on Mondays and Tuesdays: a light, crisp base.");
     assert.deepEqual(
       email.sections.map((section) => section.kind),
       ["image", "heading", "copy", "heading", "copy", "image", "button", "booking"],
     );
-    assert.equal(email.sections[1].text, "New at Gwenda: Pinsa A Roma");
-    assert.match(email.sections[2].text, new RegExp(`\\*\\*Mondays and Tuesdays from Monday 23 November, ${NOON} – 9pm\\.\\*\\*$`));
+    assert.equal(email.sections[1].text, "Just landed: Pinsa A Roma");
+    assert.match(email.sections[2].text, new RegExp(`\\*\\*Mondays and Tuesdays from Monday 23 November, ${NOON} – 9pm\\.\\*\\*\n\n${POPUP_NUDGE}$`));
     assert.equal(
       email.sections[4].text,
       [
@@ -110,14 +111,14 @@ describe("promoting a pop-up kitchen", () => {
     );
     assert.notEqual(email.sections[0].assetId, email.sections[5].assetId, "two different pictures");
     assert.deepEqual(email.sections.slice(6), [
-      { kind: "button", label: "See the menu →", link: "https://gwenda-web-dev.pages.dev/whats-on/pinsa-a-roma/", look: "link" },
+      { kind: "button", label: "See the whole menu →", link: "https://gwenda-web-dev.pages.dev/whats-on/pinsa-a-roma/", look: "link" },
       { kind: "booking" },
     ]);
 
     // It is an ordinary draft: it opens in the editor and renders as the email that would go.
     const opened = await api(getEmail, { path: `/api/email/one-off/${email.id}`, params: { id: String(email.id) } });
     const rendered = renderOneOffEmail(opened.data.email, opened.data.frame);
-    assert.match(rendered.html, /New at Gwenda: Pinsa A Roma/);
+    assert.match(rendered.html, /Just landed: Pinsa A Roma/);
     assert.match(rendered.html, /Trastevere \(V\)/);
   });
 
