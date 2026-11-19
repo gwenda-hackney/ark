@@ -342,7 +342,7 @@ export function eventPhotoGroups(
 }
 
 /**
- * The events /photos shows under the venue's own (eventPhotoGroups), with a
+ * The events /photos mixes in with the venue's own (eventPhotoGroups, photosPageWall), with a
  * picture already on the venue's wall (its hash or its address, photoKeys)
  * left out of them. Home's strip takes its few from events from these
  * (homePhotoPlan), and ops' Gallery page shows the same.
@@ -363,6 +363,28 @@ export function photosPageEvents(
     min,
     shownElsewhere: (venue || []).flatMap(photoKeys),
   });
+}
+
+/**
+ * /photos' one wall: the venue's photos and the events' (photosPageEvents)
+ * mixed together, taking turns (the venue's first, then each event's, and
+ * round again), so no part of the page is one night's. A photo from an
+ * event or a pop-up kitchen carries its name and page, for its tag.
+ *
+ * @param {Array<object>} venue the venue's photos, newest first
+ * @param {Array<object>} events every event's photos (photo-sources eventPhotos)
+ */
+export function photosPageWall(venue, events) {
+  const groups = photosPageEvents(venue, events);
+  return takeTurns([
+    venue || [],
+    ...groups.map((group) =>
+      group.photos.map((photo) => ({
+        ...photo,
+        event: { title: group.title, href: group.href || "" },
+      })),
+    ),
+  ]);
 }
 
 /** A file name from whatever a phone or WhatsApp called the photo. */

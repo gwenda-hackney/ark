@@ -468,7 +468,9 @@
   --down: calc(var(--print) * 0.27);
   display: grid;
   justify-content: center;
-  margin: auto 0 0;
+  /* In the middle of whatever the board has left below its list, so a
+     shorter board's room reads as space around its prints, not a gap */
+  margin: auto 0;
   /* Room for the first print's tape and tilt */
   padding: 1.5rem 0 0.75rem;
 }

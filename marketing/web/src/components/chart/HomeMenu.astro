@@ -25,7 +25,7 @@ const today = londonToday();
 /** Dishes on a card under the lead: fewer than the lead's, so it stays the lead. */
 const NEXT_KITCHEN_ITEMS = 2;
 /** Cocktails added to the Drinks board for each card under the Food board's lead. */
-const DRINKS_PER_NEXT_KITCHEN = 5;
+const DRINKS_PER_NEXT_KITCHEN = 8;
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
 const catalog = await fetchWhatsOnCatalog().catch(() => ({
   series: [],

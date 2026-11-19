@@ -21,7 +21,12 @@ interface Props {
    * The venue's photos; on home a couple from events too, each saying which
    * (lib/photos.js homePhotoPlan).
    */
-  photos: Array<EventPhoto & { event?: { title: string } }>;
+  photos: Array<EventPhoto & { event?: { title: string; href?: string } }>;
+  /**
+   * /photos' mixed wall: a photo from an event or a pop-up kitchen wears its
+   * name on a little tag, a link to its page while it has one.
+   */
+  tags?: boolean;
   /**
    * Home's few, in even rows of squares, each photo cropped to its tile:
    * laid out by the page's CSS (chart-photos.css), not in columns.
@@ -29,7 +34,7 @@ interface Props {
   row?: boolean;
 }
 
-const { photos, row = false } = Astro.props;
+const { photos, row = false, tags = false } = Astro.props;
 
 /**
  * Three columns of a 72rem page (about 365px each), or two when three would
@@ -83,6 +88,15 @@ const tiles = photos.map((photo, index) => ({
               decoding="async"
             />
           </a>
+          {tags &&
+            photo.event &&
+            (photo.event.href ? (
+              <a class="ch-photo-tag" href={photo.event.href}>
+                {photo.event.title}
+              </a>
+            ) : (
+              <span class="ch-photo-tag">{photo.event.title}</span>
+            ))}
         </li>
       ))
     }
