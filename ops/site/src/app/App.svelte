@@ -22,6 +22,7 @@
 	import FormsPage from "../forms/FormsPage.svelte";
 	import EventsPage from "../events/EventsPage.svelte";
 	import ArtistsPage from "../artists/ArtistsPage.svelte";
+	import OccasionsPage from "../occasions/OccasionsPage.svelte";
 	import MorePage from "./shell/MorePage.svelte";
 	import { parseShellPath, readPath } from "./nav";
 	import { NAV_ROUTES } from "./nav-routes";
@@ -121,6 +122,8 @@
 						{:else}
 							<ArtistsPage path={current} />
 						{/if}
+					{:else if key === "occasions"}
+						<OccasionsPage path={current} />
 					{:else if key === "config"}
 						<ConfigPage path={current} />
 					{:else if key === "more"}

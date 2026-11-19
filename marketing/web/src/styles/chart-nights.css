@@ -127,6 +127,7 @@
 .ch-stand-tag,
 .ch-night-label,
 .ch-day-label,
+.ch-occasion-tag,
 .ch-night-offer {
   --paper: var(--ch-mustard);
   --print: var(--ch-bg);
@@ -154,6 +155,7 @@
 .ch-stand-tag::before,
 .ch-night-label::before,
 .ch-day-label::before,
+.ch-occasion-tag::before,
 .ch-night-offer::before {
   content: "";
   position: absolute;

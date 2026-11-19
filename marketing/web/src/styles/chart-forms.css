@@ -477,3 +477,19 @@
 .ch-sent [hidden] {
   display: none;
 }
+
+/* Opened from an occasion on home (#353): what the enquiry is about, over the form */
+.ch-page .ch-form .contact-occasion-note {
+  margin: 0 0 0.5rem;
+  font-family: var(--ch-book);
+  font-size: 1.125rem;
+  color: var(--ch-cream);
+}
+
+.ch-page .ch-form .contact-occasion-note[hidden] {
+  display: none;
+}
+
+.ch-page .ch-form .contact-occasion-note strong {
+  color: var(--ch-mustard);
+}

@@ -27,9 +27,9 @@ describe("NAV_ROUTES (#312)", () => {
 			],
 		);
 		const names = (id: string) => routes.find((row) => row.id === id)?.children?.map((row) => row.name);
-		assert.deepEqual(names("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Artists"]);
+		assert.deepEqual(names("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Occasions", "Artists", "Weekly email", "Photos"]);
 		assert.deepEqual(names("bar-kitchen"), ["Menus", "Items", "Stock"]);
-		assert.deepEqual(names("publish"), ["Website", "Weekly email", "Photos"]);
+		assert.deepEqual(names("publish"), ["Website"]);
 		assert.deepEqual(names("settings"), ["Venue", "Users", "Lightspeed", "Configuration", "Developer tools"]);
 	});
 

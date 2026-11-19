@@ -57,9 +57,9 @@ describe("mobileTabs (#312)", () => {
 
 describe("tabPages", () => {
 	it("gives each tab its rail heading's pages", () => {
-		assert.deepEqual(ids("whats-on"), ["schedule", "events", "popups", "deals", "artists"]);
+		assert.deepEqual(ids("whats-on"), ["schedule", "events", "popups", "deals", "occasions", "artists", "email", "photos"]);
 		assert.deepEqual(ids("bar-kitchen"), ["menus", "recipes", "stock"]);
-		assert.deepEqual(ids("website"), ["web", "email", "photos"]);
+		assert.deepEqual(ids("website"), ["web"]);
 	});
 
 	it("lists settings on More, with Developer tools for admins only", () => {
@@ -83,9 +83,10 @@ describe("tabPages", () => {
 
 describe("stripPages", () => {
 	it("uses the short names", () => {
-		assert.deepEqual(labels("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Artists"]);
+		assert.deepEqual(labels("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Occasions", "Artists", "Email", "Photos"]);
 		assert.deepEqual(labels("bar-kitchen"), ["Menus", "Items", "Stock"]);
-		assert.deepEqual(labels("website"), ["Website", "Email", "Photos"]);
+		// Website is one page now: nothing to switch between.
+		assert.deepEqual(stripPages("website", admin), []);
 	});
 
 	it("has no strip on Home or More", () => {
@@ -110,10 +111,10 @@ describe("mobileTabFor", () => {
 		assert.equal(mobileTabFor("/suppliers"), "bar-kitchen");
 	});
 
-	it("puts Website, the email and Photos on Website, settings on More", () => {
+	it("puts the email and Photos on What's on, Website on Website, settings on More", () => {
 		assert.equal(mobileTabFor("/web"), "website");
-		assert.equal(mobileTabFor("/email"), "website");
-		assert.equal(mobileTabFor("/venue/gallery"), "website");
+		assert.equal(mobileTabFor("/email"), "whats-on");
+		assert.equal(mobileTabFor("/venue/gallery"), "whats-on");
 		assert.equal(mobileTabFor("/venue"), "more");
 		assert.equal(mobileTabFor("/users"), "more");
 		assert.equal(mobileTabFor("/lightspeed/export"), "more");
@@ -146,7 +147,7 @@ describe("lastPage", () => {
 
 	it("returns to the last page used in a tab", () => {
 		assert.equal(lastPage("bar-kitchen", admin, { "bar-kitchen": "/inventory" }), "/inventory");
-		assert.equal(lastPage("website", admin, { website: "/email" }), "/email");
+		assert.equal(lastPage("whats-on", admin, { "whats-on": "/email" }), "/email");
 	});
 
 	it("ignores a remembered page the tab no longer has", () => {

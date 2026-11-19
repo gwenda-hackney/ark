@@ -47,6 +47,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/deals/") ||
     p === "/artists" ||
     p.startsWith("/artists/") ||
+    p === "/occasions" ||
+    p.startsWith("/occasions/") ||
     p === "/web" ||
     p.startsWith("/web/") ||
     p === "/forms" ||
@@ -245,7 +247,7 @@ export function parseShellPath(path) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
-  // Venue, and (#291) the venue's photos (Publish → Photos, #312)
+  // Venue, and (#291) the venue's photos (What's on → Photos)
   if (p === "/venue" || p.startsWith("/venue/")) {
     return {
       page: "venue",
@@ -265,6 +267,12 @@ export function parseShellPath(path) {
     }
     return { page: "artists", slug: part || null, isNew: false };
   }
+  if (p === "/occasions") return { page: "occasions", slug: null, isNew: false };
+  if (p.startsWith("/occasions/")) {
+    const part = decodeSegment(p.slice("/occasions/".length).split("/")[0] || "");
+    if (part === "new") return { page: "occasions", slug: null, isNew: true };
+    return { page: "occasions", slug: part || null, isNew: false };
+  }
   if (p === "/web/dev") return { page: "web", view: "dev" };
   if (p === "/web/dev/settings") return { page: "web", view: "settings" };
   // Old link to the release page: the Website page covers it now.
@@ -272,7 +280,8 @@ export function parseShellPath(path) {
   if (p === "/web" || p.startsWith("/web/")) return { page: "web", view: null };
   if (p === "/email/sent") return { page: "email", view: "sent" };
   if (p === "/email/settings") return { page: "email", view: "settings" };
-  if (p === "/email" || p.startsWith("/email/")) return { page: "email", view: null };
+  if (p === "/email" || p.startsWith("/email/"))
+    return { page: "email", view: null };
   if (p === "/forms") return { page: "forms", slug: null };
   if (p.startsWith("/forms/")) {
     const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");
@@ -475,6 +484,11 @@ export function editorKey(path) {
     if (route.slug) return `artists:${route.slug}`;
     return "artists";
   }
+  if (route.page === "occasions") {
+    if (route.isNew) return "occasions:new";
+    if (route.slug) return `occasions:${route.slug}`;
+    return "occasions";
+  }
   if (route.page === "menus") {
     if (route.isNew) return "menus:new";
     if (route.slug) return `menus:${route.slug}`;
@@ -504,6 +518,7 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "more" ||
     from === "events" ||
     from === "artists" ||
+    from === "occasions" ||
     from === "web" ||
     from === "email" ||
     from === "forms"
@@ -526,7 +541,8 @@ export function isEditorPath(path) {
       route.page === "menus" ||
       route.page === "inventory" ||
       route.page === "events" ||
-      route.page === "artists") &&
+      route.page === "artists" ||
+      route.page === "occasions") &&
     Boolean(route.isNew || route.slug)
   );
 }
@@ -614,9 +630,11 @@ export function shellCrumbs(
         ? "New event"
         : route.page === "artists"
           ? "New artist"
-          : route.page === "menus"
-            ? "New menu"
-            : "New item"
+          : route.page === "occasions"
+            ? "New occasion"
+            : route.page === "menus"
+              ? "New menu"
+              : "New item"
       : "");
   if (leafLabel && nested) crumbs.push({ label: leafLabel });
   const last = crumbs[crumbs.length - 1];
