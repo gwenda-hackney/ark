@@ -2,7 +2,8 @@
 /**
  * What home's Food board shows for one kitchen (#306): its logo and "Day:
  * Name" in its own colour (#319), the day of its menu when that isn't the
- * board's day ("Saturday's menu"), a few dishes from its first chapter, and
+ * board's day ("Saturday's menu"), a few dishes from its first chapter (and,
+ * when asked for more than its first has, a few from the parts after it), and
  * the rest of its menu as tiles. With nothing on its menu yet, a line in
  * place of the dishes. One kitchen is the board itself; two or more are
  * cards in a stack (FoodStack.astro).
@@ -84,6 +85,33 @@ const LOGO_WIDTH = 72;
           and {taste.lead.total - taste.lead.items.length} more →
         </a>
       )}
+      {taste.extra.map((part) => (
+        <>
+          <h4 class="ch-menu-chapter ch-menu-chapter--extra">
+            <a href={part.href}>{part.title}</a>
+          </h4>
+          <ul class="ch-menu-items">
+            {part.items.map((item) => (
+              <li>
+                <span class="ch-menu-item-line">
+                  <span class="ch-menu-item-name">{item.name}</span>
+                  {item.price && (
+                    <span class="ch-menu-item-price">{item.price}</span>
+                  )}
+                </span>
+                {item.description && (
+                  <span class="ch-menu-item-desc">{item.description}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {part.total > part.items.length && (
+            <a href={part.href} class="ch-menu-rest">
+              and {part.total - part.items.length} more →
+            </a>
+          )}
+        </>
+      ))}
       {taste.more.length > 0 && (
         <ul class="ch-menu-more">
           {taste.more.map((part) => (

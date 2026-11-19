@@ -25,7 +25,13 @@ const today = londonToday();
 /** Dishes on a card under the lead: fewer than the lead's, so it stays the lead. */
 const NEXT_KITCHEN_ITEMS = 2;
 /** Cocktails added to the Drinks board for each card under the Food board's lead. */
-const DRINKS_PER_NEXT_KITCHEN = 8;
+const DRINKS_PER_NEXT_KITCHEN = 6;
+/**
+ * The most of our own cocktails the Drinks board lists; when it lists more
+ * than that, the rest are a few from each part after them (lib/home-menu.js
+ * menuTaste), so it keeps its length however many cocktails are on.
+ */
+const DRINKS_LEAD = 6;
 const menu = await fetchMenu().catch(() => ({ sections: [] }));
 const catalog = await fetchWhatsOnCatalog().catch(() => ({
   series: [],
@@ -129,6 +135,7 @@ const drinks = {
   taste: boards.bar?.menu
     ? menuTaste(boards.bar.menu.chapters, {
         count: drinksCount,
+        lead: DRINKS_LEAD,
         where: shelves.bar.where,
       })
     : null,
