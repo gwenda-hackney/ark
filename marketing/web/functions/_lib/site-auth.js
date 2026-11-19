@@ -180,10 +180,6 @@ export function isPublicPath(pathname) {
   if (pathname === "/contact/edit" || pathname === "/contact/edit/")
     return true;
   if (pathname === "/forms/edit" || pathname === "/forms/edit/") return true;
-  if (pathname === "/api/rsvp" || pathname.startsWith("/api/rsvp/"))
-    return true;
-  if (pathname === "/api/ticket" || pathname.startsWith("/api/ticket/"))
-    return true;
   if (pathname === "/api/events" || pathname.startsWith("/api/events/"))
     return true;
   if (pathname === "/api/whats-on" || pathname.startsWith("/api/whats-on/"))
@@ -193,10 +189,6 @@ export function isPublicPath(pathname) {
   if (pathname.startsWith("/whats-on/")) return true;
   if (pathname === "/artists" || pathname === "/artists/") return true;
   if (pathname.startsWith("/artists/")) return true;
-  if (pathname === "/invite" || pathname === "/invite/") return true;
-  if (pathname.startsWith("/invite/")) return true;
-  if (pathname === "/events/rsvp" || pathname === "/events/rsvp/") return true;
-  if (pathname.startsWith("/events/")) return true;
   if (pathname === "/robots.txt") return true;
   if (pathname === "/sitemap.xml") return true;
   if (pathname === "/favicon.ico") return true;
@@ -207,7 +199,6 @@ export function isPublicPath(pathname) {
   if (pathname === "/site.webmanifest") return true;
   if (pathname === "/icon-192.png" || pathname === "/icon-512.png") return true;
   if (pathname.startsWith("/brand/")) return true;
-  if (pathname.startsWith("/og/")) return true;
   if (pathname.startsWith("/_astro/")) return true;
   if (pathname.startsWith("/_image")) return true;
   if (pathname.startsWith("/@")) return true;

@@ -29,8 +29,7 @@
     "@sanity/image-url": "^2.1.1",
     "@sentry/cloudflare": "^11.4.0",
     "astro": "^4.16.18",
-    "nodemailer": "^7.0.6",
-    "passkit-generator": "^3.5.7"
+    "nodemailer": "^7.0.6"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

@@ -26,12 +26,9 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/icon-192.png")).toBe(true);
     expect(isPublicPath("/icon-512.png")).toBe(true);
     expect(isPublicPath("/brand/logo-organization.png")).toBe(true);
-    expect(isPublicPath("/og/events/private-launch-party.jpg")).toBe(true);
   });
 
-  it("allows invite pages, event RSVP pages, and RSVP API through the preview gate", () => {
-    expect(isPublicPath("/invite/")).toBe(true);
-    expect(isPublicPath("/invite/abc123")).toBe(true);
+  it("lets the public pages and their APIs through the preview gate", () => {
     expect(isPublicPath("/api/whats-on")).toBe(true);
     expect(isPublicPath("/api/featured-artist")).toBe(true);
     expect(isPublicPath("/whats-on")).toBe(true);
@@ -42,14 +39,6 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/whats-on/schedule")).toBe(true);
     expect(isPublicPath("/api/whats-on/schedule")).toBe(true);
     expect(isPublicPath("/whats-on/negroni-night")).toBe(true);
-    expect(isPublicPath("/whats-on/negroni-night/2026-09-29")).toBe(true);
-    expect(isPublicPath("/events/a1b2c3d4e5f6789012345678abcdef01")).toBe(true);
-    expect(
-      isPublicPath(
-        "/events/a1b2c3d4e5f6789012345678abcdef01/b2c3d4e5f6789012345678abcdef0123",
-      ),
-    ).toBe(true);
-    expect(isPublicPath("/api/rsvp")).toBe(true);
     expect(isPublicPath("/api/forms")).toBe(true);
     expect(isPublicPath("/api/forms/verify")).toBe(true);
     expect(isPublicPath("/api/forms/resend")).toBe(true);
@@ -58,9 +47,6 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/contact/edit")).toBe(true);
     expect(isPublicPath("/forms/edit")).toBe(true);
     expect(isPublicPath("/api/events")).toBe(true);
-    expect(isPublicPath("/api/ticket")).toBe(true);
-    expect(isPublicPath("/api/ticket/pass")).toBe(true);
-    expect(isPublicPath("/api/ticket/calendar")).toBe(true);
   });
 });
 

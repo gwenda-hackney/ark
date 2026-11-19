@@ -1221,29 +1221,6 @@ export function buildSeriesDetail(
   };
 }
 
-/** Parse `{series}-{YYYY-MM-DD}` occurrence slugs used by Sanity. */
-export function parseOccurrenceSlug(slug) {
-  const raw = String(slug || "").trim();
-  const match = /^(.+)-(\d{4}-\d{2}-\d{2})$/.exec(raw);
-  if (!match) return null;
-  return { seriesId: match[1], date: match[2] };
-}
-
-/**
- * Where a night page lives: `/whats-on/<series>/<date>`. A night keeps its
- * slug when its series gets a new web address, so the series comes from the
- * night's own seriesId, and the slug only fills in for older documents.
- */
-export function occurrencePathParams(event) {
-  const slug = String(event?.slug || "").trim();
-  const parsed = parseOccurrenceSlug(slug);
-  const own = String(event?.seriesId || "").trim();
-  return {
-    series: (own && own !== slug ? own : "") || parsed?.seriesId || slug,
-    date: parsed?.date || String(event?.date || "").trim(),
-  };
-}
-
 /**
  * Old series web addresses (set in ops) and where they go now. One never
  * shadows a series that has that address today.
@@ -1260,40 +1237,4 @@ export function seriesRedirects(series) {
     }
   }
   return redirects;
-}
-
-/**
- * Night pages, plus redirects from the addresses they had under the
- * series' former web addresses (and the one their slug was made from).
- */
-export function nightPagePaths(events, series = []) {
-  const formerBySeries = new Map();
-  for (const { from, to } of seriesRedirects(series)) {
-    formerBySeries.set(to, [...(formerBySeries.get(to) || []), from]);
-  }
-  const pages = (events || []).map((event) => ({
-    event,
-    ...occurrencePathParams(event),
-  }));
-  const taken = new Set(pages.map((page) => `${page.series}/${page.date}`));
-  const current = new Set((series || []).map((row) => row.seriesId));
-  const redirects = [];
-  for (const page of pages) {
-    const olds = [
-      ...(formerBySeries.get(page.series) || []),
-      parseOccurrenceSlug(page.event.slug)?.seriesId,
-    ];
-    for (const old of olds) {
-      const key = `${old}/${page.date}`;
-      if (!old || old === page.series || current.has(old) || taken.has(key))
-        continue;
-      taken.add(key);
-      redirects.push({
-        series: old,
-        date: page.date,
-        to: `/whats-on/${page.series}/${page.date}`,
-      });
-    }
-  }
-  return { pages, redirects };
 }

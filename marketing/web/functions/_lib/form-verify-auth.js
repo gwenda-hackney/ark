@@ -30,7 +30,7 @@ function base64UrlToString(value) {
 }
 
 function formVerifySecret(env) {
-  return env?.SUBSCRIBE_SECRET?.trim() || env?.TICKET_SECRET?.trim() || "";
+  return env?.SUBSCRIBE_SECRET?.trim() || "";
 }
 
 async function hmacSign(secret, message) {

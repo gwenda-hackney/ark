@@ -408,16 +408,6 @@ export function recurrenceLabel(event) {
   return "";
 }
 
-const RSVP_BODY = `{greeting}
-
-Thanks for replying. {guests_line}
-
-{event_block}
-
-Open your ticket link below to view your pass, add it to Apple Wallet, or save the date to your calendar.
-
-Need to change your reply? {modify_url}`;
-
 /**
  * A series' category as the website gets it: "promotion" or "popup", and
  * nothing for a night, so documents from before categories stay as they are.
@@ -548,13 +538,6 @@ export function sanityEventDocument({
     ticketStart: startTime || "17:00",
     ticketEnd: endTime || "",
     nightSchedule: toSanityNightSchedule(nightSchedule),
-    channels: [],
-    rsvpConfirmation: {
-      subject: "You're on the list · Gwenda",
-      eyebrow: "You're on the list",
-      heading: "See you there",
-      body: RSVP_BODY,
-    },
   };
   if (seriesKey) {
     doc.series = { _type: "reference", _ref: sanitySeriesId(seriesKey) };

@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
  * Deploy the subscribers → Mailchimp sync Worker and sync secrets.
- * Subscribers are on D1 (the WEBSITE_DB binding), so the retired Baserow
- * secret is removed.
+ * Subscribers are on D1 (the WEBSITE_DB binding).
  *
  * Everything comes from Secrets Manager (bw-unlock): CLOUDFLARE_API_TOKEN,
  * MAILCHIMP_API_KEY and
@@ -145,20 +144,6 @@ async function main() {
     input: syncSecret,
     quiet: true,
   });
-  const existing = run("npx", ["wrangler", "secret", "list", "--format", "json"], {
-    cwd: WORKER_DIR,
-    env: wranglerEnv,
-    quiet: true,
-  });
-  if (/"name":\s*"BASEROW_API_KEY"/.test(existing)) {
-    run("npx", ["wrangler", "secret", "delete", "BASEROW_API_KEY"], {
-      cwd: WORKER_DIR,
-      env: wranglerEnv,
-      input: "y\n",
-      quiet: true,
-    });
-    console.log("Removed the retired BASEROW_API_KEY secret.");
-  }
   console.log("Worker secrets synced.");
 
   console.log(

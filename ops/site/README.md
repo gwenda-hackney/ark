@@ -115,7 +115,7 @@ There are no roles: an active user sees all of ops (recipes and trade prices, fo
 | House pour-cost targets and other non-secret knobs | **D1** `gwenda-config` (name, value, env, service), shared with the website and never copied with ops data. Edit pour targets at `/config`. |
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 
-Each feature's data is reached only through its repository (e.g. `src/menu/server/menu-repository.js`, #186); schema in `db/ops/migrations/` ([db/README.md](../../db/README.md)). RSVP and event invites are the one thing still on Baserow, until #237.
+Each feature's data is reached only through its repository (e.g. `src/menu/server/menu-repository.js`, #186); schema in `db/ops/migrations/` ([db/README.md](../../db/README.md)).
 
 Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section) from the menu into Sanity as **drafts**, and points each drink at its photo's asset. It matches by stored Sanity ID or name, creates missing sections/items, and the preview site rebuilds once edits go quiet. They go live when ops publishes them (Website → Preview → live). In local ops this writes the Gwenda Dev copy instead.
 

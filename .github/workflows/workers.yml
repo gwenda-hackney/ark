@@ -203,12 +203,6 @@ jobs:
           cd marketing/subscribe-mailchimp-sync
           echo "$MAILCHIMP_API_KEY" | npx wrangler secret put MAILCHIMP_API_KEY
           echo "$SUBSCRIBE_MAILCHIMP_SYNC_SECRET" | npx wrangler secret put SYNC_SECRET
-          # Subscribers moved off Baserow (#234): its token goes. Safe to run again.
-          if npx wrangler secret list --format json | grep -q '"name": *"BASEROW_API_KEY"'; then
-            npx wrangler secret delete BASEROW_API_KEY
-          else
-            echo "BASEROW_API_KEY already removed."
-          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
@@ -372,15 +366,3 @@ jobs:
           done
           echo "Wi-Fi portal smoke test failed." >&2
           exit 1
-      # Post: only the old Baserow sign-up used this. Safe to run again.
-      - name: Remove retired Worker secrets
-        run: |
-          cd marketing/wifi-captive-portal
-          if npx wrangler secret list --format json | grep -q '"name": *"BASEROW_API_KEY"'; then
-            npx wrangler secret delete BASEROW_API_KEY
-          else
-            echo "BASEROW_API_KEY already removed."
-          fi
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
