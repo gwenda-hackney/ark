@@ -136,7 +136,7 @@ export function timeLabel(hhmm) {
   if (!isTime(hhmm)) return "";
   const total = minutesOf(hhmm);
   if (total === 0) return "midnight";
-  if (total === 12 * 60) return "midday";
+  if (total === 12 * 60) return "noon";
   const hours = Math.floor(total / 60);
   const minutes = total % 60;
   return `${hours % 12 || 12}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}${hours < 12 ? "am" : "pm"}`;

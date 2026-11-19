@@ -236,7 +236,7 @@ describe("an event over several days", () => {
     expect(html).toContain("Sat 10 Jan to Sun 11 Jan");
     expect(html).toContain("Day by day");
     expect(model.days.map((day) => [day.date, day.when])).toEqual([
-      ["2099-01-10", "12–8pm"],
+      ["2099-01-10", "noon–8pm"],
       ["2099-01-11", "1–6pm"],
     ]);
     expect(html).toContain("DJs and a live band.");
