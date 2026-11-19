@@ -20,6 +20,12 @@ export const SECTION_CHOICES: { kind: SectionKind; label: string }[] = [
 ];
 
 /** A button's looks, for its switch. */
+export const IMAGE_SIZE_ITEMS = [
+	{ id: "full", label: "Full width" },
+	{ id: "logo", label: "Logo" },
+	{ id: "collab", label: "Gwenda ×" },
+] as const;
+
 export const BUTTON_LOOK_ITEMS = [
 	{ id: "link", label: "Link" },
 	{ id: "outline", label: "Outline" },
