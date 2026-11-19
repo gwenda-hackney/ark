@@ -374,7 +374,7 @@ function dayName(day, today) {
  *   line: string,
  *   menu: null | ReturnType<typeof menuShelf>["menus"][number],
  *   menuLabel: string,
- *   also: Array<{ text: string, href: string }>,
+ *   also: Array<{ text: string, href: string, logo?: null | { url: string } }>,
  * }} null when the page has nothing to show
  */
 export function boardPick(shelf, today) {
@@ -390,6 +390,8 @@ export function boardPick(shelf, today) {
       .map((card) => ({
         text: `${card.popup.days}, ${card.popup.title}`,
         href: card.kitchen.href,
+        // Its logo beside it, when ops has one.
+        logo: card.popup.logo || null,
       })),
   ];
   return {

@@ -26,7 +26,7 @@ interface Props {
   taste: ReturnType<typeof menuTaste>;
   menuLabel: string;
   empty: string;
-  also: Array<{ text: string; href: string }>;
+  also: Array<{ text: string; href: string; logo?: null | { url: string } }>;
   photos: Array<{ url: string; width: number; height: number; alt?: string }>;
   /** A print's alt text when the photo has none. */
   photoAlt: string;
@@ -49,6 +49,8 @@ const {
   photoAlt,
   style,
 } = Astro.props;
+/** A pop-up's logo beside its name under "Also": 2.5rem (40px), sharp at 2x. */
+const ALSO_LOGO = 40;
 /** A print's photo, 12rem across at most (192px), sharp at 2x. */
 const PHOTO_WIDTH = 192;
 ---
@@ -74,8 +76,19 @@ const PHOTO_WIDTH = 192;
         {also.map((other, index) => (
           <>
             {index > 0 && ", "}
-            <a href={other.href}>
-              {other.text} <span aria-hidden="true">→</span>
+            <a href={other.href} class:list={[other.logo && "ch-menu-also-logo"]}>
+              {other.logo && (
+                <img
+                  src={sizedImageUrl(other.logo.url, ALSO_LOGO)}
+                  srcset={`${sizedImageUrl(other.logo.url, ALSO_LOGO)} 1x, ${sizedImageUrl(other.logo.url, ALSO_LOGO * 2)} 2x`}
+                  alt=""
+                  width={ALSO_LOGO}
+                  height={ALSO_LOGO}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              <span>{other.text}</span> <span aria-hidden="true">→</span>
             </a>
           </>
         ))}
