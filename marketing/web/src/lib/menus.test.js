@@ -164,7 +164,7 @@ describe("two pop-up kitchens in one week", () => {
 
   it("leads home's Food board with whoever cooks today, the other under Also", () => {
     const monday = boardPick(menuShelf("kitchen", menu, catalog, MON), MON);
-    expect(monday.line).toBe("In the kitchen: Monday Dumplings");
+    expect(monday.line).toBe("In the kitchen today: Monday Dumplings");
     expect(monday.menu.id).toBe("dumplings");
     expect(monday.menuLabel).toBe("");
     expect(monday.also).toEqual([
@@ -172,7 +172,7 @@ describe("two pop-up kitchens in one week", () => {
     ]);
 
     const thursday = boardPick(menuShelf("kitchen", menu, catalog, THU), THU);
-    expect(thursday.line).toBe("In the kitchen: Chez Pickle");
+    expect(thursday.line).toBe("In the kitchen today: Chez Pickle");
     expect(thursday.menu.id).toBe("chez-pickle");
     expect(thursday.also).toEqual([
       { text: "Mon, Monday Dumplings", href: "/kitchen#dumplings", logo: null },
@@ -281,7 +281,7 @@ describe("a pop-up with a menu for each day", () => {
     };
     const wed = "2026-11-25";
     const pick = boardPick(menuShelf("kitchen", menu, wednesdayToo, wed), wed);
-    expect(pick.line).toBe("In the kitchen: Chez Pickle");
+    expect(pick.line).toBe("In the kitchen today: Chez Pickle");
     expect(pick.menu.name).toBe("Dinner");
     expect(pick.menuLabel).toBe("Thursday’s menu");
   });

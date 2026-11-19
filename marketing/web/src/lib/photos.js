@@ -124,6 +124,22 @@ export function menuPhotos(photos, menu, { limit = MENU_BOARD_PHOTOS } = {}) {
  *   the pop-up's gallery photos, newest first
  * @param {{ limit?: number }} [options]
  */
+/**
+ * The Food board's prints when more than one pop-up kitchen cooks this
+ * week: their galleries taking turns, the lead's first, so each kitchen
+ * gets a print ([a1, b1, a2, b2, …]).
+ *
+ * @param {Array<Array<object>>} galleries each kitchen's photos, newest first
+ */
+export function takeTurns(galleries) {
+  const out = [];
+  const longest = Math.max(0, ...galleries.map((photos) => photos?.length || 0));
+  for (let n = 0; n < longest; n += 1) {
+    for (const photos of galleries) if (photos?.[n]) out.push(photos[n]);
+  }
+  return out;
+}
+
 export function foodBoardPhotos(
   photos,
   kitchen = [],
