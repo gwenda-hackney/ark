@@ -86,7 +86,7 @@ describe("the one-off email editor (#348)", () => {
 	it("names statuses and paths", () => {
 		assert.deepEqual(statusBadge("sent"), { label: "Sent", tone: "success" });
 		assert.deepEqual(statusBadge("draft"), { label: "Draft", tone: "neutral" });
-		assert.equal(writePath(), "/email/write");
+		assert.equal(writePath(), "/email");
 		assert.equal(writePath(3), "/email/write/3");
 	});
 });

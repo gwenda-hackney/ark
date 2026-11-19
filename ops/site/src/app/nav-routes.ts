@@ -54,8 +54,8 @@ export const NAV_ROUTES: NavRoute[] = [
 				icon: "send",
 				hint: "The weekly what's on, and emails you write",
 				tabs: [
-					{ id: "week", label: "This week", path: "/email" },
-					{ id: "write", label: "Write", path: "/email/write" },
+					{ id: "overview", label: "Overview", path: "/email" },
+					{ id: "week", label: "This week", path: "/email/week" },
 					{ id: "sent", label: "Sent", path: "/email/sent" },
 					{ id: "settings", label: "Settings", path: "/email/settings" },
 				],

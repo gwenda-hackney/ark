@@ -1,6 +1,7 @@
 <script lang="ts">
 	/**
-	 * Email: what goes to the mailing list, in four tabs. This week: the
+	 * Email: what goes to the mailing list, in four tabs. Overview: every
+	 * email as cards, the weekly one and the one-offs (EmailOverview). This week: the
 	 * weekly "what's on" email as it would go out, where it stands, the send
 	 * buttons and a test to yourself. Write (#348): one-off emails, a list,
 	 * and the editor that comes forward over it. Sent: every email sent, with
@@ -23,7 +24,7 @@
 	import EmailSchedule from "./EmailSchedule.svelte";
 	import EmailStatus from "./EmailStatus.svelte";
 	import OneOffEmailEditor from "./OneOffEmailEditor.svelte";
-	import OneOffEmailList from "./OneOffEmailList.svelte";
+	import EmailOverview from "./EmailOverview.svelte";
 	import { listOneOffEmails, type OneOffSummary } from "./email-api";
 	import { parseShellPath } from "../app/nav";
 	import SentEmails from "./SentEmails.svelte";
@@ -33,7 +34,7 @@
 		me,
 		path = "/email",
 		view = "week",
-	}: { me: AuthMe; path?: string; view?: "week" | "write" | "sent" | "settings" } = $props();
+	}: { me: AuthMe; path?: string; view?: "overview" | "week" | "write" | "sent" | "settings" } = $props();
 
 	// Write: the list, and an email open over it.
 	const route = $derived(parseShellPath(path));
@@ -53,7 +54,7 @@
 		}
 	}
 	$effect(() => {
-		if (view === "write") void loadOneOffs();
+		if (view === "write" || view === "overview") void loadOneOffs();
 	});
 
 	let email = $state<WeeklyEmailPreview | null>(null);
@@ -90,7 +91,7 @@
 		void loadStatus();
 		if (view === "week") void loadPreview();
 		if (view === "sent") sentKey += 1;
-		if (view === "write") void loadOneOffs();
+		if (view === "write" || view === "overview") void loadOneOffs();
 	}
 
 	onMount(() => {
@@ -117,7 +118,7 @@
 
 <div class="root">
 <div class="page scrollbar-fade" class:fill={view === "sent"} class:parked={editing} inert={editing}>
-	<PageHeader title="Email" tabs={{ items: navTabs("email"), value: view }}>
+	<PageHeader title="Email" tabs={{ items: navTabs("email"), value: view === "write" ? "overview" : view }}>
 		{#snippet actions()}
 			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={refresh}>
 				{#snippet icon()}
@@ -134,8 +135,8 @@
 		{#key sentKey}
 			<SentEmails available={status ? status.access.mailchimp : null} />
 		{/key}
-	{:else if view === "write"}
-		<OneOffEmailList emails={oneOffs} loading={oneOffsLoading} error={oneOffsError} onretry={() => void loadOneOffs()} />
+	{:else if view === "write" || view === "overview"}
+		<EmailOverview {status} emails={oneOffs} loading={oneOffsLoading} error={oneOffsError} onretry={() => void loadOneOffs()} />
 	{:else if view === "settings"}
 		<div class="narrow">
 			<EmailSchedule {status} onsaved={(settings) => { if (status) status = { ...status, settings }; void loadStatus(); }} />
@@ -159,7 +160,7 @@
 		</div>
 	{/if}
 </div>
-{#if view === "write"}
+{#if view === "write" || view === "overview"}
 	<!-- Always mounted on Write: it comes forward over the list when an email opens (EditorShell). -->
 	<OneOffEmailEditor {path} {me} open={editing} onchanged={() => void loadOneOffs()} />
 {/if}

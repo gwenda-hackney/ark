@@ -278,6 +278,7 @@ export function parseShellPath(path) {
   // Old link to the release page: the Website page covers it now.
   if (p === "/web/release") return { page: "web", view: null };
   if (p === "/web" || p.startsWith("/web/")) return { page: "web", view: null };
+  if (p === "/email/week") return { page: "email", view: "week" };
   if (p === "/email/sent") return { page: "email", view: "sent" };
   if (p === "/email/settings") return { page: "email", view: "settings" };
   // Write (#348): the one-off emails, a new one, or one opened by id.
@@ -285,7 +286,8 @@ export function parseShellPath(path) {
     const part = decodeSegment(p.slice("/email/write/".length).split("/")[0] || "");
     return { page: "email", view: "write", slug: part && part !== "new" ? part : null, isNew: part === "new" };
   }
-  if (p === "/email" || p.startsWith("/email/")) return { page: "email", view: null };
+  // The first page: every email as cards (#348).
+  if (p === "/email" || p.startsWith("/email/")) return { page: "email", view: "overview" };
   if (p === "/forms") return { page: "forms", slug: null };
   if (p.startsWith("/forms/")) {
     const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");

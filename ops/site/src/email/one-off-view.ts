@@ -102,4 +102,5 @@ export function notReady(draft: OneOffDraft): string {
 }
 
 /** Paths of the Write tab. */
-export const writePath = (id?: number | string) => (id === undefined ? "/email/write" : `/email/write/${id}`);
+/** An email's page, or with no id the Email page's first tab, where the one-off cards are. */
+export const writePath = (id?: number | string) => (id === undefined ? "/email" : `/email/write/${id}`);
