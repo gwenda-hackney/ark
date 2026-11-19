@@ -172,12 +172,13 @@
   mask: var(--cut) center / 100% 100% no-repeat;
 }
 
-/* Red paper, cream print: today, Tonight, a deal. The deeper red, so the
+/* Red paper, cream print: today, Tonight, a deal (Tomorrow keeps the
+   mustard, so the two days read apart). The deeper red, so the
    print reads under the paper's sheen too (4.5:1 at its top, 5.7:1 in the
    middle); the logo's own --ch-pop is 3.3:1 there */
 .ch-night--tonight .ch-night-date,
 .ch-night-label,
-.ch-day-label,
+.ch-day--tonight .ch-day-label,
 .ch-stand--deal .ch-stand-tag,
 .ch-stand--next .ch-stand-tag {
   --paper: var(--ch-red);
