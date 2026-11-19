@@ -96,8 +96,8 @@ const price = (value) => (value ? `£${value}` : "");
 export const POPUP_NUDGE = "Come hungry, bring your mates, and stay for a drink.";
 
 /**
- * The pop-up kitchen's email, with some go in it: its picture, "Just landed"
- * while it hasn't started (else "Now cooking"), its line, when, and a nudge;
+ * The pop-up kitchen's email, with some go in it: its picture, "… is coming
+ * to Gwenda!" while it hasn't started (else "… is cooking at Gwenda!"), its line, when, and a nudge;
  * a few dishes to order first, a second picture from its gallery, then the
  * whole menu and Book a table.
  * @param {{ origin: string }} site the website the links go to
@@ -114,9 +114,11 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
   const picture = event.mainImage?.asset || event.logo?.asset || "";
   const second = (event.gallery || []).find((photo) => photo.asset && photo.asset !== picture)?.asset || "";
   const line = text(event.shortDescription) || text(event.description);
+  /** "Pinsa A Roma is coming to Gwenda!", or once it has started, "… is cooking at Gwenda!" */
+  const headline = `${name} is ${isNew ? "coming to" : "cooking at"} Gwenda!`;
   const sections = [
     ...(picture ? [{ kind: "image", assetId: picture, alt: name }] : []),
-    { kind: "heading", text: `${isNew ? "Just landed" : "Now cooking"}: ${name}` },
+    { kind: "heading", text: headline },
     { kind: "copy", text: [line, when ? `**${when}.**` : "", POPUP_NUDGE].filter(Boolean).join("\n\n") },
     ...(dishes.length
       ? [
@@ -136,7 +138,7 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
   const days = event.repeatUnit === "week" ? daysWords(event.weekdays) : "";
   return {
     name: `${name} promo`,
-    subject: `${isNew ? "Just landed at Gwenda" : "Now cooking at Gwenda"}: ${name}${days ? `, ${days}` : ""}`,
+    subject: `${headline}${days ? ` ${days}` : ""}`,
     previewText: line.split(/(?<=[.!?])\s/)[0] || when,
     sections,
   };

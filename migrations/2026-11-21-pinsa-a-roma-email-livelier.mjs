@@ -1,6 +1,6 @@
 /**
  * The Pinsa A Roma email, with more go in it: the pop-up kitchen's template
- * (ops/site/src/email/server/promote.js) now says "Just landed", nudges
+ * (ops/site/src/email/server/promote.js) now says "Pinsa A Roma is coming to Gwenda!", nudges
  * people to come hungry, and lists what to order first. The draft
  * 2026-11-20-pinsa-a-roma-email.mjs made is made again from it.
  *

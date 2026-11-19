@@ -53,8 +53,8 @@ describe("2026-11-21-pinsa-a-roma-email-livelier", () => {
     const fresh = await emails(db).get(old.id);
     assert.equal(result.changed, true);
     assert.equal(fresh.status, "draft");
-    assert.equal(fresh.subject, "Just landed at Gwenda: Pinsa A Roma, Mondays and Tuesdays");
-    assert.equal(fresh.sections[1].text, "Just landed: Pinsa A Roma");
+    assert.equal(fresh.subject, "Pinsa A Roma is coming to Gwenda! Mondays and Tuesdays");
+    assert.equal(fresh.sections[1].text, "Pinsa A Roma is coming to Gwenda!");
     assert.ok(fresh.sections.some((part) => part.kind === "heading" && part.text === "What to order first"));
     assert.equal(fresh.updatedBy, livelier.BY.toLowerCase());
     assert.match(text, /made email \d+ livelier/);

@@ -85,20 +85,20 @@ describe("promoting a pop-up kitchen", () => {
     ]);
   });
 
-  it("saves a draft from the template: picture, Just landed, when, three dishes, a second picture, the menu and booking", async () => {
+  it("saves a draft from the template: picture, coming to Gwenda, when, three dishes, a second picture, the menu and booking", async () => {
     const event = await seedPinsa();
     const res = await api(promote, { method: "POST", path: "/api/email/promote", body: { template: "popup", id: String(event.id) } });
     assert.equal(res.status, 200, JSON.stringify(res.data));
     const email = res.data.email;
     assert.equal(email.status, "draft");
     assert.equal(email.name, "Pinsa A Roma promo", "named for its card");
-    assert.equal(email.subject, "Just landed at Gwenda: Pinsa A Roma, Mondays and Tuesdays");
+    assert.equal(email.subject, "Pinsa A Roma is coming to Gwenda! Mondays and Tuesdays");
     assert.equal(email.previewText, "Roman pinsa on Mondays and Tuesdays: a light, crisp base.");
     assert.deepEqual(
       email.sections.map((section) => section.kind),
       ["image", "heading", "copy", "heading", "copy", "image", "button", "booking"],
     );
-    assert.equal(email.sections[1].text, "Just landed: Pinsa A Roma");
+    assert.equal(email.sections[1].text, "Pinsa A Roma is coming to Gwenda!");
     assert.match(email.sections[2].text, new RegExp(`\\*\\*Mondays and Tuesdays from Monday 23 November, ${NOON} – 9pm\\.\\*\\*\n\n${POPUP_NUDGE}$`));
     assert.equal(
       email.sections[4].text,
@@ -118,7 +118,7 @@ describe("promoting a pop-up kitchen", () => {
     // It is an ordinary draft: it opens in the editor and renders as the email that would go.
     const opened = await api(getEmail, { path: `/api/email/one-off/${email.id}`, params: { id: String(email.id) } });
     const rendered = renderOneOffEmail(opened.data.email, opened.data.frame);
-    assert.match(rendered.html, /Just landed: Pinsa A Roma/);
+    assert.match(rendered.html, /Pinsa A Roma is coming to Gwenda!/);
     assert.match(rendered.html, /Trastevere \(V\)/);
   });
 
