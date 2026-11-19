@@ -45,22 +45,34 @@ export function fromPrice(items) {
  */
 export const HOME_MENU_ITEMS = 3;
 
+/** The most a board lists from each part after its first, when it has room for them: a few of each, then on to the next. */
+export const EXTRA_PER_PART = 3;
+
 /**
  * @param {Array<{ id: string, kind?: string, title: string, items: object[], subsections?: object[] }>} chapters
  *   one menu's chapters as they were fetched, in the order ops sets them
- * @param {{ count?: number, where?: ReturnType<typeof menuAddresses> }} [options]
- *   how many of the first chapter's items to list, and the menu page's
- *   addresses when it has several menus (lib/menus.js menuShelf)
+ * @param {{ count?: number, lead?: number, where?: ReturnType<typeof menuAddresses> }} [options]
+ *   how many items to list, and the menu page's addresses when it has
+ *   several menus (lib/menus.js menuShelf). `lead`: the most of those from
+ *   the first chapter; the rest come from the parts after it, in the
+ *   menu's order, up to EXTRA_PER_PART from each (`extra`), so the
+ *   list keeps about its length however many the first chapter has.
  * @returns {null | {
  *   lead: { href: string, title: string, total: number, items: Array<{ name: string, description: string, price: string }> },
+ *   extra: Array<{ href: string, title: string, total: number, items: Array<{ name: string, description: string, price: string }> }>,
  *   more: Array<{ href: string, title: string, from: string }>,
  * }} null when the menu has nothing on it yet. `lead` is the first chapter's
  *   first part with anything on (its own items, else its first group's);
- *   `more` the tiles. Each `href` is that section's own place on the menu's page.
+ *   `extra` the parts after it listed too (none unless `lead` leaves room);
+ *   `more` the tiles for the rest. Each `href` is that section's own place on the menu's page.
  */
 export function menuTaste(
   chapters,
-  { count = HOME_MENU_ITEMS, where = menuAddresses(chapters) } = {},
+  {
+    count = HOME_MENU_ITEMS,
+    lead: leadMax,
+    where = menuAddresses(chapters),
+  } = {},
 ) {
   /**
    * Each chapter's parts with items: its own, then each of its groups. A
@@ -88,25 +100,43 @@ export function menuTaste(
     title: part.title,
     from: fromPrice(part.items),
   });
+  const listed = (items, n) =>
+    items.slice(0, n).map((item) => ({
+      name: item.name,
+      description: item.description || "",
+      price: poundPrice(priceRows(item)[0]),
+    }));
+  /** What comes after the first part: every other chapter, else its own groups. */
+  const after = others.length
+    ? others.map(({ chapter, parts }) => ({
+        href: where(chapter).href,
+        title: chapter.title,
+        items: parts.flatMap((part) => part.items),
+      }))
+    : groups;
+  const leadItems = listed(first.items, Math.min(count, leadMax ?? count));
+  /** Room left once the first part is listed, filled from the parts after it in turn: only when asked (`lead`). */
+  let room = leadMax === undefined ? 0 : count - leadItems.length;
+  const extra = [];
+  for (const part of after) {
+    if (room <= 0) break;
+    const items = listed(part.items, Math.min(room, EXTRA_PER_PART));
+    extra.push({
+      href: part.href,
+      title: part.title,
+      total: part.items.length,
+      items,
+    });
+    room -= items.length;
+  }
   return {
     lead: {
       href: first.href,
       title: first.title,
       total: first.items.length,
-      items: first.items.slice(0, count).map((item) => ({
-        name: item.name,
-        description: item.description || "",
-        price: poundPrice(priceRows(item)[0]),
-      })),
+      items: leadItems,
     },
-    more: others.length
-      ? others.map(({ chapter, parts }) =>
-          tile({
-            href: where(chapter).href,
-            title: chapter.title,
-            items: parts.flatMap((part) => part.items),
-          }),
-        )
-      : groups.map(tile),
+    extra,
+    more: after.slice(extra.length).map(tile),
   };
 }
