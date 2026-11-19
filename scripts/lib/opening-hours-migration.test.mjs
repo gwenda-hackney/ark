@@ -70,7 +70,7 @@ describe("2026-11-11-opening-hours", () => {
     const { result } = await run(db);
     assert.deepEqual(result, { saved: false, published: false });
     assert.equal((await d1VenueRepository(db).getOpeningHours()).updatedBy, "owner@gwenda.co.uk");
-    assert.equal((await websiteRows())[0], "Mon midday–6pm");
+    assert.equal((await websiteRows())[0], "Mon noon–6pm");
   });
 
   it("finishes a run that saved in ops but never reached the website", async () => {

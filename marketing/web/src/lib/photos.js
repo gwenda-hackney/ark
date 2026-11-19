@@ -133,7 +133,10 @@ export function menuPhotos(photos, menu, { limit = MENU_BOARD_PHOTOS } = {}) {
  */
 export function takeTurns(galleries) {
   const out = [];
-  const longest = Math.max(0, ...galleries.map((photos) => photos?.length || 0));
+  const longest = Math.max(
+    0,
+    ...galleries.map((photos) => photos?.length || 0),
+  );
   for (let n = 0; n < longest; n += 1) {
     for (const photos of galleries) if (photos?.[n]) out.push(photos[n]);
   }

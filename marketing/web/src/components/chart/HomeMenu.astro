@@ -106,14 +106,18 @@ const photoPlan = homePhotoPlan(gallery, {
     kitchenPhotos?.photos || [],
     ...later
       .filter((card) => card.popup)
-      .map((card) => eventSets.find((set) => set.id === card.popup.id)?.photos || []),
+      .map(
+        (card) =>
+          eventSets.find((set) => set.id === card.popup.id)?.photos || [],
+      ),
   ]),
 });
 /**
  * More cocktails on the Drinks board while the Food board has a card for
  * another kitchen, so the two boards stay about the same length.
  */
-const drinksCount = HOME_MENU_ITEMS + DRINKS_PER_NEXT_KITCHEN * nextKitchens.length;
+const drinksCount =
+  HOME_MENU_ITEMS + DRINKS_PER_NEXT_KITCHEN * nextKitchens.length;
 const drinks = {
   side: "drinks" as const,
   id: "drinks",
@@ -148,7 +152,9 @@ const food = {
     : "No kitchen in right now, back soon.",
   next: nextKitchens,
   // Its own other menus; the other kitchens have their cards (nextKitchens).
-  also: (boards.kitchen?.also || []).filter((row) => !shownAsCards.has(row.href)),
+  also: (boards.kitchen?.also || []).filter(
+    (row) => !shownAsCards.has(row.href),
+  ),
   photos: photoPlan.food,
   photoAlt: nextKitchens.length
     ? "Food from this week’s pop-up kitchens"

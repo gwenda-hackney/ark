@@ -122,7 +122,7 @@ describe("renderWeeklyEmail: the HTML is email HTML", () => {
     for (const words of ["What’s on this week", "Deals", "Pop-up kitchen", "Next week", "Tonight"]) {
       expect(email.html).toContain(words);
     }
-    expect(email.html).toContain("Sat 12–8pm · Sun 1–6pm");
+    expect(email.html).toContain("Sat noon–8pm · Sun 1–6pm");
     expect(email.html).toContain("£8 Negroni");
     // A deal that runs four days is there once
     expect(email.html.match(/>Cocktail Hour<\/a>/g)).toHaveLength(1);

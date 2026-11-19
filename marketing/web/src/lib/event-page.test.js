@@ -502,16 +502,30 @@ describe("an event that sends people to a form", () => {
 
 describe("the gallery's heading", () => {
   const photos = [
-    { url: "https://cdn.sanity.io/images/p/d/a-1600x1200.jpg", width: 1600, height: 1200 },
-    { url: "https://cdn.sanity.io/images/p/d/b-1600x1200.jpg", width: 1600, height: 1200 },
+    {
+      url: "https://cdn.sanity.io/images/p/d/a-1600x1200.jpg",
+      width: 1600,
+      height: 1200,
+    },
+    {
+      url: "https://cdn.sanity.io/images/p/d/b-1600x1200.jpg",
+      width: 1600,
+      height: 1200,
+    },
   ];
   const heading = (category) =>
-    page(karaoke({ gallery: photos }), { category }).html.match(/ch-photos">\s*<h2 class="ch-poster">\s*([^<]*?)\s*<\/h2>/)?.[1];
+    page(karaoke({ gallery: photos }), { category }).html.match(
+      /ch-photos">\s*<h2 class="ch-poster">\s*([^<]*?)\s*<\/h2>/,
+    )?.[1];
 
   it("says What's cooking on a pop-up kitchen, What's pouring on a deal, On the night on an event", () => {
     expect(heading("popup")).toBe(GALLERY_HEADINGS.popup);
     expect(heading("promotion")).toBe(GALLERY_HEADINGS.promotion);
     expect(heading("event")).toBe(GALLERY_HEADINGS.event);
-    expect(GALLERY_HEADINGS).toEqual({ popup: "What’s cooking", promotion: "What’s pouring", event: "On the night" });
+    expect(GALLERY_HEADINGS).toEqual({
+      popup: "What’s cooking",
+      promotion: "What’s pouring",
+      event: "On the night",
+    });
   });
 });

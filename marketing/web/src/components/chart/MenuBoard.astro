@@ -96,7 +96,10 @@ const PHOTO_WIDTH = 192;
         {also.map((other, index) => (
           <>
             {index > 0 && ", "}
-            <a href={other.href} class:list={[other.logo && "ch-menu-also-logo"]}>
+            <a
+              href={other.href}
+              class:list={[other.logo && "ch-menu-also-logo"]}
+            >
               {other.logo && (
                 <img
                   src={sizedImageUrl(other.logo.url, ALSO_LOGO)}

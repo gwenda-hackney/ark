@@ -748,7 +748,12 @@ describe("takeTurns", () => {
   it("gives each kitchen a print in turn, the lead's first", () => {
     const a = [{ url: "a1" }, { url: "a2" }, { url: "a3" }];
     const b = [{ url: "b1" }];
-    expect(takeTurns([a, b]).map((photo) => photo.url)).toEqual(["a1", "b1", "a2", "a3"]);
+    expect(takeTurns([a, b]).map((photo) => photo.url)).toEqual([
+      "a1",
+      "b1",
+      "a2",
+      "a3",
+    ]);
     expect(takeTurns([[], b]).map((photo) => photo.url)).toEqual(["b1"]);
     expect(takeTurns([])).toEqual([]);
   });

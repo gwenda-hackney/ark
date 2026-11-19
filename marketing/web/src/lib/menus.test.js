@@ -36,7 +36,11 @@ const menuInfo = (id, name, kind, extra = {}) => ({
   ...extra,
 });
 /** Chez Pickle's logo in ops: home's "Also" shows it beside its name. */
-const CHEZ_LOGO = { url: "https://cdn.sanity.io/images/p/d/chez-120x120.png", width: 120, height: 120 };
+const CHEZ_LOGO = {
+  url: "https://cdn.sanity.io/images/p/d/chez-120x120.png",
+  width: 120,
+  height: 120,
+};
 const popup = (seriesId, title) => ({ seriesId, title, category: "popup" });
 
 /** A pop-up's nights on these weekdays for three weeks from Mon 16 Nov. */
@@ -168,7 +172,11 @@ describe("two pop-up kitchens in one week", () => {
     expect(monday.menu.id).toBe("dumplings");
     expect(monday.menuLabel).toBe("");
     expect(monday.also).toEqual([
-      { text: "Wed–Sun, Chez Pickle", href: "/kitchen#chez-pickle", logo: CHEZ_LOGO },
+      {
+        text: "Wed–Sun, Chez Pickle",
+        href: "/kitchen#chez-pickle",
+        logo: CHEZ_LOGO,
+      },
     ]);
 
     const thursday = boardPick(menuShelf("kitchen", menu, catalog, THU), THU);
