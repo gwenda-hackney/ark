@@ -1,5 +1,5 @@
 /**
- * Use cases: the weekly email going to the mailing list, and everything that
+ * Use cases: the monthly what's on email going to the mailing list, and everything that
  * must stop it. Through the real API handlers and the scheduler's tick, with
  * Sanity, Mailchimp and Gmail faked (testing/fake-world.js): no test here can
  * reach a real inbox. The clock is pinned.
@@ -9,9 +9,9 @@
  *   2. on production it's off until an admin switches it on
  *   3. switched on, it sends by itself at its time, or waits for an admin's
  *      Approve and send when they've asked to approve first
- *   4. one send per week, however often it's triggered; "send again" is an
+ *   4. one send per month, however often it's triggered; "send again" is an
  *      admin's explicit, confirmed choice
- *   5. an empty week, an email that can't be built, a retried request and a
+ *   5. an empty month, an email that can't be built, a retried request and a
  *      lost answer never cause a wrong or second send
  */
 import assert from "node:assert/strict";
@@ -29,7 +29,7 @@ import { onRequestGet as getStatus } from "../../functions/api/email/status.js";
 import { onRequestPost as tick } from "../../functions/api/web/tick.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { d1WeeklyEmailRepository } from "./server/adapters/d1-weekly-email.js";
-import { MONDAY_SEND, TUESDAY_SEND, WEEK, publishNight, publishWeek, signedIn } from "./testing.js";
+import { FIRST_MONDAY_SEND, FIRST_TUESDAY_SEND, MONTH, publishMonth, publishNight, signedIn } from "./testing.js";
 
 const ADMIN = "admin@example.com";
 const STAFF = "staff@example.com";
@@ -37,19 +37,22 @@ const STAFF = "staff@example.com";
 let world;
 
 /** Minutes after Tuesday 11:02, just past the default send time. */
-const later = (minutes) => new Date(TUESDAY_SEND.getTime() + minutes * 60_000);
+const later = (minutes) => new Date(FIRST_TUESDAY_SEND.getTime() + minutes * 60_000);
+/** January's first Tuesday, 11:02: the month after's send. */
+const NEXT_MONTH_SEND = new Date("2027-01-05T11:02:00Z");
+const NEXT_MONTH = "2027-01-01";
 
 function setting(name, value, envName = world.env.SITE_ENV) {
   world.setConfig(name, value, { env: envName });
 }
 
-/** Production ops with Mailchimp connected, one admin, and a week of nights published. */
+/** Production ops with Mailchimp connected, one admin, and a month of nights published. */
 function production({ nights = true } = {}) {
   world.env.SITE_ENV = "production";
   world.env.GMAIL_SERVICE_ACCOUNT_JSON = world.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON;
   world.mailchimp.connect(world.env);
   setting("ops.admin_emails", ADMIN);
-  if (nights) publishWeek(world);
+  if (nights) publishMonth(world);
 }
 
 const switchOn = () => setting("weekly_email.sending", "on");
@@ -91,7 +94,7 @@ const sends = () => world.mailchimp.audienceSends;
 const mailchimpCalls = () => world.mailchimp.log;
 
 beforeEach(async () => {
-  vi.useFakeTimers({ now: TUESDAY_SEND, toFake: ["Date"] });
+  vi.useFakeTimers({ now: FIRST_TUESDAY_SEND, toFake: ["Date"] });
   resetConfigCacheForTests();
   world = await createFakeWorld();
   world.env.OPS_DB = createTestD1("ops");
@@ -103,7 +106,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("weekly email: nothing reaches the list off production", () => {
+describe("monthly email: nothing reaches the list off production", () => {
   for (const [name, env] of [
     ["hosted dev", { SITE_ENV: "dev" }],
     ["a developer's machine", { SITE_ENV: "local" }],
@@ -111,7 +114,7 @@ describe("weekly email: nothing reaches the list off production", () => {
     it(`${name}: with a key, switched on and due, the tick does nothing`, async () => {
       Object.assign(world.env, env);
       world.mailchimp.connect(world.env);
-      publishWeek(world);
+      publishMonth(world);
       setting("weekly_email.sending", "on", "dev");
       // A machine's tick is skipped altogether; hosted dev's email step says why.
       const res = await callApi(world, tick, {
@@ -128,7 +131,7 @@ describe("weekly email: nothing reaches the list off production", () => {
     it(`${name}: Approve and send, Try again and Send again are refused, and touch nothing`, async () => {
       Object.assign(world.env, env);
       world.mailchimp.connect(world.env);
-      publishWeek(world);
+      publishMonth(world);
       setting("weekly_email.sending", "on", "dev");
       // Everyone is an admin on dev, so this is the environment refusing, not the role.
       for (const res of [await pressApprove(), await pressTryAgain(), await pressSendAgain(1)]) {
@@ -156,13 +159,13 @@ describe("weekly email: nothing reaches the list off production", () => {
   });
 
   it("dev without a key: preview only", async () => {
-    publishWeek(world);
+    publishMonth(world);
     assert.deepEqual((await status()).access, { mailchimp: false, audience: false });
     assert.equal((await callApi(world, getPreview, { path: "/api/email/preview" })).data.email.nights, 2);
   });
 });
 
-describe("weekly email: off until an admin switches it on", () => {
+describe("monthly email: off until an admin switches it on", () => {
   it("production, with a key, at its time: nothing is sent, prepared or recorded", async () => {
     production();
     assert.deepEqual(await runTick(), { action: "none", why: "switched off" });
@@ -184,7 +187,7 @@ describe("weekly email: off until an admin switches it on", () => {
     production();
     const refused = await as(STAFF, saveSettings, "/api/email/settings", { sending: true });
     assert.equal(refused.status, 403);
-    assert.equal(refused.data.error, "Only admins can change or send the weekly email.");
+    assert.equal(refused.data.error, "Only admins can change the schedule or send to the mailing list.");
     resetConfigCacheForTests();
     assert.equal((await status()).settings.sending, false);
 
@@ -210,7 +213,7 @@ describe("weekly email: off until an admin switches it on", () => {
     production();
     for (const res of [await pressApprove(), await pressTryAgain(), await pressSendAgain(1)]) {
       assert.equal(res.status, 409, JSON.stringify(res.data));
-      assert.equal(res.data.error, "The weekly email is switched off. Switch it on first.");
+      assert.equal(res.data.error, "The monthly email is switched off. Switch it on first.");
     }
     assert.deepEqual(mailchimpCalls(), []);
   });
@@ -224,16 +227,16 @@ describe("weekly email: off until an admin switches it on", () => {
   });
 });
 
-describe("weekly email: switched on, it sends by itself at its time", () => {
+describe("monthly email: switched on, it sends by itself at its time", () => {
   beforeEach(() => {
     production();
     switchOn();
   });
 
-  it("Tuesday 11:00: this week's email goes to the list, once", async () => {
-    assert.deepEqual(await runTick(), { action: "sent", week: WEEK });
+  it("the first Tuesday, 11:00: this month's email goes to the list, once", async () => {
+    assert.deepEqual(await runTick(), { action: "sent", month: MONTH });
     assert.equal(sends().length, 1);
-    assert.match(sends()[0].subject, /^This week at Gwenda: /);
+    assert.match(sends()[0].subject, /^December at Gwenda: /);
     assert.match(sends()[0].html, /Canalside Jazz/);
     assert.match(sends()[0].html, /https:\/\/gwenda\.co\.uk\/whats-on\/quiz/);
     assert.deepEqual(mailchimpCalls(), [
@@ -242,15 +245,15 @@ describe("weekly email: switched on, it sends by itself at its time", () => {
       "PUT /campaigns/camp1/content",
       "POST /campaigns/camp1/actions/send",
     ]);
-    assert.equal(world.mailchimp.campaigns.get("camp1").settings.title, "Weekly email, week of 9 Nov 2026");
+    assert.equal(world.mailchimp.campaigns.get("camp1").settings.title, "What's on email, December 2026");
 
     const shown = await status();
     assert.equal(shown.current.status, "sent");
     assert.equal(shown.current.recipients, 244);
     assert.equal(shown.current.startedBy, "schedule");
-    assert.equal(shown.current.sentAt, TUESDAY_SEND.toISOString());
+    assert.equal(shown.current.sentAt, FIRST_TUESDAY_SEND.toISOString());
     assert.equal(shown.current.campaignUrl, "https://us99.admin.mailchimp.com/campaigns/show/?id=5001");
-    assert.deepEqual(shown.schedule.next, { date: "2026-11-17", time: "11:00" });
+    assert.deepEqual(shown.schedule.next, { date: "2027-01-05", time: "11:00" });
     // Nobody needs telling when it just worked.
     assert.deepEqual(world.google.mail, []);
   });
@@ -266,7 +269,7 @@ describe("weekly email: switched on, it sends by itself at its time", () => {
       {
         id: "camp1",
         subject: sends()[0].subject,
-        sentAt: TUESDAY_SEND.toISOString(),
+        sentAt: FIRST_TUESDAY_SEND.toISOString(),
         emailsSent: 244,
         opens: 120,
         openRate: 120 / 244,
@@ -286,14 +289,14 @@ describe("weekly email: switched on, it sends by itself at its time", () => {
     assert.equal(world.mailchimp.log.length, before);
   });
 
-  it("the next ticks that week do nothing: one send per week", async () => {
+  it("the next ticks that month do nothing: one send per month", async () => {
     await runTick();
-    // Up to Sunday night; Monday is a new week, which waits for its own Tuesday.
-    for (const minutes of [5, 10, 60, 24 * 60, 5 * 24 * 60]) {
+    // To the month's end; 1 January is a new month, which waits for its own first Tuesday.
+    for (const minutes of [5, 10, 60, 24 * 60, 7 * 24 * 60, 29 * 24 * 60]) {
       vi.setSystemTime(later(minutes));
-      assert.deepEqual(await runTick(), { action: "none", why: "this week is sent" });
+      assert.deepEqual(await runTick(), { action: "none", why: "this month is sent" });
     }
-    vi.setSystemTime(later(6 * 24 * 60));
+    vi.setSystemTime(new Date("2027-01-01T11:02:00Z"));
     assert.deepEqual(await runTick(), { action: "none", why: "not time yet" });
     assert.equal(sends().length, 1);
     assert.equal((await runs()).length, 1);
@@ -307,93 +310,93 @@ describe("weekly email: switched on, it sends by itself at its time", () => {
     assert.equal((await runs()).length, 1);
   });
 
-  it("the week after, it sends that week's", async () => {
+  it("the month after, it sends that month's", async () => {
     await runTick();
-    publishNight(world, "2026-11-19");
-    vi.setSystemTime(later(7 * 24 * 60));
-    assert.deepEqual(await runTick(), { action: "sent", week: "2026-11-16" });
+    vi.setSystemTime(NEXT_MONTH_SEND);
+    assert.deepEqual(await runTick(), { action: "sent", month: NEXT_MONTH });
     assert.equal(sends().length, 2);
-    assert.deepEqual((await status()).history.map((run) => [run.weekStart, run.status]), [
-      ["2026-11-16", "sent"],
-      [WEEK, "sent"],
+    assert.match(sends()[1].subject, /^January at Gwenda: /);
+    assert.deepEqual((await status()).history.map((run) => [run.monthStart, run.status]), [
+      [NEXT_MONTH, "sent"],
+      [MONTH, "sent"],
     ]);
   });
 
   it("before its time, nothing", async () => {
-    vi.setSystemTime(new Date("2026-11-10T10:58:00Z"));
-    assert.deepEqual(await runTick(), { action: "none", why: "not time yet" });
-    // Nor on Monday at the same hour: the default day is Tuesday.
-    vi.setSystemTime(MONDAY_SEND);
+    vi.setSystemTime(new Date("2026-12-01T10:58:00Z"));
     assert.deepEqual(await runTick(), { action: "none", why: "not time yet" });
     assert.deepEqual(mailchimpCalls(), []);
-    assert.deepEqual((await status()).schedule.next, { date: "2026-11-10", time: "11:00" });
+    assert.deepEqual((await status()).schedule.next, { date: "2026-12-01", time: "11:00" });
   });
 
-  it("switched on after this week's time has passed: it waits for next week, no surprise send", async () => {
-    vi.setSystemTime(new Date("2026-11-12T15:00:00Z"));
-    assert.deepEqual(await runTick(), { action: "none", why: "missed this week's time" });
+  it("switched on after this month's time has passed: it waits for next month, no surprise send", async () => {
+    vi.setSystemTime(new Date("2026-12-03T15:00:00Z"));
+    assert.deepEqual(await runTick(), { action: "none", why: "missed this month's time" });
     assert.deepEqual(mailchimpCalls(), []);
     const shown = await status();
     assert.equal(shown.schedule.state, "missed");
     assert.equal(shown.current, null);
-    assert.deepEqual(shown.schedule.next, { date: "2026-11-17", time: "11:00" });
+    assert.deepEqual(shown.schedule.next, { date: "2027-01-05", time: "11:00" });
   });
 
-  it("goes at the day and time in the settings", async () => {
+  it("goes on the first of the settings' weekday, at their time", async () => {
     setting("weekly_email.day", "thu");
     setting("weekly_email.time", "16:30");
     assert.equal((await runTick()).why, "not time yet");
-    vi.setSystemTime(new Date("2026-11-12T16:31:00Z"));
+    // December's first Thursday is the 3rd.
+    vi.setSystemTime(new Date("2026-12-03T16:31:00Z"));
     assert.equal((await runTick()).action, "sent");
     // Built for the day it goes: Thursday's night is tonight.
     assert.match(world.mailchimp.campaigns.get("camp1").settings.preview_text, /^Tonight: Quiz Night/);
   });
 });
 
-describe("weekly email: the week it covers, and tonight", () => {
-  it("the default Tuesday send: Monday to Sunday of that week, and Tuesday's night is tonight", async () => {
+describe("monthly email: the month it covers, and tonight", () => {
+  it("the first Tuesday: the rest of the month, a series once with its other dates, tonight's in red", async () => {
     production({ nights: false });
-    publishNight(world, "2026-11-10", "chess", "Negroni Society");
-    publishNight(world, "2026-11-15", "roast", "Sunday Roast");
-    publishNight(world, "2026-11-16", "quiz", "Quiz Night");
+    publishNight(world, "2026-12-01", "chess", "Negroni Society");
+    publishNight(world, "2026-12-03", "quiz", "Quiz Night");
+    publishNight(world, "2026-12-10", "quiz", "Quiz Night");
+    publishNight(world, "2026-12-17", "quiz", "Quiz Night");
+    publishNight(world, "2026-12-31", "nye", "New Year's Eve");
+    publishNight(world, "2027-01-04", "roast", "Monday Roast");
     switchOn();
     const { email } = (await callApi(world, getPreview, { path: "/api/email/preview" })).data;
-    assert.equal(email.today, "2026-11-10");
-    assert.deepEqual([email.weekStart, email.week.start, email.week.end], [WEEK, WEEK, "2026-11-15"]);
-    // The email names the days still to come: today to Sunday.
-    assert.equal(email.week.span, "10 to 15 Nov");
-    assert.equal(email.nights, 2);
-    assert.equal(email.preheader, "Tonight: Negroni Society · Sun: Sunday Roast");
+    assert.equal(email.today, "2026-12-01");
+    assert.deepEqual([email.monthStart, email.month.start, email.month.end, email.month.name], [MONTH, MONTH, "2026-12-31", "December"]);
+    assert.equal(email.month.span, "1 to 31 Dec");
+    assert.equal(email.nights, 3, "the quiz once, with its other Thursdays");
+    assert.equal(email.preheader, "Tonight: Negroni Society · Thu 3: Quiz Night · Thu 31: New Year's Eve");
     assert.match(email.html, /Tonight/);
-    // Next Monday's night is next week's.
-    assert.doesNotMatch(email.preheader, /Quiz Night/);
-    assert.deepEqual(await runTick(), { action: "sent", week: WEEK });
+    assert.match(email.html, /Also 10 and 17 Dec/);
+    assert.match(email.html, /What’s on in December/);
+    // January's night is in Early January, not this month's.
+    assert.match(email.html, /Early January/);
+    assert.doesNotMatch(email.preheader, /Monday Roast/);
+    assert.deepEqual(await runTick(), { action: "sent", month: MONTH });
     assert.equal(sends()[0].html, email.html);
     assert.equal(world.mailchimp.campaigns.get("camp1").settings.preview_text, email.preheader);
   });
 
-  it("set to Mondays: the week from Monday, and Tuesday's night is Tue, not tonight", async () => {
-    vi.setSystemTime(MONDAY_SEND);
+  it("set to Mondays: it goes on the first Monday, from that day on", async () => {
+    vi.setSystemTime(FIRST_MONDAY_SEND);
     production({ nights: false });
     setting("weekly_email.day", "mon");
-    publishNight(world, "2026-11-10", "chess", "Negroni Society");
-    publishNight(world, "2026-11-15", "roast", "Sunday Roast");
-    publishNight(world, "2026-11-16", "quiz", "Quiz Night");
+    publishNight(world, "2026-12-03", "chess", "Negroni Society");
+    publishNight(world, "2026-12-08", "roast", "Tuesday Roast");
     switchOn();
     const { email } = (await callApi(world, getPreview, { path: "/api/email/preview" })).data;
-    assert.equal(email.today, "2026-11-09");
-    assert.deepEqual([email.week.start, email.week.end, email.week.span], [WEEK, "2026-11-15", "9 to 15 Nov"]);
-    assert.equal(email.nights, 2);
-    assert.equal(email.preheader, "Tue: Negroni Society · Sun: Sunday Roast");
+    assert.equal(email.today, "2026-12-07");
+    assert.equal(email.month.span, "7 to 31 Dec");
+    assert.equal(email.nights, 1, "the 3rd has been and gone");
+    assert.equal(email.preheader, "Tue 8: Tuesday Roast");
     assert.doesNotMatch(email.html, /Tonight/i);
-    // Next Monday's night is next week's, not this week's.
-    assert.doesNotMatch(email.preheader, /Quiz Night/);
     assert.equal((await runTick()).action, "sent");
     assert.equal(sends()[0].html, email.html);
   });
 });
 
-describe("weekly email: approve first", () => {
+describe("monthly email: approve first", () => {
   beforeEach(() => {
     production();
     switchOn();
@@ -401,7 +404,7 @@ describe("weekly email: approve first", () => {
   });
 
   it("at its time the draft waits, the admins are told, and nothing is sent", async () => {
-    assert.deepEqual(await runTick(), { action: "waiting", week: WEEK });
+    assert.deepEqual(await runTick(), { action: "waiting", month: MONTH });
     assert.deepEqual(sends(), []);
     assert.equal(world.mailchimp.drafts().length, 1);
     const shown = await status();
@@ -409,7 +412,7 @@ describe("weekly email: approve first", () => {
     assert.equal(shown.current.recipients, 244);
     assert.equal(world.google.mail.length, 1);
     assert.equal(world.google.mail[0].to, ADMIN);
-    assert.equal(world.google.mail[0].subject, "This week's email is waiting for your OK");
+    assert.equal(world.google.mail[0].subject, "This month's email is waiting for your OK");
     assert.match(world.google.mail[0].text, /would go to 244 people/);
     assert.match(world.google.mail[0].text, /https:\/\/gwenda-ops-dev\.pages\.dev\/email/);
   });
@@ -423,10 +426,10 @@ describe("weekly email: approve first", () => {
   it("it keeps waiting: later ticks never send it, nor does switching back to automatic", async () => {
     await runTick();
     vi.setSystemTime(later(30));
-    assert.deepEqual(await runTick(), { action: "none", why: "this week is waiting" });
+    assert.deepEqual(await runTick(), { action: "none", why: "this month is waiting" });
     setting("weekly_email.mode", "auto");
     vi.setSystemTime(later(60));
-    assert.deepEqual(await runTick(), { action: "none", why: "this week is waiting" });
+    assert.deepEqual(await runTick(), { action: "none", why: "this month is waiting" });
     assert.deepEqual(sends(), []);
     assert.equal(world.google.mail.length, 1);
   });
@@ -451,7 +454,7 @@ describe("weekly email: approve first", () => {
   it("Approve and send sends it, as the website is at that moment", async () => {
     await runTick();
     // A night announced after the draft was made is in what goes out.
-    publishNight(world, "2026-11-13", "disco", "Late Disco");
+    publishNight(world, "2026-12-04", "disco", "Late Disco");
     vi.setSystemTime(later(45));
     const res = await pressApprove();
     assert.equal(res.status, 200, JSON.stringify(res.data));
@@ -461,7 +464,7 @@ describe("weekly email: approve first", () => {
     assert.equal(sends().length, 1);
     assert.match(sends()[0].html, /Late Disco/);
     assert.match(sends()[0].subject, /Late Disco|Quiz Night/);
-    // The one campaign made for the week is the one that went.
+    // The one campaign made for the month is the one that went.
     assert.equal(world.mailchimp.campaigns.size, 1);
   });
 
@@ -478,7 +481,7 @@ describe("weekly email: approve first", () => {
   it("nothing waiting: nothing to approve", async () => {
     const res = await pressApprove();
     assert.equal(res.status, 409);
-    assert.equal(res.data.error, "Nothing is waiting for approval this week.");
+    assert.equal(res.data.error, "Nothing is waiting for approval this month.");
     assert.deepEqual(mailchimpCalls(), []);
   });
 
@@ -487,73 +490,72 @@ describe("weekly email: approve first", () => {
     setting("weekly_email.sending", "off");
     const res = await pressApprove();
     assert.equal(res.status, 409);
-    assert.equal(res.data.error, "The weekly email is switched off. Switch it on first.");
+    assert.equal(res.data.error, "The monthly email is switched off. Switch it on first.");
     assert.deepEqual(sends(), []);
   });
 
-  it("a draft nobody approved isn't sent the week after; the new week gets its own", async () => {
+  it("a draft nobody approved isn't sent the month after; the new month gets its own", async () => {
     await runTick();
-    publishNight(world, "2026-11-19");
-    vi.setSystemTime(later(7 * 24 * 60));
-    assert.deepEqual(await runTick(), { action: "waiting", week: "2026-11-16" });
+    vi.setSystemTime(NEXT_MONTH_SEND);
+    assert.deepEqual(await runTick(), { action: "waiting", month: NEXT_MONTH });
     await pressApprove();
     assert.equal(sends().length, 1);
-    assert.deepEqual((await status()).history.map((run) => [run.weekStart, run.status]), [
-      ["2026-11-16", "sent"],
-      [WEEK, "waiting"],
+    assert.deepEqual((await status()).history.map((run) => [run.monthStart, run.status]), [
+      [NEXT_MONTH, "sent"],
+      [MONTH, "waiting"],
     ]);
   });
 });
 
-describe("weekly email: turning approval on or off mid-week", () => {
+describe("monthly email: turning approval on or off mid-month", () => {
   beforeEach(() => {
     production();
     switchOn();
   });
 
   it("turned on before its time: the draft waits for approval", async () => {
-    vi.setSystemTime(new Date("2026-11-10T09:00:00Z"));
+    vi.setSystemTime(new Date("2026-12-01T09:00:00Z"));
     await runTick();
     approveFirst();
-    vi.setSystemTime(TUESDAY_SEND);
+    vi.setSystemTime(FIRST_TUESDAY_SEND);
     assert.equal((await runTick()).action, "waiting");
     assert.deepEqual(sends(), []);
   });
 
-  it("turned on after this week's went: nothing is resent, and next week's waits", async () => {
+  it("turned on after this month's went: nothing is resent, and next month's waits", async () => {
     assert.equal((await runTick()).action, "sent");
     approveFirst();
     vi.setSystemTime(later(60));
-    assert.deepEqual(await runTick(), { action: "none", why: "this week is sent" });
+    assert.deepEqual(await runTick(), { action: "none", why: "this month is sent" });
     assert.equal((await pressApprove()).data.current.status, "sent");
     assert.equal(sends().length, 1);
-    publishNight(world, "2026-11-19");
-    vi.setSystemTime(later(7 * 24 * 60));
+    vi.setSystemTime(NEXT_MONTH_SEND);
     assert.equal((await runTick()).action, "waiting");
     assert.equal(sends().length, 1);
   });
 });
 
-describe("weekly email: a week with nothing on", () => {
+describe("monthly email: a month with nothing left on", () => {
   beforeEach(() => {
     production({ nights: false });
-    publishNight(world, "2026-11-19");
+    // Only next month's.
+    publishNight(world, "2027-01-07");
     switchOn();
   });
 
   it("isn't sent, and says why; Mailchimp is never touched", async () => {
-    assert.deepEqual(await runTick(), { action: "skipped", week: WEEK });
+    assert.deepEqual(await runTick(), { action: "skipped", month: MONTH });
     assert.deepEqual(mailchimpCalls(), []);
     const shown = await status();
     assert.equal(shown.current.status, "skipped");
-    assert.equal(shown.current.reason, "No nights on the website this week, so there's nothing to send.");
+    assert.equal(shown.current.reason, "No nights on the website for the rest of the month, so there's nothing to send.");
     vi.setSystemTime(later(10));
-    assert.deepEqual(await runTick(), { action: "none", why: "this week is skipped" });
+    assert.deepEqual(await runTick(), { action: "none", why: "this month is skipped" });
   });
 
   it("once a night is published, an admin can try again: it waits for their approval", async () => {
     await runTick();
-    publishNight(world, "2026-11-13", "disco", "Late Disco");
+    publishNight(world, "2026-12-04", "disco", "Late Disco");
     const res = await pressTryAgain();
     assert.equal(res.status, 200, JSON.stringify(res.data));
     assert.equal(res.data.current.status, "waiting");
@@ -562,12 +564,12 @@ describe("weekly email: a week with nothing on", () => {
     assert.equal(sends().length, 1);
   });
 
-  it("an approval that finds the week has emptied sends nothing", async () => {
-    publishNight(world, "2026-11-13", "disco", "Late Disco");
+  it("an approval that finds the month has emptied sends nothing", async () => {
+    publishNight(world, "2026-12-04", "disco", "Late Disco");
     approveFirst();
     assert.equal((await runTick()).action, "waiting");
     // The night is cancelled before anyone approves.
-    world.sanity.docs.delete("event-disco-2026-11-13");
+    world.sanity.docs.delete("event-disco-2026-12-04");
     const res = await pressApprove();
     assert.equal(res.status, 200);
     assert.equal(res.data.current.status, "skipped");
@@ -575,7 +577,7 @@ describe("weekly email: a week with nothing on", () => {
   });
 });
 
-describe("weekly email: failures", () => {
+describe("monthly email: failures", () => {
   beforeEach(() => {
     production();
     switchOn();
@@ -584,17 +586,17 @@ describe("weekly email: failures", () => {
   it("an email that can't be built isn't sent: it fails, says why, and tells the admins", async () => {
     const realHandle = world.sanity.handle.bind(world.sanity);
     world.sanity.handle = async () => new Response("nope", { status: 500 });
-    assert.deepEqual(await runTick(), { action: "failed", week: WEEK });
+    assert.deepEqual(await runTick(), { action: "failed", month: MONTH });
     assert.deepEqual(mailchimpCalls(), []);
     const shown = await status();
     assert.equal(shown.current.status, "failed");
     assert.match(shown.current.reason, /Couldn't build the email: Sanity .* answered 500/);
-    assert.equal(world.google.mail[0].subject, "This week's email didn't go out");
+    assert.equal(world.google.mail[0].subject, "This month's email didn't go out");
 
     // It isn't retried by itself, even once the website is back.
     world.sanity.handle = realHandle;
     vi.setSystemTime(later(5));
-    assert.deepEqual(await runTick(), { action: "none", why: "this week is failed" });
+    assert.deepEqual(await runTick(), { action: "none", why: "this month is failed" });
     assert.deepEqual(sends(), []);
 
     // Try again prepares it and waits for the admin, though the mode is automatic.
@@ -628,7 +630,7 @@ describe("weekly email: failures", () => {
 
   it("the send went but its answer was lost: it's marked sent, never sent again", async () => {
     world.mailchimp.fail.send = { status: 504, detail: "Gateway timeout.", landed: true, once: true };
-    assert.deepEqual(await runTick(), { action: "sent", week: WEEK });
+    assert.deepEqual(await runTick(), { action: "sent", month: MONTH });
     assert.equal(sends().length, 1);
     assert.equal((await status()).current.status, "sent");
     vi.setSystemTime(later(5));
@@ -659,12 +661,12 @@ describe("weekly email: failures", () => {
     const repo = d1WeeklyEmailRepository(world.env.OPS_DB);
     const [run] = await runs();
     // The Worker died after the send went out, before it was recorded.
-    await repo.move(run.id, ["waiting"], "sending", {}, TUESDAY_SEND);
+    await repo.move(run.id, ["waiting"], "sending", {}, FIRST_TUESDAY_SEND);
     const campaign = world.mailchimp.campaigns.get("camp1");
     campaign.status = "sent";
     assert.equal((await status()).stuck, false);
     vi.setSystemTime(later(1));
-    assert.deepEqual(await runTick(), { action: "none", why: "this week is sending" });
+    assert.deepEqual(await runTick(), { action: "none", why: "this month is sending" });
     vi.setSystemTime(later(5));
     assert.equal((await status()).stuck, true);
     assert.deepEqual(await runTick(), { action: "settled", status: "sent" });
@@ -677,7 +679,7 @@ describe("weekly email: failures", () => {
     await runTick();
     const repo = d1WeeklyEmailRepository(world.env.OPS_DB);
     const [run] = await runs();
-    await repo.move(run.id, ["waiting"], "sending", {}, TUESDAY_SEND);
+    await repo.move(run.id, ["waiting"], "sending", {}, FIRST_TUESDAY_SEND);
     vi.setSystemTime(later(5));
     assert.deepEqual(await runTick(), { action: "settled", status: "failed" });
     assert.equal((await status()).current.reason, "The send was started but didn't go through. Nothing was sent.");
@@ -688,13 +690,13 @@ describe("weekly email: failures", () => {
   });
 });
 
-describe("weekly email: send again", () => {
+describe("monthly email: send again", () => {
   beforeEach(() => {
     production();
     switchOn();
   });
 
-  it("an admin can send this week's a second time, with the confirmation", async () => {
+  it("an admin can send this month's a second time, with the confirmation", async () => {
     await runTick();
     const [first] = await runs();
     assert.equal((await pressSendAgain(first.id, STAFF)).status, 403);
@@ -706,10 +708,10 @@ describe("weekly email: send again", () => {
     assert.equal(res.status, 200, JSON.stringify(res.data));
     assert.equal(sends().length, 2);
     assert.deepEqual(
-      res.data.history.map((run) => [run.weekStart, run.attempt, run.status, run.startedBy, run.approvedBy]),
+      res.data.history.map((run) => [run.monthStart, run.attempt, run.status, run.startedBy, run.approvedBy]),
       [
-        [WEEK, 2, "sent", "manual", ADMIN],
-        [WEEK, 1, "sent", "schedule", ""],
+        [MONTH, 2, "sent", "manual", ADMIN],
+        [MONTH, 1, "sent", "schedule", ""],
       ],
     );
     assert.match(world.mailchimp.campaigns.get("camp2").settings.title, /\(sent again, 2\)$/);
@@ -733,7 +735,7 @@ describe("weekly email: send again", () => {
     assert.equal(sends().length, 2);
   });
 
-  it("there's nothing to send again until this week's has gone", async () => {
+  it("there's nothing to send again until this month's has gone", async () => {
     const res = await pressSendAgain(1);
     assert.equal(res.status, 409);
     assert.match(res.data.error, /hasn't been sent/);

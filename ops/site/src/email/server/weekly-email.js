@@ -1,5 +1,5 @@
 /**
- * Use cases of the weekly "what's on" email (#240): what the page and the
+ * Use cases of the monthly "what's on" email (#240; weekly until #348): what the page and the
  * scheduler can do. Rules live in weekly-email-model.js, storage behind
  * weekly-email-repository.js, Mailchimp behind platform/mailchimp.js.
  *
@@ -25,7 +25,7 @@ import {
   setCampaignContent,
   updateCampaign,
 } from "../../platform/mailchimp.js";
-import { EMPTY_WEEK, buildWeeklyEmail } from "./weekly-email-build.js";
+import { EMPTY_MONTH, buildWeeklyEmail } from "./weekly-email-build.js";
 import { NO_MAILCHIMP, refusal, sendTestToAddress, upstream } from "./test-send.js";
 import { londonToday } from "../../../../../marketing/web/src/lib/london-day.js";
 import {
@@ -56,7 +56,7 @@ function shortDate(iso) {
 }
 
 /**
- * Send this week's email, as it would go out now, to one person: the staff
+ * Send this month's email, as it would go out now, to one person: the staff
  * member signed in (`email` comes from their session, never from the page).
  * A draft campaign is made for it and deleted again; the list gets nothing.
  */
@@ -64,7 +64,7 @@ export function sendTestToSelf(env, { email, now = new Date() }) {
   return sendTestToAddress(env, {
     email,
     now,
-    title: `Test of the weekly email, ${shortDate(londonToday(now))} (safe to delete)`,
+    title: `Test of the monthly email, ${shortDate(londonToday(now))} (safe to delete)`,
     build: () => buildWeeklyEmail(env, { now }),
   });
 }
@@ -94,13 +94,13 @@ export async function saveSettings(env, patch) {
 // ------------------------------------------------- sending to the mailing list
 
 export const NOT_PRODUCTION = "Nothing goes to the mailing list from here: only production ops can send.";
-export const SWITCHED_OFF = "The weekly email is switched off. Switch it on first.";
+export const SWITCHED_OFF = "The monthly email is switched off. Switch it on first.";
 const CUT_OFF_PREPARING = "It was cut off while being prepared. Nothing was sent.";
 const CUT_OFF_SENDING = "The send was started but didn't go through. Nothing was sent.";
 
 /**
  * Every way to the mailing list passes here first: hosted production, with
- * Mailchimp connected, and the weekly email switched on by an admin. Off
+ * Mailchimp connected, and the monthly email switched on by an admin. Off
  * production this throws before anything is read or written.
  */
 async function assertCanSend(env) {
@@ -111,10 +111,11 @@ async function assertCanSend(env) {
   return settings;
 }
 
-function longDate(iso) {
-  const [year, month, day] = iso.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(
-    new Date(Date.UTC(year, month - 1, day)),
+/** "December 2026": a month's run, in Mailchimp's list of campaigns. */
+function monthWords(iso) {
+  const [year, month] = iso.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, month - 1, 1)),
   );
 }
 
@@ -136,10 +137,10 @@ async function prepare(env, run, { now }) {
   } catch (error) {
     return end("failed", { reason: why(error) });
   }
-  if (built.weekStart !== run.weekStart) {
-    return end("failed", { reason: "That week is over, so its email wasn't prepared." });
+  if (built.monthStart !== run.monthStart) {
+    return end("failed", { reason: "That month is over, so its email wasn't prepared." });
   }
-  if (built.empty) return end("skipped", { reason: EMPTY_WEEK, subject: built.subject, preheader: built.preheader });
+  if (built.empty) return end("skipped", { reason: EMPTY_MONTH, subject: built.subject, preheader: built.preheader });
   try {
     const audience = await getAudience(env);
     if (!audience.memberCount) return end("skipped", { reason: "Nobody is on the mailing list." });
@@ -159,7 +160,7 @@ async function prepare(env, run, { now }) {
       await updateCampaign(env, campaign.id, { subject: built.subject, preheader: built.preheader });
     } else {
       campaign = await createCampaign(env, {
-        title: `Weekly email, week of ${longDate(run.weekStart)}${run.attempt > 1 ? ` (sent again, ${run.attempt})` : ""}`,
+        title: `What's on email, ${monthWords(run.monthStart)}${run.attempt > 1 ? ` (sent again, ${run.attempt})` : ""}`,
         subject: built.subject,
         preheader: built.preheader,
         fromName: audience.fromName,
@@ -207,8 +208,8 @@ async function send(env, run, { approvedBy = "", fresh = false, now }) {
       } catch (error) {
         return end("failed", { reason: why(error) });
       }
-      if (built.weekStart !== mine.weekStart) return end("failed", { reason: "That week is over, so its email wasn't sent." });
-      if (built.empty) return end("skipped", { reason: EMPTY_WEEK });
+      if (built.monthStart !== mine.monthStart) return end("failed", { reason: "That month is over, so its email wasn't sent." });
+      if (built.empty) return end("skipped", { reason: EMPTY_MONTH });
       ({ subject, preheader } = built);
       await updateCampaign(env, mine.campaignId, { subject, preheader });
       await setCampaignContent(env, mine.campaignId, { html: built.html, text: built.text });
@@ -256,7 +257,7 @@ async function tell(env, settings, { subject, lines, opsUrl }) {
       from: NOTIFICATIONS_FROM,
       to,
       subject,
-      text: [...lines, ...(link ? ["", `Weekly email in ops: ${link}`] : [])].join("\n"),
+      text: [...lines, ...(link ? ["", `Email in ops: ${link}`] : [])].join("\n"),
     });
     return true;
   } catch {
@@ -267,7 +268,7 @@ async function tell(env, settings, { subject, lines, opsUrl }) {
 function tellAbout(env, settings, run, opsUrl) {
   if (run?.status === "waiting") {
     return tell(env, settings, {
-      subject: "This week's email is waiting for your OK",
+      subject: "This month's email is waiting for your OK",
       lines: [
         `"${run.subject}" is ready and would go to ${run.recipients} people.`,
         "It isn't sent until an admin presses Approve and send.",
@@ -277,7 +278,7 @@ function tellAbout(env, settings, run, opsUrl) {
   }
   if (run?.status === "failed") {
     return tell(env, settings, {
-      subject: "This week's email didn't go out",
+      subject: "This month's email didn't go out",
       lines: [run.reason || "Something went wrong.", "Nothing was sent. An admin can try again from ops."],
       opsUrl,
     });
@@ -288,11 +289,11 @@ function tellAbout(env, settings, run, opsUrl) {
 /**
  * The scheduler's pass, every five minutes (functions/api/web/tick.js,
  * ?step=email). Off production it does nothing at all. On production, with
- * sending on, it starts this week's email once its time has come: one claim
- * per week, so a second tick (or the cron firing twice) finds the week taken
+ * sending on, it starts this month's email once its time has come: one claim
+ * per month, so a second tick (or the cron firing twice) finds the month taken
  * and stops. Approve-first: the draft waits and the admins are told.
  * Otherwise it's sent. It never sends a draft that's waiting for approval,
- * and never touches a week that has a run already, except to settle one that
+ * and never touches a month that has a run already, except to settle one that
  * was cut off.
  */
 export async function runWeeklyEmailTick(env, { now = new Date(), opsUrl = "" } = {}) {
@@ -302,72 +303,72 @@ export async function runWeeklyEmailTick(env, { now = new Date(), opsUrl = "" } 
   if (!settings.sending) return { action: "none", why: "switched off" };
   const repo = weeklyEmailRepository(env);
   const schedule = scheduleAt(settings, now);
-  const existing = await repo.latest(schedule.week);
+  const existing = await repo.latest(schedule.month);
   if (existing) {
-    if (!isStuck(existing, now)) return { action: "none", why: `this week is ${existing.status}` };
+    if (!isStuck(existing, now)) return { action: "none", why: `this month is ${existing.status}` };
     const settled = await settleStuck(env, existing, { now });
     if (settled?.status === "failed") await tellAbout(env, settings, settled, opsUrl);
     return { action: "settled", status: settled?.status || existing.status };
   }
-  if (schedule.state !== "due") return { action: "none", why: schedule.state === "before" ? "not time yet" : "missed this week's time" };
-  const claimed = await repo.claim({ weekStart: schedule.week, attempt: 1, startedBy: "schedule", now });
-  if (!claimed) return { action: "none", why: "this week is taken" };
+  if (schedule.state !== "due") return { action: "none", why: schedule.state === "before" ? "not time yet" : "missed this month's time" };
+  const claimed = await repo.claim({ monthStart: schedule.month, attempt: 1, startedBy: "schedule", now });
+  if (!claimed) return { action: "none", why: "this month is taken" };
   let run = await prepare(env, claimed, { now });
   if (run?.status === "waiting" && settings.mode === "auto") run = await send(env, run, { now });
   await tellAbout(env, settings, run, opsUrl);
-  return { action: run?.status || "none", week: schedule.week };
+  return { action: run?.status || "none", month: schedule.month };
 }
 
 /**
- * "Approve and send" (an admin, on production): send this week's waiting
+ * "Approve and send" (an admin, on production): send this month's waiting
  * draft, rebuilt from the website as it is now. Pressing it twice, or a
  * retried request, sends once: only a waiting run can be sent.
  */
 export async function approveAndSend(env, { email = "", now = new Date() } = {}) {
   const settings = await assertCanSend(env);
   const repo = weeklyEmailRepository(env);
-  const run = await repo.latest(scheduleAt(settings, now).week);
+  const run = await repo.latest(scheduleAt(settings, now).month);
   if (run?.status === "sent" || run?.status === "sending") return run;
-  if (run?.status !== "waiting") throw refusal(409, "Nothing is waiting for approval this week.");
+  if (run?.status !== "waiting") throw refusal(409, "Nothing is waiting for approval this month.");
   return send(env, run, { approvedBy: email, fresh: true, now });
 }
 
 /**
- * "Try again" / "Prepare this week's now" (an admin, on production): build
- * this week's email and leave it waiting for Approve and send, whatever the
- * mode. For a week with no run yet (its time was missed), or one that failed
- * or was skipped. Never for a week that's sent, sending or already waiting.
+ * "Try again" / "Prepare this month's now" (an admin, on production): build
+ * this month's email and leave it waiting for Approve and send, whatever the
+ * mode. For a month with no run yet (its time was missed), or one that failed
+ * or was skipped. Never for a month that's sent, sending or already waiting.
  */
 export async function prepareNow(env, { now = new Date() } = {}) {
   const settings = await assertCanSend(env);
   const repo = weeklyEmailRepository(env);
-  const week = scheduleAt(settings, now).week;
-  let existing = await repo.latest(week);
+  const month = scheduleAt(settings, now).month;
+  let existing = await repo.latest(month);
   if (existing && isStuck(existing, now)) existing = await settleStuck(env, existing, { now });
   let run;
-  if (!existing) run = await repo.claim({ weekStart: week, attempt: 1, startedBy: "manual", now });
+  if (!existing) run = await repo.claim({ monthStart: month, attempt: 1, startedBy: "manual", now });
   else if (existing.status === "failed" || existing.status === "skipped") {
     run = await repo.move(existing.id, ["failed", "skipped"], "preparing", { reason: "" }, now);
-  } else if (existing.status === "sent") throw refusal(409, "This week's email has already been sent.");
+  } else if (existing.status === "sent") throw refusal(409, "This month's email has already been sent.");
   else if (existing.status === "waiting") return existing;
-  if (!run) throw refusal(409, "This week's email is already being prepared.");
+  if (!run) throw refusal(409, "This month's email is already being prepared.");
   return prepare(env, run, { now });
 }
 
 /**
  * "Send again" (an admin, on production, after a confirmation): a second
- * email for a week that already had one. `after` is the id of the run they
+ * email for a month that already had one. `after` is the id of the run they
  * were looking at: a retried request names the same run and finds the next
  * attempt already taken, so it can't send a third.
  */
 export async function sendAgain(env, { after, email = "", now = new Date() } = {}) {
   const settings = await assertCanSend(env);
   const repo = weeklyEmailRepository(env);
-  const week = scheduleAt(settings, now).week;
-  const last = await repo.latest(week);
-  if (last?.status !== "sent") throw refusal(409, "This week's email hasn't been sent, so there's nothing to send again.");
+  const month = scheduleAt(settings, now).month;
+  const last = await repo.latest(month);
+  if (last?.status !== "sent") throw refusal(409, "This month's email hasn't been sent, so there's nothing to send again.");
   if (Number(after) !== last.id) throw refusal(409, "That was already asked for. Refresh to see where it is.");
-  const claimed = await repo.claim({ weekStart: week, attempt: last.attempt + 1, startedBy: "manual", now });
+  const claimed = await repo.claim({ monthStart: month, attempt: last.attempt + 1, startedBy: "manual", now });
   if (!claimed) throw refusal(409, "That was already asked for. Refresh to see where it is.");
   const run = await prepare(env, claimed, { now });
   if (run?.status !== "waiting") return run;
@@ -405,7 +406,7 @@ function runView(env, run) {
 
 /**
  * Everything the page shows besides the email itself: what can be done here,
- * the settings, when the next one is due, this week's run and the last few.
+ * the settings, when the next one is due, this month's run and the last few.
  * Reads ops' own data only; never Mailchimp.
  */
 export async function weeklyEmailStatus(env, { now = new Date() } = {}) {
@@ -418,7 +419,7 @@ export async function weeklyEmailStatus(env, { now = new Date() } = {}) {
   } catch (error) {
     historyProblem = "Couldn't read what's been sent.";
   }
-  const current = history.find((run) => run.weekStart === schedule.week) || null;
+  const current = history.find((run) => run.monthStart === schedule.month) || null;
   return {
     access: emailAccess(env),
     settings,

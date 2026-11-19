@@ -115,7 +115,7 @@
 						<WeeklyEmailPage
 							{me}
 							path={current}
-							view={route.view === "week" || route.view === "sent" || route.view === "settings" || route.view === "write" ? route.view : "overview"}
+							view={route.view === "monthly" || route.view === "sent" || route.view === "write" ? route.view : "emails"}
 						/>
 					{:else if key === "events"}
 						<EventsPage path={current} />

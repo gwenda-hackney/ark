@@ -22,7 +22,7 @@ import { weeklyEmailModel } from "../../../../shared/weekly-email/model.js";
 import { renderWeeklyEmail } from "../../../../shared/weekly-email/render.js";
 import { testCatalog } from "../../../../shared/weekly-email/testing.js";
 
-describe("weekly email page: the preview", () => {
+describe("monthly email page: the preview", () => {
 	it("opens the email's links in a new tab, not inside the frame", () => {
 		assert.match(
 			previewDocument('<html><head lang="en"><title>x</title></head><body></body></html>'),
@@ -61,7 +61,7 @@ describe("weekly email page: the preview", () => {
 	});
 });
 
-describe("weekly email page: send me a test", () => {
+describe("monthly email page: send me a test", () => {
 	const status = (mailchimp: boolean, email: string) => ({ access: { mailchimp }, me: { email } });
 
 	it("is always there, with the reason when it can't be pressed", () => {
@@ -76,7 +76,7 @@ describe("weekly email page: send me a test", () => {
 function run(fields: Partial<WeeklyEmailRun> = {}): WeeklyEmailRun {
 	return {
 		id: 1,
-		weekStart: "2026-11-09",
+		monthStart: "2026-12-01",
 		attempt: 1,
 		status: "sent",
 		startedBy: "schedule",
@@ -100,7 +100,7 @@ function page(fields: Partial<WeeklyEmailStatus> = {}): WeeklyEmailStatus {
 		me: { email: "admin@example.com", isAdmin: true },
 		settings: { sending: true, mode: "auto", day: "mon", time: "11:00", notify: [] },
 		schedule: {
-			week: "2026-11-09",
+			month: "2026-12-01",
 			state: "before",
 			scheduled: { date: "2026-11-09", time: "11:00" },
 			next: { date: "2026-11-09", time: "11:00" },
@@ -113,17 +113,17 @@ function page(fields: Partial<WeeklyEmailStatus> = {}): WeeklyEmailStatus {
 	};
 }
 
-describe("weekly email page: status", () => {
+describe("monthly email page: status", () => {
 	it("says what the settings mean", () => {
 		const settings = page().settings;
 		assert.equal(howLine(settings), "Automatic");
 		assert.equal(howLine({ ...settings, mode: "approve" }), "Approve first");
 		assert.equal(howLine({ ...settings, sending: false }), "Off");
 		assert.equal(settingsLine({ ...settings, sending: false }), "Off");
-		assert.equal(settingsLine(settings), "On · Automatic · Mondays 11:00");
+		assert.equal(settingsLine(settings), "On · Automatic · first Monday of the month, 11:00");
 		assert.equal(
 			settingsLine({ ...settings, mode: "approve", day: "thu", time: "16:30" }),
-			"On · Approve first · Thursdays 16:30",
+			"On · Approve first · first Thursday of the month, 16:30",
 		);
 	});
 
@@ -154,22 +154,22 @@ describe("weekly email page: status", () => {
 		assert.equal(statusLine(page({ current: run({ status: "waiting" }) })).label, "Waiting for approval");
 		assert.match(statusLine(page({ current: run({ status: "sending" }), stuck: true })).detail, /Cut off/);
 		const missed = page({ schedule: { ...page().schedule, state: "missed", next: { date: "2026-11-16", time: "11:00" } } });
-		assert.equal(statusLine(missed).label, "Not sent this week");
+		assert.equal(statusLine(missed).label, "Not sent this month");
 		assert.equal(nextLine(missed), "Mon 16 Nov at 11:00");
 		assert.equal(nextLine(page({ settings: { ...page().settings, sending: false } })), "None");
 	});
 });
 
-describe("weekly email page: the buttons are always there, with a reason when they can't be pressed", () => {
+describe("monthly email page: the buttons are always there, with a reason when they can't be pressed", () => {
 	const waiting = page({ current: run({ status: "waiting", sentAt: null }) });
 
 	it("Approve and send: an admin, on production, switched on, with a draft waiting", () => {
 		assert.equal(approveBlockedReason(waiting), "");
 		assert.equal(approveBlockedReason(page()), "Nothing is waiting for approval.");
-		assert.equal(approveBlockedReason({ ...waiting, me: { email: "staff@example.com", isAdmin: false } }), "Only admins can send the weekly email.");
+		assert.equal(approveBlockedReason({ ...waiting, me: { email: "staff@example.com", isAdmin: false } }), "Only admins can send the monthly email.");
 		assert.equal(approveBlockedReason({ ...waiting, access: { mailchimp: true, audience: false } }), "Only production ops sends to the mailing list.");
 		assert.equal(approveBlockedReason({ ...waiting, access: { mailchimp: false, audience: false } }), "Mailchimp isn't connected here.");
-		assert.equal(approveBlockedReason({ ...waiting, settings: { ...waiting.settings, sending: false } }), "The weekly email is switched off.");
+		assert.equal(approveBlockedReason({ ...waiting, settings: { ...waiting.settings, sending: false } }), "The monthly email is switched off.");
 		assert.equal(approveBlockedReason(null), "Loading…");
 	});
 
@@ -177,16 +177,16 @@ describe("weekly email page: the buttons are always there, with a reason when th
 		assert.equal(tryAgainBlockedReason(page({ current: run({ status: "failed" }) })), "");
 		assert.equal(tryAgainBlockedReason(page({ current: run({ status: "skipped" }) })), "");
 		assert.equal(tryAgainBlockedReason(page({ schedule: { ...page().schedule, state: "missed" } })), "");
-		assert.equal(tryAgainBlockedReason(page()), "This week's hasn't been tried yet.");
-		assert.equal(tryAgainBlockedReason(page({ current: run() })), "This week's has been sent.");
-		assert.equal(tryAgainBlockedReason(waiting), "This week's is ready and waiting.");
+		assert.equal(tryAgainBlockedReason(page()), "This month's hasn't been tried yet.");
+		assert.equal(tryAgainBlockedReason(page({ current: run() })), "This month's has been sent.");
+		assert.equal(tryAgainBlockedReason(waiting), "This month's is ready and waiting.");
 		assert.equal(tryAgainBlockedReason({ ...waiting, access: { mailchimp: true, audience: false } }), "Only production ops sends to the mailing list.");
 	});
 
 	it("Send again: only once this week's has gone", () => {
 		assert.equal(sendAgainBlockedReason(page({ current: run() })), "");
-		assert.equal(sendAgainBlockedReason(waiting), "This week's hasn't been sent yet.");
-		assert.equal(sendAgainBlockedReason(page({ current: run(), me: { email: "staff@example.com", isAdmin: false } })), "Only admins can send the weekly email.");
+		assert.equal(sendAgainBlockedReason(waiting), "This month's hasn't been sent yet.");
+		assert.equal(sendAgainBlockedReason(page({ current: run(), me: { email: "staff@example.com", isAdmin: false } })), "Only admins can send the monthly email.");
 	});
 
 	it("the schedule: admins only", () => {

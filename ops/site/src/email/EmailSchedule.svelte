@@ -1,16 +1,34 @@
 <script lang="ts">
 	/**
-	 * Schedule and mode: the on/off switch, automatic or approve first, the
-	 * day and time (London), and who's told. Everyone sees it; admins change it.
+	 * The monthly email's schedule, inside its editor (MonthlyEmailEditor):
+	 * the on/off switch, automatic or approve first, which weekday of the
+	 * month and the time (London), and who's told. Everyone sees it; admins
+	 * change it. Save is the editor's (`save()`); `dirty`, `saving` and
+	 * `blocked` tell the editor's bar where it stands.
 	 */
-	import { Card, Button, ConfirmDialog, Confirm, Field, NativeSelect, Segmented, Switch, TextField, TimeField } from "../ui";
+	import { ConfirmDialog, Confirm, Field, FormSection, NativeSelect, Segmented, Switch, TextField, TimeField } from "../ui";
 	import { saveWeeklyEmailSettings, type WeeklyEmailSettings, type WeeklyEmailStatus } from "./email-api";
 	import { DAY_OPTIONS, MODE_OPTIONS, settingsBlockedReason, settingsLine } from "./email-view";
 
-	let { status, onsaved }: { status: WeeklyEmailStatus | null; onsaved: (settings: WeeklyEmailSettings) => void } = $props();
+	let {
+		status,
+		onsaved,
+		dirty = $bindable(false),
+		saving = $bindable(false),
+		blocked = $bindable(""),
+	}: {
+		status: WeeklyEmailStatus | null;
+		onsaved: (settings: WeeklyEmailSettings) => void;
+		dirty?: boolean;
+		saving?: boolean;
+		/** Why it can't be changed here (not an admin, preview only), or "". */
+		blocked?: string;
+	} = $props();
 
 	const confirm = new Confirm();
-	const blocked = $derived(settingsBlockedReason(status));
+	$effect(() => {
+		blocked = settingsBlockedReason(status);
+	});
 	const locked = $derived(Boolean(blocked));
 
 	let sending = $state(false);
@@ -18,7 +36,6 @@
 	let day = $state("tue");
 	let time = $state("11:00");
 	let notify = $state("");
-	let saving = $state(false);
 	let error = $state("");
 	let loadedFrom = "";
 
@@ -42,10 +59,12 @@
 		time,
 		notify: notify.split(/[\s,;]+/).filter(Boolean),
 	});
-	const dirty = $derived(
-		Boolean(status) && JSON.stringify({ ...draft, notify: draft.notify.join(",").toLowerCase() }) !==
-			JSON.stringify({ ...status!.settings, notify: status!.settings.notify.join(",") }),
-	);
+	$effect(() => {
+		dirty =
+			Boolean(status) &&
+			JSON.stringify({ ...draft, notify: draft.notify.join(",").toLowerCase() }) !==
+				JSON.stringify({ ...status!.settings, notify: status!.settings.notify.join(",") });
+	});
 	const modeItems = $derived(MODE_OPTIONS.map((item) => ({ ...item, disabled: locked })));
 
 	async function store() {
@@ -54,13 +73,13 @@
 		onsaved(saved.settings);
 	}
 
-	async function save() {
-		if (!status) return;
+	export async function save() {
+		if (!status || !dirty || locked) return;
 		// Switching it on is the step that lets email reach real people: ask first.
 		if (draft.sending && !status.settings.sending) {
 			await confirm.run(
 				{
-					title: "Switch the weekly email on?",
+					title: "Switch the monthly email on?",
 					message: status.access.audience
 						? `${settingsLine(draft).replace(/^On · /, "")} · to the mailing list`
 						: "Saved, but only production ops sends to the mailing list.",
@@ -82,53 +101,27 @@
 	}
 </script>
 
-<Card title="Schedule" subtitle={status ? settingsLine(status.settings) : "Loading…"}>
-	<div class="form">
-		<Field label="Weekly email" hint="Off: the list gets nothing. Tests still work.">
-			<Switch bind:checked={sending} disabled={locked} label={sending ? "On" : "Off"} />
-		</Field>
-		<Field
-			label="How"
-			hint="Approve first: waits for an admin to press Approve and send."
-		>
-			<Segmented bind:value={mode} items={modeItems} tone="soft" size="sm" ariaLabel="How it's sent" />
-		</Field>
-		<div class="pair">
-			<Field label="Day">
-				<NativeSelect bind:value={day} options={DAY_OPTIONS} disabled={locked} />
-			</Field>
-			<Field label="Time" hint="London">
-				<TimeField bind:value={time} disabled={locked} placeholder="e.g. 11am" suggest="11:00" />
-			</Field>
-		</div>
-		<Field label="Alert" hint="When one waits for approval or fails. Empty: the admins.">
-			<TextField bind:value={notify} disabled={locked} placeholder="name@example.com, …" />
-		</Field>
-		<div class="actions">
-			<Button size="sm" busy={saving} disabled={locked || !dirty || saving} reason={blocked || (dirty ? "" : "Nothing to save.")} onclick={() => void save()}>
-				Save
-			</Button>
-			<p class="note" role="status">{error || (locked && status ? blocked : " ")}</p>
-		</div>
-	</div>
-</Card>
+<FormSection title="Schedule" description={status ? settingsLine(status.settings) : "Loading…"}>
+	<Field class="span-12" label="Monthly what's on" hint="Off: the list gets nothing. Tests still work.">
+		<Switch bind:checked={sending} disabled={locked} label={sending ? "On" : "Off"} />
+	</Field>
+	<Field class="span-12" label="How" hint="Approve first: waits for an admin to press Approve and send.">
+		<Segmented bind:value={mode} items={modeItems} tone="soft" size="sm" ariaLabel="How it's sent" />
+	</Field>
+	<Field class="span-6" label="Goes on the first" hint="Of each month">
+		<NativeSelect bind:value={day} options={DAY_OPTIONS} disabled={locked} />
+	</Field>
+	<Field class="span-6" label="Time" hint="London">
+		<TimeField bind:value={time} disabled={locked} placeholder="e.g. 11am" suggest="11:00" />
+	</Field>
+	<Field class="span-12" label="Alert" hint="When one waits for approval or fails. Empty: the admins.">
+		<TextField bind:value={notify} disabled={locked} placeholder="name@example.com, …" />
+	</Field>
+	<p class="note span-12" role="status">{error || (locked && status ? blocked : " ")}</p>
+</FormSection>
 <ConfirmDialog {confirm} />
 
 <style>
-	.form {
-		display: grid;
-		gap: var(--space-3);
-	}
-	.pair {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: var(--space-3);
-	}
-	.actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-	}
 	.note {
 		margin: 0;
 		min-height: 1.4em;

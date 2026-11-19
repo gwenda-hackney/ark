@@ -111,6 +111,33 @@ export function oneOffTestBlocked({
 	return notReady;
 }
 
+/**
+ * Why "Send to the list" can't be pressed, or "" when it can. Only production
+ * ops reaches the list, and only an admin sends; it goes as it's saved.
+ */
+export function oneOffSendBlocked({
+	status,
+	saved,
+	dirty,
+	audience,
+	admin,
+	notReady,
+}: {
+	status: OneOffStatus | null;
+	saved: boolean;
+	dirty: boolean;
+	audience: boolean;
+	admin: boolean;
+	notReady: string;
+}): string {
+	if (status === "sent" || status === "sending") return "Already sent";
+	if (status === "scheduled") return "Scheduled: it goes by itself";
+	if (!audience) return "Only production ops sends to the list";
+	if (!admin) return "Admins only";
+	if (!saved || dirty) return "Save first";
+	return notReady;
+}
+
 /** Why it can't go anywhere yet (a subject, and something in it), as the server says it. */
 export function notReady(draft: OneOffDraft): string {
 	return oneOffNotReady(draft);

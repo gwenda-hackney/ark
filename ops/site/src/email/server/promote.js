@@ -92,10 +92,14 @@ async function popupDishes(env, eventId) {
 
 const price = (value) => (value ? `£${value}` : "");
 
+/** The line after its own: the same for every kitchen, so it's never a claim about one. */
+export const POPUP_NUDGE = "Come hungry, bring your mates, and stay for a drink.";
+
 /**
- * The pop-up kitchen's email: its picture, "New at Gwenda" while it hasn't
- * started (else "In the kitchen"), its line and when, a few dishes, a second
- * picture from its gallery, then See the menu and Book a table.
+ * The pop-up kitchen's email, with some go in it: its picture, "… is coming
+ * to Gwenda!" while it hasn't started (else "… is cooking at Gwenda!"), its line, when, and a nudge;
+ * a few dishes to order first, a second picture from its gallery, then the
+ * whole menu and Book a table.
  * @param {{ origin: string }} site the website the links go to
  */
 export async function popupDraft(env, id, { site, today = londonToday() }) {
@@ -110,13 +114,15 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
   const picture = event.mainImage?.asset || event.logo?.asset || "";
   const second = (event.gallery || []).find((photo) => photo.asset && photo.asset !== picture)?.asset || "";
   const line = text(event.shortDescription) || text(event.description);
+  /** "Pinsa A Roma is coming to Gwenda!", or once it has started, "… is cooking at Gwenda!" */
+  const headline = `${name} is ${isNew ? "coming to" : "cooking at"} Gwenda!`;
   const sections = [
     ...(picture ? [{ kind: "image", assetId: picture, alt: name }] : []),
-    { kind: "heading", text: `${isNew ? "New at Gwenda" : "In the kitchen"}: ${name}` },
-    { kind: "copy", text: [line, when ? `**${when}.**` : ""].filter(Boolean).join("\n\n") },
+    { kind: "heading", text: headline },
+    { kind: "copy", text: [line, when ? `**${when}.**` : "", POPUP_NUDGE].filter(Boolean).join("\n\n") },
     ...(dishes.length
       ? [
-          { kind: "heading", text: "On the menu" },
+          { kind: "heading", text: "What to order first" },
           {
             kind: "copy",
             text: dishes
@@ -126,13 +132,13 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
         ]
       : []),
     ...(second ? [{ kind: "image", assetId: second, alt: `Food from ${name}` }] : []),
-    { kind: "button", label: "See the menu →", link: page, look: "link" },
+    { kind: "button", label: "See the whole menu →", link: page, look: "link" },
     { kind: "booking" },
   ];
   const days = event.repeatUnit === "week" ? daysWords(event.weekdays) : "";
   return {
     name: `${name} promo`,
-    subject: `${isNew ? "New at Gwenda" : "In the kitchen"}: ${name}${days ? `, ${days}` : ""}`,
+    subject: `${headline}${days ? ` ${days}` : ""}`,
     previewText: line.split(/(?<=[.!?])\s/)[0] || when,
     sections,
   };
