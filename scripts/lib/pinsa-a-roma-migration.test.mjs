@@ -1,0 +1,132 @@
+/**
+ * migrations/2026-11-19-pinsa-a-roma.mjs, run as a deploy runs it against a
+ * D1 with the real schema, with Sanity, Google Calendar and Drive faked: for
+ * real (the pop-up, its Monday nights, its menu, the website), again (nothing
+ * to do), with a dish name already taken (stops before writing), and as a
+ * dry run.
+ */
+import assert from "node:assert/strict";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
+import { d1EventRepository } from "../../ops/site/src/events/server/adapters/d1-events.js";
+import { d1MenuRepository } from "../../ops/site/src/menu/server/adapters/d1-menu.js";
+import { createEvent, listEvents } from "../../ops/site/src/events/server/event-store.js";
+import { createMenuItem, createMenuSection, loadMenuTree } from "../../ops/site/src/menu/server/menu-store.js";
+import { createMenu, listMenus } from "../../ops/site/src/menu/server/menus.js";
+import { flattenMenuSections } from "../../ops/site/src/menu/menu-sections.js";
+import { createFakeWorld } from "../../ops/site/src/testing/fake-world.js";
+import { createTestD1 } from "../../shared/testing/d1-sqlite.js";
+import * as pinsa from "../../migrations/2026-11-19-pinsa-a-roma.mjs";
+
+const { SLUG, CHAPTER } = pinsa;
+const DISHES = CHAPTER.groups.flatMap((group) => group.items.map((item) => item.name));
+
+describe("2026-11-19-pinsa-a-roma", () => {
+  let world;
+  beforeEach(async () => {
+    // The day the owner sent the menu: Thursday the 19th.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-19T12:00:00Z") });
+    world = await createFakeWorld();
+    world.install();
+  });
+  afterEach(() => {
+    world.restore();
+    vi.useRealTimers();
+  });
+
+  const opsEnv = (db) => ({ ...world.env, eventRepository: d1EventRepository(db), menuRepository: d1MenuRepository(db) });
+
+  async function run(db, { dryRun = false } = {}) {
+    const lines = [];
+    const result = await pinsa.up({ env: "dev", d1: () => db, processEnv: world.env, dryRun, log: (line) => lines.push(line) });
+    return { lines, text: lines.join("\n"), result };
+  }
+
+  const dump = async (db) => JSON.stringify([await d1EventRepository(db).exportAll(), await d1MenuRepository(db).list("menus")]);
+  const findPopup = async (env) => (await listEvents(env)).find((event) => event.slug === SLUG);
+
+  /** Chez Pickle, as dev and production have it: its own Fries and dessert. */
+  async function seedChezPickle(env) {
+    const chez = await createEvent(env, {
+      name: "Chez Pickle",
+      category: "popup",
+      description: "Smash burgers.",
+      startsOn: "2026-11-25",
+      startTime: "17:00",
+      endTime: "22:00",
+      repeatUnit: "week",
+      repeatEvery: 1,
+      weekdays: ["wed"],
+    });
+    const menu = await createMenu(env, { name: "Chez Pickle", kind: "kitchen", popupSeriesId: chez.id, days: "wed" });
+    const chapter = await createMenuSection(env, { title: "Chez Pickle", slug: "chez-pickle", menuId: menu.id });
+    const sides = await createMenuSection(env, { title: "Fries and dips", slug: "fries-and-dips", parentId: chapter._id });
+    await createMenuSection(env, { title: "Dessert", slug: "dessert", parentId: chapter._id });
+    await createMenuItem(env, { name: "Fries", price: "6", sectionId: sides._id, placements: [{ channel: "digital", sectionId: sides._id }] });
+  }
+
+  it("adds the pop-up on Mondays from the 23rd, its menu and dishes beside Chez Pickle's, puts it on the website; then nothing to do", async () => {
+    const db = createTestD1("ops");
+    const env = opsEnv(db);
+    await seedChezPickle(env);
+
+    const { text, result } = await run(db);
+
+    const popup = await findPopup(env);
+    assert.deepEqual(
+      [popup.name, popup.category, popup.repeatUnit, popup.weekdays, popup.startsOn, popup.endsOn, popup.startTime, popup.endTime],
+      ["Pinsa A Roma", "popup", "week", ["mon"], "2026-11-23", "", "17:00", "22:00"],
+    );
+    assert.deepEqual(popup.dates.slice(0, 3).map((night) => night.date), ["2026-11-23", "2026-11-30", "2026-12-07"]);
+    assert.equal(popup.publish.live, "current", "on the website");
+
+    const menu = (await listMenus(env)).menus.find((row) => row.slug === SLUG);
+    assert.deepEqual([menu.name, menu.kind, menu.popupSeriesId, menu.startsOn, menu.endsOn, menu.days], ["Pinsa A Roma", "kitchen", String(popup.id), "2026-11-23", "", ["mon"]]);
+
+    const { sections, items } = await loadMenuTree(env);
+    const chapter = sections.find((section) => section.slug === SLUG);
+    assert.equal(String(chapter.menuId), String(menu.id));
+    const groups = flattenMenuSections(sections).filter((section) => section.parentId === chapter._id).map((section) => section.title);
+    assert.deepEqual(groups, ["Pinsa", "Sides and dips", "Dessert"]);
+    const ours = items.filter((item) => DISHES.includes(item.name));
+    assert.deepEqual(ours.map((item) => item.name).sort(), [...DISHES].sort());
+    assert.equal(ours.find((item) => item.name === "Giulio Cesare").price, "16");
+    for (const item of ours) assert.deepEqual(item.placements.map((row) => row.channel), ["digital"], `${item.name}: digital menu only`);
+
+    assert.deepEqual(result, { popup: "added", menu: 14, published: true });
+    assert.match(text, /added the pop-up kitchen "Pinsa A Roma" \(event \d+\): every Monday from 2026-11-23, 17:00–22:00, no end date/);
+    assert.match(text, /Pinsa: Trastevere \(V\) £13\.50, Colosseo £14\.50, Villa Borghese \(V\) £15\.50, Giulio Cesare £16/);
+    assert.match(text, /is on the website: \/whats-on\/pinsa-a-roma/);
+
+    const before = await dump(db);
+    const again = await run(db);
+    assert.equal(await dump(db), before, "a second run changes nothing");
+    assert.match(again.text, /^Nothing to do: "Pinsa A Roma" \(event \d+\) and its menu are there, and the website is in step\.$/);
+  });
+
+  it("stops before writing anything when a dish name is taken elsewhere", async () => {
+    const db = createTestD1("ops");
+    const env = opsEnv(db);
+    await seedChezPickle(env);
+    const dessert = flattenMenuSections((await loadMenuTree(env)).sections).find((s) => s.slug === "dessert");
+    await createMenuItem(env, { name: "Tiramisu", price: "7", sectionId: dessert._id, placements: [{ channel: "digital", sectionId: dessert._id }] });
+    const before = await dump(db);
+
+    await assert.rejects(run(db), /Pinsa A Roma was not added, and nothing was changed:\n {2}"Tiramisù" would clash with "Tiramisu"/);
+    assert.equal(await dump(db), before);
+  });
+
+  it("dry run: says what it would add and changes nothing", async () => {
+    const db = createTestD1("ops");
+    const env = opsEnv(db);
+    await seedChezPickle(env);
+    const before = await dump(db);
+
+    const { text, result } = await run(db, { dryRun: true });
+
+    assert.equal(await dump(db), before);
+    assert.equal(await findPopup(env), undefined);
+    assert.deepEqual(result, { popup: "added", menu: 14, published: false });
+    assert.match(text, /would have: added the pop-up kitchen "Pinsa A Roma"/);
+    assert.match(text, /would put it on the website \(\/whats-on\/pinsa-a-roma\), and its menu/);
+  });
+});
