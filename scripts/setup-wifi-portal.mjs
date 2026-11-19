@@ -5,7 +5,7 @@
  *
  * Needs CLOUDFLARE_API_TOKEN (Secrets Manager, bw-unlock). UNIFI_SITE_MANAGER_API_KEY
  * comes from Secrets Manager; UNIFI_CONSOLE_ID from wrangler.toml [vars]. Sign-ups
- * are on D1 (the WEBSITE_DB binding), so the retired Baserow secret is removed.
+ * are on D1 (the WEBSITE_DB binding).
  */
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -94,20 +94,6 @@ async function main() {
     input: siteManagerKey,
     quiet: true,
   });
-  const secrets = run("npx", ["wrangler", "secret", "list", "--format", "json"], {
-    cwd: WORKER_DIR,
-    env: wranglerEnv,
-    quiet: true,
-  });
-  if (/"name":\s*"BASEROW_API_KEY"/.test(secrets)) {
-    run("npx", ["wrangler", "secret", "delete", "BASEROW_API_KEY"], {
-      cwd: WORKER_DIR,
-      env: wranglerEnv,
-      input: "y\n",
-      quiet: true,
-    });
-    console.log("Removed the retired BASEROW_API_KEY secret.");
-  }
   console.log("Worker secret synced.");
 
   const host = "wifi.gwenda.co.uk";

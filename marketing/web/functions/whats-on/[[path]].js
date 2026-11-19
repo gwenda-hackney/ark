@@ -1,6 +1,6 @@
 import { renderEventPage } from "../_lib/event-pages.js";
 
-/** Series, night and ticket pages, rendered on request (#25). */
+/** Series pages, rendered on request (#25). */
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);

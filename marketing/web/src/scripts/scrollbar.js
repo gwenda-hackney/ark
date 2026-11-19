@@ -4,7 +4,7 @@
  */
 
 const HIDE_MS = 1800;
-const NESTED = ".scrollbar-fade, .gw-select-menu, .event-rsvp--viewport";
+const NESTED = ".scrollbar-fade, .gw-select-menu";
 
 /**
  * @typedef {{

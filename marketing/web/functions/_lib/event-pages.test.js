@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  NIGHT_SHELL,
   SERIES_SHELL,
-  TICKET_SHELL,
-  eventOgImage,
   renderEventPage,
   socialDescription,
 } from "./event-pages.js";
@@ -22,13 +19,6 @@ const SHELLS = {
 <series-part name="menu:chez-pickle">/kitchen#chez-pickle</series-part>
 <series-part name="form:party">Book your party</series-part>
 <series-body><section class="ch-event-pending">Check back soon</section></series-body></main></body></html>`,
-  [`${NIGHT_SHELL}/`]: `<html><head><title>__EVENT_TITLE__ · Gwenda</title>
-<meta property="og:url" content="${ORIGIN}${NIGHT_SHELL}">
-<meta property="og:image" content="${ORIGIN}/og/events/__EVENT_SLUG__.jpg">
-<meta name="twitter:image" content="${ORIGIN}/og/events/__EVENT_SLUG__.jpg">
-</head><body data-occurrence-slug="__EVENT_SLUG__"><night-gallery></night-gallery></body></html>`,
-  [`${TICKET_SHELL}/`]: `<title>Your ticket · __EVENT_TITLE__ · Gwenda</title>
-<meta property="og:url" content="${ORIGIN}${TICKET_SHELL}"><body data-occurrence-slug="__EVENT_SLUG__">`,
 };
 const loadShell = async (path) => SHELLS[path];
 
@@ -65,18 +55,7 @@ beforeEach(() => {
     vi.fn(async (input) => {
       const query = new URL(String(input)).searchParams.get("query") || "";
       let result;
-      if (query.includes('"events":')) {
-        result = {
-          events: sanity.events,
-          series: sanity.series.map((row) => ({
-            seriesId: row.id,
-            formerSlugs: row.formerSlugs,
-            gallery: (row.gallery || []).filter((image) => image.date),
-          })),
-        };
-      } else if (query.includes('_type == "eventSeries"'))
-        result = sanity.series;
-      else if (query.includes("heroImage {")) result = sanity.heroImage ?? null;
+      if (query.includes('_type == "eventSeries"')) result = sanity.series;
       else result = sanity.events;
       return new Response(JSON.stringify({ result }));
     }),
@@ -278,11 +257,9 @@ describe("series page", () => {
   });
 
   it("sends a built shell to What's on: it's no page of its own", async () => {
-    for (const path of [SERIES_SHELL, NIGHT_SHELL, TICKET_SHELL]) {
-      const response = await render(`${path}/`);
-      expect(response.status).toBe(302);
-      expect(response.headers.get("Location")).toBe("/whats-on/");
-    }
+    const response = await render(`${SERIES_SHELL}/`);
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe("/whats-on/");
   });
 
   it("leaves other paths alone", async () => {
@@ -291,100 +268,14 @@ describe("series page", () => {
   });
 });
 
-describe("night and ticket pages", () => {
-  it("fills in the night, with its share image", async () => {
-    const html = await (
-      await render("/whats-on/negroni-chess/2099-01-06")
-    ).text();
-    expect(html).toContain('data-occurrence-slug="negroni-chess-2099-01-06"');
-    expect(html).toContain(
-      `content="${ORIGIN}/whats-on/negroni-chess/2099-01-06"`,
-    );
-    expect(html).toContain("/og/events/negroni-chess-2099-01-06.jpg");
-  });
-
-  it("shows the night's own photos, not the rest of the series'", async () => {
-    const photo = (name, date) => ({
-      url: `https://cdn.sanity.io/images/p/d/${name}-800x600.jpg`,
-      width: 800,
-      height: 600,
-      alt: "",
-      date,
-    });
-    sanity.series = [
-      series("negroni-chess", {
-        gallery: [
-          photo("theirs", "2099-01-13"),
-          photo("ours", "2099-01-06"),
-          photo("series", ""),
-        ],
-      }),
-    ];
-    const html = await (
-      await render("/whats-on/negroni-chess/2099-01-06")
-    ).text();
-    expect(html).toContain("ours-800x600");
-    expect(html).not.toContain("theirs-800x600");
-    expect(html).not.toContain("series-800x600");
-    expect(html).not.toContain("<night-gallery>");
-  });
-
-  it("a night without photos has no gallery", async () => {
-    const html = await (
-      await render("/whats-on/negroni-chess/2099-01-06")
-    ).text();
-    expect(html).not.toContain("series-gallery");
-    expect(html).not.toContain("<night-gallery>");
-  });
-
-  it("leaves out the share image when the night has none", async () => {
-    sanity.events = [night("negroni-chess", "2099-01-06", { hasImage: false })];
-    const bare = await (
-      await render("/whats-on/negroni-chess/2099-01-06")
-    ).text();
-    expect(bare).not.toContain("og:image");
-    expect(bare).not.toContain("twitter:image");
-  });
-
-  it("serves the ticket page under the night", async () => {
-    const html = await (
-      await render("/whats-on/negroni-chess/2099-01-06/ticket")
-    ).text();
-    expect(html).toContain(
-      "<title>Your ticket · Negroni &amp; Chess · Gwenda</title>",
-    );
-    expect(html).toContain(
-      `${ORIGIN}/whats-on/negroni-chess/2099-01-06/ticket"`,
-    );
-  });
-
-  it("redirects a night under the series' former address", async () => {
-    const response = await render("/whats-on/negroni-night/2099-01-06/ticket");
-    expect(response.status).toBe(301);
-    expect(response.headers.get("Location")).toBe(
-      "/whats-on/negroni-chess/2099-01-06/ticket/",
-    );
-  });
-
-  it("sends a night that isn't on the website to its series", async () => {
-    const response = await render("/whats-on/negroni-chess/2099-02-01");
-    expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/whats-on/negroni-chess/");
-  });
-
-  it("leaves a night under an address that was never a series to the 404 page", async () => {
-    expect(await render("/whats-on/no-such-series/2099-02-01")).toBeNull();
-    expect(
-      await render("/whats-on/no-such-series/2099-02-01/ticket"),
-    ).toBeNull();
-  });
-});
-
-describe("share image", () => {
-  it("is not found for a night without a hero image", async () => {
-    expect((await eventOgImage(env, "negroni-chess-2099-01-06")).status).toBe(
-      404,
-    );
+describe("night pages", () => {
+  it("are gone: a night's address is the site's 404 page", async () => {
+    for (const path of [
+      "/whats-on/negroni-chess/2026-09-29/",
+      "/whats-on/negroni-chess/2026-09-29/ticket/",
+    ]) {
+      expect(await renderEventPage(env, path, loadShell)).toBeNull();
+    }
   });
 });
 

@@ -1,6 +1,6 @@
 # D1 databases
 
-Every feature's data is in Cloudflare D1 (#127, #234), behind the feature's repository (#186). RSVP and event invites are the one exception, still on Baserow until #237.
+Every feature's data is in Cloudflare D1 (#127, #234), behind the feature's repository (#186).
 
 ## Databases
 

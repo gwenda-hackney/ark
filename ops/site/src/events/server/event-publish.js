@@ -350,8 +350,7 @@ export async function publishEventPreview(
     staged += 1;
     if (!previous?.sanityId) pagesChanged = true;
     const content = resolveOccurrenceContent(event, previous || date);
-    // A night keeps its slug when the series gets a new web address: RSVPs
-    // and ticket links are keyed by it.
+    // A night keeps its slug when the series gets a new web address.
     const slug = previous?.slug || occurrenceSlug(event.slug, date);
     const hero = content.image?.asset
       ? withImageCrop(

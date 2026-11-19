@@ -14,7 +14,6 @@ SANITY_PROJECT_ID = "pn5yjro6"
 SANITY_DATASET = "production"
 ALERT_EMAIL = "alerts@gwenda.co.uk"
 INVITE_BASE_URL = "https://gwenda.co.uk"
-INVITE_IMAGE_URL = "https://gwenda.co.uk/images/event-invite.jpg"
 
 # D1 databases (#127, db/README.md): this account's own; ids from shared/d1-databases.js.
 # Unused until each feature moves. Never `remote = true` here: ops:dev runs this file
@@ -43,7 +42,6 @@ SANITY_DATASET = "production"
 SANITY_PERSPECTIVE = "previewDrafts"
 ALERT_EMAIL = "alerts@gwenda.co.uk"
 INVITE_BASE_URL = "https://gwenda.co.uk"
-INVITE_IMAGE_URL = "https://gwenda.co.uk/images/event-invite.jpg"
 
 [[env.preview.d1_databases]]
 binding = "WEBSITE_DB"

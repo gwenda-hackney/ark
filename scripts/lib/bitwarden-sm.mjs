@@ -137,13 +137,8 @@ export const SECRET_OWNERS = {
     "SITE_HEALTH_STATUS_TOKEN",
     // Read-only Sentry token (Issue & Event: Read) for the dashboard's errors card (#156).
     "SENTRY_READ_TOKEN",
-    // Script-only: the automation@ Baserow login, for setup:baserow-rsvp until RSVP moves to D1 (#237).
-    "BASEROW_JWT_EMAIL",
-    "BASEROW_JWT_PASSWORD",
   ],
   web: [
-    // RSVP and event invites, the last thing on Baserow until #237.
-    "BASEROW_WEBSITE_API_KEY",
     "FORMS_ADMIN_SECRET",
     "SANITY_API_TOKEN",
     "DEPLOY_WEBHOOK_SECRET",
@@ -213,8 +208,6 @@ export const APP_SECRETS = {
   },
   web: {
     keys: [
-      // RSVP and event invites on Baserow, until #237.
-      "BASEROW_API_KEY",
       "SUBSCRIBE_SECRET",
       "FORMS_ADMIN_SECRET",
       "SANITY_API_TOKEN",
@@ -226,7 +219,6 @@ export const APP_SECRETS = {
       "UNIFI_SITE_MANAGER_API_KEY",
     ],
     rename: {
-      BASEROW_API_KEY: "BASEROW_WEBSITE_API_KEY",
       GMAIL_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
     },
     pagesSkip: [

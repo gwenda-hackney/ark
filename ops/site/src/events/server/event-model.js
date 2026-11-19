@@ -395,7 +395,7 @@ export function nightForSave(night) {
 /**
  * A new web address (/whats-on/<slug>) for a series, checked against the other
  * series. The old one moves to formerSlugs so the website redirects it.
- * Nights keep their own slugs: RSVPs and ticket links are keyed by them.
+ * Nights keep their own slugs.
  * Null when the address does not change.
  */
 export function slugChangePlan(current, value, events) {

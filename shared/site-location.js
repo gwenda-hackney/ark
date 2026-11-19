@@ -1,4 +1,4 @@
-/** Venue and maps URLs shared by RSVP emails and tickets. Keep in sync with web/src/config/site.ts */
+/** Venue and maps URLs shared by the website and its emails. Keep in sync with web/src/config/site.ts */
 
 export const VENUE_GEO = {
   latitude: 51.541812,

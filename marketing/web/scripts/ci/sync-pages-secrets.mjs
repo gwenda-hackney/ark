@@ -40,8 +40,19 @@ function putSecret(key, value) {
 /**
  * Secrets no code reads any more, deleted from the project on each sync.
  * SMTP_PASSWORD: mail goes through the Gmail API (shared/gmail-send.js).
+ * BASEROW_*, TICKET_SECRET, APPLE_WALLET_*: RSVP and tickets, removed (#237).
  */
-const RETIRED_SECRETS = ["SMTP_PASSWORD"];
+const RETIRED_SECRETS = [
+  "SMTP_PASSWORD",
+  "BASEROW_API_KEY",
+  "TICKET_SECRET",
+  "APPLE_WALLET_PASS_TYPE_ID",
+  "APPLE_WALLET_TEAM_ID",
+  "APPLE_WALLET_SIGNER_CERT",
+  "APPLE_WALLET_SIGNER_KEY",
+  "APPLE_WALLET_WWDR_CERT",
+  "APPLE_WALLET_SIGNER_KEY_PASSPHRASE",
+];
 
 /** The password gate: on every preview, never on the live site. */
 const GATE_KEYS = new Set(["SITE_PASSWORD", "GATE_BYPASS_KEY"]);
@@ -53,15 +64,6 @@ function putSharedSecrets() {
     if (GATE_KEYS.has(key) || skip.has(key)) continue;
     putSecret(key, process.env[key]);
   }
-  putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
-  putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
-  putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
-  putSecret("APPLE_WALLET_SIGNER_KEY", process.env.APPLE_WALLET_SIGNER_KEY);
-  putSecret("APPLE_WALLET_WWDR_CERT", process.env.APPLE_WALLET_WWDR_CERT);
-  putSecret(
-    "APPLE_WALLET_SIGNER_KEY_PASSPHRASE",
-    process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
-  );
 }
 
 const profiles = {

@@ -9,7 +9,7 @@ alwaysApply: true
 
 Do **not** use em dashes (`—`) or double hyphens (`--`) as punctuation in:
 
-- User-facing site copy (RSVP, email, UI strings, meta titles)
+- User-facing site copy (email, UI strings, meta titles)
 - Agent replies to the user in chat
 
 They read as generic AI voice. Use instead:
@@ -24,12 +24,6 @@ They read as generic AI voice. Use instead:
 
 Good: `You're invited · Gwenda`  
 Bad: `You're invited — Gwenda`
-
-## Invite / RSVP layout
-
-Private invite and event RSVP pages use **left-aligned editorial** type inside the card panel. Do not centre headings, leads, or form titles on those pages.
-
-Centre alignment is for marketing blocks (signup section header, thanks page). RSVP reads like a personal note, not a landing section.
 
 ## Voice
 

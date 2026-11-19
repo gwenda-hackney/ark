@@ -43,12 +43,10 @@ const FUNCTION_ADDRESSES = [
   "/api/health/deep",
   "/api/whats-on/schedule",
   "/health",
-  "/og/events/chez-pickle-2026-11-12",
   "/preview",
   "/preview/",
   "/whats-on/schedule",
   "/whats-on/chez-pickle/",
-  "/whats-on/chez-pickle/2026-11-12/ticket/",
   "/whats-on/never-an-event",
 ];
 
@@ -79,7 +77,6 @@ describe("live site routes", () => {
     expect(live.include).toEqual([
       "/api/*",
       "/health",
-      "/og/*",
       "/preview/*",
       "/whats-on/*",
     ]);
