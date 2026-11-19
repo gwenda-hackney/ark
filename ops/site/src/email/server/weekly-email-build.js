@@ -1,17 +1,18 @@
 /**
- * This week's "what's on" email, built the moment it's asked for from the
+ * This month's "what's on" email, built the moment it's asked for from the
  * website's published nights (shared/weekly-email): the same Sanity documents
  * and the same What's on rules as the page, so the two can't disagree.
  *
  * Read-only: two Sanity queries. Nothing here knows Mailchimp.
  */
-import { londonToday, weekStart } from "../../../../../marketing/web/src/lib/london-day.js";
+import { londonToday } from "../../../../../marketing/web/src/lib/london-day.js";
+import { monthStart } from "./weekly-email-model.js";
 import { fetchWeeklyCatalog, renderWeeklyEmail, weeklyEmailModel } from "../../../../../shared/weekly-email/index.js";
 import { DATASET, sanityProjectId } from "../../platform/sanity.js";
 import { emailFrame } from "./email-frame.js";
 
-/** Why a week with no nights isn't sent. */
-export const EMPTY_WEEK = "No nights on the website this week, so there's nothing to send.";
+/** Why a month with no nights left isn't sent. */
+export const EMPTY_MONTH = "No nights on the website for the rest of the month, so there's nothing to send.";
 
 /** A failure the page can show as it is: the email couldn't be built. */
 function buildFailed(error) {
@@ -24,7 +25,7 @@ function buildFailed(error) {
  * @param {Record<string, any>} env
  * @param {{ now?: Date }} [options] the moment it's built (tests pin it)
  * @returns {Promise<{
- *   today: string, weekStart: string, week: { start: string, end: string, span: string },
+ *   today: string, monthStart: string, month: { start: string, end: string, name: string, span: string },
  *   empty: boolean, emptyReason: string, nights: number, deals: number, kitchens: number,
  *   subject: string, preheader: string, html: string, text: string, origin: string,
  * }>}
@@ -51,10 +52,10 @@ export async function buildWeeklyEmail(env, { now = new Date() } = {}) {
   const empty = model.nights.length === 0;
   return {
     today,
-    weekStart: weekStart(today),
-    week: model.week,
+    monthStart: monthStart(today),
+    month: model.month,
     empty,
-    emptyReason: empty ? EMPTY_WEEK : "",
+    emptyReason: empty ? EMPTY_MONTH : "",
     nights: model.nights.length,
     deals: model.deals.length,
     kitchens: model.kitchens.length,

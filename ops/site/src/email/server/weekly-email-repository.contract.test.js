@@ -1,7 +1,7 @@
 /**
  * What every WeeklyEmailRepository adapter must do (#186): the same cases on
  * memory and D1 (SQLite with the real migrations), plus the copy between
- * them. The claims and moves here are what make a week's email go out once.
+ * them. The claims and moves here are what make a month's email go out once.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
@@ -18,22 +18,22 @@ const ADAPTERS = {
 
 const NOW = new Date("2026-11-10T10:05:00Z");
 const LATER = new Date("2026-11-10T10:06:00Z");
-const WEEK = "2026-11-09";
+const MONTH = "2026-12-01";
 
 repositoryContract("WeeklyEmailRepository", {
   adapters: ADAPTERS,
   seed: async (repo) => {
-    const run = await repo.claim({ weekStart: WEEK, now: NOW });
-    await repo.move(run.id, ["preparing"], "sent", { subject: "This week", recipients: 244, sentAt: NOW.toISOString() }, NOW);
-    await repo.claim({ weekStart: WEEK, attempt: 2, startedBy: "manual", now: LATER });
+    const run = await repo.claim({ monthStart: MONTH, now: NOW });
+    await repo.move(run.id, ["preparing"], "sent", { subject: "December", recipients: 244, sentAt: NOW.toISOString() }, NOW);
+    await repo.claim({ monthStart: MONTH, attempt: 2, startedBy: "manual", now: LATER });
     await repo.logTest({ email: "someone@example.com", sentAt: NOW.toISOString() });
   },
   cases: {
-    "claims a week once: the second claim gets nothing": async (repo) => {
-      const run = await repo.claim({ weekStart: WEEK, now: NOW });
+    "claims a month once: the second claim gets nothing": async (repo) => {
+      const run = await repo.claim({ monthStart: MONTH, now: NOW });
       assert.deepEqual(run, {
         id: run.id,
-        weekStart: WEEK,
+        monthStart: MONTH,
         attempt: 1,
         status: "preparing",
         startedBy: "schedule",
@@ -48,22 +48,22 @@ repositoryContract("WeeklyEmailRepository", {
         updatedAt: NOW.toISOString(),
         sentAt: null,
       });
-      assert.equal(await repo.claim({ weekStart: WEEK, now: LATER }), null);
+      assert.equal(await repo.claim({ monthStart: MONTH, now: LATER }), null);
       assert.deepEqual(await repo.get(run.id), run);
-      // Another week, and another attempt of the same week, are their own.
-      assert.ok(await repo.claim({ weekStart: "2026-11-16", now: NOW }));
-      assert.ok(await repo.claim({ weekStart: WEEK, attempt: 2, startedBy: "manual", now: NOW }));
-      assert.equal(await repo.claim({ weekStart: WEEK, attempt: 2, startedBy: "manual", now: NOW }), null);
+      // Another month, and another attempt of the same month, are their own.
+      assert.ok(await repo.claim({ monthStart: "2027-01-01", now: NOW }));
+      assert.ok(await repo.claim({ monthStart: MONTH, attempt: 2, startedBy: "manual", now: NOW }));
+      assert.equal(await repo.claim({ monthStart: MONTH, attempt: 2, startedBy: "manual", now: NOW }), null);
     },
-    "of two claims at once, one gets the week": async (repo) => {
-      const both = await Promise.all([repo.claim({ weekStart: WEEK, now: NOW }), repo.claim({ weekStart: WEEK, now: NOW })]);
+    "of two claims at once, one gets the month": async (repo) => {
+      const both = await Promise.all([repo.claim({ monthStart: MONTH, now: NOW }), repo.claim({ monthStart: MONTH, now: NOW })]);
       assert.equal(both.filter(Boolean).length, 1);
     },
     "moves a run only from the statuses given": async (repo) => {
-      const run = await repo.claim({ weekStart: WEEK, now: NOW });
-      const waiting = await repo.move(run.id, ["preparing"], "waiting", { subject: "This week", campaignId: "c1" }, LATER);
+      const run = await repo.claim({ monthStart: MONTH, now: NOW });
+      const waiting = await repo.move(run.id, ["preparing"], "waiting", { subject: "December", campaignId: "c1" }, LATER);
       assert.equal(waiting.status, "waiting");
-      assert.equal(waiting.subject, "This week");
+      assert.equal(waiting.subject, "December");
       assert.equal(waiting.campaignId, "c1");
       assert.equal(waiting.updatedAt, LATER.toISOString());
       assert.equal(waiting.createdAt, NOW.toISOString());
@@ -73,7 +73,7 @@ repositoryContract("WeeklyEmailRepository", {
       assert.equal(await repo.move(987_654, ["waiting"], "sending", {}, LATER), null);
     },
     "of two sends started at once, one gets the run": async (repo) => {
-      const run = await repo.claim({ weekStart: WEEK, now: NOW });
+      const run = await repo.claim({ monthStart: MONTH, now: NOW });
       await repo.move(run.id, ["preparing"], "waiting", {}, NOW);
       const both = await Promise.all([
         repo.move(run.id, ["waiting"], "sending", { approvedBy: "a@example.com" }, LATER),
@@ -81,18 +81,18 @@ repositoryContract("WeeklyEmailRepository", {
       ]);
       assert.equal(both.filter(Boolean).length, 1);
     },
-    "update sets fields and never the week, the attempt or the id": async (repo) => {
-      const run = await repo.claim({ weekStart: WEEK, now: NOW });
-      const updated = await repo.update(run.id, { recipients: 244, weekStart: "2030-01-07", attempt: 9, id: 77 }, LATER);
+    "update sets fields and never the month, the attempt or the id": async (repo) => {
+      const run = await repo.claim({ monthStart: MONTH, now: NOW });
+      const updated = await repo.update(run.id, { recipients: 244, monthStart: "2030-01-01", attempt: 9, id: 77 }, LATER);
       assert.deepEqual(updated, { ...run, recipients: 244, updatedAt: LATER.toISOString() });
       assert.equal(await repo.update(987_654, { recipients: 1 }, LATER), null);
     },
-    "latest is the week's newest attempt; history is newest first": async (repo) => {
-      assert.equal(await repo.latest(WEEK), null);
-      const first = await repo.claim({ weekStart: WEEK, now: NOW });
-      const older = await repo.claim({ weekStart: "2026-11-02", now: NOW });
-      const again = await repo.claim({ weekStart: WEEK, attempt: 2, startedBy: "manual", now: LATER });
-      assert.deepEqual(await repo.latest(WEEK), again);
+    "latest is the month's newest attempt; history is newest first": async (repo) => {
+      assert.equal(await repo.latest(MONTH), null);
+      const first = await repo.claim({ monthStart: MONTH, now: NOW });
+      const older = await repo.claim({ monthStart: "2026-11-01", now: NOW });
+      const again = await repo.claim({ monthStart: MONTH, attempt: 2, startedBy: "manual", now: LATER });
+      assert.deepEqual(await repo.latest(MONTH), again);
       assert.deepEqual(
         (await repo.history(10)).map((run) => run.id),
         [again.id, first.id, older.id],
@@ -116,11 +116,11 @@ repositoryContract("WeeklyEmailRepository", {
 describe("WeeklyEmailRepository (d1) storage", () => {
   it("refuses a second row for the same week and attempt, whatever writes it", async () => {
     const db = createTestD1("ops");
-    await d1WeeklyEmailRepository(db).claim({ weekStart: WEEK, now: NOW });
+    await d1WeeklyEmailRepository(db).claim({ monthStart: MONTH, now: NOW });
     await assert.rejects(() =>
       db
         .prepare("INSERT INTO weekly_emails (week_start, attempt, created_at, updated_at) VALUES (?, 1, 'x', 'x')")
-        .bind(WEEK)
+        .bind(MONTH)
         .run(),
     );
   });
@@ -131,7 +131,7 @@ describe("weeklyEmailRepository", () => {
     const repo = memoryWeeklyEmailRepository();
     assert.equal(weeklyEmailRepository({ weeklyEmailRepository: repo }), repo);
     const OPS_DB = createTestD1("ops");
-    const run = await weeklyEmailRepository({ SITE_ENV: "dev", OPS_DB }).claim({ weekStart: WEEK, now: NOW });
-    assert.equal((await d1WeeklyEmailRepository(OPS_DB).get(run.id)).weekStart, WEEK);
+    const run = await weeklyEmailRepository({ SITE_ENV: "dev", OPS_DB }).claim({ monthStart: MONTH, now: NOW });
+    assert.equal((await d1WeeklyEmailRepository(OPS_DB).get(run.id)).monthStart, MONTH);
   });
 });

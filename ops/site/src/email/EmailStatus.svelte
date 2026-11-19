@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * This week: where the email is, when the next goes and to how many, the
+	 * This month: where the email is, when the next goes and to how many, the
 	 * three things an admin can do, and a test to yourself. The buttons are
 	 * always there; one that can't be pressed says why.
 	 */
@@ -72,7 +72,7 @@
 			await confirm.run(
 				kind === "approve"
 					? {
-							title: `Send this week's email to ${to}?`,
+							title: `Send this month's email to ${to}?`,
 							message: "As the preview shows it. Can't be undone.",
 							action: "Approve and send",
 							tone: "primary",
@@ -123,7 +123,7 @@
 	}
 </script>
 
-<Card title="This week">
+<Card title="This month">
 	<div class="now">
 		<Badge tone={now?.tone || "neutral"} label={now?.label || "Loading…"} />
 		{#if now?.detail}<p class="detail">{now.detail}</p>{/if}
@@ -154,7 +154,7 @@
 			busy={busy === "prepare"}
 			disabled={Boolean(tryAgainBlocked) || Boolean(busy)}
 			reason={tryAgainBlocked}
-			title="Rebuilds this week's, then waits for approval"
+			title="Rebuilds this month's, then waits for approval"
 			onclick={() => void tryAgain()}
 		>
 			{#snippet icon()}<Icon name="refresh" size={16} />{/snippet}

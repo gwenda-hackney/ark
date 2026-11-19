@@ -377,10 +377,11 @@ describe("spa-path", () => {
       page: "lightspeed",
       view: "reconcile",
     });
-    assert.deepEqual(parseShellPath("/email"), { page: "email", view: "overview" });
-    assert.deepEqual(parseShellPath("/email/week"), { page: "email", view: "week" });
+    assert.deepEqual(parseShellPath("/email"), { page: "email", view: "emails" });
+    assert.deepEqual(parseShellPath("/email/monthly"), { page: "email", view: "monthly" });
+    assert.deepEqual(parseShellPath("/email/week"), { page: "email", view: "monthly" }, "the old weekly tab");
     assert.deepEqual(parseShellPath("/email/sent"), { page: "email", view: "sent" });
-    assert.deepEqual(parseShellPath("/email/settings"), { page: "email", view: "settings" });
+    assert.deepEqual(parseShellPath("/email/settings"), { page: "email", view: "monthly" }, "the old settings tab");
     assert.deepEqual(parseShellPath("/email/write"), { page: "email", view: "write", slug: null, isNew: false });
     assert.deepEqual(parseShellPath("/email/write/new"), { page: "email", view: "write", slug: null, isNew: true });
     assert.deepEqual(parseShellPath("/email/write/12"), { page: "email", view: "write", slug: "12", isNew: false });

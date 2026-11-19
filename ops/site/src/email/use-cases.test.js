@@ -1,5 +1,5 @@
 /**
- * Use cases: what staff do with the weekly "what's on" email in ops, end to
+ * Use cases: what staff do with the monthly "what's on" email in ops, end to
  * end through the real API handlers, with Sanity (and later Mailchimp) faked
  * (testing/fake-world.js). The clock is pinned: nothing here depends on the
  * day the tests run.
@@ -11,12 +11,12 @@ import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { onRequestGet as getPreview } from "../../functions/api/email/preview.js";
 import { onRequestPost as sendTest } from "../../functions/api/email/test.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
-import { TUESDAY_MORNING, WEEK, publishNight, publishWeek, signedIn } from "./testing.js";
+import { FIRST_TUESDAY_MORNING, MONTH, publishMonth, publishNight, signedIn } from "./testing.js";
 
 let world;
 
 beforeEach(async () => {
-  vi.useFakeTimers({ now: TUESDAY_MORNING, toFake: ["Date"] });
+  vi.useFakeTimers({ now: FIRST_TUESDAY_MORNING, toFake: ["Date"] });
   resetConfigCacheForTests();
   world = await createFakeWorld();
   world.env.OPS_DB = createTestD1("ops");
@@ -31,20 +31,20 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("weekly email: this week's email, as it would go out", () => {
+describe("monthly email: this month's email, as it would go out", () => {
   it("shows the subject, the preview line and the email, built from the published website", async () => {
-    publishWeek(world);
+    publishMonth(world);
     const res = await callApi(world, getPreview, { path: "/api/email/preview" });
     assert.equal(res.status, 200, JSON.stringify(res.data));
     const { email } = res.data;
-    assert.equal(email.today, "2026-11-10");
-    assert.equal(email.weekStart, WEEK);
-    assert.equal(email.week.span, "10 to 15 Nov");
+    assert.equal(email.today, "2026-12-01");
+    assert.equal(email.monthStart, MONTH);
+    assert.equal(email.month.span, "1 to 31 Dec");
     assert.equal(email.empty, false);
     assert.equal(email.nights, 2);
-    assert.match(email.subject, /^This week at Gwenda: /);
+    assert.match(email.subject, /^December at Gwenda: /);
     assert.match(email.subject, /Quiz Night/);
-    assert.match(email.preheader, /Thu: Quiz Night/);
+    assert.match(email.preheader, /Thu 3: Quiz Night/);
     assert.match(email.html, /Canalside Jazz/);
     // Links and the logo go to this environment's website: dev's here.
     assert.match(email.html, /https:\/\/gwenda-web-dev\.pages\.dev\/brand\/logo-email-social\.png/);
@@ -55,7 +55,7 @@ describe("weekly email: this week's email, as it would go out", () => {
   });
 
   it("ends with Bookings, as the website has it: a party and playing here, each to its half of /bookings", async () => {
-    publishWeek(world);
+    publishMonth(world);
     const { data } = await callApi(world, getPreview, { path: "/api/email/preview" });
     const { html } = data.email;
     for (const words of ["Have a party", "Play at Gwenda", "Book your party", "Apply to play"]) {
@@ -63,40 +63,40 @@ describe("weekly email: this week's email, as it would go out", () => {
     }
     assert.match(html, /href="https:\/\/gwenda-web-dev\.pages\.dev\/bookings#party"/);
     assert.match(html, /href="https:\/\/gwenda-web-dev\.pages\.dev\/bookings#play"/);
-    // Near the end: after the week, before the table and the foot.
+    // Near the end: after the month's nights, before the table and the foot.
     assert.ok(html.indexOf("Play at Gwenda") > html.indexOf("Canalside Jazz"));
     assert.ok(html.indexOf("Play at Gwenda") < html.indexOf(">Book a table</a>"));
   });
 
   it("is built from published nights only: a draft isn't in it", async () => {
-    publishWeek(world);
-    world.sanity.docs.set("drafts.event-secret-2026-11-13", {
-      _id: "drafts.event-secret-2026-11-13",
+    publishMonth(world);
+    world.sanity.docs.set("drafts.event-secret-2026-12-04", {
+      _id: "drafts.event-secret-2026-12-04",
       _type: "event",
-      slug: { current: "secret-2026-11-13" },
+      slug: { current: "secret-2026-12-04" },
       title: "Not Announced Yet",
       seriesId: "secret",
-      date: "2026-11-13",
+      date: "2026-12-04",
       description: [{ _type: "block", children: [{ _type: "span", text: "Soon." }] }],
     });
     const { data } = await callApi(world, getPreview, { path: "/api/email/preview" });
     assert.doesNotMatch(data.email.html, /Not Announced Yet/);
   });
 
-  it("says when the week is empty, and why it wouldn't be sent", async () => {
-    // Nothing this week; one night the week after.
-    publishNight(world, "2026-11-19");
+  it("says when the month is empty, and why it wouldn't be sent", async () => {
+    // Nothing left this month; one night the month after.
+    publishNight(world, "2027-01-07");
     const res = await callApi(world, getPreview, { path: "/api/email/preview" });
     assert.equal(res.status, 200, JSON.stringify(res.data));
     assert.equal(res.data.email.empty, true);
     assert.equal(res.data.email.nights, 0);
-    assert.match(res.data.email.emptyReason, /No nights on the website this week/);
+    assert.match(res.data.email.emptyReason, /No nights on the website for the rest of the month/);
     // It still shows what the email would look like.
     assert.match(res.data.email.html, /Quiz Night/);
   });
 
   it("only reads: two Sanity queries, nothing else", async () => {
-    publishWeek(world);
+    publishMonth(world);
     await callApi(world, getPreview, { path: "/api/email/preview" });
     const outside = world.calls;
     assert.deepEqual(outside, [
@@ -114,7 +114,7 @@ describe("weekly email: this week's email, as it would go out", () => {
   });
 });
 
-describe("weekly email: send me a test", () => {
+describe("monthly email: send me a test", () => {
   async function pressSendTest({ email = "someone@example.com", body } = {}) {
     return callApi(world, sendTest, {
       method: "POST",
@@ -124,20 +124,20 @@ describe("weekly email: send me a test", () => {
     });
   }
 
-  it("sends this week's email to the person signed in, and leaves nothing behind in Mailchimp", async () => {
-    publishWeek(world);
+  it("sends this month's email to the person signed in, and leaves nothing behind in Mailchimp", async () => {
+    publishMonth(world);
     world.mailchimp.connect(world.env);
     const res = await pressSendTest();
     assert.equal(res.status, 200, JSON.stringify(res.data));
     assert.equal(res.data.sentTo, "someone@example.com");
-    assert.match(res.data.subject, /^This week at Gwenda: /);
+    assert.match(res.data.subject, /^December at Gwenda: /);
     assert.equal(res.data.warning, "");
     assert.equal(world.mailchimp.tests.length, 1);
     assert.deepEqual(world.mailchimp.tests[0].to, ["someone@example.com"]);
     assert.match(world.mailchimp.tests[0].html, /Canalside Jazz/);
     // The draft it rode on is gone, and the list got nothing.
     assert.equal(world.mailchimp.campaigns.size, 0);
-    assert.match(world.mailchimp.deleted[0].settings.title, /^Test of the weekly email, 10 Nov \(safe to delete\)$/);
+    assert.match(world.mailchimp.deleted[0].settings.title, /^Test of the monthly email, 1 Dec \(safe to delete\)$/);
     assert.deepEqual(world.mailchimp.audienceSends, []);
     assert.deepEqual(mailchimpCalls(), [
       "GET /lists/list-test",
@@ -149,7 +149,7 @@ describe("weekly email: send me a test", () => {
   });
 
   it("goes to their own address only: an address in the request is ignored", async () => {
-    publishWeek(world);
+    publishMonth(world);
     world.mailchimp.connect(world.env);
     const res = await pressSendTest({
       body: { email: "stranger@example.com", to: "stranger@example.com", test_emails: ["stranger@example.com"] },
@@ -159,7 +159,7 @@ describe("weekly email: send me a test", () => {
   });
 
   it("needs a signed-in address: without one nothing is sent", async () => {
-    publishWeek(world);
+    publishMonth(world);
     world.mailchimp.connect(world.env);
     const res = await pressSendTest({ email: "" });
     assert.equal(res.status, 403);
@@ -168,7 +168,7 @@ describe("weekly email: send me a test", () => {
   });
 
   it("without a Mailchimp key the page is preview only, and says so", async () => {
-    publishWeek(world);
+    publishMonth(world);
     const res = await pressSendTest();
     assert.equal(res.status, 409);
     assert.equal(res.data.error, "Mailchimp isn't connected here, so this page is preview only.");
@@ -178,7 +178,7 @@ describe("weekly email: send me a test", () => {
   });
 
   it("is limited: one a minute and five an hour each", async () => {
-    publishWeek(world);
+    publishMonth(world);
     world.mailchimp.connect(world.env);
     assert.equal((await pressSendTest()).status, 200);
     const again = await pressSendTest();
@@ -187,10 +187,10 @@ describe("weekly email: send me a test", () => {
     // Someone else isn't held back by that.
     assert.equal((await pressSendTest({ email: "other@example.com" })).status, 200);
     for (let sent = 1; sent < 5; sent += 1) {
-      vi.setSystemTime(new Date(TUESDAY_MORNING.getTime() + sent * 2 * 60_000));
+      vi.setSystemTime(new Date(FIRST_TUESDAY_MORNING.getTime() + sent * 2 * 60_000));
       assert.equal((await pressSendTest()).status, 200);
     }
-    vi.setSystemTime(new Date(TUESDAY_MORNING.getTime() + 12 * 60_000));
+    vi.setSystemTime(new Date(FIRST_TUESDAY_MORNING.getTime() + 12 * 60_000));
     const sixth = await pressSendTest();
     assert.equal(sixth.status, 429);
     assert.match(sixth.data.error, /five tests in an hour/);
@@ -198,7 +198,7 @@ describe("weekly email: send me a test", () => {
   });
 
   it("says why when Mailchimp refuses, and still deletes the draft", async () => {
-    publishWeek(world);
+    publishMonth(world);
     world.mailchimp.connect(world.env);
     world.mailchimp.fail.test = { status: 400, detail: "You have hit the test email limit." };
     const res = await pressSendTest();
@@ -209,12 +209,12 @@ describe("weekly email: send me a test", () => {
   });
 
   it("says which draft to delete by hand when Mailchimp won't delete it", async () => {
-    publishWeek(world);
+    publishMonth(world);
     world.mailchimp.connect(world.env);
     world.mailchimp.fail.delete = { status: 500 };
     const res = await pressSendTest();
     assert.equal(res.status, 200, JSON.stringify(res.data));
-    assert.match(res.data.warning, /^The test went\. Its draft is still in Mailchimp: delete "Test of the weekly email, 10 Nov \(safe to delete\)" there\.$/);
+    assert.match(res.data.warning, /^The test went\. Its draft is still in Mailchimp: delete "Test of the monthly email, 1 Dec \(safe to delete\)" there\.$/);
   });
 
   it("doesn't touch Mailchimp when the email can't be built", async () => {
@@ -227,7 +227,7 @@ describe("weekly email: send me a test", () => {
   });
 
   it("never sends to the audience, on production either", async () => {
-    publishWeek(world);
+    publishMonth(world);
     world.mailchimp.connect(world.env);
     world.env.SITE_ENV = "production";
     world.setConfig("sanity.project_id", "gwscpagy", { env: "production", service: "all" });

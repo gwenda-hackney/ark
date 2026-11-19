@@ -12,7 +12,7 @@ export const ONE_OFF_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Send me a test",
-		body: "Sends the saved email to your own address, as the list would get it. Save first. A few tests an hour each, shared with the weekly email's.",
+		body: "Sends the saved email to your own address, as the list would get it. Save first. A few tests an hour each, shared with the monthly email's.",
 	},
 	{
 		title: "Saving",

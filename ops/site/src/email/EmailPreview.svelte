@@ -1,8 +1,8 @@
 <script lang="ts">
 	/**
 	 * An email as it would arrive: subject, preview line, and the email itself
-	 * in a locked-down frame at phone or desktop width. The weekly email's
-	 * This week tab and the one-off email editor (#348) both show it here.
+	 * in a locked-down frame at phone or desktop width. The monthly what's on's
+	 * editor and the one-off email editor (#348) both show it here.
 	 */
 	import { Card, Segmented } from "../ui";
 	import { previewDocument } from "./email-view";

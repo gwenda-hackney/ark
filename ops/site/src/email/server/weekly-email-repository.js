@@ -1,16 +1,16 @@
 /**
  * WeeklyEmailRepository (#186, #240): the only way ops reads or writes what
- * happened to each week's email, and the test emails staff sent. It speaks
+ * happened to each month's email, and the test emails staff sent. It speaks
  * in runs (weekly-email-model.js weekRun), never in tables or columns. Every
  * adapter implements all of it, and weekly-email-repository.contract.test.js
  * holds them to the same behaviour:
  *
- *   claim({ weekStart, attempt, startedBy, now })
- *                         the new run, or null when that week's attempt is
+ *   claim({ monthStart, attempt, startedBy, now })
+ *                         the new run, or null when that month's attempt is
  *                         already taken. Atomic: of two callers, one gets it.
  *   get(id)               the run, or null
- *   latest(weekStart)     the week's newest attempt, or null
- *   history(limit)        runs, newest week (then attempt) first
+ *   latest(monthStart)     the month's newest attempt, or null
+ *   history(limit)        runs, newest month (then attempt) first
  *   move(id, from, to, fields, now)
  *                         the run moved to status `to`, or null when it
  *                         wasn't in one of `from`. Atomic: of two callers

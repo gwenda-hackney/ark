@@ -1,17 +1,17 @@
 /**
  * WeeklyEmailRepository on D1: the `weekly_emails` and `weekly_email_tests`
- * tables of the ops database (db/ops/migrations/0012_weekly_email.sql). The
+ * tables of the ops database (db/ops/migrations/0012_weekly_email.sql, 0020_monthly_email.sql). The
  * only email code that knows them.
  */
 import { all, first, nowIso, run } from "../../../../../../shared/d1.js";
 import { d1Table, exportTables, importTables } from "../../../../../../shared/d1-table.js";
-import { weekRun } from "../weekly-email-model.js";
+import { monthRun } from "../weekly-email-model.js";
 
 export const weeklyEmailsTable = d1Table({
   table: "weekly_emails",
   columns: {
     id: "int",
-    weekStart: "date",
+    monthStart: { column: "period_start", type: "date" },
     attempt: "int",
     status: "text",
     startedBy: "text",
@@ -26,7 +26,7 @@ export const weeklyEmailsTable = d1Table({
     updatedAt: "text",
     sentAt: "text",
   },
-  orderBy: "week_start DESC, attempt DESC",
+  orderBy: "period_start DESC, attempt DESC",
 });
 
 export const weeklyEmailTestsTable = d1Table({
@@ -35,10 +35,10 @@ export const weeklyEmailTestsTable = d1Table({
   orderBy: "sent_at, id",
 });
 
-/** Only the fields given, cleaned as the model keeps them; never the id, week or attempt. */
+/** Only the fields given, cleaned as the model keeps them; never the id, month or attempt. */
 function cleanFields(fields) {
-  const full = weekRun(fields);
-  const fixed = new Set(["id", "weekStart", "attempt", "createdAt", "updatedAt"]);
+  const full = monthRun(fields);
+  const fixed = new Set(["id", "monthStart", "attempt", "createdAt", "updatedAt"]);
   return Object.fromEntries(
     Object.keys(full)
       .filter((key) => !fixed.has(key) && fields[key] !== undefined)
@@ -46,36 +46,36 @@ function cleanFields(fields) {
   );
 }
 
-const record = (row) => (row ? weekRun(row) : null);
+const record = (row) => (row ? monthRun(row) : null);
 
 export function d1WeeklyEmailRepository(db) {
   const get = async (id) => record(await weeklyEmailsTable.get(db, id));
   return {
     get,
-    async claim({ weekStart, attempt = 1, startedBy = "schedule", now = new Date() }) {
+    async claim({ monthStart, attempt = 1, startedBy = "schedule", now = new Date() }) {
       const at = nowIso(now);
       const row = weeklyEmailsTable.toRow(
-        weekRun({ weekStart, attempt, startedBy, status: "preparing", createdAt: at, updatedAt: at }),
+        monthRun({ monthStart, attempt, startedBy, status: "preparing", createdAt: at, updatedAt: at }),
       );
       delete row.id;
       const columns = Object.keys(row);
-      // The unique (week_start, attempt) index decides who has the week.
+      // The unique (period_start, attempt) index decides who has the month.
       const claimed = await first(
         db,
         `INSERT INTO weekly_emails (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})
-         ON CONFLICT (week_start, attempt) DO NOTHING RETURNING id`,
+         ON CONFLICT (period_start, attempt) DO NOTHING RETURNING id`,
         columns.map((column) => row[column]),
       );
       return claimed ? get(claimed.id) : null;
     },
-    async latest(weekStart) {
-      const [row] = await weeklyEmailsTable.list(db, { where: "week_start = ?", params: [weekStart] });
+    async latest(monthStart) {
+      const [row] = await weeklyEmailsTable.list(db, { where: "period_start = ?", params: [monthStart] });
       return record(row);
     },
     async history(limit = 10) {
       const rows = await all(
         db,
-        `SELECT * FROM weekly_emails ORDER BY week_start DESC, attempt DESC LIMIT ?`,
+        `SELECT * FROM weekly_emails ORDER BY period_start DESC, attempt DESC LIMIT ?`,
         [Math.max(1, Math.min(100, Number(limit) || 10))],
       );
       return rows.map((row) => record(weeklyEmailsTable.toRecord(row)));
@@ -107,7 +107,7 @@ export function d1WeeklyEmailRepository(db) {
     },
     async importAll(snapshot) {
       await importTables(db, [
-        [weeklyEmailsTable, (snapshot.weekly_emails || []).map(weekRun)],
+        [weeklyEmailsTable, (snapshot.weekly_emails || []).map(monthRun)],
         [weeklyEmailTestsTable, snapshot.weekly_email_tests || []],
       ]);
     },
