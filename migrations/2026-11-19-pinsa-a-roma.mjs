@@ -21,7 +21,12 @@
  *    tapes those up), and a photo on each dish there is one of. Each only
  *    when that place has none of its own; a picture is known by its bytes
  *    (Sanity names an image by their SHA-1), so none goes up twice.
- * 4. The website then gets both as after a save: the pop-up's nights
+ * 4. Gwenda isn't shut on Mondays any more: the opening hours (Settings →
+ *    Venue details, venue-details.js saveOpeningHours) open Monday noon to
+ *    9pm, and Tuesday from noon, for the pop-up. Only while they are still
+ *    shut Mondays and Tuesday from 5pm (2026-11-11-opening-hours.mjs); hours
+ *    the owner has changed since are left as they are, and the log says so.
+ * 5. The website then gets both as after a save: the pop-up's nights
  *    (ops-migration.mjs putEventOnWebsiteNow) and the menu
  *    (menu-website.js menuToWebsite).
  *
@@ -57,6 +62,9 @@ import { flattenMenuSections } from "../ops/site/src/menu/menu-sections.js";
 import { createMenuItem, createMenuSection, loadMenuTree, setMenuItemPhoto } from "../ops/site/src/menu/server/menu-store.js";
 import { menuToWebsite } from "../ops/site/src/menu/server/menu-website.js";
 import { createMenu, listMenus } from "../ops/site/src/menu/server/menus.js";
+import { DAY_NAMES, dayHoursLabel } from "../ops/site/src/venue/hours-model.js";
+import { saveOpeningHours, venueDetailsNow } from "../ops/site/src/venue/server/venue-details.js";
+import { venueRepository } from "../ops/site/src/venue/server/venue-repository.js";
 import { eventInStepWithWebsite, opsDataForMigration, putEventOnWebsiteNow } from "../scripts/lib/ops-migration.mjs";
 
 export const app = "ops";
@@ -71,8 +79,9 @@ export const POPUP = {
   category: "popup",
   description: "Roman pinsa on Mondays and Tuesdays: a light, crisp base with tomato, mozzarella and good olive oil, plus fries, dips and tiramisù.",
   startsOn: "2026-11-23",
-  startTime: "17:00",
-  endTime: "22:00",
+  // All day, by their own post: from noon, till 9pm.
+  startTime: "12:00",
+  endTime: "21:00",
   repeatUnit: "week",
   repeatEvery: 1,
   weekdays: ["mon", "tue"],
@@ -157,6 +166,26 @@ export async function picture(filename) {
 }
 
 const hashOf = (asset) => parseImageAssetId(typeof asset === "string" ? asset : asset?._id || asset?._ref || "")?.sha1 || "";
+
+/** The week as 2026-11-11-opening-hours.mjs left it, Monday and Tuesday. */
+const WAS = { mon: { closed: true }, tue: { opens: "17:00", closes: "22:30" } };
+/** Monday and Tuesday now, for the pop-up; the rest of the week stays. */
+export const HOURS = { mon: { opens: "12:00", closes: "21:00" }, tue: { opens: "12:00", closes: "22:30" } };
+
+const hoursWords = (days) => days.map((day) => `${DAY_NAMES[day.day]} ${dayHoursLabel(day)}`).join("; ");
+
+/** Monday and Tuesday as the hours had them before: shut, and 5–10:30pm. */
+export function stillShutMondays(days) {
+  const day = (name) => days.find((row) => row.day === name) || {};
+  const mon = day("mon");
+  const tue = day("tue");
+  return Boolean(mon.closed) && !tue.closed && tue.opens === WAS.tue.opens && tue.closes === WAS.tue.closes;
+}
+
+/** Monday noon–9pm and Tuesday from noon, the rest as it is. */
+export function newWeek(days) {
+  return days.map((day) => (HOURS[day.day] ? { ...day, closed: false, ...HOURS[day.day] } : day));
+}
 
 const title = (event) => `"${event.name}" (event ${event.id})`;
 
@@ -328,6 +357,33 @@ async function plannedPictures(env, event) {
   return lines;
 }
 
+/**
+ * The opening hours: open on Mondays and from noon on Tuesdays.
+ * @returns {Promise<"changed" | "there" | "owner's" | "none">}
+ */
+async function openMondays(env, say, { dryRun }) {
+  const { details } = await venueDetailsNow(venueRepository(env));
+  const days = details.openingHours || [];
+  if (!days.length) {
+    say("note: ops has no opening hours (Settings → Venue details); none were changed");
+    return "none";
+  }
+  const wanted = newWeek(days);
+  if (JSON.stringify(wanted) === JSON.stringify(days)) return "there";
+  if (!stillShutMondays(days)) {
+    say(`left alone: the opening hours aren't shut Mondays and Tuesday 5–10:30pm any more (${hoursWords(days)}); they were not changed`);
+    return "owner's";
+  }
+  if (dryRun) {
+    say(`opened on Mondays: ${hoursWords(wanted)}`);
+    return "changed";
+  }
+  const result = await saveOpeningHours(env, wanted, { by: "migration: Pinsa A Roma, open Mondays" });
+  say(`opened on Mondays: ${hoursWords(result.openingHours.days)}`);
+  for (const warning of result.warnings || []) say(`warning: ${warning}`);
+  return "changed";
+}
+
 export async function up({ env, d1, processEnv, log, dryRun = false }) {
   const data = await opsDataForMigration({ env, d1, dryRun, log, processEnv });
   const say = (line) => log(dryRun ? `would have: ${line}` : line);
@@ -348,8 +404,9 @@ export async function up({ env, d1, processEnv, log, dryRun = false }) {
     say(`added its Food menu "${MENU.name}", on Mondays and Tuesdays from ${MENU.startsOn}, ongoing, with ${count} menu, sections and dishes`);
     for (const group of CHAPTER.groups) say(`    ${group.title}: ${group.items.map((dish) => `${dish.name} £${dish.price}`).join(", ")}`);
     for (const line of await plannedPictures(data.env, null)) say(`added ${line}`);
+    const hours = await openMondays(data.env, say, { dryRun });
     log(`would put it on the website (/whats-on/${SLUG}), and its menu`);
-    return { popup: "added", menu: count, published: false };
+    return { popup: "added", menu: count, hours, published: false };
   }
 
   const { event, added: popupAdded } = await popupFor(data.env, say);
@@ -358,14 +415,15 @@ export async function up({ env, d1, processEnv, log, dryRun = false }) {
     for (const line of await plannedPictures(data.env, event)) say(`added ${line}`);
   }
   const pictures = dryRun ? 0 : await addPictures(data.env, event.id, say);
+  const hours = await openMondays(data.env, say, { dryRun });
 
-  if (!popupAdded && !added && !pictures && eventInStepWithWebsite(await getEvent(data.env, event.id))) {
+  if (!popupAdded && !added && !pictures && hours !== "changed" && eventInStepWithWebsite(await getEvent(data.env, event.id))) {
     log(`Nothing to do: ${title(event)} and its menu are there, and the website is in step.`);
-    return { popup: "there", menu: 0, published: false };
+    return { popup: "there", menu: 0, hours, published: false };
   }
   if (dryRun) {
     log(`would put it on the website (/whats-on/${event.slug}), and its menu`);
-    return { popup: popupAdded ? "added" : "there", menu: added, published: false };
+    return { popup: popupAdded ? "added" : "there", menu: added, hours, published: false };
   }
   const live = await putEventOnWebsiteNow(data.env, event.id);
   log(`${title(live)} is on the website: /whats-on/${live.slug}`);
@@ -378,5 +436,5 @@ export async function up({ env, d1, processEnv, log, dryRun = false }) {
         : "its menu is on the preview, waiting for Update website (ops, Menus): saves don't go live by themselves here",
     );
   }
-  return { popup: popupAdded ? "added" : "there", menu: added, published: true };
+  return { popup: popupAdded ? "added" : "there", menu: added, hours, published: true };
 }

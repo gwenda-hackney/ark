@@ -13,6 +13,9 @@ import { createEvent, listEvents } from "../../ops/site/src/events/server/event-
 import { createMenuItem, createMenuSection, loadMenuTree } from "../../ops/site/src/menu/server/menu-store.js";
 import { createMenu, listMenus } from "../../ops/site/src/menu/server/menus.js";
 import { flattenMenuSections } from "../../ops/site/src/menu/menu-sections.js";
+import { WEEK as SHUT_MONDAYS } from "../../migrations/2026-11-11-opening-hours.mjs";
+import { d1VenueRepository } from "../../ops/site/src/venue/server/adapters/d1-venue.js";
+import { saveOpeningHours, venueDetailsNow } from "../../ops/site/src/venue/server/venue-details.js";
 import { createFakeWorld } from "../../ops/site/src/testing/fake-world.js";
 import { createTestD1 } from "../../shared/testing/d1-sqlite.js";
 import * as pinsa from "../../migrations/2026-11-19-pinsa-a-roma.mjs";
@@ -33,7 +36,14 @@ describe("2026-11-19-pinsa-a-roma", () => {
     vi.useRealTimers();
   });
 
-  const opsEnv = (db) => ({ ...world.env, eventRepository: d1EventRepository(db), menuRepository: d1MenuRepository(db) });
+  const opsEnv = (db) => ({
+    ...world.env,
+    eventRepository: d1EventRepository(db),
+    menuRepository: d1MenuRepository(db),
+    venueRepository: d1VenueRepository(db),
+  });
+  const hoursOf = async (env) =>
+    Object.fromEntries((await venueDetailsNow(env.venueRepository)).details.openingHours.map((day) => [day.day, day.closed ? "shut" : `${day.opens}–${day.closes}`]));
 
   async function run(db, { dryRun = false } = {}) {
     const lines = [];
@@ -45,7 +55,8 @@ describe("2026-11-19-pinsa-a-roma", () => {
   const findPopup = async (env) => (await listEvents(env)).find((event) => event.slug === SLUG);
 
   /** Chez Pickle, as dev and production have it: its own Fries and dessert. */
-  async function seedChezPickle(env) {
+  async function seedChezPickle(env, { hours = SHUT_MONDAYS } = {}) {
+    await saveOpeningHours(env, hours, { by: "test" });
     const chez = await createEvent(env, {
       name: "Chez Pickle",
       category: "popup",
@@ -74,7 +85,7 @@ describe("2026-11-19-pinsa-a-roma", () => {
     const popup = await findPopup(env);
     assert.deepEqual(
       [popup.name, popup.category, popup.repeatUnit, popup.weekdays, popup.startsOn, popup.endsOn, popup.startTime, popup.endTime, popup.pageUrl],
-      ["Pinsa A Roma", "popup", "week", ["mon", "tue"], "2026-11-23", "", "17:00", "22:00", "https://aroma.london/"],
+      ["Pinsa A Roma", "popup", "week", ["mon", "tue"], "2026-11-23", "", "12:00", "21:00", "https://aroma.london/"],
     );
     assert.deepEqual(popup.dates.slice(0, 3).map((night) => night.date), ["2026-11-23", "2026-11-24", "2026-11-30"]);
     assert.equal(popup.publish.live, "current", "on the website");
@@ -97,8 +108,17 @@ describe("2026-11-19-pinsa-a-roma", () => {
     assert.deepEqual(photographed, Object.keys(pinsa.PICTURES.dishes).sort(), "a photo on each dish there is one of");
     for (const item of ours) assert.deepEqual(item.placements.map((row) => row.channel), ["digital"], `${item.name}: digital menu only`);
 
-    assert.deepEqual(result, { popup: "added", menu: 14, published: true });
-    assert.match(text, /added the pop-up kitchen "Pinsa A Roma" \(event \d+\): every Monday and Tuesday from 2026-11-23, 17:00–22:00, no end date/);
+    assert.deepEqual(await hoursOf(env), {
+      mon: "12:00–21:00",
+      tue: "12:00–22:30",
+      wed: "17:00–22:30",
+      thu: "17:00–22:30",
+      fri: "16:00–23:30",
+      sat: "16:00–01:00",
+      sun: "16:00–22:00",
+    }, "open Mondays, Tuesday from noon, the rest as it was");
+    assert.deepEqual(result, { popup: "added", menu: 14, hours: "changed", published: true });
+    assert.match(text, /added the pop-up kitchen "Pinsa A Roma" \(event \d+\): every Monday and Tuesday from 2026-11-23, 12:00–21:00, no end date/);
     assert.match(text, /Pinsa: Trastevere \(V\) £13\.50, Colosseo £14\.50, Villa Borghese \(V\) £15\.50, Giulio Cesare £16/);
     assert.match(text, /is on the website: \/whats-on\/pinsa-a-roma/);
     assert.match(text, /added to its gallery: trastevere\.jpg, colosseo\.jpg, villa-borghese\.jpg, focaccia\.jpg/);
@@ -108,6 +128,20 @@ describe("2026-11-19-pinsa-a-roma", () => {
     const again = await run(db);
     assert.equal(await dump(db), before, "a second run changes nothing");
     assert.match(again.text, /^Nothing to do: "Pinsa A Roma" \(event \d+\) and its menu are there, and the website is in step\.$/);
+  });
+
+  it("leaves opening hours the owner has changed since, and says so", async () => {
+    const db = createTestD1("ops");
+    const env = opsEnv(db);
+    const own = SHUT_MONDAYS.map((day) => (day.day === "tue" ? { ...day, opens: "16:00" } : day));
+    await seedChezPickle(env, { hours: own });
+
+    const { text, result } = await run(db);
+
+    assert.equal(result.hours, "owner's");
+    assert.equal((await hoursOf(env)).mon, "shut");
+    assert.equal((await hoursOf(env)).tue, "16:00–22:30");
+    assert.match(text, /left alone: the opening hours aren't shut Mondays and Tuesday 5–10:30pm any more/);
   });
 
   it("stops before writing anything when a dish name is taken elsewhere", async () => {
@@ -132,7 +166,8 @@ describe("2026-11-19-pinsa-a-roma", () => {
 
     assert.equal(await dump(db), before);
     assert.equal(await findPopup(env), undefined);
-    assert.deepEqual(result, { popup: "added", menu: 14, published: false });
+    assert.deepEqual(result, { popup: "added", menu: 14, hours: "changed", published: false });
+    assert.equal((await hoursOf(env)).mon, "shut", "a dry run leaves the hours");
     assert.match(text, /would have: added the pop-up kitchen "Pinsa A Roma"/);
     assert.match(text, /would put it on the website \(\/whats-on\/pinsa-a-roma\), and its menu/);
   });
