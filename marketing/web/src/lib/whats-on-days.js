@@ -99,3 +99,50 @@ export function whatsOnDays({
 export function dayIsOn(day, todayIso) {
   return String(day.end || day.date) >= todayIso;
 }
+
+/**
+ * Coming up later (home): one of each thing on later that isn't in the days
+ * shown above it (an event, a deal, a pop-up kitchen), at its next night, so
+ * a new pop-up or a one-off is teased before its week comes round.
+ *
+ * @param {object} catalog
+ * @param {Array<object>} catalog.occurrences every night, in date order
+ * @param {Array<object>} catalog.series the catalog's series
+ * @param {string} catalog.today YYYY-MM-DD, London
+ * @param {Set<string>} catalog.shown the series already in the days shown
+ * @param {string} [catalog.after] only what's next on after this day (the
+ *   last day shown); anything to come when left out
+ * @param {number} [catalog.limit]
+ * @returns {Array<{ kind: "event" | "deal" | "popup", night: object }>} in
+ *   the order they're next on
+ */
+export function comingUpLater({
+  occurrences,
+  series,
+  today,
+  shown,
+  after = "",
+  limit = 6,
+}) {
+  const next = new Map();
+  for (const night of withSeriesCategory(occurrences, series)) {
+    if (!night?.date || !night.title || night.date < today) continue;
+    const key = night.seriesId || night.slug || night.title;
+    if (shown.has(key)) continue;
+    const seen = next.get(key);
+    if (!seen || night.date < seen.date) next.set(key, night);
+  }
+  return [...next.values()]
+    .filter((night) => night.date > after)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, limit)
+    .map((night) => ({
+      kind:
+        night.category === "promotion"
+          ? "deal"
+          : night.category === "popup"
+            ? "popup"
+            : "event",
+      night,
+    }));
+}

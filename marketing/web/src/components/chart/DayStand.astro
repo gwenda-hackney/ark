@@ -1,0 +1,121 @@
+---
+/**
+ * A small card on What's on by date (#352) and in Coming up later: a deal,
+ * a pop-up kitchen or an event, its picture with a tag on the corner, its
+ * name leading to its page, when, and a pop-up's own links.
+ */
+import ChartRecord from "./ChartRecord.astro";
+
+export interface DayStandCard {
+  kind: "deal" | "popup" | "event";
+  tag: string;
+  title: string;
+  href: string;
+  when: string;
+  offer: string;
+  photoPosition: string;
+  colourStyle: string;
+  picture: {
+    src: string;
+    srcset: string;
+    whole: boolean;
+    ratio: number;
+  } | null;
+  logo: { src: string; srcset: string } | null;
+  links: Array<{ href: string; text: string; external: boolean }>;
+  /** Its day over its hours ("From Mon 23 Nov"), in Coming up later. */
+  whenDay?: string;
+  /** Its series, for the browser to tell it's already on the page. */
+  series?: string;
+}
+
+interface Props {
+  card: DayStandCard;
+  loading: "eager" | "lazy";
+}
+
+const { card, loading } = Astro.props;
+---
+
+<li
+  data-series={card.series || undefined}
+  class:list={["ch-stand", "ch-day-stand", `ch-stand--${card.kind}`]}
+  style={[
+    `--shape: ${card.logo ? 0.8 : (card.picture?.ratio ?? 0.8)}`,
+    card.colourStyle,
+  ]
+    .filter(Boolean)
+    .join("; ")}
+>
+  <span
+    class:list={[
+      "ch-night-photo",
+      card.picture?.whole && "ch-night-photo--whole",
+      card.logo && "ch-stand-photo--logo",
+    ]}
+  >
+    {
+      card.picture && (
+        <img
+          src={card.picture.src}
+          srcset={card.picture.srcset || undefined}
+          sizes={card.picture.srcset ? "8rem" : undefined}
+          alt=""
+          loading={loading}
+          style={
+            card.photoPosition
+              ? `object-position: ${card.photoPosition}`
+              : undefined
+          }
+        />
+      )
+    }
+    {
+      !card.picture && card.logo && (
+        <img
+          src={card.logo.src}
+          srcset={card.logo.srcset}
+          alt=""
+          loading={loading}
+        />
+      )
+    }
+    {
+      !card.picture && !card.logo && (
+        <ChartRecord size="large" class="ch-night-mark" />
+      )
+    }
+    {card.tag && <span class="ch-stand-tag">{card.tag}</span>}
+  </span>
+  <div class="ch-stand-body">
+    <h4 class="ch-stand-name">
+      <a href={card.href} class="ch-stand-link">
+        {card.title}
+      </a>
+    </h4>
+    {
+      (card.whenDay || card.when) && (
+        <p class="ch-night-time">
+          {card.whenDay && <span class="ch-day-when">{card.whenDay}</span>}
+          {card.when}
+        </p>
+      )
+    }
+    {card.offer && <p class="ch-night-offer">{card.offer}</p>}
+    {
+      card.links.length > 0 && (
+        <p class="ch-stand-links">
+          {card.links.map((link) =>
+            link.external ? (
+              <a href={link.href} target="_blank" rel="noopener noreferrer">
+                {link.text}
+              </a>
+            ) : (
+              <a href={link.href}>{link.text}</a>
+            ),
+          )}
+        </p>
+      )
+    }
+  </div>
+</li>

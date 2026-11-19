@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayIsOn, whatsOnDays } from "./whats-on-days.js";
+import { comingUpLater, dayIsOn, whatsOnDays } from "./whats-on-days.js";
 
 const series = [
   {
@@ -138,5 +138,48 @@ describe("What's on by date", () => {
     expect(day.stands.map((stand) => stand.night.seriesId)).toEqual([
       "chez-pickle",
     ]);
+  });
+});
+
+describe("Coming up later", () => {
+  it("teases one of each thing not already shown, at its next night", () => {
+    const later = comingUpLater({
+      today: "2026-11-19",
+      series: [
+        ...series,
+        { seriesId: "taco-pop", title: "Taco Pop", category: "popup" },
+      ],
+      shown: new Set(["karaoke", "cocktail-hour"]),
+      occurrences: [
+        night("karaoke", "2026-11-26"),
+        night("cocktail-hour", "2026-11-25"),
+        { seriesId: "taco-pop", date: "2026-12-04", title: "Taco Pop" },
+        { seriesId: "taco-pop", date: "2026-12-02", title: "Taco Pop" },
+        night("epic-jam", "2026-12-12"),
+        night("chez-pickle", "2026-11-18"),
+      ],
+    });
+    expect(
+      later.map((item) => [item.kind, item.night.seriesId, item.night.date]),
+    ).toEqual([
+      ["popup", "taco-pop", "2026-12-02"],
+      ["event", "epic-jam", "2026-12-12"],
+    ]);
+  });
+
+  it("leaves out what's next on within the days shown, and keeps to the limit", () => {
+    const later = comingUpLater({
+      today: "2026-11-19",
+      series,
+      shown: new Set(),
+      after: "2026-11-21",
+      limit: 1,
+      occurrences: [
+        night("karaoke", "2026-11-19"),
+        night("epic-jam", "2026-12-12"),
+        night("chez-pickle", "2026-12-20"),
+      ],
+    });
+    expect(later.map((item) => item.night.seriesId)).toEqual(["epic-jam"]);
   });
 });
