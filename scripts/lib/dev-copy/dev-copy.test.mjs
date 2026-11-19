@@ -85,7 +85,7 @@ describe("databaseProvider", () => {
 
 describe("d1 provider", () => {
   it("copies each feature of the database with data-move, D1 production → D1 dev", () => {
-    assert.deepEqual(featuresIn("ops"), ["users", "artists", "menu", "events", "venue"]);
+    assert.deepEqual(featuresIn("ops"), ["users", "artists", "menu", "events", "venue", "seasons"]);
     assert.deepEqual(featuresIn("website"), ["guests"]);
     assert.throws(() => featuresIn("config"), /no "config" database/);
     const [script, ...args] = d1CopyCommand("menu");
@@ -101,7 +101,7 @@ describe("d1 provider", () => {
       return { status: feature === "artists" ? 1 : 0 };
     };
     assert.throws(() => d1.copy("ops", { run }), /ops database failed: artists\./);
-    assert.deepEqual(ran, ["users", "artists", "menu", "events", "venue"]);
+    assert.deepEqual(ran, ["users", "artists", "menu", "events", "venue", "seasons"]);
   });
 });
 

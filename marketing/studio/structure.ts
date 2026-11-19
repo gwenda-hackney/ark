@@ -6,6 +6,7 @@ const HIDDEN_FROM_LIST = new Set([
   "menuItem",
   "siteSettings",
   "venueDetails",
+  "seasons",
   "form",
 ]);
 
@@ -41,6 +42,15 @@ export const structure: StructureResolver = async (S, context) => {
             .schemaType("venueDetails")
             .documentId("venueDetails")
             .title("Venue details (edited in ops)"),
+        ),
+      S.listItem()
+        .title("Seasons")
+        .id("seasons")
+        .child(
+          S.document()
+            .schemaType("seasons")
+            .documentId("seasons")
+            .title("Seasons (edited in ops)"),
         ),
       S.divider(),
       orderableDocumentListDeskItem({

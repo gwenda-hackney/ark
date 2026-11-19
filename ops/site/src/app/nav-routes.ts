@@ -26,6 +26,7 @@ export const NAV_ROUTES: NavRoute[] = [
 			{ id: "events", path: "/events", name: "Events", icon: "star", hint: "Gigs, residencies, one-off nights" },
 			{ id: "popups", path: "/popups", name: "Pop-ups", icon: "recipes", hint: "Guest kitchens, their menus and nights" },
 			{ id: "deals", path: "/deals", name: "Deals", icon: "tag", hint: "Happy Hour and the like" },
+			{ id: "seasons", path: "/seasons", name: "Seasons", icon: "events", hint: "Christmas parties and the like, on home" },
 			{
 				id: "artists",
 				path: "/forms",

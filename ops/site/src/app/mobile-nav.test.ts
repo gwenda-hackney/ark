@@ -57,7 +57,7 @@ describe("mobileTabs (#312)", () => {
 
 describe("tabPages", () => {
 	it("gives each tab its rail heading's pages", () => {
-		assert.deepEqual(ids("whats-on"), ["schedule", "events", "popups", "deals", "artists"]);
+		assert.deepEqual(ids("whats-on"), ["schedule", "events", "popups", "deals", "seasons", "artists"]);
 		assert.deepEqual(ids("bar-kitchen"), ["menus", "recipes", "stock"]);
 		assert.deepEqual(ids("website"), ["web", "email", "photos"]);
 	});
@@ -83,7 +83,7 @@ describe("tabPages", () => {
 
 describe("stripPages", () => {
 	it("uses the short names", () => {
-		assert.deepEqual(labels("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Artists"]);
+		assert.deepEqual(labels("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Seasons", "Artists"]);
 		assert.deepEqual(labels("bar-kitchen"), ["Menus", "Items", "Stock"]);
 		assert.deepEqual(labels("website"), ["Website", "Email", "Photos"]);
 	});
