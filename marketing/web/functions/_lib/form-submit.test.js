@@ -61,7 +61,7 @@ describe("validateFormAnswers", () => {
     );
   });
 
-  it("keeps the season a party enquiry came from, last, and nothing else it wasn't asked (#353)", () => {
+  it("keeps the occasion a party enquiry came from, last, and nothing else it wasn't asked (#353)", () => {
     const base = {
       name: "Alex",
       email: "alex@example.com",
@@ -70,24 +70,24 @@ describe("validateFormAnswers", () => {
     };
     const result = validateFormAnswers(sampleForm, {
       ...base,
-      season: "  Christmas parties ",
+      occasion: "  Christmas parties ",
       somethingElse: "dropped",
     });
     expect(result.ok && result.answers.at(-1)).toEqual({
-      key: "season",
-      label: "Season",
+      key: "occasion",
+      label: "Occasion",
       value: "Christmas parties",
     });
     expect(
       result.ok && result.answers.some((row) => row.key === "somethingElse"),
     ).toBe(false);
-    const plain = validateFormAnswers(sampleForm, { ...base, season: "" });
-    expect(plain.ok && plain.answers.some((row) => row.key === "season")).toBe(
+    const plain = validateFormAnswers(sampleForm, { ...base, occasion: "" });
+    expect(plain.ok && plain.answers.some((row) => row.key === "occasion")).toBe(
       false,
     );
     const long = validateFormAnswers(sampleForm, {
       ...base,
-      season: "x".repeat(200),
+      occasion: "x".repeat(200),
     });
     expect(long.ok && long.answers.at(-1)?.value).toHaveLength(80);
   });

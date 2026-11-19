@@ -52,12 +52,12 @@ function inputType(field: FormField) {
   novalidate
 >
   {
-    /* Opened from a season on home (#353): ?season= marks the enquiry with it
-       (scripts/contact-form.js initSeasonField) and says so here. */
+    /* Opened from an occasion on home (#353): ?occasion= marks the enquiry with it
+       (scripts/contact-form.js initOccasionField) and says so here. */
   }
-  <input type="hidden" name="season" value="" data-season-field />
-  <p class="contact-season-note" data-season-note hidden>
-    About: <strong data-season-name></strong>
+  <input type="hidden" name="occasion" value="" data-occasion-field />
+  <p class="contact-occasion-note" data-occasion-note hidden>
+    About: <strong data-occasion-name></strong>
   </p>
   <p class="contact-required-note">
     We need the ones marked

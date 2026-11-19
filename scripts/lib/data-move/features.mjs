@@ -24,7 +24,7 @@ import { d1ArtistRepository } from "../../../shared/artists/d1-artists.js";
 import { MENU_D1_TABLES, d1MenuRepository } from "../../../ops/site/src/menu/server/adapters/d1-menu.js";
 import { EVENT_D1_TABLES, d1EventRepository } from "../../../ops/site/src/events/server/adapters/d1-events.js";
 import { VENUE_D1_TABLES, d1VenueRepository } from "../../../ops/site/src/venue/server/adapters/d1-venue.js";
-import { SEASON_D1_TABLES, d1SeasonRepository } from "../../../ops/site/src/seasons/server/adapters/d1-seasons.js";
+import { OCCASION_D1_TABLES, d1OccasionRepository } from "../../../ops/site/src/occasions/server/adapters/d1-occasions.js";
 
 export const FEATURES = {
   users: {
@@ -90,13 +90,13 @@ export const FEATURES = {
     tables: VENUE_D1_TABLES,
     repository: ({ db }) => d1VenueRepository(db),
   },
-  // Seasons on home, such as Christmas parties (#353). Not freezable: only
+  // Occasions on home, such as Christmas parties (#353). Not freezable: only
   // the dev copy moves them.
-  seasons: {
+  occasions: {
     role: "ops",
     freeze: false,
-    tables: SEASON_D1_TABLES,
-    repository: ({ db }) => d1SeasonRepository(db),
+    tables: OCCASION_D1_TABLES,
+    repository: ({ db }) => d1OccasionRepository(db),
   },
 };
 

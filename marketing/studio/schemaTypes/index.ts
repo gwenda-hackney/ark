@@ -7,13 +7,13 @@ import { menu } from "./menu";
 import { menuItem } from "./menuItem";
 import { menuSection } from "./menuSection";
 import { siteSettings } from "./siteSettings";
-import { seasons } from "./seasons";
+import { occasions } from "./occasions";
 import { venueDetails } from "./venueDetails";
 
 export const schemaTypes = [
   siteSettings,
   venueDetails,
-  seasons,
+  occasions,
   menu,
   menuSection,
   menuItem,
