@@ -35,6 +35,7 @@ repositoryContract("OneOffEmailRepository", {
   cases: {
     "creates a draft, and every field round-trips": async (repo) => {
       const email = await repo.create({
+        name: "  NYE   promo ",
         subject: "  New   Year  ",
         previewText: "Doors at 9",
         sections: [...SECTIONS, { kind: "raw", html: "<script>" }],
@@ -43,6 +44,7 @@ repositoryContract("OneOffEmailRepository", {
       });
       assert.deepEqual(email, {
         id: email.id,
+        name: "NYE promo",
         subject: "New Year",
         previewText: "Doors at 9",
         sections: SECTIONS,

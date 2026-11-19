@@ -16,7 +16,8 @@ describe("a one-off email's rules (#348)", () => {
   });
 
   it("lets the editor change the subject, the preview line and the sections only", () => {
-    assert.deepEqual(draftChange({ subject: "x".repeat(300), status: "sent", campaignId: "c", sections: [{ kind: "raw" }] }), {
+    assert.deepEqual(draftChange({ name: "y".repeat(99), subject: "x".repeat(300), status: "sent", campaignId: "c", sections: [{ kind: "raw" }] }), {
+      name: "y".repeat(80),
       subject: "x".repeat(150),
       sections: [],
     });

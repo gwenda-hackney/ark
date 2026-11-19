@@ -43,7 +43,7 @@ export async function createOneOffEmail(env, fields, { by = "", now = new Date()
   return oneOffEmailRepository(env).create({ ...fields, by, now });
 }
 
-/** Save: a draft's subject, preview line and sections. */
+/** Save: a draft's name, subject, preview line and sections. */
 export async function saveOneOffEmail(env, id, change, { by = "", now = new Date() } = {}) {
   const repo = oneOffEmailRepository(env);
   const saved = await repo.updateDraft(id, change, { by, now });

@@ -5,7 +5,7 @@
  * it, and one-off-email-repository.contract.test.js holds them to the same
  * behaviour:
  *
- *   create({ subject, previewText, sections, by, now })
+ *   create({ name, subject, previewText, sections, by, now })
  *                         a new draft
  *   get(id)               the email, or null
  *   list(limit)           emails, most recently changed first

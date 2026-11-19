@@ -14,9 +14,9 @@ export function memoryOneOffEmailRepository() {
     async get(id) {
       return clone(find(id));
     },
-    async create({ subject = "", previewText = "", sections = [], by = "", now = new Date() } = {}) {
+    async create({ name = "", subject = "", previewText = "", sections = [], by = "", now = new Date() } = {}) {
       const at = nowIso(now);
-      const email = oneOffEmail({ id: next++, subject, previewText, sections, createdBy: by, updatedBy: by, createdAt: at, updatedAt: at });
+      const email = oneOffEmail({ id: next++, name, subject, previewText, sections, createdBy: by, updatedBy: by, createdAt: at, updatedAt: at });
       emails.push(email);
       return clone(email);
     },

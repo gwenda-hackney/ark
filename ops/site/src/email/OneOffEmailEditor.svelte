@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * A one-off email (#348): its subject and preview line, then its sections
+	 * A one-off email (#348): its name (ops' own), its subject and preview line, then its sections
 	 * between the fixed logo and foot, with the email as it arrives beside
 	 * them, drawn live by the same renderer Mailchimp gets
 	 * (shared/email/one-off.js). The same editor card as an event's or a
@@ -38,6 +38,7 @@
 		SECTION_CHOICES,
 		addSection,
 		draftOf,
+		emailName,
 		editorSections,
 		moveSection,
 		notReady,
@@ -75,10 +76,11 @@
 	let email = $state<OneOffEmail | null>(null);
 	let frame = $state<EmailFrame | null>(null);
 	let access = $state<WeeklyEmailAccess | null>(null);
+	let name = $state("");
 	let subject = $state("");
 	let previewText = $state("");
 	let sections = $state<EditorSection[]>([]);
-	let saved = $state<OneOffDraft>({ subject: "", previewText: "", sections: [] });
+	let saved = $state<OneOffDraft>({ name: "", subject: "", previewText: "", sections: [] });
 	let loading = $state(true);
 	let error = $state("");
 	let saving = $state(false);
@@ -88,7 +90,7 @@
 	let discardOpen = $state(false);
 	let deleteOpen = $state(false);
 
-	const draft = $derived(draftOf(subject, previewText, sections));
+	const draft = $derived(draftOf(name, subject, previewText, sections));
 	const dirty = $derived(!loading && !error && !sameDraft(draft, saved));
 	const editable = $derived(isNew || email?.status === "draft");
 	const canSave = $derived(editable && !saving && !uploading && (isNew || dirty));
@@ -105,10 +107,11 @@
 	const deleteReason = $derived(isNew ? "Not saved yet" : !editable ? "Sent or scheduled" : undefined);
 
 	function fill(source: OneOffDraft) {
+		name = source.name || "";
 		subject = source.subject;
 		previewText = source.previewText;
 		sections = editorSections(source.sections);
-		saved = draftOf(subject, previewText, sections);
+		saved = draftOf(name, subject, previewText, sections);
 	}
 
 	async function load(id: number, fresh: boolean) {
@@ -120,7 +123,7 @@
 				frame = data.frame;
 				access = data.access;
 				email = null;
-				fill({ subject: "", previewText: "", sections: [] });
+				fill({ name: "", subject: "", previewText: "", sections: [] });
 				setCrumbLeaf("New email");
 				return;
 			}
@@ -130,7 +133,7 @@
 			frame = data.frame;
 			access = data.access;
 			fill(data.email);
-			setCrumbLeaf(data.email.subject || "Email");
+			setCrumbLeaf(emailName(data.email) || "Email");
 		} catch (err) {
 			error = err instanceof Error ? err.message : "Couldn't load this email.";
 		} finally {
@@ -158,9 +161,9 @@
 			const { email: next } = await saveOneOffEmail(emailId, draft);
 			email = next;
 			// Keep the editor's own sections (and their keys); only what was cleaned changes.
-			if (sameDraft(draftOf(next.subject, next.previewText, editorSections(next.sections)), draft)) saved = draft;
+			if (sameDraft(draftOf(next.name, next.subject, next.previewText, editorSections(next.sections)), draft)) saved = draft;
 			else fill(next);
-			setCrumbLeaf(next.subject || "Email");
+			setCrumbLeaf(emailName(next) || "Email");
 			toast.ok("Email saved.");
 			onchanged?.();
 		} catch (err) {
@@ -268,7 +271,7 @@
 		if (pending?.path) navigate(pending.path, { force: true, replace: pending.replace });
 	}
 
-	const heading = $derived(subject.trim() || (isNew ? "New email" : "No subject"));
+	const heading = $derived(emailName({ name, subject }) || (isNew ? "New email" : "No name"));
 	const subtitle = $derived(
 		email && !isNew
 			? [`Changed ${sentLine(email.updatedAt)}`, email.updatedBy ? `by ${email.updatedBy}` : ""].filter(Boolean).join(" ")
@@ -305,7 +308,7 @@
 	busy={saving}
 	{kicker}
 	{heading}
-	placeholder={!subject.trim()}
+	placeholder={!emailName({ name, subject })}
 	{subtitle}
 	actions={{
 		saveLabel: "Save email",
@@ -338,7 +341,10 @@
 	{:else}
 		<div class="tab-body split">
 			<div class="form">
-				<FormSection title="Email" description={editable ? "What the inbox shows." : "Sent or scheduled: it can't be changed."}>
+				<FormSection title="Email" description={editable ? "Its name here, and what the inbox shows." : "Sent or scheduled: it can't be changed."}>
+					<Field class="span-12" label="Name" for="email-name" optional hint="What ops calls it, on its card. The list never sees it.">
+						<TextField id="email-name" size="sm" bind:value={name} maxlength={80} disabled={!editable} placeholder="New Year's Eve promo" autocomplete="off" />
+					</Field>
 					<Field class="span-12" label="Subject" for="email-subject" required>
 						<TextField id="email-subject" size="sm" bind:value={subject} maxlength={150} disabled={!editable} placeholder="New Year's Eve at Gwenda" autocomplete="off" />
 					</Field>

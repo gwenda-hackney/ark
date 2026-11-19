@@ -1,5 +1,6 @@
 /**
- * A one-off email to the list (#348), as ops keeps it: a subject, a preview
+ * A one-off email to the list (#348), as ops keeps it: its name (ops' own,
+ * for its card), a subject, a preview
  * line, its sections (shared/email/sections.js), and where it stands. The
  * rules about it live here; storage is behind one-off-email-repository.js.
  *
@@ -14,6 +15,7 @@ import { cleanSections } from "../../../../../shared/email/sections.js";
 
 export const ONE_OFF_STATUSES = ["draft", "scheduled", "sending", "sent", "failed"];
 
+export const NAME_MAX = 80;
 export const SUBJECT_MAX = 150;
 export const PREVIEW_MAX = 200;
 
@@ -27,6 +29,7 @@ const oneLine = (value, max) => text(value).replace(/\s+/g, " ").trim().slice(0,
 export function oneOffEmail(fields = {}) {
   return {
     id: Number(fields.id) || 0,
+    name: oneLine(fields.name, NAME_MAX),
     subject: oneLine(fields.subject, SUBJECT_MAX),
     previewText: oneLine(fields.previewText, PREVIEW_MAX),
     sections: cleanSections(fields.sections),
@@ -47,6 +50,7 @@ export function oneOffEmail(fields = {}) {
 /** What the editor may change, cleaned; anything else in `patch` is ignored. */
 export function draftChange(patch = {}) {
   const change = {};
+  if (patch.name !== undefined) change.name = oneLine(patch.name, NAME_MAX);
   if (patch.subject !== undefined) change.subject = oneLine(patch.subject, SUBJECT_MAX);
   if (patch.previewText !== undefined) change.previewText = oneLine(patch.previewText, PREVIEW_MAX);
   if (patch.sections !== undefined) change.sections = cleanSections(patch.sections);

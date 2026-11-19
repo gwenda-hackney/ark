@@ -1,6 +1,6 @@
 /**
  * OneOffEmailRepository on D1: the `emails` table of the ops database
- * (db/ops/migrations/0017_emails.sql). The only email code that knows it.
+ * (db/ops/migrations/0017_emails.sql, 0019_email_name.sql). The only email code that knows it.
  */
 import { all, first, nowIso, run } from "../../../../../../shared/d1.js";
 import { d1Table, exportTables, importTables } from "../../../../../../shared/d1-table.js";
@@ -10,6 +10,7 @@ export const emailsTable = d1Table({
   table: "emails",
   columns: {
     id: "int",
+    name: "text",
     subject: "text",
     previewText: "text",
     sections: "json",
@@ -54,9 +55,9 @@ export function d1OneOffEmailRepository(db) {
   }
   return {
     get,
-    async create({ subject = "", previewText = "", sections = [], by = "", now = new Date() } = {}) {
+    async create({ name = "", subject = "", previewText = "", sections = [], by = "", now = new Date() } = {}) {
       const at = nowIso(now);
-      const fields = oneOffEmail({ subject, previewText, sections, createdBy: by, updatedBy: by, createdAt: at, updatedAt: at });
+      const fields = oneOffEmail({ name, subject, previewText, sections, createdBy: by, updatedBy: by, createdAt: at, updatedAt: at });
       delete fields.id;
       return record(await emailsTable.insert(db, fields));
     },

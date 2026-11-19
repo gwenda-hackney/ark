@@ -131,6 +131,7 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
   ];
   const days = event.repeatUnit === "week" ? daysWords(event.weekdays) : "";
   return {
+    name: `${name} promo`,
     subject: `${isNew ? "New at Gwenda" : "In the kitchen"}: ${name}${days ? `, ${days}` : ""}`,
     previewText: line.split(/(?<=[.!?])\s/)[0] || when,
     sections,

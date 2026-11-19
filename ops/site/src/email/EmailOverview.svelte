@@ -1,8 +1,9 @@
 <script lang="ts">
 	/**
-	 * Email's first page (#348): every email at a glance, as cards. Every
-	 * week: the weekly what's on, where it stands, when it next goes and the
-	 * last one sent. One-off: each email written here, drafts and sent
+	 * Email's first page (#348): every email at a glance, as cards.
+	 * Scheduled: the weekly what's on (where it stands, when it next goes, the
+	 * last one sent) and any one-off set to go. One-off: the rest written
+	 * here, drafts and sent
 	 * (Promote… and New email are in the page's header). A card opens its email.
 	 */
 	import { Badge, Button, EmptyState, Skeleton } from "../ui";
@@ -11,7 +12,7 @@
 	import { getWeeklyEmailPreview, type EmailFrame, type OneOffSummary, type WeeklyEmailStatus } from "./email-api";
 	import { leadPicture, nextLine, runLine, sentLine, settingsLine, statusLine } from "./email-view";
 	import { sectionImageUrl } from "../../../../shared/email/sections.js";
-	import { statusBadge, writePath } from "./one-off-view";
+	import { emailName, statusBadge, writePath } from "./one-off-view";
 
 	let {
 		status,
@@ -63,9 +64,16 @@
 		return `Changed ${sentLine(email.updatedAt)} · ${parts}`;
 	}
 
-	/** Drafts first (what's being worked on), then the rest; newest first within each. */
+	/** One-offs set to go: under Scheduled, soonest first. */
+	const scheduled = $derived(
+		emails
+			.filter((email) => email.status === "scheduled")
+			.sort((a, b) => String(a.scheduledFor).localeCompare(String(b.scheduledFor))),
+	);
+
+	/** The other one-offs: drafts first (what's being worked on), then the rest; newest first within each. */
 	const ordered = $derived(
-		[...emails].sort(
+		emails.filter((email) => email.status !== "scheduled").sort(
 			(a, b) =>
 				Number(b.status === "draft") - Number(a.status === "draft") ||
 				String(b.updatedAt).localeCompare(String(a.updatedAt)),
@@ -74,11 +82,11 @@
 </script>
 
 <div class="overview">
-	<section class="group" aria-labelledby="every-week">
+	<section class="group" aria-labelledby="scheduled">
 		<header class="group-head">
 			<div>
-				<h2 id="every-week">Every week</h2>
-				<p>Goes out by itself, built from What's on.</p>
+				<h2 id="scheduled">Scheduled</h2>
+				<p>They go out by themselves: the weekly what's on, and any email set to go.</p>
 			</div>
 		</header>
 		<div class="cards">
@@ -91,7 +99,7 @@
 					{/if}
 					{#if weekly}<Badge tone={weekly.tone} label={weekly.label} />{/if}
 				</span>
-				<span class="card-title">The weekly what's on</span>
+				<span class="card-name">Weekly what's on</span>
 				{#if status}
 					<span class="card-line">{settingsLine(status.settings)}</span>
 					<span class="card-line">Next: {nextLine(status)}</span>
@@ -101,6 +109,9 @@
 				{/if}
 				<span class="card-go">This week's email <Icon name="chevron-right" size={14} /></span>
 			</button>
+			{#each scheduled as email (email.id)}
+				{@render oneOffCard(email)}
+			{/each}
 		</div>
 	</section>
 
@@ -119,31 +130,36 @@
 			</EmptyState>
 		{:else if loading && !emails.length}
 			<Skeleton rows={2} lines={2} label="Loading emails…" />
-		{:else if !emails.length}
+		{:else if !ordered.length}
 			<EmptyState icon="send" title="No one-off emails yet" text="Promote a pop-up kitchen, or write your own: a picture, a few words, a button." />
 		{:else}
 			<div class="cards">
 				{#each ordered as email (email.id)}
-					{@const badge = statusBadge(email.status)}
-					{@const picture = oneOffPicture(email)}
-					<button type="button" class="card" onclick={() => navigate(writePath(email.id))}>
-						<span class="card-top">
-							{#if picture}
-								<img class="card-picture" src={picture} alt="" loading="lazy" />
-							{:else}
-								<span class="card-icon"><Icon name="send" size={20} /></span>
-							{/if}
-							<Badge tone={badge.tone} label={badge.label} />
-						</span>
-						<span class="card-title">{email.subject || "(No subject)"}</span>
-						{#if email.previewText}<span class="card-line">{email.previewText}</span>{/if}
-						<span class="card-line muted">{oneOffLine(email)}</span>
-					</button>
+					{@render oneOffCard(email)}
 				{/each}
 			</div>
 		{/if}
 	</section>
 </div>
+
+{#snippet oneOffCard(email: OneOffSummary)}
+	{@const badge = statusBadge(email.status)}
+	{@const picture = oneOffPicture(email)}
+	<button type="button" class="card" onclick={() => navigate(writePath(email.id))}>
+		<span class="card-top">
+			{#if picture}
+				<img class="card-picture" src={picture} alt="" loading="lazy" />
+			{:else}
+				<span class="card-icon"><Icon name="send" size={20} /></span>
+			{/if}
+			<Badge tone={badge.tone} label={badge.label} />
+		</span>
+		<span class="card-name">{emailName(email) || "No name yet"}</span>
+		{#if email.subject && email.subject !== emailName(email)}<span class="card-subject">{email.subject}</span>{/if}
+		{#if email.previewText}<span class="card-line">{email.previewText}</span>{/if}
+		<span class="card-line muted">{oneOffLine(email)}</span>
+	</button>
+{/snippet}
 
 
 <style>
@@ -222,7 +238,14 @@
 		background: var(--muted);
 		color: var(--muted-foreground);
 	}
-	.card-title {
+	/* Its name, in the page titles' face: what it is, at a glance */
+	.card-name {
+		font-family: var(--font-display);
+		font-size: var(--text-xl);
+		font-weight: 600;
+		line-height: 1.1;
+	}
+	.card-subject {
 		font-weight: 600;
 		line-height: 1.3;
 	}

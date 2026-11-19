@@ -90,6 +90,7 @@ describe("promoting a pop-up kitchen", () => {
     assert.equal(res.status, 200, JSON.stringify(res.data));
     const email = res.data.email;
     assert.equal(email.status, "draft");
+    assert.equal(email.name, "Pinsa A Roma promo", "named for its card");
     assert.equal(email.subject, "New at Gwenda: Pinsa A Roma, Mondays and Tuesdays");
     assert.equal(email.previewText, "Roman pinsa on Mondays and Tuesdays: a light, crisp base.");
     assert.deepEqual(

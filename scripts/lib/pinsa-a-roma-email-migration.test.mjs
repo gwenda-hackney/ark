@@ -41,6 +41,7 @@ describe("2026-11-20-pinsa-a-roma-email", () => {
     assert.equal(result.drafted, true);
     assert.equal(made.status, "draft");
     assert.equal(made.createdBy, email.BY.toLowerCase());
+    assert.equal(made.name, "Pinsa A Roma promo");
     assert.equal(made.subject, "New at Gwenda: Pinsa A Roma, Mondays and Tuesdays");
     assert.deepEqual(
       made.sections.map((section) => section.kind),

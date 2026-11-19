@@ -156,6 +156,8 @@ export type OneOffStatus = "draft" | "scheduled" | "sending" | "sent" | "failed"
 
 export type OneOffEmail = {
 	id: number;
+	/** What ops calls it, on its card and in the editor; the list never sees it. */
+	name: string;
 	subject: string;
 	previewText: string;
 	sections: OneOffSection[];
@@ -197,7 +199,7 @@ export function getOneOffEmail(id: number | string) {
 	return request<{ email: OneOffEmail } & OneOffContext>(`/api/email/one-off/${encodeURIComponent(String(id))}`);
 }
 
-export type OneOffDraft = Pick<OneOffEmail, "subject" | "previewText" | "sections">;
+export type OneOffDraft = Pick<OneOffEmail, "name" | "subject" | "previewText" | "sections">;
 
 export function createOneOffEmail(draft: OneOffDraft) {
 	return request<{ email: OneOffEmail }>("/api/email/one-off", post(draft));

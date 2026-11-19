@@ -25,6 +25,11 @@ export const BUTTON_LOOK_ITEMS = [
 	{ id: "outline", label: "Outline" },
 ] as const;
 
+/** What a one-off email is called on its card and in the editor: its name, else its subject. */
+export function emailName(email: { name?: string; subject?: string }): string {
+	return email.name?.trim() || email.subject?.trim() || "";
+}
+
 /** A section as the editor holds it: the section, and a key that follows it as it moves. */
 export type EditorSection = { key: string; section: OneOffSection };
 
@@ -60,8 +65,8 @@ export function removeSection(list: EditorSection[], index: number): EditorSecti
 }
 
 /** The draft as it would be saved. */
-export function draftOf(subject: string, previewText: string, list: EditorSection[]): OneOffDraft {
-	return { subject, previewText, sections: list.map((entry) => entry.section) };
+export function draftOf(name: string, subject: string, previewText: string, list: EditorSection[]): OneOffDraft {
+	return { name, subject, previewText, sections: list.map((entry) => entry.section) };
 }
 
 /** Whether two drafts would save the same. */

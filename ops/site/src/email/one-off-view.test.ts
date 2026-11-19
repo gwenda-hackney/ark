@@ -61,14 +61,14 @@ describe("the one-off email editor (#348)", () => {
 
 	it("knows when there's something to save", () => {
 		const list = editorSections([{ kind: "copy", text: "Hi" }]);
-		const saved = draftOf("NYE", "", list);
-		assert.equal(sameDraft(saved, draftOf("NYE", "", list)), true);
-		assert.equal(sameDraft(saved, draftOf("NYE!", "", list)), false);
-		assert.equal(sameDraft(saved, draftOf("NYE", "", addSection(list, "image"))), false);
+		const saved = draftOf("", "NYE", "", list);
+		assert.equal(sameDraft(saved, draftOf("", "NYE", "", list)), true);
+		assert.equal(sameDraft(saved, draftOf("", "NYE!", "", list)), false);
+		assert.equal(sameDraft(saved, draftOf("", "NYE", "", addSection(list, "image"))), false);
 	});
 
 	it("previews the draft between the logo and the foot", () => {
-		const { html } = previewOf(draftOf("NYE", "Doors at 9", editorSections([{ kind: "heading", text: "Party" }])), frame);
+		const { html } = previewOf(draftOf("", "NYE", "Doors at 9", editorSections([{ kind: "heading", text: "Party" }])), frame);
 		assert.ok(html.indexOf("logo-email-social.png") < html.indexOf(">Party<"));
 		assert.ok(html.indexOf(">Party<") < html.indexOf("*|UNSUB|*"));
 	});
@@ -80,8 +80,8 @@ describe("the one-off email editor (#348)", () => {
 		assert.equal(oneOffTestBlocked({ ...ok, saved: false }), "Save first");
 		assert.equal(oneOffTestBlocked({ ...ok, mailchimp: false }), "Mailchimp not connected here");
 		assert.equal(oneOffTestBlocked({ ...ok, notReady: "Give it a subject first" }), "Give it a subject first");
-		assert.equal(notReady(draftOf("", "", [])), "Give it a subject first.");
-		assert.equal(notReady(draftOf("Hi", "", editorSections([{ kind: "image", assetId: "", alt: "" }]))), "Add something to it first.");
+		assert.equal(notReady(draftOf("", "", "", [])), "Give it a subject first.");
+		assert.equal(notReady(draftOf("", "Hi", "", editorSections([{ kind: "image", assetId: "", alt: "" }]))), "Add something to it first.");
 	});
 
 	it("names statuses and paths", () => {
