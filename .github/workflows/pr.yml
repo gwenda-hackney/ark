@@ -127,6 +127,13 @@ jobs:
       - name: Build
         run: npm run build -w @gwenda/ops
 
+      # Pages as the owner uses them, in Chromium, with ops' /api answered by
+      # the tests (ops/site/playwright.config.ts): no Functions or secrets.
+      - name: Browser tests (Playwright)
+        run: |
+          npx playwright install --with-deps chromium-headless-shell
+          npm run test:e2e -w @gwenda/ops
+
   brand:
     name: Reference images (WebP, under the size cap)
     needs: changes

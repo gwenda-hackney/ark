@@ -128,7 +128,8 @@
 		subject = source.subject;
 		previewText = source.previewText;
 		sections = editorSections(source.sections);
-		saved = draftOf(name, subject, previewText, sections);
+		// A copy: the draft's sections are the ones being edited, and the saved ones must not change with them.
+		saved = $state.snapshot(draftOf(name, subject, previewText, sections)) as OneOffDraft;
 	}
 
 	async function load(id: number, fresh: boolean) {
@@ -169,7 +170,7 @@
 		try {
 			if (isNew) {
 				const { email: made } = await createOneOffEmail(draft);
-				saved = draft;
+				saved = $state.snapshot(draft) as OneOffDraft;
 				toast.ok("Email saved as a draft.");
 				onchanged?.();
 				navigate(writePath(made.id), { replace: true, force: true });
@@ -178,7 +179,7 @@
 			const { email: next } = await saveOneOffEmail(emailId, draft);
 			email = next;
 			// Keep the editor's own sections (and their keys); only what was cleaned changes.
-			if (sameDraft(draftOf(next.name, next.subject, next.previewText, editorSections(next.sections)), draft)) saved = draft;
+			if (sameDraft(draftOf(next.name, next.subject, next.previewText, editorSections(next.sections)), draft)) saved = $state.snapshot(draft) as OneOffDraft;
 			else fill(next);
 			setCrumbLeaf(emailName(next) || "Email");
 			toast.ok("Email saved.");

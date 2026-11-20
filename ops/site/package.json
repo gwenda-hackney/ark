@@ -12,7 +12,8 @@
     "test": "vitest run",
     "deploy": "npm run build && wrangler pages deploy dist --project-name gwenda-ops --branch main --commit-dirty=true",
     "deploy:production": "npm run build && wrangler pages deploy dist --project-name gwenda-ops --branch main --commit-dirty=true",
-    "deploy:preview": "npm run build && wrangler pages deploy dist --project-name gwenda-ops --commit-dirty=true"
+    "deploy:preview": "npm run build && wrangler pages deploy dist --project-name gwenda-ops --commit-dirty=true",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@sentry/cloudflare": "^11.4.0",
