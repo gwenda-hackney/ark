@@ -79,6 +79,24 @@ export const GALLERY = {
   website: { state: "live" },
 };
 
+/** What Event cards can show: one night and one pop-up kitchen. */
+export const CARDS = [
+  {
+    id: "night-12-2026-12-03",
+    group: "Nights",
+    label: "Karaoke",
+    detail: "Thursday 3 December, 8pm – 11:30pm",
+    card: { kind: "event", eventId: "12", date: "2026-12-03", tag: "", title: "Karaoke", when: "8pm – 11:30pm", note: "Sing your heart out.", link: "https://gwenda.example/whats-on/karaoke/", assetId: "image-aaa111-1600x1200-jpg" },
+  },
+  {
+    id: "series-38",
+    group: "Pop-up kitchens",
+    label: "Pinsa A Roma",
+    detail: "Mondays and Tuesdays",
+    card: { kind: "event", eventId: "38", date: "", tag: "Pop-up kitchen", title: "Pinsa A Roma", when: "Mondays and Tuesdays", note: "", link: "https://gwenda.example/whats-on/pinsa-a-roma/", assetId: "" },
+  },
+];
+
 export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
   const saves: Record<string, unknown>[] = [];
   let current = emailRecord(email);
@@ -115,6 +133,7 @@ export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
     }
     if (pathname === "/api/web/jobs") return json({ ok: true, jobs: [] });
     if (pathname === "/api/venue/gallery") return json(GALLERY);
+    if (pathname === "/api/email/cards") return json({ choices: CARDS });
     if (pathname === "/api/email/images") return json({ assetId: "image-ccc333-800x600-jpg", url: "https://cdn.sanity.io/images/test/production/ccc333-800x600.jpg" });
     return json({ ok: true });
   });

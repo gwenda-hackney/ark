@@ -14,6 +14,7 @@
 	import { attachEditing, focusWords, showSelected, type WordsFocus } from "./preview-editing";
 	import EmailEditBar from "./EmailEditBar.svelte";
 	import PictureChooser from "./PictureChooser.svelte";
+	import EventChooser from "./EventChooser.svelte";
 	import { Badge, Button, ConfirmDialog, EditorShell, EmptyState, Field, FormSection, HelpDrawer, Skeleton, TextField } from "../ui";
 	import { Icon } from "../app/shell";
 	import type { AuthMe } from "../app/api";
@@ -37,6 +38,7 @@
 		type OneOffDraft,
 		type OneOffEmail,
 		type OneOffSection,
+		type EventCard,
 		type WeeklyEmailAccess,
 	} from "./email-api";
 	import EmailPreview from "./EmailPreview.svelte";
@@ -125,6 +127,8 @@
 	let insertingAt = $state<number | null>(null);
 	/** The picture chooser is open for this part (and, for two pictures, this one of them). */
 	let choosingFor = $state<{ key: string; slot: number } | null>(null);
+	/** The event chooser is open for this part. */
+	let eventFor = $state<string | null>(null);
 	/** Words just added: the typing goes into them once the email is drawn again. */
 	let focusKey: string | null = null;
 	const selectedIndex = $derived(selectedKey ? sections.findIndex((entry) => entry.key === selectedKey) : -1);
@@ -172,6 +176,7 @@
 		selectedKey = added.key;
 		if (kind === "heading" || kind === "copy") focusKey = added.key;
 		if (kind === "image" || kind === "pictures") choosingFor = { key: added.key, slot: 0 };
+		if (kind === "event") eventFor = added.key;
 	}
 
 	function moveSelected(by: -1 | 1) {
@@ -189,6 +194,12 @@
 	}
 
 	/** A picture from the library, for the section the chooser opened for. */
+	function pickEvent(card: EventCard) {
+		const entry = sections.find((other) => other.key === eventFor);
+		eventFor = null;
+		if (entry?.section.kind === "event") Object.assign(entry.section, card);
+	}
+
 	function pickPicture(assetId: string, alt: string) {
 		const target = choosingFor;
 		choosingFor = null;
@@ -526,6 +537,7 @@
 						onchoose={choose}
 						oncancel={() => (insertingAt = null)}
 						onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
+						onevent={() => (eventFor = selectedKey)}
 					/>
 				{/snippet}
 				<EmailPreview
@@ -571,6 +583,7 @@
 
 <HelpDrawer {help} />
 
+<EventChooser open={eventFor !== null} onclose={() => (eventFor = null)} onpick={pickEvent} />
 <PictureChooser open={choosingFor !== null} onclose={() => (choosingFor = null)} onpick={pickPicture} onupload={uploadPicture} />
 
 <style>

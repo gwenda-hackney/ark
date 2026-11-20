@@ -196,6 +196,19 @@ describe("drawn for ops' editor (marks)", () => {
     expect(render([{ kind: "pictures", pictures: [{}, {}] }]).html).not.toContain('width="50%"');
   });
 
+  it("an event card is drawn as the monthly email draws it: a night with its date sticker, a pop-up kitchen with its tag", () => {
+    const night = render([
+      { kind: "event", date: "2026-12-03", title: "Karaoke", when: "8pm – late", note: "Sing your heart out.", link: "https://gwenda.example/whats-on/karaoke/", assetId: ASSET },
+    ]);
+    expect(night.html).toMatch(/>Thu<\/td>[\s\S]*?>3<\/td>[\s\S]*?>Dec<\/td>/);
+    expect(night.html).toMatch(/<a href="https:\/\/gwenda\.example\/whats-on\/karaoke\/"[^>]*>Karaoke<\/a>/);
+    expect(night.html).toContain("8pm – late");
+    expect(night.text).toContain("2026-12-03: Karaoke");
+    const kitchen = render([{ kind: "event", tag: "Pop-up kitchen", title: "Pinsa A Roma", when: "Mondays and Tuesdays", link: "https://gwenda.example/whats-on/pinsa/" }]);
+    expect(kitchen.html).toMatch(/>Pop-up kitchen<\/td>/);
+    expect(kitchen.html).not.toMatch(/>Dec<\/td>/);
+  });
+
   it("a divider is the monthly email's dashed line", () => {
     expect(render([{ kind: "divider" }]).html).toMatch(/border-top:1px dashed/);
     expect(render([{ kind: "divider" }]).text).toContain("----");

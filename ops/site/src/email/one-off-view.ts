@@ -16,6 +16,7 @@ export const SECTION_CHOICES: { kind: SectionKind; label: string; about: string 
 	{ kind: "pictures", label: "Two pictures", about: "Side by side" },
 	{ kind: "heading", label: "Heading", about: "Big words in the poster letters" },
 	{ kind: "copy", label: "Text", about: "Paragraphs, with bold and links" },
+	{ kind: "event", label: "Event", about: "A night, deal or pop-up, as the monthly email shows it" },
 	{ kind: "button", label: "Button", about: "Words that go to a web page" },
 	{ kind: "divider", label: "Divider", about: "A dashed line between parts" },
 	{ kind: "booking", label: "Book a table", about: "The website's own booking button" },

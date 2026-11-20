@@ -215,3 +215,16 @@ test("two pictures side by side: the chooser asks for the left, then the right; 
 		{ kind: "divider" },
 	]);
 });
+
+test("an Event card shows a night from What's on, as the monthly email does", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	await preview.locator('tr[data-insert="1"] .ops-add').click();
+	await page.getByRole("toolbar", { name: "Change the email" }).getByRole("button", { name: /^Event/ }).click();
+	const chooser = page.getByRole("dialog", { name: "Choose an event" });
+	await chooser.getByRole("region", { name: "Nights" }).getByRole("button", { name: /Karaoke/ }).click();
+	await expect(chooser).toHaveCount(0);
+	await expect(preview.locator('tr[data-section="1"]')).toContainText("Karaoke");
+	await expect(preview.locator('tr[data-section="1"]')).toContainText("Dec");
+	await save(page);
+	await expect.poll(() => (saves.at(-1)?.sections as { title?: string; date?: string }[] | undefined)?.[1]).toMatchObject({ kind: "event", title: "Karaoke", date: "2026-12-03" });
+});

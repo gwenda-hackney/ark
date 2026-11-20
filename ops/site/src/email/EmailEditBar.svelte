@@ -30,6 +30,7 @@
 		onchoose,
 		oncancel,
 		onpicture,
+		onevent,
 	}: {
 		doc: Document | null;
 		words: WordsFocus | null;
@@ -51,6 +52,8 @@
 		oncancel: () => void;
 		/** Change picture was pressed (for two pictures: which one, 0 left or 1 right). */
 		onpicture: (slot?: number) => void;
+		/** Choose an event was pressed. */
+		onevent: () => void;
 	} = $props();
 
 	const kind = $derived(section?.kind ?? null);
@@ -128,6 +131,13 @@
 						</Field>
 					</div>
 				{/each}
+			</div>
+		{:else if section?.kind === "event"}
+			<div class="fields">
+				<Button onclick={onevent}>
+					{#snippet icon()}<Icon name="calendar" size={16} />{/snippet}{section.title ? "Choose another event" : "Choose an event"}
+				</Button>
+				<p class="hint">{section.title ? `${section.title}: its words come from What's on as they were when it was chosen.` : "A night, deal or pop-up kitchen from What's on."}</p>
 			</div>
 		{:else if kind === "divider"}
 			<p class="hint">A dashed line, like the one between the monthly email's parts. It can be moved or removed.</p>

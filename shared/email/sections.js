@@ -23,6 +23,8 @@ import { bookingUrl } from "../../marketing/web/src/config/booking.ts";
 import { siteConfig } from "../../marketing/web/src/config/site.ts";
 import { emailPicture } from "./image.js";
 import { sanityImageUrl } from "../sanity-image.js";
+import { standaloneCard } from "../weekly-email/render.js";
+import { runDay } from "../../marketing/web/src/lib/night-cards.js";
 
 /** The column's width inside its gutter: a picture across it. */
 export const COLUMN = 560;
@@ -56,6 +58,7 @@ function editable(context, kind, placeholder) {
 /** What an empty picture or button says in the editor, in place of itself. */
 const WAITING = {
   image: "Picture: click here, then Change picture",
+  event: "Event: click here, then Choose an event",
   button: "Button: click here to give it words and a link",
 };
 
@@ -229,6 +232,43 @@ export const SECTION_KINDS = {
       ];
     },
     text: (section) => section.pictures.filter((picture) => picture.assetId && picture.alt).flatMap((picture) => [`[${picture.alt}]`, ""]),
+  },
+  event: {
+    label: "Event",
+    // What the card shows, taken from the event in ops when it was picked (api/email/cards):
+    // a night with its date, or a deal or pop-up kitchen with its tag.
+    blank: () => ({ kind: "event", eventId: "", date: "", tag: "", title: "", when: "", note: "", link: "", assetId: "" }),
+    clean: (raw) => ({
+      kind: "event",
+      eventId: line(raw?.eventId, 40),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(raw?.date ?? "")) ? String(raw.date) : "",
+      tag: line(raw?.tag, 30),
+      title: line(raw?.title, 150),
+      when: line(raw?.when, 150),
+      note: line(raw?.note, 300),
+      link: line(raw?.link, 1000),
+      assetId: line(raw?.assetId, 200),
+    }),
+    empty: (section) => !section.title,
+    html(section, { images }) {
+      const url = section.assetId ? sectionImageUrl(section.assetId, images) : "";
+      const card = standaloneCard({
+        title: section.title,
+        href: safeLink(section.link),
+        photo: url ? { url, whole: false, alt: section.title } : null,
+        sticker: section.date ? runDay(section.date) : null,
+        tag: section.tag,
+        when: section.when,
+        note: section.note,
+      });
+      return [row(card, { bottom: 26 })];
+    },
+    text: (section) => [
+      [section.date ? section.date : section.tag, section.title].filter(Boolean).join(": "),
+      ...[section.when, section.note].filter(Boolean),
+      ...(safeLink(section.link) ? [safeLink(section.link)] : []),
+      "",
+    ],
   },
   divider: {
     label: "Divider",
