@@ -72,11 +72,13 @@ function emailRecord(email: OneOffFixture) {
 export const GALLERY = {
   photos: [
     { key: "p1", asset: "image-aaa111-1600x1200-jpg", description: "The bar at night", url: "https://cdn.sanity.io/images/test/production/aaa111-1600x1200.jpg", width: 1600, height: 1200, added: "", addedBy: "", menu: null },
+    { key: "p2", asset: "image-ddd444-1600x1200-jpg", description: "The terrace", url: "https://cdn.sanity.io/images/test/production/ddd444-1600x1200.jpg", width: 1600, height: 1200, added: "", addedBy: "", menu: null },
+    { key: "p3", asset: "image-eee555-1600x1200-jpg", description: "The decks", url: "https://cdn.sanity.io/images/test/production/eee555-1600x1200.jpg", width: 1600, height: 1200, added: "", addedBy: "", menu: null },
   ],
   fromEvents: [
     { id: "36", name: "Chez Pickle", photos: [{ key: "e1", url: "https://cdn.sanity.io/images/test/production/bbb222-1200x1500.jpg", width: 1200, height: 1500, added: "" }], more: 0, tooSmall: 0 },
   ],
-  website: { state: "live" },
+  website: "live",
 };
 
 /** What Event cards can show: one night and one pop-up kitchen. */
@@ -99,6 +101,8 @@ export const CARDS = [
 
 export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
   const saves: Record<string, unknown>[] = [];
+  /** Each new order the Photos page put (PUT /api/venue/gallery), newest last. */
+  const orders: string[][] = [];
   let current = emailRecord(email);
   await page.route(/^https:\/\/(cdn\.sanity\.io|gwenda\.example)\//, (route) =>
     route.fulfill({ status: 200, contentType: "image/png", body: PIXEL }),
@@ -132,10 +136,18 @@ export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
       });
     }
     if (pathname === "/api/web/jobs") return json({ ok: true, jobs: [] });
-    if (pathname === "/api/venue/gallery") return json(GALLERY);
+    if (pathname === "/api/venue/gallery") {
+      if (request.method() === "PUT") {
+        const { keys } = request.postDataJSON();
+        orders.push(keys);
+        const photos = keys.map((key: string) => GALLERY.photos.find((photo) => photo.key === key)).filter(Boolean);
+        return json({ ...GALLERY, photos, published: true, warnings: [] });
+      }
+      return json(GALLERY);
+    }
     if (pathname === "/api/email/cards") return json({ choices: CARDS });
     if (pathname === "/api/email/images") return json({ assetId: "image-ccc333-800x600-jpg", url: "https://cdn.sanity.io/images/test/production/ccc333-800x600.jpg" });
     return json({ ok: true });
   });
-  return saves;
+  return Object.assign(saves, { orders });
 }

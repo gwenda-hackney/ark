@@ -7,6 +7,7 @@ import { oneOffNotReady, renderOneOffEmail } from "../../../../shared/email/one-
 import { SECTION_KINDS } from "../../../../shared/email/sections.js";
 import type { EmailFrame, OneOffDraft, OneOffSection, OneOffStatus, RowCell } from "./email-api";
 import type { StatusTone } from "./email-view";
+import { movedTo } from "../ui/drag-reorder";
 
 export type SectionKind = OneOffSection["kind"];
 
@@ -82,10 +83,7 @@ export function addSection(list: EditorSection[], kind: SectionKind): EditorSect
 
 /** The list with section `from` dropped before section `at` (the count: after the last); the same list when it wouldn't move. */
 export function moveSectionTo(list: EditorSection[], from: number, at: number): EditorSection[] {
-	if (from < 0 || from >= list.length || at === from || at === from + 1) return list;
-	const rest = list.filter((_, index) => index !== from);
-	const place = at > from ? at - 1 : at;
-	return [...rest.slice(0, place), list[from], ...rest.slice(place)];
+	return movedTo(list, from, at);
 }
 
 /** A Row's cell, by its section and its place in the row. */

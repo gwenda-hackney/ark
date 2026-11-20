@@ -13,6 +13,7 @@
 	 * under the venue's own, each event's under its name with the way to its
 	 * Images tab, where they're managed. Here they're only to see.
 	 */
+	import { attachReorder, movedTo } from "../ui/drag-reorder";
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
@@ -43,7 +44,6 @@
 	import {
 		MENU_OPTIONS,
 		changedMessage,
-		droppedOrder,
 		eventSections,
 		eventsOnPhotosPage,
 		fromEventsFootnote,
@@ -82,8 +82,6 @@
 	/** A file dragged over the photos (to upload), or a photo being dragged (to move). */
 	let dropping = $state(false);
 	let dropDepth = 0;
-	let dragKey = $state<string | null>(null);
-	let dragOver = $state<string | null>(null);
 
 	const badge = $derived(websiteBadge(website, "photos"));
 	const tiles = $derived(photoTiles(photos));
@@ -255,38 +253,15 @@
 		void upload([...(e.dataTransfer?.files || [])]);
 	}
 
-	function onTileDragStart(e: DragEvent, key: string) {
-		if (busy) {
-			e.preventDefault();
-			return;
-		}
-		dragKey = key;
-		if (e.dataTransfer) {
-			e.dataTransfer.effectAllowed = "move";
-			e.dataTransfer.setData("text/plain", key);
-		}
-	}
-
-	function onTileDragOver(e: DragEvent, key: string) {
-		if (!dragKey) return;
-		e.preventDefault();
-		if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-		dragOver = key;
-	}
-
-	function onTileDrop(e: DragEvent, key: string) {
-		if (!dragKey) return;
-		e.preventDefault();
-		e.stopPropagation();
-		const dragged = dragKey;
-		dragKey = null;
-		dragOver = null;
-		void reorder(droppedOrder(keys, dragged, key));
-	}
-
-	function onTileDragEnd() {
-		dragKey = null;
-		dragOver = null;
+	/** Photos drag into a new order the way ops moves things (ui/drag-reorder.ts): a gold line shows where one lands. */
+	function reorderTiles(list: HTMLElement) {
+		return attachReorder(list, {
+			items: "li.tile[data-key]",
+			axis: "grid",
+			label: (tile) => `Photo ${tile.dataset.place}`,
+			disabled: () => busy || phone.matches,
+			onmove: (from, at) => void reorder(movedTo(keys, from, at)),
+		});
 	}
 </script>
 
@@ -322,7 +297,7 @@
 					ondragleave={onDragLeave}
 					ondrop={onDrop}
 				>
-					<ul class="gallery">
+					<ul class="gallery" {@attach reorderTiles}>
 						<li>
 							<label class="tile add" class:disabled={busy}>
 								<span class="photo-btn primary">
@@ -339,17 +314,7 @@
 							</label>
 						</li>
 						{#each tiles as tile (tile.key)}
-							<li
-								class="tile"
-								class:dragged={dragKey === tile.key}
-								class:over={dragOver === tile.key && dragKey !== tile.key}
-								draggable={!busy && !phone.matches}
-								ondragstart={(e) => onTileDragStart(e, tile.key)}
-								ondragover={(e) => onTileDragOver(e, tile.key)}
-								ondragleave={() => (dragOver = dragOver === tile.key ? null : dragOver)}
-								ondrop={(e) => onTileDrop(e, tile.key)}
-								ondragend={onTileDragEnd}
-							>
+							<li class="tile" data-key={tile.key} data-place={tile.place} draggable={!busy && !phone.matches}>
 								<button
 									class="remove"
 									type="button"
@@ -611,13 +576,8 @@
 		cursor: grab;
 	}
 
-	.tile.dragged {
+	.tile:global(.ops-dragging) {
 		opacity: 0.45;
-	}
-
-	.tile.over {
-		border-color: var(--primary);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 45%, transparent);
 	}
 
 	.tile.add {

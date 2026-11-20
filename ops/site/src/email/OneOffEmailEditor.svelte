@@ -63,6 +63,8 @@
 		editorSections,
 		insertSection,
 		moveSectionTo,
+		partName,
+		partSummary,
 		swapCells,
 		notReady,
 		oneOffSendBlocked,
@@ -237,6 +239,10 @@
 				selectedKey = sections[to.section]?.key ?? selectedKey;
 			},
 			onaction: act,
+			label(index) {
+				const part = sections[index]?.section;
+				return part ? `${partName(part.kind)} · ${partSummary(part)}` : "";
+			},
 		});
 		showSelected(doc, selectedIndex >= 0 ? selectedIndex : null, insertingAt, actions);
 		const typeInto = focusKey ? sections.findIndex((entry) => entry.key === focusKey) : -1;

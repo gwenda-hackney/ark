@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import {
 	changedMessage,
-	droppedOrder,
 	eventSections,
 	eventsOnPhotosPage,
 	fromEventsFootnote,
@@ -59,14 +58,6 @@ describe("gallery page", () => {
 			tiles.map((tile) => tile.small),
 			["Small: may look blurry on the website (under 800 px)", "", "Small: may look blurry on the website (under 800 px)"],
 		);
-	});
-
-	it("a dragged photo takes the place of the one it's dropped on", () => {
-		const keys = ["a", "b", "c", "d"];
-		assert.deepEqual(droppedOrder(keys, "a", "c"), ["b", "c", "a", "d"]);
-		assert.deepEqual(droppedOrder(keys, "d", "b"), ["a", "d", "b", "c"]);
-		assert.deepEqual(droppedOrder(keys, "b", "b"), keys);
-		assert.deepEqual(droppedOrder(keys, "x", "b"), keys);
 	});
 
 	it("moves a photo to the top, or one place up or down, never off the ends", () => {

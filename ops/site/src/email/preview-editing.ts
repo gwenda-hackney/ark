@@ -6,6 +6,7 @@
  * the toolbar. The frame runs no scripts of its own; ops reaches into it
  * (same origin) to listen.
  */
+import { attachReorder } from "../ui/drag-reorder";
 import { copyFromDom, headingFromDom } from "./copy-dom";
 
 export type EditKind = "heading" | "copy";
@@ -37,6 +38,8 @@ export type EditingHandlers = {
 	oncells: (from: { section: number; cell: number }, to: { section: number; cell: number }) => void;
 	/** A button on the picked part's toolbar was pressed. */
 	onaction: (action: string) => void;
+	/** What a part is, for the label that follows the pointer while it's dragged: "Picture · The bar". */
+	label: (index: number) => string;
 };
 
 /** A button on the picked part's toolbar, inside the email. */
@@ -63,11 +66,11 @@ td[data-edit][data-empty] > p:first-child::before { content: attr(data-placehold
 a { cursor: text; }
 tr[data-insert] > td { padding-top: 0 !important; padding-bottom: 0 !important; }
 tr[data-section] > td { position: relative; }
-.ops-grip { position: absolute; left: -4px; top: 50%; transform: translateY(-50%); width: 20px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 5px; background: ${GOLD}; color: #1a1510; font: 700 15px/1 system-ui, sans-serif; cursor: grab; opacity: 0; transition: opacity 120ms; user-select: none; -webkit-user-select: none; }
+.ops-grip { position: absolute; left: -6px; top: 50%; transform: translateY(-50%); width: 24px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: ${GOLD}; color: #1a1510; font: 700 16px/1 system-ui, sans-serif; cursor: grab; opacity: 0.3; transition: opacity 120ms; user-select: none; -webkit-user-select: none; }
 tr[data-section]:hover .ops-grip, tr[data-section].ops-selected .ops-grip { opacity: 1; }
+tr[data-section][draggable="true"] { cursor: grab; }
+tr[data-section][draggable="true"] img { -webkit-user-drag: none; user-select: none; }
 tr.ops-dragging > td { opacity: 0.4; }
-tr[data-insert].ops-drop .ops-add::before { border-top: 4px solid ${GOLD}; }
-tr[data-insert].ops-drop .ops-add::after { background: ${GOLD}; color: #1a1510; }
 td[data-cell][draggable="true"] { cursor: grab; }
 td[data-cell].ops-cell-drop { outline: 3px dashed ${GOLD}; outline-offset: 2px; }
 td[data-cell].ops-dragging { opacity: 0.4; }
@@ -182,7 +185,19 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 	for (const cell of Array.from(doc.querySelectorAll<HTMLElement>("td[data-cell]"))) {
 		if (!cell.querySelector("[data-waiting]")) cell.draggable = true;
 	}
-	attachDragging(doc, handlers);
+	// Parts move the way ops moves things (ui/drag-reorder.ts): a part that isn't words is grabbed
+	// anywhere on it; words only by their handle, so dragging across them still selects them.
+	attachReorder(doc.body, {
+		items: "tr[data-section]",
+		handle: ".ops-grip",
+		whole: (row) => !row.querySelector("[data-edit]"),
+		ignore: 'td[data-cell][draggable="true"]',
+		axis: "y",
+		label: (row) => handlers.label(Number(row.dataset.section)),
+		onmove: (from, at) => handlers.onmove(from, at),
+		scroller: () => (doc.defaultView?.frameElement as HTMLElement | null)?.closest<HTMLElement>(".stage") ?? null,
+	});
+	attachCellSwaps(doc, handlers);
 
 	const tell = () => handlers.onfocus(wordsFocus(doc));
 
@@ -358,82 +373,45 @@ export function focusWords(doc: Document, index: number) {
 	host.scrollIntoView({ block: "center" });
 }
 
-type Dragging = { type: "section"; index: number } | { type: "cell"; section: number; cell: number };
-
 const sectionOf = (el: Element | null) => Number((el?.closest("tr[data-section]") as HTMLElement | null)?.dataset.section ?? -1);
 
-/** Where a dragged part would land under the pointer: before the part it's over (its top half) or after it. */
-function dropPlace(doc: Document, target: Element | null, y: number): number | null {
-	const slot = target?.closest("tr[data-insert]") as HTMLElement | null;
-	if (slot) return Number(slot.dataset.insert);
-	const row = target?.closest("tr[data-section]") as HTMLElement | null;
-	if (!row) return null;
-	const box = row.getBoundingClientRect();
-	return Number(row.dataset.section) + (y < box.top + box.height / 2 ? 0 : 1);
-}
-
-function clearDrop(doc: Document) {
-	for (const el of Array.from(doc.querySelectorAll(".ops-drop, .ops-cell-drop, .ops-dragging"))) {
-		el.classList.remove("ops-drop", "ops-cell-drop", "ops-dragging");
-	}
-}
-
-/** Dragging parts by their grip, and a Row's cells onto other cells, with a gold mark where they'd land. */
-function attachDragging(doc: Document, handlers: EditingHandlers) {
-	let dragging: Dragging | null = null;
+/** A Row's filled cells drag onto other cells, in that Row or another: the two swap. The cell it'd swap with is outlined. */
+function attachCellSwaps(doc: Document, handlers: EditingHandlers) {
+	let from: { section: number; cell: number } | null = null;
+	const clear = () => {
+		for (const el of Array.from(doc.querySelectorAll(".ops-cell-drop, td.ops-dragging"))) el.classList.remove("ops-cell-drop", "ops-dragging");
+	};
 
 	doc.addEventListener("dragstart", (event) => {
-		const target = event.target as Element | null;
-		const grip = target?.closest?.(".ops-grip");
-		const cell = target?.closest?.("td[data-cell]") as HTMLElement | null;
-		if (grip) {
-			dragging = { type: "section", index: sectionOf(grip) };
-			grip.closest("tr")?.classList.add("ops-dragging");
-		} else if (cell) {
-			dragging = { type: "cell", section: sectionOf(cell), cell: Number(cell.dataset.cell) };
-			cell.classList.add("ops-dragging");
-		} else {
-			return;
-		}
-		event.dataTransfer?.setData("text/plain", "gwenda-email-part");
+		const cell = (event.target as Element | null)?.closest?.('td[data-cell][draggable="true"]') as HTMLElement | null;
+		if (!cell) return;
+		from = { section: sectionOf(cell), cell: Number(cell.dataset.cell) };
+		cell.classList.add("ops-dragging");
+		event.dataTransfer?.setData("text/plain", "ops-cell");
 		if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
 	});
 
 	doc.addEventListener("dragover", (event) => {
-		if (!dragging) return;
-		const target = event.target as Element | null;
-		for (const el of Array.from(doc.querySelectorAll(".ops-drop, .ops-cell-drop"))) el.classList.remove("ops-drop", "ops-cell-drop");
-		if (dragging.type === "section") {
-			const at = dropPlace(doc, target, event.clientY);
-			if (at === null) return;
-			event.preventDefault();
-			doc.querySelector(`tr[data-insert="${at}"]`)?.classList.add("ops-drop");
-		} else {
-			const cell = target?.closest?.("td[data-cell]");
-			if (!cell) return;
-			event.preventDefault();
-			cell.classList.add("ops-cell-drop");
-		}
+		if (!from) return;
+		for (const el of Array.from(doc.querySelectorAll(".ops-cell-drop"))) el.classList.remove("ops-cell-drop");
+		const cell = (event.target as Element | null)?.closest?.("td[data-cell]");
+		if (!cell) return;
+		event.preventDefault();
+		cell.classList.add("ops-cell-drop");
 	});
 
 	doc.addEventListener("drop", (event) => {
-		if (!dragging) return;
+		if (!from) return;
 		event.preventDefault();
-		const target = event.target as Element | null;
-		const was = dragging;
-		dragging = null;
-		clearDrop(doc);
-		if (was.type === "section") {
-			const at = dropPlace(doc, target, event.clientY);
-			if (at !== null) handlers.onmove(was.index, at);
-		} else {
-			const cell = target?.closest?.("td[data-cell]") as HTMLElement | null;
-			if (cell) handlers.oncells({ section: was.section, cell: was.cell }, { section: sectionOf(cell), cell: Number(cell.dataset.cell) });
-		}
+		const cell = (event.target as Element | null)?.closest?.("td[data-cell]") as HTMLElement | null;
+		const was = from;
+		from = null;
+		clear();
+		if (cell) handlers.oncells(was, { section: sectionOf(cell), cell: Number(cell.dataset.cell) });
 	});
 
 	doc.addEventListener("dragend", () => {
-		dragging = null;
-		clearDrop(doc);
+		from = null;
+		clear();
 	});
 }

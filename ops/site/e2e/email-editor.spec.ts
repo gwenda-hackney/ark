@@ -251,3 +251,20 @@ test("an Event card shows a night from What's on, as the monthly email does", as
 	await save(page);
 	await expect.poll(() => lastSections(saves)?.[1]).toMatchObject({ kind: "event", title: "Karaoke", date: "2026-12-03" });
 });
+
+test("a picture is dragged by grabbing it anywhere, and letting go over the foot puts it last", async ({ page }) => {
+	const { saves } = await open(page, {
+		...DRAFT,
+		sections: [{ kind: "image", assetId: "image-aaa111-1600x1200-jpg", alt: "The bar", size: "full" }, ...DRAFT.sections],
+	});
+	// The picture itself, not its handle; let go well below the last part (the foot).
+	await drag(page, 'tr[data-section="0"] img', "body", 0.98);
+	await save(page);
+	await expect.poll(() => lastSections(saves)?.map((part) => part.kind)).toEqual(["heading", "copy", "heading", "image"]);
+});
+
+test("words drag only by their handle, so dragging across them still selects them", async ({ page }) => {
+	const { preview } = await open(page);
+	await expect(preview.locator('tr[data-section="1"]')).not.toHaveAttribute("draggable", "true");
+	await expect(preview.locator('tr[data-section="1"] .ops-grip')).toHaveAttribute("draggable", "true");
+});
