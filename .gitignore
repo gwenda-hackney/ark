@@ -30,6 +30,7 @@ marketing/web/dist/
 marketing/web/.astro/
 # Browser tests' results and report (playwright.config.js)
 marketing/web/.e2e/
+ops/site/.e2e/
 marketing/web/node_modules/
 marketing/brand/node_modules/
 

@@ -82,9 +82,9 @@ export function sameDraft(a: OneOffDraft, b: OneOffDraft): boolean {
 	return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/** The email as it would arrive, for the live preview. */
-export function previewOf(draft: OneOffDraft, frame: EmailFrame) {
-	return renderOneOffEmail(draft, frame);
+/** The email as it arrives; `marks` draws it for typing into (preview-editing.ts), never for sending. */
+export function previewOf(draft: OneOffDraft, frame: EmailFrame, { marks = false } = {}) {
+	return renderOneOffEmail(draft, { ...frame, marks });
 }
 
 const STATUS: Record<OneOffStatus, { label: string; tone: StatusTone }> = {

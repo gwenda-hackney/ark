@@ -7,6 +7,12 @@
  * and the editor's list follow.
  *
  * Copy is plain text with two marks only: **bold** and [text](https://link).
+ *
+ * Drawn for ops' editor (`marks` in the context), the same HTML carries
+ * where each part came from: every row its section's place (data-section),
+ * and the words that can be typed over in the preview (data-edit, with what
+ * an empty one says). Empty headings and copy are drawn there too, so they
+ * can be clicked into; the email that's sent never has either.
  * Everything else is escaped; a link that isn't http(s) or mailto is dropped
  * and its words kept. No raw HTML ever reaches the email.
  */
@@ -39,6 +45,14 @@ export function safeLink(value) {
   if (/^mailto:[^\s"'<>]+@[^\s"'<>]+$/i.test(raw)) return raw;
   return "";
 }
+
+/** The editor's marks on words that can be typed over in the preview; nothing in an email that's sent. */
+function editable(context, kind, placeholder) {
+  return context?.marks ? ` data-edit="${kind}" data-placeholder="${esc(placeholder)}"` : "";
+}
+
+/** Space under each paragraph of copy. */
+const PARAGRAPH_GAP = 18;
 
 /** **bold**, and [words](address) whose address may hold one level of brackets (Wikipedia's do). */
 const MARKS = /\*\*(.+?)\*\*|\[([^\]\n]+)\]\(((?:[^()\s]|\([^()\s]*\))*)\)/g;
@@ -165,7 +179,9 @@ export const SECTION_KINDS = {
     blank: () => ({ kind: "heading", text: "" }),
     clean: (raw) => ({ kind: "heading", text: line(raw?.text, 150) }),
     empty: (section) => !section.text,
-    html: (section) => [row(heading(section.text), { top: 6, bottom: 20 })],
+    html: (section, context) => [
+      row(heading(section.text, { attrs: editable(context, "heading", "Type a heading") }), { top: 6, bottom: 20 }),
+    ],
     text: (section) => [section.text.toUpperCase(), ""],
   },
   copy: {
@@ -173,8 +189,15 @@ export const SECTION_KINDS = {
     blank: () => ({ kind: "copy", text: "" }),
     clean: (raw) => ({ kind: "copy", text: text(raw?.text).trim() }),
     empty: (section) => !paragraphs(section.text).length,
-    html: (section) =>
-      paragraphs(section.text).map((part) => row(paragraph(copyInlineHtml(part)), { bottom: 18 })),
+    // Its paragraphs in one cell, so the editor can type across them (Enter
+    // makes the next one); each has its gap under it, as a row of its own did.
+    html(section, context) {
+      const parts = paragraphs(section.text);
+      const drawn = (parts.length ? parts : [""]).map((part) =>
+        paragraph(copyInlineHtml(part), { margin: `0 0 ${PARAGRAPH_GAP}px` }),
+      );
+      return [row(drawn.join(""), { cellAttrs: editable(context, "copy", "Type here") })];
+    },
     text: (section) => paragraphs(section.text).flatMap((part) => [copyInlineText(part), ""]),
   },
   button: {
@@ -235,11 +258,15 @@ export function cleanSections(raw, kinds = SECTION_KINDS) {
 export function renderSections(sections, context, kinds = SECTION_KINDS) {
   const rows = [];
   const lines = [];
-  for (const section of sections) {
+  sections.forEach((section, index) => {
     const kind = kinds[section?.kind];
-    if (!kind || kind.empty(section)) continue;
-    rows.push(...kind.html(section, context));
-    lines.push(...kind.text(section, context));
-  }
+    if (!kind) return;
+    // In the editor, empty words still show, to be typed into.
+    const typed = context?.marks && (section.kind === "heading" || section.kind === "copy");
+    if (kind.empty(section) && !typed) return;
+    const drawn = kind.html(section, context);
+    rows.push(...(context?.marks ? drawn.map((part) => part.replace(/^<tr/, `<tr data-section="${index}"`)) : drawn));
+    if (!kind.empty(section)) lines.push(...kind.text(section, context));
+  });
   return { rows, lines };
 }

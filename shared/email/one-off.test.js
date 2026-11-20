@@ -149,6 +149,38 @@ describe("a one-off email", () => {
   });
 });
 
+describe("drawn for ops' editor (marks)", () => {
+  const sections = [
+    { kind: "heading", text: "Party" },
+    { kind: "copy", text: "Doors at 9.\n\nMusic **till late**." },
+    { kind: "heading", text: "" },
+    { kind: "copy", text: "" },
+  ];
+  const marked = renderOneOffEmail({ subject: "S", sections }, { site, images, marks: true }).html;
+
+  it("never in an email that's sent", () => {
+    const html = render(sections).html;
+    expect(html).not.toContain("data-section");
+    expect(html).not.toContain("data-edit");
+  });
+
+  it("marks each row with its section's place, and the words that can be typed over", () => {
+    expect(marked).toMatch(/<tr data-section="0">[\s\S]*?<h2 class="display" data-edit="heading" data-placeholder="Type a heading"[^>]*>Party<\/h2>/);
+    expect(marked).toMatch(/<tr data-section="1"><td align="left" data-edit="copy" data-placeholder="Type here"[^>]*><p [^>]*>Doors at 9\.<\/p><p [^>]*>Music <strong[^>]*>till late<\/strong>\.<\/p><\/td><\/tr>/);
+  });
+
+  it("draws empty headings and copy, to be typed into; the email that's sent leaves them out", () => {
+    expect(marked).toMatch(/<tr data-section="2">[\s\S]*?data-edit="heading"[^>]*><\/h2>/);
+    expect(marked).toMatch(/<tr data-section="3"><td[^>]*data-edit="copy"[^>]*><p [^>]*><\/p><\/td>/);
+    expect(render(sections).html.match(/<h2 /g)).toHaveLength(1);
+  });
+
+  it("copy's paragraphs share one cell, each with the gap a row of its own had", () => {
+    const html = render([{ kind: "copy", text: "One\n\nTwo" }]).html;
+    expect(html).toMatch(/<td align="left" style="padding:0px \d+px 0px;"><p [^>]*margin:0 0 18px;[^>]*>One<\/p><p [^>]*margin:0 0 18px;[^>]*>Two<\/p><\/td>/);
+  });
+});
+
 describe("sections", () => {
   it("are cleaned: unknown kinds and stray fields dropped, text trimmed to size", () => {
     expect(

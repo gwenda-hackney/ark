@@ -3,12 +3,16 @@
 	 * A one-off email (#348): its name (ops' own), its subject and preview line, then its sections
 	 * between the fixed logo and foot, with the email as it arrives beside
 	 * them, drawn live by the same renderer Mailchimp gets
-	 * (shared/email/one-off.js). The same editor card as an event's or a
+	 * (shared/email/one-off.js). Its headings and text are typed straight into
+	 * that email (preview-editing.ts, WordsToolbar for Bold and Link): while
+	 * someone types there, the preview keeps still and the sections follow it. The same editor card as an event's or a
 	 * menu's (EditorShell). /email/write/new starts one; Save email keeps it
 	 * as a draft; Send me a test sends the saved one to your own address.
 	 * Sent or scheduled ones open read-only.
 	 */
 	import { onDestroy } from "svelte";
+	import { attachEditing, type WordsFocus } from "./preview-editing";
+	import WordsToolbar from "./WordsToolbar.svelte";
 	import { Badge, Button, ConfirmDialog, EditorShell, EmptyState, Field, FormSection, HelpDrawer, Skeleton, TextField } from "../ui";
 	import { Icon } from "../app/shell";
 	import type { AuthMe } from "../app/api";
@@ -101,7 +105,34 @@
 	const dirty = $derived(!loading && !error && !sameDraft(draft, saved));
 	const editable = $derived(isNew || email?.status === "draft");
 	const canSave = $derived(editable && !saving && !uploading && (isNew || dirty));
-	const rendered = $derived(frame ? previewOf(draft, frame) : null);
+	// Typing in the preview: its document, where the typing is, and whether a link's address is being typed.
+	let wordsDoc = $state<Document | null>(null);
+	let wordsAt = $state<WordsFocus | null>(null);
+	let linking = $state(false);
+	const typing = $derived(Boolean(wordsAt) || linking);
+	// What the preview shows: the draft, except it keeps still while someone types into it
+	// (redrawing would lose their place); it catches up when they stop.
+	let shown = $state<OneOffDraft | null>(null);
+	$effect(() => {
+		// A copy, not the draft's live sections: those change under the typing.
+		const next = $state.snapshot(draft) as OneOffDraft;
+		if (!typing) shown = next;
+	});
+	const rendered = $derived(frame && shown ? previewOf(shown, frame, { marks: true }) : null);
+
+	function typedInto(doc: Document) {
+		wordsDoc = doc;
+		wordsAt = null;
+		attachEditing(doc, editable && !saving, {
+			ontext(index, kind, text) {
+				const entry = sections[index];
+				if (entry && entry.section.kind === kind) entry.section.text = text;
+			},
+			onfocus(focus) {
+				wordsAt = focus;
+			},
+		});
+	}
 	const testReason = $derived(
 		oneOffTestBlocked({
 			saved: Boolean(email),
@@ -128,7 +159,8 @@
 		subject = source.subject;
 		previewText = source.previewText;
 		sections = editorSections(source.sections);
-		saved = draftOf(name, subject, previewText, sections);
+		// A copy: the draft's sections are the ones being edited, and the saved ones must not change with them.
+		saved = $state.snapshot(draftOf(name, subject, previewText, sections)) as OneOffDraft;
 	}
 
 	async function load(id: number, fresh: boolean) {
@@ -169,7 +201,7 @@
 		try {
 			if (isNew) {
 				const { email: made } = await createOneOffEmail(draft);
-				saved = draft;
+				saved = $state.snapshot(draft) as OneOffDraft;
 				toast.ok("Email saved as a draft.");
 				onchanged?.();
 				navigate(writePath(made.id), { replace: true, force: true });
@@ -178,7 +210,7 @@
 			const { email: next } = await saveOneOffEmail(emailId, draft);
 			email = next;
 			// Keep the editor's own sections (and their keys); only what was cleaned changes.
-			if (sameDraft(draftOf(next.name, next.subject, next.previewText, editorSections(next.sections)), draft)) saved = draft;
+			if (sameDraft(draftOf(next.name, next.subject, next.previewText, editorSections(next.sections)), draft)) saved = $state.snapshot(draft) as OneOffDraft;
 			else fill(next);
 			setCrumbLeaf(emailName(next) || "Email");
 			toast.ok("Email saved.");
@@ -451,12 +483,17 @@
 			</div>
 
 			<div class="preview">
+				{#snippet wordsBar()}
+					<WordsToolbar doc={wordsDoc} focus={wordsAt} {editable} bind:linking />
+				{/snippet}
 				<EmailPreview
+					toolbar={wordsBar}
 					title="Preview"
 					subtitle="As it arrives"
 					email={rendered}
 					blank="Nothing yet"
 					frameHeight="min(44rem, calc(100dvh - 21rem))"
+					onframe={typedInto}
 					note={frame ? `Links to ${frame.site.origin} · Gmail's fonts (Apple Mail shows the website's)` : ""}
 				/>
 			</div>

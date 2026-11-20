@@ -26,13 +26,14 @@ export function oneOffNotReady(email, kinds = SECTION_KINDS) {
  * @param {string} [frame.logoUrl]
  * @param {typeof MAILCHIMP_TAGS} [frame.tags]
  * @param {Record<string, import("./sections.js").SectionKind>} [frame.kinds]
+ * @param {boolean} [frame.marks] drawn for ops' editor: where each part came from, and empty words to type into (never for sending)
  * @returns {{ subject: string, preheader: string, html: string, text: string }}
  */
-export function renderOneOffEmail(email, { site, images, logoUrl, tags = MAILCHIMP_TAGS, kinds = SECTION_KINDS }) {
+export function renderOneOffEmail(email, { site, images, logoUrl, tags = MAILCHIMP_TAGS, kinds = SECTION_KINDS, marks = false }) {
   const subject = String(email?.subject ?? "").replace(/\s+/g, " ").trim();
   const preheader = String(email?.previewText ?? "").replace(/\s+/g, " ").trim();
   const sections = cleanSections(email?.sections, kinds);
-  const { rows, lines } = renderSections(sections, { site, images }, kinds);
+  const { rows, lines } = renderSections(sections, { site, images, marks }, kinds);
   const html = campaignHtml({ site, subject, preheader, rows, logoUrl, tags });
   const text = [...(subject ? [subject.toUpperCase(), ""] : []), ...lines, ...campaignFootText(site, tags)].join("\n");
   return { subject, preheader, html, text };
