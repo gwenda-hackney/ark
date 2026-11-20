@@ -25,27 +25,32 @@
 		onframe: (doc: Document) => void;
 	} = $props();
 
-	// The frame keeps its place while the email is drawn again under it.
+	// The frame is as tall as the email, so the mail head and the email scroll
+	// as one page; it keeps its height while the email is drawn again, so the
+	// page keeps its place.
 	let frameEl = $state<HTMLIFrameElement | null>(null);
-	let scrollTop = 0;
+	let watching: ResizeObserver | null = null;
 	const srcdoc = $derived(email ? previewDocument(email.html) : "");
-	$effect.pre(() => {
-		void srcdoc;
-		try {
-			scrollTop = frameEl?.contentWindow?.scrollY ?? scrollTop;
-		} catch {
-			// Not readable: it starts at the top.
-		}
-	});
-	function loaded() {
-		try {
-			if (scrollTop) frameEl?.contentWindow?.scrollTo(0, scrollTop);
-		} catch {
-			// Not readable: it stays at the top.
-		}
-		const doc = frameEl?.contentDocument;
-		if (doc) onframe(doc);
+
+	function fit(doc: Document) {
+		if (frameEl) frameEl.style.height = `${Math.ceil(doc.documentElement.scrollHeight)}px`;
 	}
+
+	function loaded() {
+		const doc = frameEl?.contentDocument;
+		if (!doc) return;
+		const still = doc.createElement("style");
+		still.textContent = "html, body { overflow: hidden !important; }";
+		doc.head.append(still);
+		fit(doc);
+		watching?.disconnect();
+		// Pictures arriving and typing make it taller or shorter.
+		watching = new ResizeObserver(() => fit(doc));
+		watching.observe(doc.body);
+		onframe(doc);
+	}
+
+	$effect(() => () => watching?.disconnect());
 </script>
 
 <div class="stage">
@@ -82,7 +87,8 @@
 		min-height: 0;
 		border-radius: var(--radius-md);
 		background: #1a1510;
-		overflow: hidden;
+		overflow-y: auto;
+		overflow-x: hidden;
 	}
 	/* A mail app's head over the message: who it's from, the subject, the line after it. */
 	.mail {
@@ -156,16 +162,18 @@
 		color: #8a8070;
 		font-style: italic;
 	}
+	.mail {
+		flex: none;
+	}
 	.frame {
-		flex: 1;
+		flex: none;
 		width: 100%;
 		max-width: 680px;
-		min-height: 0;
 	}
 	iframe {
 		display: block;
 		width: 100%;
-		height: 100%;
+		height: 40rem;
 		border: 0;
 	}
 	.blank {
