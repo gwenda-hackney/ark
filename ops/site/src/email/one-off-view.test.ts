@@ -111,7 +111,7 @@ describe("the one-off email editor (#348)", () => {
 			crop: false,
 			cells: [
 				{ kind: "logo", width: "medium" },
-				{ kind: "times", width: "small" },
+				{ kind: "words", text: "×", look: "big", width: "small" },
 				{ kind: "picture", assetId: "image-a-1x1-jpg", alt: "Pinsa", width: "medium" },
 			],
 		});

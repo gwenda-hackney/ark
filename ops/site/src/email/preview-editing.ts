@@ -352,8 +352,8 @@ export function removeLink(doc: Document) {
  * Shows which part is picked (and which of a Row's columns: -1 for none),
  * and which + is adding (each may be null), without drawing the email
  * again. The picked part gets its toolbar at its top right corner, outside
- * its words (so typing never meets it); a picked column gets it just above
- * the column.
+ * its words (so typing never meets it); a picked column is outlined (its
+ * settings are in the side panel).
  */
 export function showSelected(doc: Document, index: number | null, insertingAt: number | null, actions: PartAction[] = [], cell = -1) {
 	for (const row of Array.from(doc.querySelectorAll<HTMLElement>("tr[data-section]"))) {
@@ -409,19 +409,16 @@ export function showSelected(doc: Document, index: number | null, insertingAt: n
 	placeTools(doc);
 }
 
-/** The picked part's toolbar, at its top right corner, or above its picked column (again after it grows or the window changes). */
+/** The picked part's toolbar, at its top right corner (again after it grows or the window changes). */
 export function placeTools(doc: Document) {
 	const tools = doc.querySelector<HTMLElement>(".ops-tools");
 	const picked = doc.querySelector<HTMLElement>("tr.ops-selected");
 	if (!tools || !picked) return;
-	const column = picked.querySelector<HTMLElement>("td.ops-cell-picked");
-	const box = (column || picked).getBoundingClientRect();
+	const box = picked.getBoundingClientRect();
 	const view = doc.defaultView;
-	const room = doc.documentElement.clientWidth;
-	const top = box.top + (view?.scrollY ?? 0) - tools.offsetHeight - 8;
-	const left = column ? Math.min(box.left, room - tools.offsetWidth - 4) : box.right - tools.offsetWidth;
+	const top = box.top + (view?.scrollY ?? 0) - tools.offsetHeight - 6;
 	tools.style.top = `${Math.max(4, top)}px`;
-	tools.style.left = `${Math.max(4, left + (view?.scrollX ?? 0))}px`;
+	tools.style.left = `${Math.max(4, box.right - tools.offsetWidth + (view?.scrollX ?? 0))}px`;
 }
 
 /** The Bold button shows whether the typing is bold. */

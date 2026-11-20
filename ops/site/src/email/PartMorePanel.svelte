@@ -17,7 +17,7 @@
 		CELL_ITEMS,
 		CELL_WIDTH_ITEMS,
 		IMAGE_SIZE_ITEMS,
-		cellHolding,
+		WORDS_LOOK_ITEMS,
 		partName,
 		type EditorSection,
 	} from "./one-off-view";
@@ -32,6 +32,9 @@
 		onpicture,
 		onevent,
 		oncell,
+		cell = -1,
+		onpickcell,
+		onhold,
 	}: {
 		open: boolean;
 		onclose: () => void;
@@ -46,23 +49,23 @@
 		onevent: () => void;
 		/** A Row's cell `cell` is now `value`. */
 		oncell: (cell: number, value: RowCell) => void;
+		/** In a Row, the column picked in the email (-1: none yet, the first is shown). */
+		cell?: number;
+		/** Another column picked here. */
+		onpickcell: (cell: number) => void;
+		/** Column `cell` is to hold `kind` (a picture opens the chooser, words get the typing in the email). */
+		onhold: (cell: number, kind: RowCell["kind"]) => void;
 	} = $props();
 
 	const section = $derived(index >= 0 ? (sections[index]?.section ?? null) : null);
+	/** The Row's column shown: the one picked, else the first. */
+	const column = $derived(section?.kind === "row" ? Math.min(Math.max(cell, 0), section.cells.length - 1) : 0);
 
 
 	/** It slides in from the right, and out again; on a phone, up from the bottom. */
 	function slide(node: Element) {
 		const phone = typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches;
 		return fly(node, phone ? { y: 400, duration: 240, easing: cubicOut, opacity: 1 } : { x: 420, duration: 240, easing: cubicOut, opacity: 1 });
-	}
-
-	/** What column `cell` holds changes; it keeps its size. */
-	function cellKind(cell: number, kind: string) {
-		const was = section?.kind === "row" ? section.cells[cell] : null;
-		if (!was || was.kind === kind) return;
-		oncell(cell, cellHolding(was, kind as RowCell["kind"]));
-		if (kind === "picture") onpicture(cell);
 	}
 
 	function cellCount(count: number) {
@@ -113,26 +116,40 @@
 							ariaLabel="Pictures' shape"
 						/>
 					</Field>
-					<p class="hint">Drag a column's picture onto another column in the email to swap them. Words are typed in the email.</p>
-					{#each section.cells as cell, at (at)}
+					<Field label="Column">
+						<Segmented
+							bind:value={() => String(column), (at) => onpickcell(Number(at))}
+							items={section.cells.map((_, at) => ({ id: String(at), label: `Column ${at + 1}` }))}
+							tone="soft"
+							ariaLabel="Which column"
+						/>
+					</Field>
+					{#each [section.cells[column]] as picked (column)}
 						<div class="cell">
-							<p class="cell-name">Column {at + 1}</p>
 							<Field label="Holds">
-								<Segmented bind:value={() => cell.kind, (kind) => cellKind(at, kind)} items={CELL_ITEMS} tone="soft" ariaLabel={`Column ${at + 1} holds`} />
+								<Segmented bind:value={() => picked.kind, (kind) => onhold(column, kind as RowCell["kind"])} items={CELL_ITEMS} tone="soft" ariaLabel={`Column ${column + 1} holds`} />
 							</Field>
-							<Field label="Width">
-								<Segmented bind:value={() => cell.width, (width) => oncell(at, { ...cell, width } as RowCell)} items={CELL_WIDTH_ITEMS} tone="soft" ariaLabel={`Column ${at + 1} width`} />
+							<Field label="Width" hint="Small, Medium and Large are set sizes; Fill shares what's left.">
+								<Segmented bind:value={() => picked.width, (width) => oncell(column, { ...picked, width } as RowCell)} items={CELL_WIDTH_ITEMS} tone="soft" ariaLabel={`Column ${column + 1} width`} />
 							</Field>
-							{#if cell.kind === "picture"}
-								<Button size="sm" variant="outline" busy={uploading} onclick={() => onpicture(at)}>
-									{#snippet icon()}<Icon name="upload" size={14} />{/snippet}{cell.assetId ? "Change picture" : "Choose a picture"}
+							{#if picked.kind === "picture"}
+								<Button size="sm" variant="outline" busy={uploading} onclick={() => onpicture(column)}>
+									{#snippet icon()}<Icon name="upload" size={14} />{/snippet}{picked.assetId ? "Change picture" : "Choose a picture"}
 								</Button>
-								<Field label="What it shows" for={`side-cell-${at}`}>
-									<TextField id={`side-cell-${at}`} value={cell.alt} oninput={(event) => oncell(at, { ...cell, alt: event.currentTarget.value })} maxlength={300} />
+								<Field label="What it shows" for="side-cell-alt">
+									<TextField id="side-cell-alt" value={picked.alt} oninput={(event) => oncell(column, { ...picked, alt: event.currentTarget.value })} maxlength={300} />
+								</Field>
+							{:else if picked.kind === "words"}
+								<Field label="Words" for="side-cell-words" hint="Or type them in the email.">
+									<TextField id="side-cell-words" value={picked.text} oninput={(event) => oncell(column, { ...picked, text: event.currentTarget.value })} maxlength={200} placeholder="×" />
+								</Field>
+								<Field label="Look">
+									<Segmented bind:value={() => picked.look, (look) => oncell(column, { ...picked, look } as RowCell)} items={WORDS_LOOK_ITEMS} tone="soft" ariaLabel={`Column ${column + 1} words look`} />
 								</Field>
 							{/if}
 						</div>
 					{/each}
+					<p class="hint">Click a column in the email to change it here. Drag a column's picture onto another column to swap them.</p>
 				{:else if section.kind === "button"}
 					<Field label="Words on it" for="side-label">
 						<TextField id="side-label" value={section.label} oninput={(event) => onchange({ label: event.currentTarget.value })} maxlength={40} placeholder="See the menu" />
@@ -204,11 +221,6 @@
 		padding: var(--space-2);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-	}
-	.cell-name {
-		margin: 0;
-		font-weight: 600;
-		font-size: var(--text-sm);
 	}
 	.hint {
 		margin: 0;

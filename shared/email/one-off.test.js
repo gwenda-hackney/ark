@@ -202,23 +202,29 @@ describe("drawn for ops' editor (marks)", () => {
     expect(rowWidths(cells("medium", "small", "medium"))).toEqual([150, 90, 150]);
     expect(rowWidths(cells("small", "fill", "fill"))).toEqual([90, 223, 223]);
     expect(rowWidths(cells("large", "large", "large"))).toEqual([178, 178, 178]);
-    const html = render([{ kind: "row", cells: [{ kind: "logo", width: "medium" }, { kind: "times", width: "small" }, { kind: "words", text: "Pinsa A Roma", width: "medium" }] }]).html;
-    expect(html).toMatch(/<table[^>]*align="center"[^>]*><tr><td width="150"[^>]*><img src="[^"]+\/brand\/logo-email-social\.png" width="150" alt="Gwenda"[^>]*><\/td><td width="90"[^>]*>&times;<\/td><td width="150"[^>]*><p[^>]*>Pinsa A Roma<\/p>/);
+    const html = render([
+      { kind: "row", cells: [{ kind: "logo", width: "medium" }, { kind: "words", text: "×", look: "big", width: "small" }, { kind: "words", text: "Pinsa A Roma", width: "medium" }] },
+    ]).html;
+    expect(html).toMatch(
+      /<table[^>]*align="center"[^>]*><tr><td width="150"[^>]*><img src="[^"]+\/brand\/logo-email-social\.png" width="150" alt="Gwenda"[^>]*><\/td><td width="90"[^>]*><p style="[^"]*font-size:30px[^"]*#dba63c[^"]*">×<\/p><\/td><td width="150"[^>]*><p style="[^"]*font-size:17px[^"]*">Pinsa A Roma<\/p>/,
+    );
     const words = [{ kind: "row", cells: [{ kind: "words", text: "Hi" }, { kind: "empty" }] }];
     expect(render(words).html).not.toContain("data-edit");
     expect(renderOneOffEmail({ subject: "S", sections: words }, { site, images, marks: true }).html).toMatch(/<td[^>]*data-cell="0"[^>]*><p data-edit="cell"[^>]*>Hi<\/p>/);
   });
 
-  it("a row saved before columns had sizes keeps its look: a lockup Medium × Small × Medium, photos Fill", () => {
+  it("a row saved before columns had sizes keeps its look: a lockup Medium, Small, Medium, its × big gold words; photos Fill", () => {
     const lockup = SECTION_KINDS.row.clean({ cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: ASSET, alt: "Pinsa A Roma" }] });
     expect(lockup.cells.map((cell) => cell.width)).toEqual(["medium", "small", "medium"]);
+    expect(lockup.cells[1]).toEqual({ kind: "words", text: "×", look: "big", width: "small" });
     expect(render([lockup]).text).toContain("GWENDA × [Pinsa A Roma]");
     expect(SECTION_KINDS.row.clean({ cells: [{ kind: "picture", assetId: ASSET }, { kind: "empty" }] }).cells.map((cell) => cell.width)).toEqual(["fill", "fill"]);
   });
 
   it("a row keeps two or three cells, each a known kind", () => {
     expect(SECTION_KINDS.row.clean({ cells: [{ kind: "logo" }] }).cells).toEqual([{ kind: "logo", width: "medium" }, { kind: "empty", width: "medium" }]);
-    expect(SECTION_KINDS.row.clean({ cells: [1, 2, 3, 4].map(() => ({ kind: "times" })) }).cells).toHaveLength(3);
+    expect(SECTION_KINDS.row.clean({ cells: [1, 2, 3, 4].map(() => ({ kind: "logo" })) }).cells).toHaveLength(3);
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "words", text: "Hi", look: "huge" }] }).cells[0]).toEqual({ kind: "words", text: "Hi", look: "plain", width: "fill" });
     expect(SECTION_KINDS.row.clean({ cells: [{ kind: "script" }, { kind: "picture", assetId: ASSET, extra: 1, width: "huge" }] }).cells).toEqual([
       { kind: "empty", width: "fill" },
       { kind: "picture", assetId: ASSET, alt: "", width: "fill" },

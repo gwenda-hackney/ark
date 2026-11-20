@@ -8,7 +8,7 @@ export const ONE_OFF_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Adding something",
-		body: "Press a + between two parts of the email to add something there: a Picture (one of our photos, or upload one), a Heading, Text, a Row (two or three columns side by side, each holding a picture, our logo, a few words or a ×), an Event (a night, deal or pop-up from What's on, as the monthly email shows it), a Button, a Divider line, or Book a table.",
+		body: "Press a + between two parts of the email to add something there: a Picture (one of our photos, or upload one), a Heading, Text, a Row (two or three columns side by side, each holding a picture, our logo or a few words; a × between two logos is words, big and gold), an Event (a night, deal or pop-up from What's on, as the monthly email shows it), a Button, a Divider line, or Book a table.",
 	},
 	{
 		title: "More",

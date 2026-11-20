@@ -164,12 +164,13 @@ export function getEventCards() {
 
 /** How wide a Row's column is: a fixed width, or Fill (a share of what's left). */
 export type CellWidth = "small" | "medium" | "large" | "fill";
-/** One column of a Row: a picture, our logo, a few words, a ×, or nothing yet; and how wide it is. */
+/** How a Row column's words look: as the email's text, or big and gold (the × between two logos). */
+export type WordsLook = "plain" | "big";
+/** One column of a Row: a picture, our logo, a few words, or nothing yet; and how wide it is. */
 export type RowCell = (
 	| { kind: "picture"; assetId: string; alt: string }
-	| { kind: "words"; text: string }
+	| { kind: "words"; text: string; look: WordsLook }
 	| { kind: "logo" }
-	| { kind: "times" }
 	| { kind: "empty" }
 ) & { width: CellWidth };
 

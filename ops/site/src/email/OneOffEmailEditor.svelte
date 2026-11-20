@@ -63,8 +63,6 @@
 		emailName,
 		editorSections,
 		cellHolding,
-		CELL_ITEMS,
-		CELL_WIDTH_ITEMS,
 		insertSection,
 		moveSectionTo,
 		partName,
@@ -180,18 +178,8 @@
 				return [{ id: "bold", label: "Bold" }, words?.inLink ? { id: "unlink", label: "Remove link" } : { id: "link", label: "Link" }, remove];
 			case "image":
 				return [{ id: "picture", label: section.assetId ? "Change picture" : "Choose picture" }, { id: "settings", label: "⋯ More" }, remove];
-			case "row": {
-				const cell = section.cells[selectedCell];
-				if (!cell) return [{ id: "settings", label: "⋯ More" }, remove];
-				// A column picked: what it holds and how wide it is, right there.
-				return [
-					...CELL_ITEMS.map((item) => ({ id: `cell-kind:${item.id}`, label: item.label, group: "Holds", pressed: cell.kind === item.id })),
-					...CELL_WIDTH_ITEMS.map((item) => ({ id: `cell-width:${item.id}`, label: item.label, group: "Width", pressed: cell.width === item.id })),
-					...(cell.kind === "picture" ? [{ id: "cell-picture", label: cell.assetId ? "Change picture" : "Choose picture" }] : []),
-					{ id: "settings", label: "⋯ More" },
-					{ id: "remove", label: "Remove row" },
-				];
-			}
+			case "row":
+				return [{ id: "settings", label: "⋯ More" }, remove];
 			case "button":
 				return [{ id: "settings", label: "⋯ More" }, remove];
 			case "event":
@@ -222,24 +210,20 @@
 		else if (action === "picture" && selectedKey) choosingFor = { key: selectedKey, slot: 0 };
 		else if (action === "event" && selectedKey) eventFor = selectedKey;
 		else if (action === "settings") settingsOpen = true;
-		else if (action.startsWith("cell-kind:")) holdInCell(action.slice("cell-kind:".length) as RowCell["kind"]);
-		else if (action.startsWith("cell-width:") && selected?.section.kind === "row") {
-			const cell = selected.section.cells[selectedCell];
-			if (cell) setCell(selectedCell, { ...cell, width: action.slice("cell-width:".length) } as RowCell);
-		} else if (action === "cell-picture" && selectedKey) choosingFor = { key: selectedKey, slot: selectedCell };
 		else if (action === "remove") removeSelected();
 	}
 
-	/** The picked column holds `kind` now: a picture opens the chooser, words get the typing. */
-	function holdInCell(kind: RowCell["kind"]) {
+	/** The picked Row's column `at` holds `kind` now: a picture opens the chooser, words get the typing. */
+	function holdInCell(at: number, kind: RowCell["kind"]) {
 		const entry = selected;
-		const cell = entry?.section.kind === "row" ? entry.section.cells[selectedCell] : null;
+		const cell = entry?.section.kind === "row" ? entry.section.cells[at] : null;
 		if (!entry || !cell || cell.kind === kind) return;
-		setCell(selectedCell, cellHolding(cell, kind));
-		if (kind === "picture") choosingFor = { key: entry.key, slot: selectedCell };
+		selectedCell = at;
+		setCell(at, cellHolding(cell, kind));
+		if (kind === "picture") choosingFor = { key: entry.key, slot: at };
 		if (kind === "words") {
 			focusKey = entry.key;
-			focusCell = selectedCell;
+			focusCell = at;
 		}
 	}
 
@@ -274,6 +258,8 @@
 			onselect(index, cell) {
 				selectedKey = sections[index]?.key ?? null;
 				selectedCell = cell;
+				// A Row's column clicked: its settings slide in beside the email.
+				if (cell >= 0 && sections[index]?.section.kind === "row") settingsOpen = true;
 				insertingAt = null;
 			},
 			oninsert(at) {
@@ -314,8 +300,9 @@
 		sections = added.list;
 		insertingAt = null;
 		selectedKey = added.key;
-		// A new Row's first column is picked, its choices on show.
+		// A new Row's first column is picked, its settings beside the email.
 		selectedCell = kind === "row" ? 0 : -1;
+		if (kind === "row") settingsOpen = true;
 		if (kind === "heading" || kind === "copy") focusKey = added.key;
 		if (kind === "image") choosingFor = { key: added.key, slot: 0 };
 		if (kind === "event") eventFor = added.key;
@@ -701,6 +688,9 @@
 	onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
 	onevent={() => (eventFor = selectedKey)}
 	oncell={setCell}
+	cell={selectedCell}
+	onpickcell={(at) => (selectedCell = at)}
+	onhold={holdInCell}
 />
 <AddPartDialog open={insertingAt !== null} onclose={() => (insertingAt = null)} onchoose={choose} />
 <LinkDialog

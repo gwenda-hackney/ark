@@ -212,51 +212,66 @@ test("a button's words, address and look are in its Settings; an empty one says 
 	await expect.poll(() => lastSections(saves)?.[3]).toEqual({ kind: "button", label: "See the menu", link: "https://gwenda.co.uk/menu", look: "link" });
 });
 
-test("a Row: each column is clicked and changed where it is (what it holds, its width, its words); dragged onto another, they swap and keep their widths", async ({ page }) => {
+test("a Row: clicking a column opens its settings beside the email (what it holds, its width, its words' look); dragged onto another, they swap and keep their widths", async ({ page }) => {
 	const { saves, preview } = await open(page);
 	await addAt(page, 1, /^Row/);
 	await expect(preview.locator('tr[data-section="1"] td[data-cell] [data-waiting]')).toHaveCount(3);
-	// The new Row's first column is picked: its choices are on a toolbar on it, in the email.
-	await expect(preview.locator('[role="toolbar"][aria-label="Column 1"]')).toBeVisible();
-	await tool(page, "cell-kind:picture").click();
+	// The new Row's first column is picked, its settings already beside the email.
+	const box = page.getByRole("complementary", { name: /: more$/ });
+	await box.getByRole("tablist", { name: "Column 1 holds" }).getByRole("tab", { name: "Picture" }).click();
 	await page.getByRole("dialog", { name: "Choose a picture" }).getByRole("button", { name: "The bar at night" }).click();
-	// Clicking a column picks it.
+
+	// Clicking a column in the email picks it, there and in the settings.
 	await preview.locator('tr[data-section="1"] td[data-cell="1"]').click();
 	await expect(preview.locator('tr[data-section="1"] td[data-cell="1"]')).toHaveClass(/ops-cell-picked/);
-	await tool(page, "cell-kind:logo").click();
-	await tool(page, "cell-width:small").click();
-	await expect(tool(page, "cell-width:small")).toHaveAttribute("aria-pressed", "true");
-	await preview.locator('tr[data-section="1"] td[data-cell="2"]').click();
-	await tool(page, "cell-kind:words").click();
-	await expect(preview.locator('tr[data-section="1"] img')).toHaveCount(2);
+	await box.getByRole("tablist", { name: "Column 2 holds" }).getByRole("tab", { name: "Words" }).click();
+	await box.getByLabel("Words", { exact: true }).fill("×");
+	await box.getByRole("tablist", { name: "Column 2 words look" }).getByRole("tab", { name: "Big gold" }).click();
+	await box.getByRole("tablist", { name: "Column 2 width" }).getByRole("tab", { name: "Small" }).click();
 	await expect(preview.locator('tr[data-section="1"] td[data-cell="1"]')).toHaveAttribute("width", "90");
 
-	// Words: the typing goes straight into the column.
-	await expect(preview.locator('tr[data-section="1"] p[data-edit="cell"]')).toBeFocused();
+	// Words typed straight into a column, too.
+	await preview.locator('tr[data-section="1"] td[data-cell="2"]').click();
+	await box.getByRole("tablist", { name: "Column 3 holds" }).getByRole("tab", { name: "Words" }).click();
+	await expect(preview.locator('tr[data-section="1"] td[data-cell="2"] p[data-edit="cell"]')).toBeFocused();
 	await page.keyboard.type("Pinsa A Roma");
 	await page.keyboard.press("Enter");
 
-	await drag(page, 'tr[data-section="1"] td[data-cell="0"]', 'tr[data-section="1"] td[data-cell="1"]');
+	await drag(page, 'tr[data-section="1"] td[data-cell="0"]', 'tr[data-section="1"] td[data-cell="2"]');
 	await save(page);
 	await expect.poll(() => lastSections(saves)?.[1]).toEqual({
 		kind: "row",
 		crop: false,
 		cells: [
-			{ kind: "logo", width: "fill" },
-			{ kind: "picture", assetId: "image-aaa111-1600x1200-jpg", alt: "The bar at night", width: "small" },
-			{ kind: "words", text: "Pinsa A Roma", width: "fill" },
+			{ kind: "words", text: "Pinsa A Roma", look: "plain", width: "fill" },
+			{ kind: "words", text: "×", look: "big", width: "small" },
+			{ kind: "picture", assetId: "image-aaa111-1600x1200-jpg", alt: "The bar at night", width: "fill" },
 		],
 	});
 });
 
-test("a picture made \"Gwenda ×\" before Rows opens as a Row: our logo, ×, the picture, at a lockup's widths", async ({ page }) => {
+test("a picture made \"Gwenda ×\" before Rows opens as a Row: our logo, a big gold ×, the picture, at a lockup's widths", async ({ page }) => {
 	const { preview } = await open(page, { ...DRAFT, sections: [{ kind: "image", assetId: "image-abc-10x10-jpg", alt: "Pinsa A Roma", size: "collab" }] });
 	await expect(preview.locator('tr[data-section="0"] td[data-cell]')).toHaveCount(3);
-	await preview.locator('tr[data-section="0"]').click();
-	const box = await settings(page);
-	await expect(box.getByRole("tablist", { name: "Column 1 holds" }).getByRole("tab", { name: "Our logo" })).toHaveAttribute("aria-selected", "true");
+	await preview.locator('tr[data-section="0"] td[data-cell="1"]').click();
+	const box = page.getByRole("complementary", { name: /: more$/ });
+	await expect(box.getByRole("tablist", { name: "Column 2 holds" }).getByRole("tab", { name: "Words" })).toHaveAttribute("aria-selected", "true");
+	await expect(box.getByRole("tablist", { name: "Column 2 words look" }).getByRole("tab", { name: "Big gold" })).toHaveAttribute("aria-selected", "true");
 	await expect(box.getByRole("tablist", { name: "Column 2 width" }).getByRole("tab", { name: "Small" })).toHaveAttribute("aria-selected", "true");
-	await expect(box.getByRole("tablist", { name: "Column 3 holds" }).getByRole("tab", { name: "Picture" })).toHaveAttribute("aria-selected", "true");
+	await box.getByRole("tablist", { name: "Which column" }).getByRole("tab", { name: "Column 1" }).click();
+	await expect(box.getByRole("tablist", { name: "Column 1 holds" }).getByRole("tab", { name: "Our logo" })).toHaveAttribute("aria-selected", "true");
+	await expect(preview.locator('tr[data-section="0"] td[data-cell="0"]')).toHaveClass(/ops-cell-picked/);
+});
+
+test("a Row saved with a × of its own and no widths opens: the × is big gold words", async ({ page }) => {
+	const { preview } = await open(page, {
+		...DRAFT,
+		sections: [{ kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "words", text: "Pinsa" }] }] as never,
+	});
+	await preview.locator('tr[data-section="0"] td[data-cell="1"]').click();
+	const box = page.getByRole("complementary", { name: /: more$/ });
+	await expect(box.getByRole("tablist", { name: "Column 2 words look" }).getByRole("tab", { name: "Big gold" })).toHaveAttribute("aria-selected", "true");
+	await expect(preview.locator('tr[data-section="0"] td[data-cell="1"]')).toHaveText("×");
 });
 
 test("a dropped part moves in place: the email isn't loaded again, its pictures stay as they were", async ({ page }) => {

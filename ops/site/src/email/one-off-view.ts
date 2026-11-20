@@ -4,7 +4,7 @@
  * moves, the status badge, the preview built from the shared renderer.
  */
 import { oneOffNotReady, renderOneOffEmail } from "../../../../shared/email/one-off.js";
-import { SECTION_KINDS } from "../../../../shared/email/sections.js";
+import { SECTION_KINDS, cleanSections } from "../../../../shared/email/sections.js";
 import type { EmailFrame, OneOffDraft, OneOffSection, OneOffStatus, RowCell } from "./email-api";
 import type { StatusTone } from "./email-view";
 import { movedTo } from "../ui/drag-reorder";
@@ -39,8 +39,13 @@ export const CELL_ITEMS = [
 	{ id: "picture", label: "Picture" },
 	{ id: "logo", label: "Our logo" },
 	{ id: "words", label: "Words" },
-	{ id: "times", label: "×" },
 	{ id: "empty", label: "Nothing" },
+] as const;
+
+/** How a column's words look, for their switch. */
+export const WORDS_LOOK_ITEMS = [
+	{ id: "plain", label: "Plain" },
+	{ id: "big", label: "Big gold" },
 ] as const;
 
 /** A column made to hold `kind` instead; it keeps its width (and a picture its description, if it stays one). */
@@ -48,7 +53,7 @@ export function cellHolding(cell: RowCell, kind: RowCell["kind"]): RowCell {
 	if (cell.kind === kind) return cell;
 	const width = cell.width;
 	if (kind === "picture") return { kind, assetId: "", alt: "", width };
-	if (kind === "words") return { kind, text: "", width };
+	if (kind === "words") return { kind, text: "", look: "plain", width };
 	return { kind, width };
 }
 
@@ -82,9 +87,9 @@ export function blankSection(kind: SectionKind): OneOffSection {
 }
 
 export function editorSections(sections: OneOffSection[]): EditorSection[] {
-	// A button saved before it had a look is a link; an image saved before it had a size is full width.
-	return sections.map((section) => {
-		if (section.kind === "button") return keyed({ ...section, look: section.look === "outline" ? "outline" : "link" });
+	// Each part as the server keeps it (shared/email/sections.js): whatever shape it was saved in
+	// (a Row's × before words had looks, a picture before it had a size), it opens in today's.
+	return (cleanSections(sections) as OneOffSection[]).map((section) => {
 		// "Gwenda ×" was a picture's size; it's a Row now: our logo, ×, the picture.
 		if (section.kind === "image" && section.size === "collab") {
 			return keyed({
@@ -92,15 +97,12 @@ export function editorSections(sections: OneOffSection[]): EditorSection[] {
 				crop: false,
 				cells: [
 					{ kind: "logo", width: "medium" },
-					{ kind: "times", width: "small" },
+					{ kind: "words", text: "×", look: "big", width: "small" },
 					{ kind: "picture", assetId: section.assetId, alt: section.alt, width: "medium" },
 				],
 			});
 		}
-		if (section.kind === "image") return keyed({ ...section, size: section.size === "logo" ? "logo" : "full" });
-		// Rows come cleaned by the server (shared/email/sections.js), sizes and all.
-		if (section.kind === "row") return keyed({ kind: "row", crop: Boolean(section.crop), cells: section.cells.map((cell) => ({ ...cell })) });
-		return keyed({ ...section });
+		return keyed(section);
 	});
 }
 
@@ -143,7 +145,7 @@ export function partSummary(section: OneOffSection): string {
 		case "row":
 			return section.cells
 				.map((cell) =>
-					cell.kind === "logo" ? "Our logo" : cell.kind === "times" ? "×" : cell.kind === "picture" ? cell.alt || "Picture" : cell.kind === "words" ? cell.text || "Words" : "Empty",
+					cell.kind === "logo" ? "Our logo" : cell.kind === "picture" ? cell.alt || "Picture" : cell.kind === "words" ? cell.text || "Words" : "Empty",
 				)
 				.join(" · ");
 		case "button":

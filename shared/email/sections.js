@@ -75,14 +75,17 @@ const insertRow = (at) => `<tr data-insert="${at}"><td style="padding:0 40px;"><
 
 /**
  * A Row: two or three columns side by side, each holding whatever's wanted
- * (a picture, our logo, a few words, a ×, or nothing), each as wide as it's
- * set: Small, Medium or Large at a fixed width, or Fill, sharing what's
- * left. "Gwenda × Pinsa A Roma" is a Row (our logo, Medium; ×, Small; their
- * logo, Medium), and so are three photos side by side (each Fill).
+ * (a picture, our logo, a few words, or nothing), each as wide as it's set:
+ * Small, Medium or Large at a fixed width, or Fill, sharing what's left.
+ * Words are plain, or big and gold. "Gwenda × Pinsa A Roma" is a Row (our
+ * logo, Medium; "×" in big gold, Small; their logo, Medium), and so are
+ * three photos side by side (each Fill).
  */
 export const ROW_CELLS_MIN = 2;
 export const ROW_CELLS_MAX = 3;
-export const CELL_KINDS = ["picture", "logo", "words", "times", "empty"];
+export const CELL_KINDS = ["picture", "logo", "words", "empty"];
+/** How a column's words look: as the email's text, or big and gold (the × between two logos). */
+export const WORDS_LOOKS = ["plain", "big"];
 /** How wide a column is: a fixed width, or a share of what the others leave. */
 export const CELL_WIDTHS = ["small", "medium", "large", "fill"];
 const FIXED_WIDTH = { small: 90, medium: 150, large: 240 };
@@ -97,10 +100,12 @@ function defaultWidth(kind, lockup) {
 }
 
 function cleanCell(raw, lockup) {
+  const width = CELL_WIDTHS.includes(raw?.width) ? raw.width : defaultWidth(raw?.kind, lockup);
+  // A × was a kind of its own before words had looks: it's words now, "×" big and gold.
+  if (raw?.kind === "times") return { kind: "words", text: "×", look: "big", width };
   const kind = CELL_KINDS.includes(raw?.kind) ? raw.kind : "empty";
-  const width = CELL_WIDTHS.includes(raw?.width) ? raw.width : defaultWidth(kind, lockup);
   if (kind === "picture") return { kind, assetId: line(raw?.assetId, 200), alt: line(raw?.alt, 300), width };
-  if (kind === "words") return { kind, text: line(raw?.text, 200), width };
+  if (kind === "words") return { kind, text: line(raw?.text, 200), look: WORDS_LOOKS.includes(raw?.look) ? raw.look : "plain", width };
   return { kind, width };
 }
 
@@ -126,10 +131,13 @@ function rowHtml(cells, { images, site, marks, crop } = {}) {
     if (cell.kind === "logo") {
       return `<img src="${esc(emailLogoUrl(site?.origin))}" width="${width}" alt="Gwenda" style="display:block;width:100%;max-width:${width}px;height:auto;border:0;margin:0 auto;">`;
     }
-    if (cell.kind === "times") return "&times;";
     if (cell.kind === "words") {
       const attrs = marks ? ` data-edit="cell" data-placeholder="Type here"` : "";
-      return `<p${attrs} style="margin:0;font-family:${FONTS.slab};font-size:17px;line-height:1.4;color:${COLOURS.ink};text-align:center;">${esc(cell.text)}</p>`;
+      const look =
+        cell.look === "big"
+          ? `font-family:Georgia,serif;font-size:30px;line-height:1;color:${COLOURS.mustard};`
+          : `font-family:${FONTS.slab};font-size:17px;line-height:1.4;color:${COLOURS.ink};`;
+      return `<p${attrs} style="margin:0;${look}text-align:center;">${esc(cell.text)}</p>`;
     }
     if (cell.kind === "picture" && cell.assetId) {
       return emailPicture({ url: sectionImageUrl(cell.assetId, images), whole: !crop, alt: cell.alt }, width, { fluid: true });
@@ -139,8 +147,7 @@ function rowHtml(cells, { images, site, marks, crop } = {}) {
   const tds = cells.map((cell, index) => {
     const width = widths[index];
     const pad = `padding-left:${index ? ROW_GAP / 2 : 0}px;padding-right:${index < cells.length - 1 ? ROW_GAP / 2 : 0}px;`;
-    const look = cell.kind === "times" ? `font-family:Georgia,serif;font-size:30px;line-height:1;color:${COLOURS.mustard};` : "";
-    return `<td width="${width}" valign="middle" align="center"${marks ? ` data-cell="${index}"` : ""} style="width:${width}px;${pad}${look}">${drawn(cell, width)}</td>`;
+    return `<td width="${width}" valign="middle" align="center"${marks ? ` data-cell="${index}"` : ""} style="width:${width}px;${pad}">${drawn(cell, width)}</td>`;
   });
   const table = fills ? ' width="100%"' : ' align="center"';
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"${table} style="border-collapse:collapse;${fills ? "width:100%;" : "margin:0 auto;"}"><tr>${tds.join("")}</tr></table>`;
@@ -286,7 +293,7 @@ export const SECTION_KINDS = {
     text: (section) => [
       section.cells
         .map((cell) =>
-          cell.kind === "logo" ? "GWENDA" : cell.kind === "times" ? "×" : cell.kind === "words" ? cell.text : cell.kind === "picture" && cell.assetId ? `[${cell.alt || "picture"}]` : "",
+          cell.kind === "logo" ? "GWENDA" : cell.kind === "words" ? cell.text : cell.kind === "picture" && cell.assetId ? `[${cell.alt || "picture"}]` : "",
         )
         .filter(Boolean)
         .join(" "),
