@@ -17,14 +17,13 @@
 		focusWords,
 		keepSelection,
 		removeLink,
-		scrollToPart,
 		showBold,
 		showSelected,
 		toggleBold,
 		type PartAction,
 		type WordsFocus,
 	} from "./preview-editing";
-	import EmailSidePanel from "./EmailSidePanel.svelte";
+	import EmailSettings from "./EmailSettings.svelte";
 	import EmailCanvas from "./EmailCanvas.svelte";
 	import AddPartDialog from "./AddPartDialog.svelte";
 	import LinkDialog from "./LinkDialog.svelte";
@@ -149,8 +148,8 @@
 	let focusKey: string | null = null;
 	const selectedIndex = $derived(selectedKey ? sections.findIndex((entry) => entry.key === selectedKey) : -1);
 	const selected = $derived(selectedIndex >= 0 ? sections[selectedIndex] : null);
-	/** More: the side nav, open only when asked for. */
-	let moreOpen = $state(false);
+	/** The width the email is seen at. */
+	let width = $state("desktop");
 	/** The words a link is being made of, kept while its address is typed. */
 	let linkFrom: Range | null = null;
 
@@ -158,17 +157,13 @@
 	function actionsFor(section: OneOffSection | null, words: WordsFocus | null): PartAction[] {
 		if (!section || !editable) return [];
 		const remove = { id: "remove", label: "Remove" };
-		const more = { id: "more", label: "⋯ More" };
 		switch (section.kind) {
 			case "copy":
 				return [{ id: "bold", label: "Bold" }, words?.inLink ? { id: "unlink", label: "Remove link" } : { id: "link", label: "Link" }, remove];
 			case "image":
-				return [{ id: "picture", label: section.assetId ? "Change picture" : "Choose picture" }, more, remove];
+				return [{ id: "picture", label: section.assetId ? "Change picture" : "Choose picture" }, remove];
 			case "event":
 				return [{ id: "event", label: section.title ? "Change event" : "Choose event" }, remove];
-			case "row":
-			case "button":
-				return [more, remove];
 			default:
 				return [remove];
 		}
@@ -194,7 +189,6 @@
 		} else if (action === "unlink") removeLink(doc);
 		else if (action === "picture" && selectedKey) choosingFor = { key: selectedKey, slot: 0 };
 		else if (action === "event" && selectedKey) eventFor = selectedKey;
-		else if (action === "more") moreOpen = true;
 		else if (action === "remove") removeSelected();
 	}
 
@@ -253,13 +247,6 @@
 		if (kind === "heading" || kind === "copy") focusKey = added.key;
 		if (kind === "image") choosingFor = { key: added.key, slot: 0 };
 		if (kind === "event") eventFor = added.key;
-	}
-
-	/** Picks a part from the list beside the email, and brings it into view. */
-	function pickPart(index: number) {
-		selectedKey = sections[index]?.key ?? null;
-		insertingAt = null;
-		if (wordsDoc) scrollToPart(wordsDoc, index);
 	}
 
 	function setCell(cell: number, value: RowCell) {
@@ -559,6 +546,7 @@
 	busy={saving}
 	{kicker}
 	{heading}
+	rename={error || loading ? undefined : { value: name, placeholder: subject || "Name this email", label: "The email's name (ops only; the list never sees it)", maxlength: 80, disabled: !editable, onchange: (value) => (name = value) }}
 	placeholder={!emailName({ name, subject })}
 	{subtitle}
 	actions={{
@@ -591,7 +579,20 @@
 		<div class="tab-body"><Skeleton rows={5} lines={1} label="Loading the email…" /></div>
 	{:else}
 		<div class="tab-body editing">
-			<EmailCanvas email={rendered} bind:subject bind:previewText {editable} onframe={typedInto} onmore={() => (moreOpen = true)} />
+			<EmailCanvas email={rendered} {width} onframe={typedInto} />
+			<EmailSettings
+				{editable}
+				bind:subject
+				bind:previewText
+				bind:width
+				{sections}
+				index={selectedIndex}
+				uploading={Boolean(selected && uploading === selected.key)}
+				onchange={changeSelected}
+				onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
+				onevent={() => (eventFor = selectedKey)}
+				oncell={setCell}
+			/>
 		</div>
 	{/if}
 </EditorShell>
@@ -624,20 +625,6 @@
 
 <HelpDrawer {help} />
 
-<EmailSidePanel
-	open={moreOpen}
-	{editable}
-	bind:name
-	{sections}
-	index={selectedIndex}
-	uploading={Boolean(selected && uploading === selected.key)}
-	onclose={() => (moreOpen = false)}
-	onpick={pickPart}
-	onchange={changeSelected}
-	onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
-	onevent={() => (eventFor = selectedKey)}
-	oncell={setCell}
-/>
 <AddPartDialog open={insertingAt !== null} onclose={() => (insertingAt = null)} onchoose={choose} />
 <LinkDialog
 	open={linking}
@@ -655,17 +642,23 @@
 		position: relative;
 		padding: 1rem var(--card-pad-lg) var(--card-pad-lg);
 	}
-	/* The email takes all the room the editor's card has. */
+	/* Half the page is the email, the full height of the card; the other half its settings. */
 	.tab-body.editing {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: var(--space-5, 1.5rem);
 		height: max(30rem, calc(100dvh - 15.5rem));
-		padding: var(--space-2) var(--space-3) var(--space-3);
+		padding: var(--space-3) var(--card-pad-lg) var(--space-3) var(--space-3);
 	}
 	@media (max-width: 900px) {
 		.tab-body {
 			padding: var(--space-4) max(var(--page-gutter), 1.125rem) max(var(--page-gutter), 1.125rem);
 		}
+		/* A phone: the email, then its settings under it. */
 		.tab-body.editing {
-			height: max(28rem, calc(100dvh - 14rem));
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: 70dvh auto;
+			height: auto;
 			padding: var(--space-2);
 		}
 	}

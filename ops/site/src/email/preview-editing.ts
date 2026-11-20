@@ -437,8 +437,3 @@ function attachDragging(doc: Document, handlers: EditingHandlers) {
 		clearDrop(doc);
 	});
 }
-
-/** Brings section `index` into the middle of the email's view. */
-export function scrollToPart(doc: Document, index: number) {
-	doc.querySelector(`tr[data-section="${index}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
-}

@@ -1,14 +1,10 @@
 <script lang="ts">
 	/**
-	 * More, in the one-off editor (#348): a side nav over the right of the
-	 * page, only when asked for, so the email keeps the room. With a part
-	 * picked it shows that part's settings (a picture's size and
-	 * description, a Row's cells, a button's words and address); always, the
-	 * email's name and every part in order, to jump to one. On a phone it's
-	 * a sheet from the bottom.
+	 * The one-off editor's right half (#348), beside the email: what the
+	 * inbox shows (subject, preview line) and the width it's seen at (its
+	 * name is typed over in the editor's heading); then the picked part's settings (a picture's size and
+	 * description, a Row's cells, a button's words and address, an Event).
 	 */
-	import { fly } from "svelte/transition";
-	import { cubicOut } from "svelte/easing";
 	import { Button, Field, Segmented, TextField } from "../ui";
 	import { Icon } from "../app/shell";
 	import type { OneOffSection, RowCell } from "./email-api";
@@ -17,34 +13,31 @@
 		CELL_ITEMS,
 		IMAGE_SIZE_ITEMS,
 		partName,
-		partSummary,
 		type EditorSection,
 	} from "./one-off-view";
 
 	let {
-		open,
 		editable,
-		name = $bindable(""),
+		subject = $bindable(""),
+		previewText = $bindable(""),
+		width = $bindable("desktop"),
 		sections,
 		index,
 		uploading,
-		onclose,
-		onpick,
 		onchange,
 		onpicture,
 		onevent,
 		oncell,
 	}: {
-		open: boolean;
 		editable: boolean;
-		/** What ops calls the email. */
-		name?: string;
+		subject?: string;
+		previewText?: string;
+		/** The width the email is seen at: desktop or phone. */
+		width?: string;
 		sections: EditorSection[];
 		/** The picked part's place, or -1. */
 		index: number;
 		uploading: boolean;
-		onclose: () => void;
-		onpick: (index: number) => void;
 		/** Fields of the picked part changed. */
 		onchange: (patch: Partial<OneOffSection>) => void;
 		/** Choose or change a picture: the picked Picture's, or a Row's cell `cell`. */
@@ -56,11 +49,10 @@
 
 	const section = $derived(index >= 0 ? (sections[index]?.section ?? null) : null);
 
-	/** It slides in from the right, and out again; on a phone, up from the bottom. */
-	function slide(node: Element) {
-		const phone = typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches;
-		return fly(node, phone ? { y: 400, duration: 240, easing: cubicOut, opacity: 1 } : { x: 420, duration: 240, easing: cubicOut, opacity: 1 });
-	}
+	const WIDTHS = [
+		{ id: "desktop", label: "Desktop" },
+		{ id: "phone", label: "Phone" },
+	];
 
 	function cellKind(cell: number, kind: string) {
 		if (section?.kind !== "row" || section.cells[cell]?.kind === kind) return;
@@ -76,15 +68,25 @@
 	}
 </script>
 
-{#if open}
-	<aside class="side" aria-label="More" transition:slide>
-		<div class="head">
-			<h2>{section ? `${partName(section.kind)} · ${index + 1} of ${sections.length}` : "This email"}</h2>
-			<button type="button" class="close" aria-label="Close" onclick={onclose}><Icon name="close" size={18} /></button>
-		</div>
+<div class="settings">
+	<section class="inbox" aria-label="What the inbox shows">
+		<Field label="Subject" for="email-subject" required>
+			<TextField id="email-subject" bind:value={subject} maxlength={150} disabled={!editable} placeholder="New Year's Eve at Gwenda" autocomplete="off" />
+		</Field>
+		<Field label="Preview line" for="email-preview" optional hint="Shown after the subject in most inboxes.">
+			<TextField id="email-preview" bind:value={previewText} maxlength={200} disabled={!editable} placeholder="Doors at 9, music till late" autocomplete="off" />
+		</Field>
+		<Field label="See it on">
+			<Segmented bind:value={width} items={WIDTHS} tone="soft" ariaLabel="Email width" />
+		</Field>
+	</section>
 
-		{#if section && editable}
-			<section class="part" aria-label="This part">
+	<section class="picked" aria-label="The picked part">
+		<h2>{section ? `${partName(section.kind)} · ${index + 1} of ${sections.length}` : "Nothing picked"}</h2>
+		{#if !editable}
+			<p class="hint">Sent or scheduled: it can't be changed.</p>
+		{:else if section}
+			<div class="part">
 				{#if section.kind === "image"}
 					<Button busy={uploading} onclick={() => onpicture()}>
 						{#snippet icon()}<Icon name="upload" size={16} />{/snippet}{section.assetId ? "Change picture" : "Choose a picture"}
@@ -145,136 +147,46 @@
 				{:else}
 					<p class="hint">A dashed line, like the one between the monthly email's parts.</p>
 				{/if}
-			</section>
-		{:else if !section}
-			<Field label="Name" for="side-name" optional hint="What ops calls it. The list never sees it.">
-				<TextField id="side-name" bind:value={name} maxlength={80} disabled={!editable} placeholder="New Year's Eve promo" autocomplete="off" />
-			</Field>
+			</div>
+		{:else}
+			<p class="hint">Click a part of the email to change it. Drag a part by its gold handle to move it; a + adds something there.</p>
 		{/if}
-
-		<section class="outline" aria-label="All its parts">
-			<h3>All its parts</h3>
-			<ol>
-				{#each sections as entry, at (entry.key)}
-					<li>
-						<button type="button" class="item" class:picked={at === index} aria-current={at === index ? "true" : undefined} onclick={() => onpick(at)}>
-							<span class="item-name">{partName(entry.section.kind)}</span>
-							<span class="item-about">{partSummary(entry.section)}</span>
-						</button>
-					</li>
-				{:else}
-					<li class="hint">Nothing yet: press a + in the email.</li>
-				{/each}
-			</ol>
-		</section>
-	</aside>
-{/if}
+	</section>
+</div>
 
 <style>
-	.side {
-		position: fixed;
-		top: 5.5rem;
-		right: var(--space-4);
-		bottom: 5.5rem;
-		z-index: 40;
-		width: min(24rem, calc(100vw - 2rem));
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-4);
-		padding: var(--space-4);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg, 12px);
-		background: var(--card);
-		box-shadow: -12px 0 40px rgb(0 0 0 / 0.45);
+	.settings {
+		display: grid;
+		align-content: start;
+		gap: var(--space-5, 1.5rem);
+		height: 100%;
 		overflow: auto;
+		padding: var(--space-1) var(--space-1) var(--space-4);
 	}
-	.head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
+	.inbox,
+	.picked,
+	.part,
+	.cell {
+		display: grid;
+		gap: var(--space-3);
+	}
+	.picked {
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--border);
 	}
 	h2 {
 		margin: 0;
 		font-size: var(--text-base);
 		font-weight: 600;
 	}
-	h3 {
-		margin: 0 0 var(--space-2);
-		font-size: var(--text-sm);
-		font-weight: 600;
-		color: var(--muted-foreground);
-	}
-	.close {
-		border: 0;
-		background: transparent;
-		color: inherit;
-		cursor: pointer;
-		padding: 0.25rem;
-	}
-	.part,
-	.cell {
-		display: grid;
-		gap: var(--space-3);
-	}
 	.cell {
 		padding: var(--space-2);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 	}
-	ol {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		gap: 0.25rem;
-	}
-	.item {
-		display: grid;
-		width: 100%;
-		gap: 0.05rem;
-		padding: 0.4rem var(--space-2);
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm, 6px);
-		background: var(--muted);
-		color: inherit;
-		text-align: left;
-		cursor: pointer;
-	}
-	.item:hover {
-		border-color: var(--border);
-	}
-	.item.picked {
-		border-color: var(--primary);
-		box-shadow: inset 3px 0 0 var(--primary);
-	}
-	.item-name {
-		font-size: var(--text-xs);
-		color: var(--muted-foreground);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-	}
-	.item-about {
-		font-size: var(--text-sm);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
 	.hint {
 		margin: 0;
 		font-size: var(--text-sm);
 		color: var(--muted-foreground);
-	}
-	@media (max-width: 900px) {
-		.side {
-			top: auto;
-			left: 0;
-			right: 0;
-			bottom: var(--bottom-nav-h, 0px);
-			width: auto;
-			max-height: min(70dvh, calc(100dvh - var(--bottom-nav-h, 0px) - 4rem));
-			border-radius: var(--radius-lg, 12px) var(--radius-lg, 12px) 0 0;
-			box-shadow: 0 -10px 30px rgb(0 0 0 / 0.45);
-		}
 	}
 </style>
