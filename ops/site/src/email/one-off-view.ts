@@ -47,10 +47,12 @@ export function blankSection(kind: SectionKind): OneOffSection {
 }
 
 export function editorSections(sections: OneOffSection[]): EditorSection[] {
-	// A button saved before it had a look is a link.
-	return sections.map((section) =>
-		keyed(section.kind === "button" ? { ...section, look: section.look === "outline" ? "outline" : "link" } : { ...section }),
-	);
+	// A button saved before it had a look is a link; an image saved before it had a size is full width.
+	return sections.map((section) => {
+		if (section.kind === "button") return keyed({ ...section, look: section.look === "outline" ? "outline" : "link" });
+		if (section.kind === "image") return keyed({ ...section, size: section.size === "logo" || section.size === "collab" ? section.size : "full" });
+		return keyed({ ...section });
+	});
 }
 
 export function addSection(list: EditorSection[], kind: SectionKind): EditorSection[] {

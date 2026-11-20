@@ -15,7 +15,7 @@ import {
 	statusBadge,
 	writePath,
 } from "./one-off-view";
-import type { EmailFrame } from "./email-api";
+import type { EmailFrame, OneOffSection } from "./email-api";
 
 const frame: EmailFrame = {
 	site: {
@@ -58,6 +58,13 @@ describe("the one-off email editor (#348)", () => {
 		assert.deepEqual(text(removeSection(list, 1)), ["A", "C"]);
 		// Keys follow their sections.
 		assert.equal(moveSection(list, 2, -1)[1].key, list[2].key);
+	});
+
+	it("an image saved before it had a size opens at full width, never without one (Svelte can't bind an empty size)", () => {
+		const [old] = editorSections([{ kind: "image", assetId: "image-a-10x10-jpg", alt: "" } as unknown as OneOffSection]);
+		assert.equal(old.section.kind === "image" && old.section.size, "full");
+		const [logo] = editorSections([{ kind: "image", assetId: "image-a-10x10-jpg", alt: "", size: "logo" }]);
+		assert.equal(logo.section.kind === "image" && logo.section.size, "logo");
 	});
 
 	it("knows when there's something to save", () => {
