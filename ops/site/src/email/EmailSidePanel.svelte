@@ -353,9 +353,10 @@
 			position: fixed;
 			left: 0;
 			right: 0;
-			bottom: 0;
+			/* Above the app's tab bar. */
+			bottom: var(--bottom-nav-h, 0px);
 			z-index: 30;
-			max-height: 60dvh;
+			max-height: min(60dvh, calc(100dvh - var(--bottom-nav-h, 0px) - 4rem));
 			border-radius: var(--radius-lg, 12px) var(--radius-lg, 12px) 0 0;
 			box-shadow: 0 -10px 30px rgb(0 0 0 / 0.45);
 			transform: translateY(110%);
