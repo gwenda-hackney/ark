@@ -141,8 +141,15 @@ export function sendWeeklyEmailAgain(after: number) {
 // ------------------------------------------------------- one-off emails (#348)
 
 /** A part of a one-off email, between its fixed logo and foot (shared/email/sections.js). */
+/** One of two pictures side by side. */
+export type PairPicture = { assetId: string; alt: string };
+
 export type OneOffSection =
 	| { kind: "image"; assetId: string; alt: string; size: ImageSize }
+	/** Two pictures side by side, left then right. */
+	| { kind: "pictures"; pictures: PairPicture[] }
+	/** The monthly email's dashed line. */
+	| { kind: "divider" }
 	| { kind: "heading"; text: string }
 	| { kind: "copy"; text: string }
 	| { kind: "button"; label: string; link: string; look: ButtonLook }

@@ -123,7 +123,8 @@
 	// What's picked in the email (by key, so it follows a move), where a + is adding, and the picture chooser.
 	let selectedKey = $state<string | null>(null);
 	let insertingAt = $state<number | null>(null);
-	let choosingFor = $state<string | null>(null);
+	/** The picture chooser is open for this part (and, for two pictures, this one of them). */
+	let choosingFor = $state<{ key: string; slot: number } | null>(null);
 	/** Words just added: the typing goes into them once the email is drawn again. */
 	let focusKey: string | null = null;
 	const selectedIndex = $derived(selectedKey ? sections.findIndex((entry) => entry.key === selectedKey) : -1);
@@ -170,7 +171,7 @@
 		insertingAt = null;
 		selectedKey = added.key;
 		if (kind === "heading" || kind === "copy") focusKey = added.key;
-		if (kind === "image") choosingFor = added.key;
+		if (kind === "image" || kind === "pictures") choosingFor = { key: added.key, slot: 0 };
 	}
 
 	function moveSelected(by: -1 | 1) {
@@ -189,15 +190,36 @@
 
 	/** A picture from the library, for the section the chooser opened for. */
 	function pickPicture(assetId: string, alt: string) {
-		const entry = sections.find((other) => other.key === choosingFor);
+		const target = choosingFor;
 		choosingFor = null;
-		if (entry?.section.kind === "image") Object.assign(entry.section, { assetId, alt: entry.section.alt || alt });
+		if (target) setPicture(target.key, target.slot, assetId, alt);
 	}
 
-	function uploadPicture(file: File) {
-		const entry = sections.find((other) => other.key === choosingFor);
+	/** Puts a picture in a part: a Picture, or one side of Two pictures (then the other side's chooser opens, while it's empty). */
+	function setPicture(key: string, slot: number, assetId: string, alt: string) {
+		const entry = sections.find((other) => other.key === key);
+		if (entry?.section.kind === "image") Object.assign(entry.section, { assetId, alt: entry.section.alt || alt });
+		if (entry?.section.kind === "pictures") {
+			const pictures = entry.section.pictures.map((picture, i) => (i === slot ? { assetId, alt: picture.alt || alt } : picture));
+			entry.section.pictures = pictures;
+			const other = 1 - slot;
+			if (!pictures[other].assetId) choosingFor = { key, slot: other };
+		}
+	}
+
+	async function uploadPicture(file: File) {
+		const target = choosingFor;
 		choosingFor = null;
-		if (entry) void upload(entry, file);
+		if (!target) return;
+		uploading = target.key;
+		try {
+			const { assetId } = await uploadEmailImage(file);
+			setPicture(target.key, target.slot, assetId, "");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "The picture didn't upload.");
+		} finally {
+			uploading = null;
+		}
 	}
 	const testReason = $derived(
 		oneOffTestBlocked({
@@ -344,23 +366,6 @@
 			toast.error(err instanceof Error ? err.message : "Couldn't delete the email.");
 		} finally {
 			deleting = false;
-		}
-	}
-
-	async function upload(entry: EditorSection, file: File) {
-		uploading = entry.key;
-		try {
-			const { assetId } = await uploadEmailImage(file);
-			if (entry.section.kind === "image") {
-				const index = sections.findIndex((other) => other.key === entry.key);
-				if (index >= 0 && sections[index].section.kind === "image") {
-					sections[index].section = { ...sections[index].section, assetId } as EditorSection["section"];
-				}
-			}
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "The image didn't upload.");
-		} finally {
-			uploading = null;
 		}
 	}
 
@@ -520,7 +525,7 @@
 						onchange={changeSelected}
 						onchoose={choose}
 						oncancel={() => (insertingAt = null)}
-						onpicture={() => (choosingFor = selectedKey)}
+						onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
 					/>
 				{/snippet}
 				<EmailPreview

@@ -49,8 +49,8 @@
 		/** A kind was chosen for the + . */
 		onchoose: (kind: SectionKind) => void;
 		oncancel: () => void;
-		/** Change picture was pressed. */
-		onpicture: () => void;
+		/** Change picture was pressed (for two pictures: which one, 0 left or 1 right). */
+		onpicture: (slot?: number) => void;
 	} = $props();
 
 	const kind = $derived(section?.kind ?? null);
@@ -94,7 +94,7 @@
 			<WordsToolbar {doc} focus={words} {editable} bind:linking />
 		{:else if section?.kind === "image"}
 			<div class="fields">
-				<Button busy={uploading} onclick={onpicture}>
+				<Button busy={uploading} onclick={() => onpicture(0)}>
 					{#snippet icon()}<Icon name="upload" size={16} />{/snippet}{section.assetId ? "Change picture" : "Choose a picture"}
 				</Button>
 				<Field label="Size">
@@ -109,6 +109,28 @@
 					<TextField id="bar-alt" value={section.alt} oninput={(event) => onchange({ alt: event.currentTarget.value })} maxlength={300} placeholder="The bar on New Year's Eve" />
 				</Field>
 			</div>
+		{:else if section?.kind === "pictures"}
+			<div class="pair">
+				{#each section.pictures as picture, slot (slot)}
+					<div class="fields">
+						<Button onclick={() => onpicture(slot)}>
+							{#snippet icon()}<Icon name="upload" size={16} />{/snippet}{picture.assetId ? "Change" : "Choose"} the {slot ? "right" : "left"} picture
+						</Button>
+						<Field label={`What the ${slot ? "right" : "left"} one shows`} for={`bar-alt-${slot}`}>
+							<TextField
+								id={`bar-alt-${slot}`}
+								value={picture.alt}
+								oninput={(event) =>
+									onchange({ pictures: section.pictures.map((other, i) => (i === slot ? { ...other, alt: event.currentTarget.value } : other)) } as Partial<OneOffSection>)}
+								maxlength={300}
+								placeholder="A pinsa fresh from the oven"
+							/>
+						</Field>
+					</div>
+				{/each}
+			</div>
+		{:else if kind === "divider"}
+			<p class="hint">A dashed line, like the one between the monthly email's parts. It can be moved or removed.</p>
 		{:else if section?.kind === "button"}
 			<div class="fields">
 				<Field label="Words on it" for="bar-label">
@@ -169,6 +191,10 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: end;
+		gap: var(--space-3);
+	}
+	.pair {
+		display: grid;
 		gap: var(--space-3);
 	}
 	.fields :global(.field) {

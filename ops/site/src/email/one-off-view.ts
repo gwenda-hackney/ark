@@ -13,9 +13,11 @@ export type SectionKind = OneOffSection["kind"];
 /** The kinds the editor offers, in order, with the names the owner sees and what each is for. */
 export const SECTION_CHOICES: { kind: SectionKind; label: string; about: string }[] = [
 	{ kind: "image", label: "Picture", about: "One of our photos, or a new one" },
+	{ kind: "pictures", label: "Two pictures", about: "Side by side" },
 	{ kind: "heading", label: "Heading", about: "Big words in the poster letters" },
 	{ kind: "copy", label: "Text", about: "Paragraphs, with bold and links" },
 	{ kind: "button", label: "Button", about: "Words that go to a web page" },
+	{ kind: "divider", label: "Divider", about: "A dashed line between parts" },
 	{ kind: "booking", label: "Book a table", about: "The website's own booking button" },
 ];
 
@@ -57,6 +59,10 @@ export function editorSections(sections: OneOffSection[]): EditorSection[] {
 	return sections.map((section) => {
 		if (section.kind === "button") return keyed({ ...section, look: section.look === "outline" ? "outline" : "link" });
 		if (section.kind === "image") return keyed({ ...section, size: section.size === "logo" || section.size === "collab" ? section.size : "full" });
+		if (section.kind === "pictures") {
+			const pair = Array.isArray(section.pictures) ? section.pictures : [];
+			return keyed({ kind: "pictures", pictures: [0, 1].map((i) => ({ assetId: pair[i]?.assetId || "", alt: pair[i]?.alt || "" })) });
+		}
 		return keyed({ ...section });
 	});
 }

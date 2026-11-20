@@ -188,3 +188,30 @@ test("a button's words, address and look are set in the bar; an empty one says w
 		look: "link",
 	});
 });
+
+test("two pictures side by side: the chooser asks for the left, then the right; a divider goes in as it is", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	const bar = page.getByRole("toolbar", { name: "Change the email" });
+	await preview.locator('tr[data-insert="1"] .ops-add').click();
+	await bar.getByRole("button", { name: /^Two pictures/ }).click();
+	const chooser = page.getByRole("dialog", { name: "Choose a picture" });
+	await chooser.getByRole("button", { name: "The bar at night" }).click();
+	// Still open, for the right one.
+	await chooser.getByRole("region", { name: "Chez Pickle" }).getByRole("button").click();
+	await expect(chooser).toHaveCount(0);
+	await expect(preview.locator('tr[data-section="1"] img')).toHaveCount(2);
+
+	await preview.locator('tr[data-insert="2"] .ops-add').click();
+	await bar.getByRole("button", { name: /^Divider/ }).click();
+	await save(page);
+	await expect.poll(() => (saves.at(-1)?.sections as unknown[] | undefined)?.slice(1, 3)).toEqual([
+		{
+			kind: "pictures",
+			pictures: [
+				{ assetId: "image-aaa111-1600x1200-jpg", alt: "The bar at night" },
+				{ assetId: "image-bbb222-1200x1500-jpg", alt: "Chez Pickle" },
+			],
+		},
+		{ kind: "divider" },
+	]);
+});

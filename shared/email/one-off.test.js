@@ -186,6 +186,21 @@ describe("drawn for ops' editor (marks)", () => {
     expect(render([{ kind: "image", assetId: "" }]).html).not.toContain("data-");
   });
 
+  it("two pictures sit side by side, each cut to 4:5; an empty side is a dashed box in the editor only", () => {
+    const sections = [{ kind: "pictures", pictures: [{ assetId: ASSET, alt: "Pizza" }, { assetId: "" }] }];
+    const sent = render(sections).html;
+    expect(sent).toMatch(/<td width="50%"[^>]*><img src="[^"]+" width="274" alt="Pizza"[^>]*><\/td><td width="50%"[^>]*><\/td>/);
+    expect(sent).toMatch(/fit=crop/);
+    const marked = renderOneOffEmail({ subject: "S", sections }, { site, images, marks: true }).html;
+    expect(marked).toContain(">Right picture</div>");
+    expect(render([{ kind: "pictures", pictures: [{}, {}] }]).html).not.toContain('width="50%"');
+  });
+
+  it("a divider is the monthly email's dashed line", () => {
+    expect(render([{ kind: "divider" }]).html).toMatch(/border-top:1px dashed/);
+    expect(render([{ kind: "divider" }]).text).toContain("----");
+  });
+
   it("copy's paragraphs share one cell, each with the gap a row of its own had", () => {
     const html = render([{ kind: "copy", text: "One\n\nTwo" }]).html;
     expect(html).toMatch(/<td align="left" style="padding:0px \d+px 0px;"><p [^>]*margin:0 0 18px;[^>]*>One<\/p><p [^>]*margin:0 0 18px;[^>]*>Two<\/p><\/td>/);
@@ -216,8 +231,8 @@ describe("sections", () => {
       const blank = kind.blank();
       expect(blank.kind).toBe(id);
       expect(kind.clean(blank)).toEqual(blank);
-      // Book a table has nothing to fill in: it is whole as soon as it is added.
-      expect(kind.empty(blank)).toBe(id !== "booking");
+      // Book a table and a divider have nothing to fill in: whole as soon as they're added.
+      expect(kind.empty(blank)).toBe(id !== "booking" && id !== "divider");
     }
   });
 

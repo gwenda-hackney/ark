@@ -18,7 +18,7 @@
  * Everything else is escaped; a link that isn't http(s) or mailto is dropped
  * and its words kept. No raw HTML ever reaches the email.
  */
-import { COLOURS, bookingButton, emailLogoUrl, esc, heading, outlineButton, paragraph, row, textLink } from "./shell.js";
+import { COLOURS, bookingButton, emailLogoUrl, esc, heading, outlineButton, paragraph, row, rule, table, textLink } from "./shell.js";
 import { bookingUrl } from "../../marketing/web/src/config/booking.ts";
 import { siteConfig } from "../../marketing/web/src/config/site.ts";
 import { emailPicture } from "./image.js";
@@ -69,6 +69,13 @@ function waitingRow(words) {
 
 /** The editor's place for adding a part, before section `at`. */
 const insertRow = (at) => `<tr data-insert="${at}"><td style="padding:0 40px;"></td></tr>`;
+
+/** Two pictures side by side: the gap between them, and each one's width. */
+const PAIR_GAP = 12;
+export const PAIR_WIDTH = (COLUMN - PAIR_GAP) / 2;
+
+/** One of two pictures: its asset and what it shows. */
+const pairPicture = (raw) => ({ assetId: line(raw?.assetId, 200), alt: line(raw?.alt, 300) });
 
 /** Space under each paragraph of copy. */
 const PARAGRAPH_GAP = 18;
@@ -192,6 +199,45 @@ export const SECTION_KINDS = {
         : section.alt
           ? [`[${section.alt}]`, ""]
           : [],
+  },
+  pictures: {
+    label: "Two pictures",
+    blank: () => ({ kind: "pictures", pictures: [pairPicture(), pairPicture()] }),
+    clean: (raw) => {
+      const given = Array.isArray(raw?.pictures) ? raw.pictures : [];
+      return { kind: "pictures", pictures: [pairPicture(given[0]), pairPicture(given[1])] };
+    },
+    empty: (section) => !section.pictures.some((picture) => picture.assetId),
+    // Side by side on every screen, each cut to the website's 4:5 so they line up.
+    html(section, { images, marks }) {
+      const cell = (picture, side) => {
+        const drawn = picture.assetId
+          ? emailPicture({ url: sectionImageUrl(picture.assetId, images), whole: false, alt: picture.alt }, PAIR_WIDTH, { fluid: true })
+          : marks
+            ? `<div data-waiting style="border:2px dashed ${COLOURS.mustard};border-radius:6px;padding:48px 8px;text-align:center;font-family:Georgia,serif;font-size:15px;line-height:1.4;color:${COLOURS.ink2};">${side} picture</div>`
+            : "";
+        return drawn;
+      };
+      const [left, right] = section.pictures;
+      return [
+        row(
+          table(
+            `<tr><td width="50%" valign="top" style="width:50%;padding-right:${PAIR_GAP / 2}px;">${cell(left, "Left")}</td><td width="50%" valign="top" style="width:50%;padding-left:${PAIR_GAP / 2}px;">${cell(right, "Right")}</td></tr>`,
+          ),
+          { bottom: 24 },
+        ),
+      ];
+    },
+    text: (section) => section.pictures.filter((picture) => picture.assetId && picture.alt).flatMap((picture) => [`[${picture.alt}]`, ""]),
+  },
+  divider: {
+    label: "Divider",
+    blank: () => ({ kind: "divider" }),
+    clean: () => ({ kind: "divider" }),
+    empty: () => false,
+    // The monthly email's dashed line between its parts.
+    html: () => [rule({ top: 6, bottom: 30 })],
+    text: () => ["----", ""],
   },
   heading: {
     label: "Heading",
