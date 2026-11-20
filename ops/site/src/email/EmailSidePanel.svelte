@@ -1,13 +1,14 @@
 <script lang="ts">
 	/**
-	 * Beside the email in the one-off editor (#348): every part of the email
-	 * in order (click one to go to it in the email and pick it), then what the
-	 * picked part needs: Bold and Link for words (WordsToolbar), a picture's
-	 * Change picture, size and description, a Row's cells, a button's words,
-	 * address and look, an Event's Choose an event; and Remove. After a + in
-	 * the email it offers what can go there. Parts move by dragging them in
-	 * the email. On a phone it's a sheet at the bottom of the screen.
+	 * More, in the one-off editor (#348): a side nav over the right of the
+	 * page, only when asked for, so the email keeps the room. With a part
+	 * picked it shows that part's settings (a picture's size and
+	 * description, a Row's cells, a button's words and address); always, the
+	 * email's name and every part in order, to jump to one. On a phone it's
+	 * a sheet from the bottom.
 	 */
+	import { fly } from "svelte/transition";
+	import { cubicOut } from "svelte/easing";
 	import { Button, Field, Segmented, TextField } from "../ui";
 	import { Icon } from "../app/shell";
 	import type { OneOffSection, RowCell } from "./email-api";
@@ -15,69 +16,54 @@
 		BUTTON_LOOK_ITEMS,
 		CELL_ITEMS,
 		IMAGE_SIZE_ITEMS,
-		SECTION_CHOICES,
 		partName,
 		partSummary,
 		type EditorSection,
-		type SectionKind,
 	} from "./one-off-view";
-	import type { WordsFocus } from "./preview-editing";
-	import WordsToolbar from "./WordsToolbar.svelte";
 
 	let {
-		doc,
-		words,
+		open,
 		editable,
-		linking = $bindable(false),
+		name = $bindable(""),
 		sections,
 		index,
-		inserting,
 		uploading,
+		onclose,
 		onpick,
-		oninsert,
-		onremove,
 		onchange,
-		onchoose,
-		oncancel,
 		onpicture,
 		onevent,
 		oncell,
-		onclose,
 	}: {
-		doc: Document | null;
-		words: WordsFocus | null;
+		open: boolean;
 		editable: boolean;
-		linking?: boolean;
+		/** What ops calls the email. */
+		name?: string;
 		sections: EditorSection[];
 		/** The picked part's place, or -1. */
 		index: number;
-		/** A + was pressed: the place a new part would go, or null. */
-		inserting: number | null;
 		uploading: boolean;
+		onclose: () => void;
 		onpick: (index: number) => void;
-		oninsert: (at: number) => void;
-		onremove: () => void;
 		/** Fields of the picked part changed. */
 		onchange: (patch: Partial<OneOffSection>) => void;
-		onchoose: (kind: SectionKind) => void;
-		oncancel: () => void;
 		/** Choose or change a picture: the picked Picture's, or a Row's cell `cell`. */
 		onpicture: (cell?: number) => void;
 		onevent: () => void;
 		/** A Row's cell `cell` is now `value`. */
 		oncell: (cell: number, value: RowCell) => void;
-		/** Nothing picked any more (the sheet's close, on a phone). */
-		onclose: () => void;
 	} = $props();
 
 	const section = $derived(index >= 0 ? (sections[index]?.section ?? null) : null);
-	const open = $derived(Boolean(section) || inserting !== null);
-	const keep = (event: MouseEvent) => event.preventDefault();
+
+	/** It slides in from the right, and out again; on a phone, up from the bottom. */
+	function slide(node: Element) {
+		const phone = typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches;
+		return fly(node, phone ? { y: 400, duration: 240, easing: cubicOut, opacity: 1 } : { x: 420, duration: 240, easing: cubicOut, opacity: 1 });
+	}
 
 	function cellKind(cell: number, kind: string) {
-		if (section?.kind !== "row") return;
-		const now = section.cells[cell];
-		if (now?.kind === kind) return;
+		if (section?.kind !== "row" || section.cells[cell]?.kind === kind) return;
 		oncell(cell, kind === "picture" ? { kind: "picture", assetId: "", alt: "" } : ({ kind } as RowCell));
 		if (kind === "picture") onpicture(cell);
 	}
@@ -90,152 +76,151 @@
 	}
 </script>
 
-<aside class="side" class:open aria-label="The email's parts">
-	<section class="outline" aria-label="In this email">
-		<h3>In this email</h3>
-		<ol>
-			<li class="fixed">Logo · Hackney Wick</li>
-			{#each sections as entry, at (entry.key)}
-				<li>
-					<button type="button" class="item" class:picked={at === index} aria-current={at === index ? "true" : undefined} onmousedown={keep} onclick={() => onpick(at)}>
-						<span class="item-name">{partName(entry.section.kind)}</span>
-						<span class="item-about">{partSummary(entry.section)}</span>
-					</button>
-				</li>
-			{/each}
-			<li class="fixed">Foot · links, unsubscribe, address</li>
-		</ol>
-		{#if editable}
-			<Button variant="outline" size="sm" onclick={() => oninsert(sections.length)}>
-				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add at the end
-			</Button>
-		{/if}
-	</section>
-
-	<section class="details" aria-label="The picked part">
-		<div class="details-head">
-			<h3>
-				{inserting !== null ? "Add something" : section ? `${partName(section.kind)} · ${index + 1} of ${sections.length}` : "Nothing picked"}
-			</h3>
-			<div class="head-actions">
-				{#if section && editable}
-					<Button variant="outline" size="sm" onmousedown={keep} onclick={onremove}>
-						{#snippet icon()}<Icon name="trash" size={14} />{/snippet}Remove
-					</Button>
-				{/if}
-				<button type="button" class="sheet-close" aria-label="Close" onclick={onclose}><Icon name="close" size={16} /></button>
-			</div>
+{#if open}
+	<aside class="side" aria-label="More" transition:slide>
+		<div class="head">
+			<h2>{section ? `${partName(section.kind)} · ${index + 1} of ${sections.length}` : "This email"}</h2>
+			<button type="button" class="close" aria-label="Close" onclick={onclose}><Icon name="close" size={18} /></button>
 		</div>
 
-		{#if !editable}
-			<p class="hint">Sent or scheduled: it can't be changed.</p>
-		{:else if inserting !== null}
-			<div class="choices" role="group" aria-label="What to add">
-				{#each SECTION_CHOICES as choice (choice.kind)}
-					<button type="button" class="choice" onclick={() => onchoose(choice.kind)}>
-						<span class="choice-name">{choice.label}</span>
-						<span class="choice-about">{choice.about}</span>
-					</button>
-				{/each}
-			</div>
-			<div><Button variant="ghost" size="sm" onclick={oncancel}>Cancel</Button></div>
-		{:else if section?.kind === "heading" || section?.kind === "copy"}
-			<WordsToolbar {doc} focus={words} {editable} bind:linking />
-		{:else if section?.kind === "image"}
-			<div class="fields">
-				<Button busy={uploading} onclick={() => onpicture()}>
-					{#snippet icon()}<Icon name="upload" size={16} />{/snippet}{section.assetId ? "Change picture" : "Choose a picture"}
-				</Button>
-				<Field label="Size">
-					<Segmented bind:value={() => section.size, (size) => onchange({ size } as Partial<OneOffSection>)} items={IMAGE_SIZE_ITEMS} tone="soft" ariaLabel="Picture size" />
-				</Field>
-				<Field label="What it shows" for="side-alt" hint="For people who can't see pictures.">
-					<TextField id="side-alt" value={section.alt} oninput={(event) => onchange({ alt: event.currentTarget.value })} maxlength={300} placeholder="The bar on New Year's Eve" />
-				</Field>
-			</div>
-		{:else if section?.kind === "row"}
-			<div class="fields">
-				<Field label="Cells">
-					<Segmented
-						bind:value={() => String(section.cells.length), (count) => cellCount(Number(count))}
-						items={[
-							{ id: "2", label: "Two" },
-							{ id: "3", label: "Three" },
-						]}
-						tone="soft"
-						ariaLabel="How many cells"
-					/>
-				</Field>
-				<p class="hint">Drag a cell onto another in the email to swap them.</p>
-				{#each section.cells as cell, at (at)}
-					<div class="cell">
-						<Field label={`Cell ${at + 1}`}>
-							<Segmented bind:value={() => cell.kind, (kind) => cellKind(at, kind)} items={CELL_ITEMS} tone="soft" ariaLabel={`Cell ${at + 1} holds`} />
-						</Field>
-						{#if cell.kind === "picture"}
-							<Button size="sm" variant="outline" busy={uploading} onclick={() => onpicture(at)}>
-								{#snippet icon()}<Icon name="upload" size={14} />{/snippet}{cell.assetId ? "Change picture" : "Choose a picture"}
-							</Button>
-							<Field label="What it shows" for={`side-cell-${at}`}>
-								<TextField id={`side-cell-${at}`} value={cell.alt} oninput={(event) => oncell(at, { ...cell, alt: event.currentTarget.value })} maxlength={300} />
+		{#if section && editable}
+			<section class="part" aria-label="This part">
+				{#if section.kind === "image"}
+					<Button busy={uploading} onclick={() => onpicture()}>
+						{#snippet icon()}<Icon name="upload" size={16} />{/snippet}{section.assetId ? "Change picture" : "Choose a picture"}
+					</Button>
+					<Field label="Size">
+						<Segmented bind:value={() => section.size, (size) => onchange({ size } as Partial<OneOffSection>)} items={IMAGE_SIZE_ITEMS} tone="soft" ariaLabel="Picture size" />
+					</Field>
+					<Field label="What it shows" for="side-alt" hint="For people who can't see pictures.">
+						<TextField id="side-alt" value={section.alt} oninput={(event) => onchange({ alt: event.currentTarget.value })} maxlength={300} placeholder="The bar on New Year's Eve" />
+					</Field>
+				{:else if section.kind === "row"}
+					<Field label="Cells">
+						<Segmented
+							bind:value={() => String(section.cells.length), (count) => cellCount(Number(count))}
+							items={[
+								{ id: "2", label: "Two" },
+								{ id: "3", label: "Three" },
+							]}
+							tone="soft"
+							ariaLabel="How many cells"
+						/>
+					</Field>
+					<p class="hint">Drag a cell onto another in the email to swap them.</p>
+					{#each section.cells as cell, at (at)}
+						<div class="cell">
+							<Field label={`Cell ${at + 1}`}>
+								<Segmented bind:value={() => cell.kind, (kind) => cellKind(at, kind)} items={CELL_ITEMS} tone="soft" ariaLabel={`Cell ${at + 1} holds`} />
 							</Field>
-						{/if}
-					</div>
-				{/each}
-			</div>
-		{:else if section?.kind === "button"}
-			<div class="fields">
-				<Field label="Words on it" for="side-label">
-					<TextField id="side-label" value={section.label} oninput={(event) => onchange({ label: event.currentTarget.value })} maxlength={40} placeholder="See the menu" />
-				</Field>
-				<Field label="Where it goes" for="side-link" hint="A web page, like gwenda.co.uk/whats-on">
-					<TextField id="side-link" value={section.link} oninput={(event) => onchange({ link: event.currentTarget.value })} maxlength={1000} placeholder="https://gwenda.co.uk/whats-on" />
-				</Field>
-				<Field label="Look">
-					<Segmented bind:value={() => section.look, (look) => onchange({ look } as Partial<OneOffSection>)} items={BUTTON_LOOK_ITEMS} tone="soft" ariaLabel="Button look" />
-				</Field>
-			</div>
-		{:else if section?.kind === "event"}
-			<div class="fields">
-				<Button onclick={onevent}>
-					{#snippet icon()}<Icon name="calendar" size={16} />{/snippet}{section.title ? "Choose another event" : "Choose an event"}
-				</Button>
-				<p class="hint">{section.title ? `${section.title}: its words come from What's on as they were when it was chosen.` : "A night, deal or pop-up kitchen from What's on."}</p>
-			</div>
-		{:else if section?.kind === "booking"}
-			<p class="hint">The website's own Book a table button, the same in every email.</p>
-		{:else if section?.kind === "divider"}
-			<p class="hint">A dashed line, like the one between the monthly email's parts.</p>
-		{:else}
-			<p class="hint">Click a part of the email, or one in the list, to change it. Drag a part by its gold handle to move it. A + adds something there.</p>
+							{#if cell.kind === "picture"}
+								<Button size="sm" variant="outline" busy={uploading} onclick={() => onpicture(at)}>
+									{#snippet icon()}<Icon name="upload" size={14} />{/snippet}{cell.assetId ? "Change picture" : "Choose a picture"}
+								</Button>
+								<Field label="What it shows" for={`side-cell-${at}`}>
+									<TextField id={`side-cell-${at}`} value={cell.alt} oninput={(event) => oncell(at, { ...cell, alt: event.currentTarget.value })} maxlength={300} />
+								</Field>
+							{/if}
+						</div>
+					{/each}
+				{:else if section.kind === "button"}
+					<Field label="Words on it" for="side-label">
+						<TextField id="side-label" value={section.label} oninput={(event) => onchange({ label: event.currentTarget.value })} maxlength={40} placeholder="See the menu" />
+					</Field>
+					<Field label="Where it goes" for="side-link" hint="A web page, like gwenda.co.uk/whats-on">
+						<TextField id="side-link" value={section.link} oninput={(event) => onchange({ link: event.currentTarget.value })} maxlength={1000} placeholder="https://gwenda.co.uk/whats-on" />
+					</Field>
+					<Field label="Look">
+						<Segmented bind:value={() => section.look, (look) => onchange({ look } as Partial<OneOffSection>)} items={BUTTON_LOOK_ITEMS} tone="soft" ariaLabel="Button look" />
+					</Field>
+				{:else if section.kind === "event"}
+					<Button onclick={onevent}>
+						{#snippet icon()}<Icon name="calendar" size={16} />{/snippet}{section.title ? "Choose another event" : "Choose an event"}
+					</Button>
+					<p class="hint">{section.title ? `${section.title}: its words come from What's on as they were when it was chosen.` : "A night, deal or pop-up kitchen from What's on."}</p>
+				{:else if section.kind === "heading" || section.kind === "copy"}
+					<p class="hint">Type in the email. Select words, then Bold or Link on the part's toolbar.</p>
+				{:else if section.kind === "booking"}
+					<p class="hint">The website's own Book a table button, the same in every email.</p>
+				{:else}
+					<p class="hint">A dashed line, like the one between the monthly email's parts.</p>
+				{/if}
+			</section>
+		{:else if !section}
+			<Field label="Name" for="side-name" optional hint="What ops calls it. The list never sees it.">
+				<TextField id="side-name" bind:value={name} maxlength={80} disabled={!editable} placeholder="New Year's Eve promo" autocomplete="off" />
+			</Field>
 		{/if}
-	</section>
-</aside>
+
+		<section class="outline" aria-label="All its parts">
+			<h3>All its parts</h3>
+			<ol>
+				{#each sections as entry, at (entry.key)}
+					<li>
+						<button type="button" class="item" class:picked={at === index} aria-current={at === index ? "true" : undefined} onclick={() => onpick(at)}>
+							<span class="item-name">{partName(entry.section.kind)}</span>
+							<span class="item-about">{partSummary(entry.section)}</span>
+						</button>
+					</li>
+				{:else}
+					<li class="hint">Nothing yet: press a + in the email.</li>
+				{/each}
+			</ol>
+		</section>
+	</aside>
+{/if}
 
 <style>
 	.side {
-		display: grid;
-		align-content: start;
+		position: fixed;
+		top: 5.5rem;
+		right: var(--space-4);
+		bottom: 5.5rem;
+		z-index: 40;
+		width: min(24rem, calc(100vw - 2rem));
+		display: flex;
+		flex-direction: column;
 		gap: var(--space-4);
-		padding: var(--space-3);
+		padding: var(--space-4);
 		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--muted);
-		max-height: calc(100dvh - 12rem);
+		border-radius: var(--radius-lg, 12px);
+		background: var(--card);
+		box-shadow: -12px 0 40px rgb(0 0 0 / 0.45);
 		overflow: auto;
 	}
-	h3 {
+	.head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
+	}
+	h2 {
 		margin: 0;
-		font-size: var(--text-sm);
+		font-size: var(--text-base);
 		font-weight: 600;
 	}
-	/* The list scrolls on its own, so the picked part's settings below it stay in sight. */
-	.outline {
+	h3 {
+		margin: 0 0 var(--space-2);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--muted-foreground);
+	}
+	.close {
+		border: 0;
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+		padding: 0.25rem;
+	}
+	.part,
+	.cell {
 		display: grid;
-		gap: var(--space-2);
-		max-height: 38dvh;
-		overflow: auto;
-		padding-right: 0.25rem;
+		gap: var(--space-3);
+	}
+	.cell {
+		padding: var(--space-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
 	}
 	ol {
 		list-style: none;
@@ -244,14 +229,6 @@
 		display: grid;
 		gap: 0.25rem;
 	}
-	.fixed {
-		padding: 0.35rem var(--space-2);
-		border: 1px dashed var(--border);
-		border-radius: var(--radius-sm, 6px);
-		color: var(--muted-foreground);
-		font-size: var(--text-xs);
-		text-align: center;
-	}
 	.item {
 		display: grid;
 		width: 100%;
@@ -259,7 +236,7 @@
 		padding: 0.4rem var(--space-2);
 		border: 1px solid transparent;
 		border-radius: var(--radius-sm, 6px);
-		background: var(--card);
+		background: var(--muted);
 		color: inherit;
 		text-align: left;
 		cursor: pointer;
@@ -283,97 +260,21 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	.details {
-		display: grid;
-		gap: var(--space-3);
-		padding-top: var(--space-3);
-		border-top: 1px solid var(--border);
-	}
-	.details-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
-		min-height: 2rem;
-	}
-	.head-actions {
-		display: flex;
-		gap: var(--space-2);
-		align-items: center;
-	}
-	.sheet-close {
-		display: none;
-		border: 0;
-		background: transparent;
-		color: inherit;
-		cursor: pointer;
-		padding: 0.25rem;
-	}
-	.fields,
-	.cell {
-		display: grid;
-		gap: var(--space-3);
-	}
-	.cell {
-		padding: var(--space-2);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-	}
-	.choices {
-		display: grid;
-		gap: var(--space-2);
-	}
-	.choice {
-		display: grid;
-		gap: 0.1rem;
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--card);
-		color: inherit;
-		text-align: left;
-		cursor: pointer;
-	}
-	.choice:hover,
-	.choice:focus-visible {
-		border-color: var(--primary);
-	}
-	.choice-name {
-		font-weight: 600;
-	}
-	.choice-about,
 	.hint {
 		margin: 0;
 		font-size: var(--text-sm);
 		color: var(--muted-foreground);
 	}
-	/* A phone: the list stays out of the way; what's picked rises as a sheet from the bottom. */
 	@media (max-width: 900px) {
 		.side {
-			position: fixed;
+			top: auto;
 			left: 0;
 			right: 0;
-			/* Above the app's tab bar. */
 			bottom: var(--bottom-nav-h, 0px);
-			z-index: 30;
-			max-height: min(60dvh, calc(100dvh - var(--bottom-nav-h, 0px) - 4rem));
+			width: auto;
+			max-height: min(70dvh, calc(100dvh - var(--bottom-nav-h, 0px) - 4rem));
 			border-radius: var(--radius-lg, 12px) var(--radius-lg, 12px) 0 0;
 			box-shadow: 0 -10px 30px rgb(0 0 0 / 0.45);
-			transform: translateY(110%);
-			transition: transform 200ms ease;
-		}
-		.side.open {
-			transform: none;
-		}
-		.outline {
-			display: none;
-		}
-		.details {
-			border-top: 0;
-			padding-top: 0;
-		}
-		.sheet-close {
-			display: inline-flex;
 		}
 	}
 </style>

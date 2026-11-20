@@ -4,7 +4,6 @@
 	 * in a locked-down frame at phone or desktop width. The monthly what's on's
 	 * editor and the one-off email editor (#348) both show it here.
 	 */
-	import type { Snippet } from "svelte";
 	import { Card, Segmented } from "../ui";
 	import { previewDocument } from "./email-view";
 
@@ -18,8 +17,6 @@
 		blank = "Loading…",
 		loading = false,
 		frameHeight = "",
-		onframe,
-		toolbar,
 	}: {
 		email: { subject: string; preheader: string; html: string } | null;
 		title: string;
@@ -35,10 +32,6 @@
 		loading?: boolean;
 		/** The frame's height, when it should fit beside an editor rather than its usual 44rem. */
 		frameHeight?: string;
-		/** Each time the frame has loaded an email: its document (the editor types into it). */
-		onframe?: (doc: Document) => void;
-		/** Above the frame: the editor's buttons. */
-		toolbar?: Snippet;
 	} = $props();
 
 	const WIDTHS = [
@@ -62,14 +55,12 @@
 			// Not readable: it starts at the top.
 		}
 	});
-	function loaded() {
+	function restoreScroll() {
 		try {
 			if (scrollTop) frameEl?.contentWindow?.scrollTo(0, scrollTop);
 		} catch {
 			// Not readable: it stays at the top.
 		}
-		const doc = frameEl?.contentDocument;
-		if (doc && onframe) onframe(doc);
 	}
 </script>
 
@@ -96,7 +87,6 @@
 		</div>
 	</dl>
 
-	{#if toolbar}{@render toolbar()}{/if}
 	<div class="stage" class:busy={loading}>
 		<div class="frame {width}" style:height={frameHeight || undefined}>
 			{#if email}
@@ -106,7 +96,7 @@
 					sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
 					referrerpolicy="no-referrer"
 					{srcdoc}
-					onload={loaded}
+					onload={restoreScroll}
 				></iframe>
 			{:else}
 				<div class="blank">{problem ? "No preview" : blank}</div>

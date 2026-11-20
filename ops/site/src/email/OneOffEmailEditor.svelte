@@ -11,11 +11,26 @@
 	 * Sent or scheduled ones open read-only.
 	 */
 	import { onDestroy } from "svelte";
-	import { attachEditing, focusWords, scrollToPart, showSelected, type WordsFocus } from "./preview-editing";
+	import {
+		addLink,
+		attachEditing,
+		focusWords,
+		keepSelection,
+		removeLink,
+		scrollToPart,
+		showBold,
+		showSelected,
+		toggleBold,
+		type PartAction,
+		type WordsFocus,
+	} from "./preview-editing";
 	import EmailSidePanel from "./EmailSidePanel.svelte";
+	import EmailCanvas from "./EmailCanvas.svelte";
+	import AddPartDialog from "./AddPartDialog.svelte";
+	import LinkDialog from "./LinkDialog.svelte";
 	import PictureChooser from "./PictureChooser.svelte";
 	import EventChooser from "./EventChooser.svelte";
-	import { Badge, Button, ConfirmDialog, EditorShell, EmptyState, Field, FormSection, HelpDrawer, Skeleton, TextField } from "../ui";
+	import { Badge, Button, ConfirmDialog, EditorShell, EmptyState, HelpDrawer, Skeleton } from "../ui";
 	import { Icon } from "../app/shell";
 	import type { AuthMe } from "../app/api";
 	import { leaveEditor, navigate, parseShellPath } from "../app/nav";
@@ -42,7 +57,6 @@
 		type RowCell,
 		type WeeklyEmailAccess,
 	} from "./email-api";
-	import EmailPreview from "./EmailPreview.svelte";
 	import { ONE_OFF_HELP } from "./one-off-help";
 	import {
 		draftOf,
@@ -135,9 +149,60 @@
 	let focusKey: string | null = null;
 	const selectedIndex = $derived(selectedKey ? sections.findIndex((entry) => entry.key === selectedKey) : -1);
 	const selected = $derived(selectedIndex >= 0 ? sections[selectedIndex] : null);
+	/** More: the side nav, open only when asked for. */
+	let moreOpen = $state(false);
+	/** The words a link is being made of, kept while its address is typed. */
+	let linkFrom: Range | null = null;
+
+	/** The picked part's toolbar, in the email: what that kind of part can do there. */
+	function actionsFor(section: OneOffSection | null, words: WordsFocus | null): PartAction[] {
+		if (!section || !editable) return [];
+		const remove = { id: "remove", label: "Remove" };
+		const more = { id: "more", label: "⋯ More" };
+		switch (section.kind) {
+			case "copy":
+				return [{ id: "bold", label: "Bold" }, words?.inLink ? { id: "unlink", label: "Remove link" } : { id: "link", label: "Link" }, remove];
+			case "image":
+				return [{ id: "picture", label: section.assetId ? "Change picture" : "Choose picture" }, more, remove];
+			case "event":
+				return [{ id: "event", label: section.title ? "Change event" : "Choose event" }, remove];
+			case "row":
+			case "button":
+				return [more, remove];
+			default:
+				return [remove];
+		}
+	}
+	const actions = $derived(actionsFor(selected?.section ?? null, wordsAt));
 	$effect(() => {
-		if (wordsDoc) showSelected(wordsDoc, selectedIndex >= 0 ? selectedIndex : null, insertingAt);
+		if (!wordsDoc) return;
+		showSelected(wordsDoc, selectedIndex >= 0 ? selectedIndex : null, insertingAt, actions);
+		showBold(wordsDoc, Boolean(wordsAt?.bold));
 	});
+
+	function act(action: string) {
+		const doc = wordsDoc;
+		if (!doc) return;
+		if (action === "bold") toggleBold(doc);
+		else if (action === "link") {
+			if (!wordsAt?.selected) {
+				toast.info("Select the words to make a link first.");
+				return;
+			}
+			linkFrom = keepSelection(doc);
+			linking = true;
+		} else if (action === "unlink") removeLink(doc);
+		else if (action === "picture" && selectedKey) choosingFor = { key: selectedKey, slot: 0 };
+		else if (action === "event" && selectedKey) eventFor = selectedKey;
+		else if (action === "more") moreOpen = true;
+		else if (action === "remove") removeSelected();
+	}
+
+	function addLinkHere(address: string) {
+		if (wordsDoc) addLink(wordsDoc, linkFrom, address);
+		linkFrom = null;
+		linking = false;
+	}
 
 	function typedInto(doc: Document) {
 		wordsDoc = doc;
@@ -166,8 +231,9 @@
 				sections = swapCells(sections, from, to);
 				selectedKey = sections[to.section]?.key ?? selectedKey;
 			},
+			onaction: act,
 		});
-		showSelected(doc, selectedIndex >= 0 ? selectedIndex : null, insertingAt);
+		showSelected(doc, selectedIndex >= 0 ? selectedIndex : null, insertingAt, actions);
 		const typeInto = focusKey ? sections.findIndex((entry) => entry.key === focusKey) : -1;
 		focusKey = null;
 		if (typeInto >= 0) focusWords(doc, typeInto);
@@ -524,56 +590,8 @@
 	{:else if loading && !frame}
 		<div class="tab-body"><Skeleton rows={5} lines={1} label="Loading the email…" /></div>
 	{:else}
-		<div class="tab-body">
-			<FormSection title="Email" description={editable ? "Its name here, and what the inbox shows. Change the email itself by clicking it below." : "Sent or scheduled: it can't be changed."}>
-				<Field class="span-4" label="Name" for="email-name" optional hint="What ops calls it. The list never sees it.">
-					<TextField id="email-name" size="sm" bind:value={name} maxlength={80} disabled={!editable} placeholder="New Year's Eve promo" autocomplete="off" />
-				</Field>
-				<Field class="span-4" label="Subject" for="email-subject" required>
-					<TextField id="email-subject" size="sm" bind:value={subject} maxlength={150} disabled={!editable} placeholder="New Year's Eve at Gwenda" autocomplete="off" />
-				</Field>
-				<Field class="span-4" label="Preview line" for="email-preview" optional hint="Shown after the subject in most inboxes.">
-					<TextField id="email-preview" size="sm" bind:value={previewText} maxlength={200} disabled={!editable} placeholder="Doors at 9, music till late" autocomplete="off" />
-				</Field>
-			</FormSection>
-
-			<div class="canvas">
-				<EmailPreview
-					title="The email"
-					subtitle={editable ? "Click any part to change it; drag one by its gold handle to move it" : "As it went"}
-					email={rendered}
-					blank="Nothing yet"
-					frameHeight="max(32rem, calc(100dvh - 24rem))"
-					onframe={typedInto}
-					note={frame ? `Links to ${frame.site.origin} · Gmail's fonts (Apple Mail shows the website's)` : ""}
-				/>
-				<EmailSidePanel
-					doc={wordsDoc}
-					words={wordsAt}
-					{editable}
-					bind:linking
-					{sections}
-					index={selectedIndex}
-					inserting={insertingAt}
-					uploading={Boolean(selected && uploading === selected.key)}
-					onpick={pickPart}
-					oninsert={(at) => {
-						insertingAt = at;
-						selectedKey = null;
-					}}
-					onremove={removeSelected}
-					onchange={changeSelected}
-					onchoose={choose}
-					oncancel={() => (insertingAt = null)}
-					onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
-					onevent={() => (eventFor = selectedKey)}
-					oncell={setCell}
-					onclose={() => {
-						selectedKey = null;
-						insertingAt = null;
-					}}
-				/>
-			</div>
+		<div class="tab-body editing">
+			<EmailCanvas email={rendered} bind:subject bind:previewText {editable} onframe={typedInto} onmore={() => (moreOpen = true)} />
 		</div>
 	{/if}
 </EditorShell>
@@ -606,40 +624,49 @@
 
 <HelpDrawer {help} />
 
+<EmailSidePanel
+	open={moreOpen}
+	{editable}
+	bind:name
+	{sections}
+	index={selectedIndex}
+	uploading={Boolean(selected && uploading === selected.key)}
+	onclose={() => (moreOpen = false)}
+	onpick={pickPart}
+	onchange={changeSelected}
+	onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
+	onevent={() => (eventFor = selectedKey)}
+	oncell={setCell}
+/>
+<AddPartDialog open={insertingAt !== null} onclose={() => (insertingAt = null)} onchoose={choose} />
+<LinkDialog
+	open={linking}
+	onclose={() => {
+		linkFrom = null;
+		linking = false;
+	}}
+	onadd={addLinkHere}
+/>
 <EventChooser open={eventFor !== null} onclose={() => (eventFor = null)} onpick={pickEvent} />
 <PictureChooser open={choosingFor !== null} onclose={() => (choosingFor = null)} onpick={pickPicture} onupload={uploadPicture} />
 
 <style>
 	.tab-body {
 		position: relative;
-		display: grid;
-		gap: var(--space-4);
 		padding: 1rem var(--card-pad-lg) var(--card-pad-lg);
 	}
-	.tab-body > :global(.form-section:first-child) {
-		padding-top: 0;
-		border-top: 0;
-	}
-	.canvas {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
-		gap: var(--space-4);
-		align-items: start;
-		min-width: 0;
-	}
-	/* The list and the picked part stay in sight while a long email scrolls. */
-	.canvas > :global(.side) {
-		position: sticky;
-		top: 0;
-	}
-	@media (max-width: 900px) {
-		.canvas {
-			grid-template-columns: minmax(0, 1fr);
-		}
+	/* The email takes all the room the editor's card has. */
+	.tab-body.editing {
+		height: max(30rem, calc(100dvh - 15.5rem));
+		padding: var(--space-2) var(--space-3) var(--space-3);
 	}
 	@media (max-width: 900px) {
 		.tab-body {
 			padding: var(--space-4) max(var(--page-gutter), 1.125rem) max(var(--page-gutter), 1.125rem);
+		}
+		.tab-body.editing {
+			height: max(28rem, calc(100dvh - 14rem));
+			padding: var(--space-2);
 		}
 	}
 </style>

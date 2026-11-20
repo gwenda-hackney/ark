@@ -35,7 +35,12 @@ export type EditingHandlers = {
 	onmove: (from: number, at: number) => void;
 	/** A Row's cell was dragged onto another cell: swap them. */
 	oncells: (from: { section: number; cell: number }, to: { section: number; cell: number }) => void;
+	/** A button on the picked part's toolbar was pressed. */
+	onaction: (action: string) => void;
 };
+
+/** A button on the picked part's toolbar, inside the email. */
+export type PartAction = { id: string; label: string };
 
 const GOLD = "#dba63c";
 
@@ -66,6 +71,11 @@ tr[data-insert].ops-drop .ops-add::after { background: ${GOLD}; color: #1a1510; 
 td[data-cell][draggable="true"] { cursor: grab; }
 td[data-cell].ops-cell-drop { outline: 3px dashed ${GOLD}; outline-offset: 2px; }
 td[data-cell].ops-dragging { opacity: 0.4; }
+.ops-tools { position: absolute; z-index: 5; display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: #0b0a08; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55); border: 1px solid ${GOLD}66; }
+.ops-tools button { font: 600 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif; color: #f2e8d2; background: #27211a; border: 1px solid #5a5246; border-radius: 6px; padding: 8px 11px; cursor: pointer; white-space: nowrap; }
+.ops-tools button:hover { background: ${GOLD}; border-color: ${GOLD}; color: #1a1510; }
+.ops-tools button[data-action="remove"]:hover { background: #d2342a; border-color: #d2342a; color: #f2e8d2; }
+.ops-tools button[aria-pressed="true"] { background: ${GOLD}; color: #1a1510; border-color: ${GOLD}; }
 .ops-add { display: block; position: relative; width: 100%; height: 26px; margin: 0; padding: 0; border: 0; background: transparent; color: transparent; cursor: pointer; }
 .ops-add::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 2px dashed ${GOLD}40; }
 .ops-add::after { content: "+"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 26px; height: 26px; box-sizing: border-box; border-radius: 50%; border: 2px solid ${GOLD}; background: #1a1510; color: ${GOLD}; font: 700 18px/22px Georgia, serif; text-align: center; }
@@ -176,9 +186,12 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 
 	const tell = () => handlers.onfocus(wordsFocus(doc));
 
+	doc.defaultView?.addEventListener("resize", () => placeTools(doc));
+
 	doc.addEventListener("input", (event) => {
 		const host = hostOf(event.target as Node);
 		if (!host) return;
+		placeTools(doc);
 		markEmpty(host);
 		const first = host.querySelector("p");
 		if (first && !first.dataset.placeholder) first.setAttribute("data-placeholder", host.dataset.placeholder || "");
@@ -206,9 +219,20 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 		doc.execCommand("insertText", false, words);
 	});
 
+	// The picked part's toolbar keeps the typing's place: pressing Bold mustn't take the selection away.
+	doc.addEventListener("mousedown", (event) => {
+		if ((event.target as Element | null)?.closest?.(".ops-tools")) event.preventDefault();
+	});
+
 	// A click picks the part it's on (or adds, on a +); links don't open: a click is for changing.
 	doc.addEventListener("click", (event) => {
 		const target = event.target as Element | null;
+		const tool = target?.closest?.(".ops-tools button[data-action]") as HTMLElement | null;
+		if (tool) {
+			event.preventDefault();
+			handlers.onaction(tool.dataset.action || "");
+			return;
+		}
 		if (target?.closest?.("a")) event.preventDefault();
 		const add = target?.closest?.(".ops-add");
 		if (add) {
@@ -262,14 +286,62 @@ export function removeLink(doc: Document) {
 	selection.collapseToEnd();
 }
 
-/** Shows which part is picked, and which + is adding (each may be null), without drawing the email again. */
-export function showSelected(doc: Document, index: number | null, insertingAt: number | null) {
+/**
+ * Shows which part is picked, and which + is adding (each may be null),
+ * without drawing the email again; the picked part gets its toolbar, at its
+ * top right corner, outside its words (so typing never meets it).
+ */
+export function showSelected(doc: Document, index: number | null, insertingAt: number | null, actions: PartAction[] = []) {
 	for (const row of Array.from(doc.querySelectorAll<HTMLElement>("tr[data-section]"))) {
 		row.classList.toggle("ops-selected", index !== null && Number(row.dataset.section) === index);
 	}
 	for (const row of Array.from(doc.querySelectorAll<HTMLElement>("tr[data-insert]"))) {
 		row.querySelector(".ops-add")?.classList.toggle("ops-here", insertingAt !== null && Number(row.dataset.insert) === insertingAt);
 	}
+	const picked = index === null ? null : doc.querySelector<HTMLElement>(`tr[data-section="${index}"]`);
+	let tools = doc.querySelector<HTMLElement>(".ops-tools");
+	if (!picked || !actions.length) {
+		tools?.remove();
+		return;
+	}
+	const key = `${index}|${actions.map((action) => `${action.id}:${action.label}`).join(",")}`;
+	if (!tools || tools.dataset.key !== key) {
+		tools?.remove();
+		tools = doc.createElement("div");
+		tools.className = "ops-tools";
+		tools.dataset.key = key;
+		tools.dataset.ops = "";
+		tools.setAttribute("role", "toolbar");
+		tools.setAttribute("aria-label", "This part");
+		for (const action of actions) {
+			const button = doc.createElement("button");
+			button.type = "button";
+			button.dataset.action = action.id;
+			button.textContent = action.label;
+			if (action.id === "bold") button.setAttribute("aria-pressed", "false");
+			tools.append(button);
+		}
+		doc.body.append(tools);
+	}
+	placeTools(doc);
+}
+
+/** The picked part's toolbar, at its top right corner (again after the part grows or the window changes). */
+export function placeTools(doc: Document) {
+	const tools = doc.querySelector<HTMLElement>(".ops-tools");
+	const picked = doc.querySelector<HTMLElement>("tr.ops-selected");
+	if (!tools || !picked) return;
+	const box = picked.getBoundingClientRect();
+	const view = doc.defaultView;
+	const top = box.top + (view?.scrollY ?? 0) - tools.offsetHeight - 6;
+	const left = Math.max(4, box.right + (view?.scrollX ?? 0) - tools.offsetWidth);
+	tools.style.top = `${Math.max(4, top)}px`;
+	tools.style.left = `${left}px`;
+}
+
+/** The Bold button shows whether the typing is bold. */
+export function showBold(doc: Document, bold: boolean) {
+	doc.querySelector('.ops-tools button[data-action="bold"]')?.setAttribute("aria-pressed", String(bold));
 }
 
 /** Puts the typing in section `index`'s words, at their end (after it's been added). */
