@@ -20,7 +20,7 @@ const DRAFT: OneOffFixture = {
 async function open(page: Page, email: OneOffFixture = DRAFT) {
 	const saves = await fakeApi(page, { email });
 	await page.goto(`/email/write/${email.id}`);
-	const preview = page.frameLocator('iframe[title="Preview"]');
+	const preview = page.frameLocator('iframe[title="The email"]');
 	await expect(preview.locator('h2[data-edit="heading"]').first()).toBeVisible();
 	return { saves, preview };
 }
@@ -94,17 +94,97 @@ test("a sent email's words can't be typed over", async ({ page }) => {
 test("an email whose picture was added before pictures had sizes opens (#369)", async ({ page }) => {
 	await open(page, { ...DRAFT, sections: [{ kind: "image", assetId: "image-abc-10x10-jpg", alt: "The bar" }, ...DRAFT.sections] });
 	await expect(page.getByText("This page hit an error")).toHaveCount(0);
-	await expect(page.getByRole("tablist", { name: "Image size" })).toBeVisible();
+	await page.frameLocator('iframe[title="The email"]').locator('tr[data-section="0"]').click();
+	await expect(page.getByRole("tablist", { name: "Picture size" }).getByRole("tab", { name: "Full width" })).toHaveAttribute("aria-selected", "true");
 });
 
-test("a change in the sections beside the email can be saved (it used to change what was saved too, so Save never woke)", async ({ page }) => {
-	const { saves } = await open(page);
+test("a change to a saved email wakes Save, and after saving it sleeps until the next one (it never woke before)", async ({ page }) => {
+	const { saves, preview } = await open(page);
 	const save = page.getByRole("button", { name: "Save email" });
 	await expect(save).toBeDisabled();
-	await page.getByRole("region", { name: "Copy, section 2 of 3" }).getByRole("textbox", { name: "Text" }).fill("Doors at 10.");
+	await preview.locator('td[data-edit="copy"] p').first().click();
+	await page.keyboard.press("End");
+	await page.keyboard.type(" Late.");
 	await expect(save).toBeEnabled();
 	await save.click();
-	await expect.poll(() => (saves.at(-1)?.sections as { text?: string }[] | undefined)?.[1]?.text).toBe("Doors at 10.");
-	// Saved: nothing left to save.
+	await expect.poll(() => (saves.at(-1)?.sections as { text?: string }[] | undefined)?.[1]?.text).toBe("Doors at 9. Late.");
 	await expect(save).toBeDisabled();
+	await page.getByLabel("Subject").fill("Party!");
+	await expect(save).toBeEnabled();
+});
+
+test("a part is picked by clicking it, then moved and removed from the bar", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	const bar = page.getByRole("toolbar", { name: "Change the email" });
+	await expect(bar.getByText("Nothing picked")).toBeVisible();
+	await preview.locator('tr[data-section="1"]').click();
+	await expect(bar.getByText("Text · 2 of 3")).toBeVisible();
+	await bar.getByRole("button", { name: "Move up" }).click();
+	await expect(bar.getByText("Text · 1 of 3")).toBeVisible();
+	await expect(bar.getByRole("button", { name: "Move up" })).toBeDisabled();
+	await preview.locator('tr[data-section="2"]').click();
+	await bar.getByRole("button", { name: "Remove" }).click();
+	await save(page);
+	await expect.poll(() => saves.at(-1)?.sections).toEqual([
+		{ kind: "copy", text: "Doors at 9." },
+		{ kind: "heading", text: "Party" },
+	]);
+});
+
+test("a + adds a heading there, ready to type into", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	await preview.locator('tr[data-insert="1"] .ops-add').click();
+	const bar = page.getByRole("toolbar", { name: "Change the email" });
+	await expect(bar.getByText("Add something here")).toBeVisible();
+	await bar.getByRole("button", { name: /^Heading/ }).click();
+	await expect(bar.getByText("Heading · 2 of 4")).toBeVisible();
+	await page.keyboard.type("Tonight");
+	await page.keyboard.press("Enter");
+	await save(page);
+	await expect.poll(() => (saves.at(-1)?.sections as { kind: string; text?: string }[] | undefined)?.map((part) => part.text)).toEqual([
+		"Party",
+		"Tonight",
+		"Doors at 9.",
+		"",
+	]);
+});
+
+test("a picture comes from our photos, then its size and description are set in the bar", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	await preview.locator('tr[data-insert="0"] .ops-add').click();
+	await page.getByRole("toolbar", { name: "Change the email" }).getByRole("button", { name: /^Picture/ }).click();
+	const chooser = page.getByRole("dialog", { name: "Choose a picture" });
+	await expect(chooser.getByRole("region", { name: "Chez Pickle" })).toBeVisible();
+	await chooser.getByRole("button", { name: "The bar at night" }).click();
+	await expect(chooser).toHaveCount(0);
+	await expect(preview.locator('tr[data-section="0"] img')).toHaveAttribute("alt", "The bar at night");
+
+	const bar = page.getByRole("toolbar", { name: "Change the email" });
+	await bar.getByRole("tab", { name: "Logo" }).click();
+	await bar.getByLabel("What it shows").fill("Our bar");
+	await save(page);
+	await expect.poll(() => (saves.at(-1)?.sections as unknown[] | undefined)?.[0]).toEqual({
+		kind: "image",
+		assetId: "image-aaa111-1600x1200-jpg",
+		alt: "Our bar",
+		size: "logo",
+	});
+});
+
+test("a button's words, address and look are set in the bar; an empty one says what it needs", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	await preview.locator('tr[data-insert="3"] .ops-add').click();
+	await page.getByRole("toolbar", { name: "Change the email" }).getByRole("button", { name: /^Button/ }).click();
+	await expect(preview.locator('tr[data-section="3"] [data-waiting]')).toHaveText("Button: click here to give it words and a link");
+	const bar = page.getByRole("toolbar", { name: "Change the email" });
+	await bar.getByLabel("Words on it").fill("See the menu");
+	await bar.getByLabel("Where it goes").fill("https://gwenda.co.uk/menu");
+	await expect(preview.locator('tr[data-section="3"] a')).toHaveText(/See the menu/i);
+	await save(page);
+	await expect.poll(() => (saves.at(-1)?.sections as unknown[] | undefined)?.[3]).toEqual({
+		kind: "button",
+		label: "See the menu",
+		link: "https://gwenda.co.uk/menu",
+		look: "link",
+	});
 });

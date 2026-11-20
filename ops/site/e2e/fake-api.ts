@@ -68,6 +68,17 @@ function emailRecord(email: OneOffFixture) {
  * Answers ops' /api for a page with one one-off email in it. Returns the
  * drafts the page saved (each PATCH's body), newest last.
  */
+/** The Photos page's pictures and one event's, for the email's picture chooser. */
+export const GALLERY = {
+  photos: [
+    { key: "p1", asset: "image-aaa111-1600x1200-jpg", description: "The bar at night", url: "https://cdn.sanity.io/images/test/production/aaa111-1600x1200.jpg", width: 1600, height: 1200, added: "", addedBy: "", menu: null },
+  ],
+  fromEvents: [
+    { id: "36", name: "Chez Pickle", photos: [{ key: "e1", url: "https://cdn.sanity.io/images/test/production/bbb222-1200x1500.jpg", width: 1200, height: 1500, added: "" }], more: 0, tooSmall: 0 },
+  ],
+  website: { state: "live" },
+};
+
 export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
   const saves: Record<string, unknown>[] = [];
   let current = emailRecord(email);
@@ -103,6 +114,8 @@ export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
       });
     }
     if (pathname === "/api/web/jobs") return json({ ok: true, jobs: [] });
+    if (pathname === "/api/venue/gallery") return json(GALLERY);
+    if (pathname === "/api/email/images") return json({ assetId: "image-ccc333-800x600-jpg", url: "https://cdn.sanity.io/images/test/production/ccc333-800x600.jpg" });
     return json({ ok: true });
   });
   return saves;

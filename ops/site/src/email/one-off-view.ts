@@ -10,22 +10,28 @@ import type { StatusTone } from "./email-view";
 
 export type SectionKind = OneOffSection["kind"];
 
-/** The kinds the editor offers, in order, with their short names. */
-export const SECTION_CHOICES: { kind: SectionKind; label: string }[] = [
-	{ kind: "image", label: "Image" },
-	{ kind: "heading", label: "Heading" },
-	{ kind: "copy", label: "Copy" },
-	{ kind: "button", label: "Button" },
-	{ kind: "booking", label: "Book a table" },
+/** The kinds the editor offers, in order, with the names the owner sees and what each is for. */
+export const SECTION_CHOICES: { kind: SectionKind; label: string; about: string }[] = [
+	{ kind: "image", label: "Picture", about: "One of our photos, or a new one" },
+	{ kind: "heading", label: "Heading", about: "Big words in the poster letters" },
+	{ kind: "copy", label: "Text", about: "Paragraphs, with bold and links" },
+	{ kind: "button", label: "Button", about: "Words that go to a web page" },
+	{ kind: "booking", label: "Book a table", about: "The website's own booking button" },
 ];
 
-/** A button's looks, for its switch. */
+/** A kind's name for the owner: "Picture", "Text". */
+export function partName(kind: SectionKind): string {
+	return SECTION_CHOICES.find((choice) => choice.kind === kind)?.label || kind;
+}
+
+/** A picture's sizes, for its switch. */
 export const IMAGE_SIZE_ITEMS = [
 	{ id: "full", label: "Full width" },
 	{ id: "logo", label: "Logo" },
 	{ id: "collab", label: "Gwenda ×" },
 ] as const;
 
+/** A button's looks, for its switch. */
 export const BUTTON_LOOK_ITEMS = [
 	{ id: "link", label: "Link" },
 	{ id: "outline", label: "Outline" },
@@ -57,6 +63,13 @@ export function editorSections(sections: OneOffSection[]): EditorSection[] {
 
 export function addSection(list: EditorSection[], kind: SectionKind): EditorSection[] {
 	return [...list, keyed(blankSection(kind))];
+}
+
+/** The list with a new, empty `kind` before section `at` (at the end for the count), and its key. */
+export function insertSection(list: EditorSection[], at: number, kind: SectionKind): { list: EditorSection[]; key: string } {
+	const entry = keyed(blankSection(kind));
+	const place = Math.max(0, Math.min(at, list.length));
+	return { list: [...list.slice(0, place), entry, ...list.slice(place)], key: entry.key };
 }
 
 /** The list with the section at `index` moved one place up (-1) or down (+1); unchanged at an end. */

@@ -175,6 +175,17 @@ describe("drawn for ops' editor (marks)", () => {
     expect(render(sections).html.match(/<h2 /g)).toHaveLength(1);
   });
 
+  it("empty pictures and buttons are dashed boxes saying what they need, and there's a place to add before each part and after the last", () => {
+    const html = renderOneOffEmail(
+      { subject: "S", sections: [{ kind: "image", assetId: "" }, { kind: "button", label: "", link: "" }] },
+      { site, images, marks: true },
+    ).html;
+    expect(html).toMatch(/<tr data-section="0">[\s\S]*?<div data-waiting[^>]*>Picture: click here, then Change picture<\/div>/);
+    expect(html).toMatch(/<tr data-section="1">[\s\S]*?<div data-waiting[^>]*>Button: click here to give it words and a link<\/div>/);
+    expect(html.match(/<tr data-insert="(\d)">/g)).toEqual(['<tr data-insert="0">', '<tr data-insert="1">', '<tr data-insert="2">']);
+    expect(render([{ kind: "image", assetId: "" }]).html).not.toContain("data-");
+  });
+
   it("copy's paragraphs share one cell, each with the gap a row of its own had", () => {
     const html = render([{ kind: "copy", text: "One\n\nTwo" }]).html;
     expect(html).toMatch(/<td align="left" style="padding:0px \d+px 0px;"><p [^>]*margin:0 0 18px;[^>]*>One<\/p><p [^>]*margin:0 0 18px;[^>]*>Two<\/p><\/td>/);

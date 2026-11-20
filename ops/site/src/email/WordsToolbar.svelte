@@ -126,10 +126,6 @@
 	.words-bar {
 		display: grid;
 		gap: var(--space-2);
-		padding: var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--muted);
 	}
 	.buttons,
 	.link-box {

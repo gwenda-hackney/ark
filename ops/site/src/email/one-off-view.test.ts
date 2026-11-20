@@ -5,6 +5,8 @@ import {
 	addSection,
 	draftOf,
 	editorSections,
+	insertSection,
+	partName,
 	moveSection,
 	notReady,
 	oneOffSendBlocked,
@@ -65,6 +67,21 @@ describe("the one-off email editor (#348)", () => {
 		assert.equal(old.section.kind === "image" && old.section.size, "full");
 		const [logo] = editorSections([{ kind: "image", assetId: "image-a-10x10-jpg", alt: "", size: "logo" }]);
 		assert.equal(logo.section.kind === "image" && logo.section.size, "logo");
+	});
+
+	it("adds a part at the place its + was pressed, the first, between two or after the last", () => {
+		const list = editorSections([
+			{ kind: "heading", text: "A" },
+			{ kind: "copy", text: "B" },
+		]);
+		const kinds = (l: typeof list) => l.map((entry) => entry.section.kind);
+		assert.deepEqual(kinds(insertSection(list, 0, "image").list), ["image", "heading", "copy"]);
+		assert.deepEqual(kinds(insertSection(list, 1, "button").list), ["heading", "button", "copy"]);
+		const last = insertSection(list, 2, "booking");
+		assert.deepEqual(kinds(last.list), ["heading", "copy", "booking"]);
+		assert.equal(last.list[2].key, last.key);
+		assert.equal(partName("copy"), "Text");
+		assert.equal(partName("image"), "Picture");
 	});
 
 	it("knows when there's something to save", () => {

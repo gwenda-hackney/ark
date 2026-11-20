@@ -11,8 +11,10 @@
  * Drawn for ops' editor (`marks` in the context), the same HTML carries
  * where each part came from: every row its section's place (data-section),
  * and the words that can be typed over in the preview (data-edit, with what
- * an empty one says). Empty headings and copy are drawn there too, so they
- * can be clicked into; the email that's sent never has either.
+ * an empty one says), and a place for adding before each part and after the
+ * last (data-insert). Empty parts are drawn there too: headings and copy to
+ * be typed into, a picture or button as a dashed box saying what it needs.
+ * The email that's sent never has any of it.
  * Everything else is escaped; a link that isn't http(s) or mailto is dropped
  * and its words kept. No raw HTML ever reaches the email.
  */
@@ -50,6 +52,23 @@ export function safeLink(value) {
 function editable(context, kind, placeholder) {
   return context?.marks ? ` data-edit="${kind}" data-placeholder="${esc(placeholder)}"` : "";
 }
+
+/** What an empty picture or button says in the editor, in place of itself. */
+const WAITING = {
+  image: "Picture: click here, then Change picture",
+  button: "Button: click here to give it words and a link",
+};
+
+/** The editor's dashed box for a part that isn't filled in yet. */
+function waitingRow(words) {
+  return row(
+    `<div data-waiting style="border:2px dashed ${COLOURS.mustard};border-radius:6px;padding:28px 16px;text-align:center;font-family:Georgia,serif;font-size:16px;line-height:1.4;color:${COLOURS.ink2};">${esc(words)}</div>`,
+    { bottom: 20 },
+  );
+}
+
+/** The editor's place for adding a part, before section `at`. */
+const insertRow = (at) => `<tr data-insert="${at}"><td style="padding:0 40px;"></td></tr>`;
 
 /** Space under each paragraph of copy. */
 const PARAGRAPH_GAP = 18;
@@ -258,15 +277,18 @@ export function cleanSections(raw, kinds = SECTION_KINDS) {
 export function renderSections(sections, context, kinds = SECTION_KINDS) {
   const rows = [];
   const lines = [];
+  const marks = Boolean(context?.marks);
   sections.forEach((section, index) => {
     const kind = kinds[section?.kind];
     if (!kind) return;
-    // In the editor, empty words still show, to be typed into.
-    const typed = context?.marks && (section.kind === "heading" || section.kind === "copy");
-    if (kind.empty(section) && !typed) return;
-    const drawn = kind.html(section, context);
-    rows.push(...(context?.marks ? drawn.map((part) => part.replace(/^<tr/, `<tr data-section="${index}"`)) : drawn));
-    if (!kind.empty(section)) lines.push(...kind.text(section, context));
+    if (marks) rows.push(insertRow(index));
+    const empty = kind.empty(section);
+    if (empty && !marks) return;
+    if (!empty) lines.push(...kind.text(section, context));
+    // In the editor, empty words still show, to be typed into; an empty picture or button says what it needs.
+    const drawn = empty && WAITING[section.kind] ? [waitingRow(WAITING[section.kind])] : kind.html(section, context);
+    rows.push(...(marks ? drawn.map((part) => part.replace(/^<tr/, `<tr data-section="${index}"`)) : drawn));
   });
+  if (marks) rows.push(insertRow(sections.length));
   return { rows, lines };
 }
