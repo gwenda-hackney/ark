@@ -58,7 +58,8 @@ describe("2026-11-22-pinsa-a-roma-email-teaming-up", () => {
     assert.equal(result.changed, true);
     const at = fresh.sections.indexOf(logoOf(fresh));
     assert.ok(at >= 0, "the logo is in it");
-    assert.deepEqual(fresh.sections[at].cells.map((cell) => cell.kind), ["logo", "times", "picture"]);
+    assert.deepEqual(fresh.sections[at].cells.map((cell) => cell.kind), ["logo", "words", "picture"]);
+    assert.deepEqual(fresh.sections[at].cells[1], { kind: "words", text: "×", look: "big", width: "small" });
     assert.equal(fresh.sections[at].cells[2].alt, "Pinsa A Roma");
     assert.deepEqual(fresh.sections[at + 1], { kind: "heading", text: "Gwenda is teaming up with Pinsa A Roma!" });
     assert.equal(fresh.updatedBy, teamUp.BY.toLowerCase());
