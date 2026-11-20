@@ -18,6 +18,7 @@
 		notes,
 		onclose,
 		dirty = false,
+		compact = false,
 	}: {
 		/** The kicker line: an eyebrow (`.eyebrow`, e.g. "Menu") and any status badges. */
 		kicker: Snippet;
@@ -33,10 +34,12 @@
 		onclose?: () => void;
 		/** Unsaved changes: the × says so. */
 		dirty?: boolean;
+		/** A tight head, for an editor that needs the room below (the email editor): a smaller title and line under it. */
+		compact?: boolean;
 	} = $props();
 </script>
 
-<header class="panel-head">
+<header class="panel-head" class:compact>
 	<!-- One wrapping row: when the buttons don't fit beside the status, they
 	     drop to their own line instead of overlapping it (#43). -->
 	<div class="head-row">
@@ -81,6 +84,18 @@
 		flex-shrink: 0;
 		padding: 0.55rem var(--card-pad-lg) 0.75rem;
 		border-bottom: 1px solid var(--border);
+	}
+
+	.panel-head.compact {
+		padding: 0.35rem var(--card-pad-lg) 0.45rem;
+		row-gap: 0;
+	}
+	.panel-head.compact .title-name :global(.title-text) {
+		font-size: var(--text-xl);
+		line-height: 1.2;
+	}
+	.panel-head.compact .title-name :global(.sub) {
+		font-size: var(--text-xs);
 	}
 
 	.head-row {

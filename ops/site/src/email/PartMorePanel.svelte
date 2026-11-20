@@ -1,10 +1,14 @@
 <script lang="ts">
 	/**
-	 * The one-off editor's right half (#348), beside the email: what the
-	 * inbox shows (subject, preview line) and the width it's seen at (its
-	 * name is typed over in the editor's heading); then the picked part's settings (a picture's size and
-	 * description, a Row's cells, a button's words and address, an Event).
+	 * More, in the one-off editor (#348): from ⋯ More on a part's toolbar in
+	 * the email, a side panel slides in over the right of the page with that
+	 * part's settings (a picture's size and description, a Row's cells, a
+	 * button's words, address and look), and slides away when closed.
+	 * Changes show in the email as they're made. On a phone it rises from
+	 * the bottom.
 	 */
+	import { fly } from "svelte/transition";
+	import { cubicOut } from "svelte/easing";
 	import { Button, Field, Segmented, TextField } from "../ui";
 	import { Icon } from "../app/shell";
 	import type { OneOffSection, RowCell } from "./email-api";
@@ -17,10 +21,8 @@
 	} from "./one-off-view";
 
 	let {
-		editable,
-		subject = $bindable(""),
-		previewText = $bindable(""),
-		width = $bindable("desktop"),
+		open,
+		onclose,
 		sections,
 		index,
 		uploading,
@@ -29,11 +31,8 @@
 		onevent,
 		oncell,
 	}: {
-		editable: boolean;
-		subject?: string;
-		previewText?: string;
-		/** The width the email is seen at: desktop or phone. */
-		width?: string;
+		open: boolean;
+		onclose: () => void;
 		sections: EditorSection[];
 		/** The picked part's place, or -1. */
 		index: number;
@@ -49,10 +48,12 @@
 
 	const section = $derived(index >= 0 ? (sections[index]?.section ?? null) : null);
 
-	const WIDTHS = [
-		{ id: "desktop", label: "Desktop" },
-		{ id: "phone", label: "Phone" },
-	];
+
+	/** It slides in from the right, and out again; on a phone, up from the bottom. */
+	function slide(node: Element) {
+		const phone = typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches;
+		return fly(node, phone ? { y: 400, duration: 240, easing: cubicOut, opacity: 1 } : { x: 420, duration: 240, easing: cubicOut, opacity: 1 });
+	}
 
 	function cellKind(cell: number, kind: string) {
 		if (section?.kind !== "row" || section.cells[cell]?.kind === kind) return;
@@ -68,24 +69,12 @@
 	}
 </script>
 
-<div class="settings">
-	<section class="inbox" aria-label="What the inbox shows">
-		<Field label="Subject" for="email-subject" required>
-			<TextField id="email-subject" bind:value={subject} maxlength={150} disabled={!editable} placeholder="New Year's Eve at Gwenda" autocomplete="off" />
-		</Field>
-		<Field label="Preview line" for="email-preview" optional hint="Shown after the subject in most inboxes.">
-			<TextField id="email-preview" bind:value={previewText} maxlength={200} disabled={!editable} placeholder="Doors at 9, music till late" autocomplete="off" />
-		</Field>
-		<Field label="See it on">
-			<Segmented bind:value={width} items={WIDTHS} tone="soft" ariaLabel="Email width" />
-		</Field>
-	</section>
-
-	<section class="picked" aria-label="The picked part">
-		<h2>{section ? `${partName(section.kind)} · ${index + 1} of ${sections.length}` : "Nothing picked"}</h2>
-		{#if !editable}
-			<p class="hint">Sent or scheduled: it can't be changed.</p>
-		{:else if section}
+{#if open && section}
+	<aside class="side" aria-label={`${partName(section.kind)}: more`} transition:slide>
+		<div class="head">
+			<h2>{partName(section.kind)} · {index + 1} of {sections.length}</h2>
+			<button type="button" class="close" aria-label="Close" onclick={onclose}><Icon name="close" size={18} /></button>
+		</div>
 			<div class="part">
 				{#if section.kind === "image"}
 					<Button busy={uploading} onclick={() => onpicture()}>
@@ -148,36 +137,49 @@
 					<p class="hint">A dashed line, like the one between the monthly email's parts.</p>
 				{/if}
 			</div>
-		{:else}
-			<p class="hint">Click a part of the email to change it. Drag a part by its gold handle to move it; a + adds something there.</p>
-		{/if}
-	</section>
-</div>
+	</aside>
+{/if}
 
 <style>
-	.settings {
-		display: grid;
-		align-content: start;
-		gap: var(--space-5, 1.5rem);
-		height: 100%;
+	.side {
+		position: fixed;
+		top: 5.5rem;
+		right: var(--space-4);
+		bottom: 5.5rem;
+		z-index: 40;
+		width: min(24rem, calc(100vw - 2rem));
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		padding: var(--space-4);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg, 12px);
+		background: var(--card);
+		box-shadow: -12px 0 40px rgb(0 0 0 / 0.45);
 		overflow: auto;
-		padding: var(--space-1) var(--space-1) var(--space-4);
 	}
-	.inbox,
-	.picked,
-	.part,
-	.cell {
-		display: grid;
-		gap: var(--space-3);
-	}
-	.picked {
-		padding-top: var(--space-4);
-		border-top: 1px solid var(--border);
+	.head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
 	}
 	h2 {
 		margin: 0;
 		font-size: var(--text-base);
 		font-weight: 600;
+	}
+	.close {
+		border: 0;
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+		padding: 0.25rem;
+	}
+	.part,
+	.cell {
+		display: grid;
+		gap: var(--space-3);
 	}
 	.cell {
 		padding: var(--space-2);
@@ -188,5 +190,17 @@
 		margin: 0;
 		font-size: var(--text-sm);
 		color: var(--muted-foreground);
+	}
+	@media (max-width: 900px) {
+		.side {
+			top: auto;
+			left: 0;
+			right: 0;
+			bottom: var(--bottom-nav-h, 0px);
+			width: auto;
+			max-height: min(70dvh, calc(100dvh - var(--bottom-nav-h, 0px) - 4rem));
+			border-radius: var(--radius-lg, 12px) var(--radius-lg, 12px) 0 0;
+			box-shadow: 0 -10px 30px rgb(0 0 0 / 0.45);
+		}
 	}
 </style>

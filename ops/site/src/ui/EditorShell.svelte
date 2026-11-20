@@ -40,6 +40,7 @@
 		kicker,
 		heading = "",
 		rename,
+		compact = false,
 		placeholder = false,
 		subtitle = "",
 		tools,
@@ -75,6 +76,8 @@
 		 * `disabled`.
 		 */
 		rename?: { value: string; placeholder: string; label: string; maxlength?: number; disabled?: boolean; onchange: (value: string) => void };
+		/** A tight head: a smaller title and line under it, for an editor that needs the room (EditorCardHeader). */
+		compact?: boolean;
 		/** The heading is a stand-in ("New menu"): it shows muted. */
 		placeholder?: boolean;
 		subtitle?: string;
@@ -141,7 +144,7 @@
 				{#if header}
 					{@render header()}
 				{:else if kicker}
-					<EditorCardHeader {kicker} {title} tools={headTools} {onclose} {dirty} />
+					<EditorCardHeader {kicker} {title} tools={headTools} {onclose} {dirty} {compact} />
 				{/if}
 				{#if tabs}
 					<div class="tabs">{@render tabs()}</div>
