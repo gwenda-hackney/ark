@@ -11,8 +11,8 @@
 	 * Sent or scheduled ones open read-only.
 	 */
 	import { onDestroy } from "svelte";
-	import { attachEditing, focusWords, showSelected, type WordsFocus } from "./preview-editing";
-	import EmailEditBar from "./EmailEditBar.svelte";
+	import { attachEditing, focusWords, scrollToPart, showSelected, type WordsFocus } from "./preview-editing";
+	import EmailSidePanel from "./EmailSidePanel.svelte";
 	import PictureChooser from "./PictureChooser.svelte";
 	import EventChooser from "./EventChooser.svelte";
 	import { Badge, Button, ConfirmDialog, EditorShell, EmptyState, Field, FormSection, HelpDrawer, Skeleton, TextField } from "../ui";
@@ -39,6 +39,7 @@
 		type OneOffEmail,
 		type OneOffSection,
 		type EventCard,
+		type RowCell,
 		type WeeklyEmailAccess,
 	} from "./email-api";
 	import EmailPreview from "./EmailPreview.svelte";
@@ -48,7 +49,8 @@
 		emailName,
 		editorSections,
 		insertSection,
-		moveSection,
+		moveSectionTo,
+		swapCells,
 		notReady,
 		oneOffSendBlocked,
 		oneOffTestBlocked,
@@ -156,6 +158,14 @@
 				insertingAt = at;
 				selectedKey = null;
 			},
+			onmove(from, at) {
+				selectedKey = sections[from]?.key ?? selectedKey;
+				sections = moveSectionTo(sections, from, at);
+			},
+			oncells(from, to) {
+				sections = swapCells(sections, from, to);
+				selectedKey = sections[to.section]?.key ?? selectedKey;
+			},
 		});
 		showSelected(doc, selectedIndex >= 0 ? selectedIndex : null, insertingAt);
 		const typeInto = focusKey ? sections.findIndex((entry) => entry.key === focusKey) : -1;
@@ -175,12 +185,21 @@
 		insertingAt = null;
 		selectedKey = added.key;
 		if (kind === "heading" || kind === "copy") focusKey = added.key;
-		if (kind === "image" || kind === "pictures") choosingFor = { key: added.key, slot: 0 };
+		if (kind === "image") choosingFor = { key: added.key, slot: 0 };
 		if (kind === "event") eventFor = added.key;
 	}
 
-	function moveSelected(by: -1 | 1) {
-		if (selectedIndex >= 0) sections = moveSection(sections, selectedIndex, by);
+	/** Picks a part from the list beside the email, and brings it into view. */
+	function pickPart(index: number) {
+		selectedKey = sections[index]?.key ?? null;
+		insertingAt = null;
+		if (wordsDoc) scrollToPart(wordsDoc, index);
+	}
+
+	function setCell(cell: number, value: RowCell) {
+		const entry = selected;
+		if (entry?.section.kind !== "row") return;
+		entry.section.cells = entry.section.cells.map((other, at) => (at === cell ? value : other));
 	}
 
 	function removeSelected() {
@@ -206,15 +225,14 @@
 		if (target) setPicture(target.key, target.slot, assetId, alt);
 	}
 
-	/** Puts a picture in a part: a Picture, or one side of Two pictures (then the other side's chooser opens, while it's empty). */
+	/** Puts a picture in a part: a Picture, or a Row's cell `slot`. */
 	function setPicture(key: string, slot: number, assetId: string, alt: string) {
 		const entry = sections.find((other) => other.key === key);
 		if (entry?.section.kind === "image") Object.assign(entry.section, { assetId, alt: entry.section.alt || alt });
-		if (entry?.section.kind === "pictures") {
-			const pictures = entry.section.pictures.map((picture, i) => (i === slot ? { assetId, alt: picture.alt || alt } : picture));
-			entry.section.pictures = pictures;
-			const other = 1 - slot;
-			if (!pictures[other].assetId) choosingFor = { key, slot: other };
+		if (entry?.section.kind === "row") {
+			entry.section.cells = entry.section.cells.map((cell, at) =>
+				at === slot ? { kind: "picture", assetId, alt: (cell.kind === "picture" && cell.alt) || alt } : cell,
+			);
 		}
 	}
 
@@ -520,35 +538,40 @@
 			</FormSection>
 
 			<div class="canvas">
-				{#snippet editBar()}
-					<EmailEditBar
-						doc={wordsDoc}
-						words={wordsAt}
-						{editable}
-						bind:linking
-						section={selected?.section ?? null}
-						index={selectedIndex}
-						count={sections.length}
-						inserting={insertingAt}
-						uploading={Boolean(selected && uploading === selected.key)}
-						onmove={moveSelected}
-						onremove={removeSelected}
-						onchange={changeSelected}
-						onchoose={choose}
-						oncancel={() => (insertingAt = null)}
-						onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
-						onevent={() => (eventFor = selectedKey)}
-					/>
-				{/snippet}
 				<EmailPreview
-					toolbar={editBar}
 					title="The email"
-					subtitle={editable ? "Click any part to change it" : "As it went"}
+					subtitle={editable ? "Click any part to change it; drag one by its gold handle to move it" : "As it went"}
 					email={rendered}
 					blank="Nothing yet"
-					frameHeight="max(32rem, calc(100dvh - 30rem))"
+					frameHeight="max(32rem, calc(100dvh - 24rem))"
 					onframe={typedInto}
 					note={frame ? `Links to ${frame.site.origin} · Gmail's fonts (Apple Mail shows the website's)` : ""}
+				/>
+				<EmailSidePanel
+					doc={wordsDoc}
+					words={wordsAt}
+					{editable}
+					bind:linking
+					{sections}
+					index={selectedIndex}
+					inserting={insertingAt}
+					uploading={Boolean(selected && uploading === selected.key)}
+					onpick={pickPart}
+					oninsert={(at) => {
+						insertingAt = at;
+						selectedKey = null;
+					}}
+					onremove={removeSelected}
+					onchange={changeSelected}
+					onchoose={choose}
+					oncancel={() => (insertingAt = null)}
+					onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
+					onevent={() => (eventFor = selectedKey)}
+					oncell={setCell}
+					onclose={() => {
+						selectedKey = null;
+						insertingAt = null;
+					}}
 				/>
 			</div>
 		</div>
@@ -598,17 +621,21 @@
 		border-top: 0;
 	}
 	.canvas {
-		max-width: 56rem;
-		width: 100%;
-		margin: 0 auto;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+		gap: var(--space-4);
+		align-items: start;
 		min-width: 0;
 	}
-	/* The bar stays in sight while a long email scrolls under it. */
-	.canvas :global(.edit-bar) {
+	/* The list and the picked part stay in sight while a long email scrolls. */
+	.canvas > :global(.side) {
 		position: sticky;
 		top: 0;
-		z-index: 2;
-		box-shadow: 0 6px 12px -8px rgb(0 0 0 / 0.5);
+	}
+	@media (max-width: 900px) {
+		.canvas {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 	@media (max-width: 900px) {
 		.tab-body {

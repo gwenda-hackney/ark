@@ -37,6 +37,10 @@ describe("words typed in the preview, back into the email", () => {
 		assert.equal(copyFromDom(cell('<p><b>Read <a href="https://a.co">this</a></b></p>')), "**Read [this](https://a.co)**");
 	});
 
+	it("the editor's own marks in the cell (a drag grip) are never words", () => {
+		assert.equal(copyFromDom(cell('<span data-ops="" contenteditable="false">⠿</span><p>Doors at 9.</p>')), "Doors at 9.");
+	});
+
 	it("nothing typed is no copy", () => {
 		assert.equal(copyFromDom(cell("<p><br></p>")), "");
 	});

@@ -5,7 +5,7 @@
  */
 import { oneOffNotReady, renderOneOffEmail } from "../../../../shared/email/one-off.js";
 import { SECTION_KINDS } from "../../../../shared/email/sections.js";
-import type { EmailFrame, OneOffDraft, OneOffSection, OneOffStatus } from "./email-api";
+import type { EmailFrame, OneOffDraft, OneOffSection, OneOffStatus, RowCell } from "./email-api";
 import type { StatusTone } from "./email-view";
 
 export type SectionKind = OneOffSection["kind"];
@@ -13,7 +13,7 @@ export type SectionKind = OneOffSection["kind"];
 /** The kinds the editor offers, in order, with the names the owner sees and what each is for. */
 export const SECTION_CHOICES: { kind: SectionKind; label: string; about: string }[] = [
 	{ kind: "image", label: "Picture", about: "One of our photos, or a new one" },
-	{ kind: "pictures", label: "Two pictures", about: "Side by side" },
+	{ kind: "row", label: "Row", about: "Two or three side by side: pictures, our logo, a ×" },
 	{ kind: "heading", label: "Heading", about: "Big words in the poster letters" },
 	{ kind: "copy", label: "Text", about: "Paragraphs, with bold and links" },
 	{ kind: "event", label: "Event", about: "A night, deal or pop-up, as the monthly email shows it" },
@@ -31,7 +31,14 @@ export function partName(kind: SectionKind): string {
 export const IMAGE_SIZE_ITEMS = [
 	{ id: "full", label: "Full width" },
 	{ id: "logo", label: "Logo" },
-	{ id: "collab", label: "Gwenda ×" },
+] as const;
+
+/** What a Row's cell can hold, for its switch. */
+export const CELL_ITEMS = [
+	{ id: "picture", label: "Picture" },
+	{ id: "logo", label: "Our logo" },
+	{ id: "times", label: "×" },
+	{ id: "empty", label: "Nothing" },
 ] as const;
 
 /** A button's looks, for its switch. */
@@ -59,17 +66,65 @@ export function editorSections(sections: OneOffSection[]): EditorSection[] {
 	// A button saved before it had a look is a link; an image saved before it had a size is full width.
 	return sections.map((section) => {
 		if (section.kind === "button") return keyed({ ...section, look: section.look === "outline" ? "outline" : "link" });
-		if (section.kind === "image") return keyed({ ...section, size: section.size === "logo" || section.size === "collab" ? section.size : "full" });
-		if (section.kind === "pictures") {
-			const pair = Array.isArray(section.pictures) ? section.pictures : [];
-			return keyed({ kind: "pictures", pictures: [0, 1].map((i) => ({ assetId: pair[i]?.assetId || "", alt: pair[i]?.alt || "" })) });
+		// "Gwenda ×" was a picture's size; it's a Row now: our logo, ×, the picture.
+		if (section.kind === "image" && section.size === "collab") {
+			return keyed({ kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: section.assetId, alt: section.alt }] });
 		}
+		if (section.kind === "image") return keyed({ ...section, size: section.size === "logo" ? "logo" : "full" });
+		if (section.kind === "row") return keyed({ kind: "row", cells: section.cells.map((cell) => ({ ...cell })) });
 		return keyed({ ...section });
 	});
 }
 
 export function addSection(list: EditorSection[], kind: SectionKind): EditorSection[] {
 	return [...list, keyed(blankSection(kind))];
+}
+
+/** The list with section `from` dropped before section `at` (the count: after the last); the same list when it wouldn't move. */
+export function moveSectionTo(list: EditorSection[], from: number, at: number): EditorSection[] {
+	if (from < 0 || from >= list.length || at === from || at === from + 1) return list;
+	const rest = list.filter((_, index) => index !== from);
+	const place = at > from ? at - 1 : at;
+	return [...rest.slice(0, place), list[from], ...rest.slice(place)];
+}
+
+/** A Row's cell, by its section and its place in the row. */
+export type CellAt = { section: number; cell: number };
+
+/** Two cells swapped, in one Row or between two; anything else leaves the list as it was. */
+export function swapCells(list: EditorSection[], a: CellAt, b: CellAt): EditorSection[] {
+	const first = list[a.section]?.section;
+	const second = list[b.section]?.section;
+	if (first?.kind !== "row" || second?.kind !== "row" || (a.section === b.section && a.cell === b.cell)) return list;
+	const one = first.cells[a.cell];
+	const two = second.cells[b.cell];
+	if (!one || !two) return list;
+	const out = list.map((entry) => (entry.section.kind === "row" ? { ...entry, section: { ...entry.section, cells: [...entry.section.cells] } } : entry));
+	(out[a.section].section as { cells: RowCell[] }).cells[a.cell] = two;
+	(out[b.section].section as { cells: RowCell[] }).cells[b.cell] = one;
+	return out;
+}
+
+/** A part in a line, for the list beside the email: its words, its picture's description, what's in a row. */
+export function partSummary(section: OneOffSection): string {
+	const words = (value: string) => value.replace(/\*\*/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\s+/g, " ").trim();
+	switch (section.kind) {
+		case "heading":
+		case "copy":
+			return words(section.text) || "Nothing typed yet";
+		case "image":
+			return section.assetId ? section.alt || "A picture" : "No picture yet";
+		case "row":
+			return section.cells.map((cell) => (cell.kind === "logo" ? "Our logo" : cell.kind === "times" ? "×" : cell.kind === "picture" ? cell.alt || "Picture" : "Empty")).join(" · ");
+		case "button":
+			return section.label || "No words yet";
+		case "event":
+			return section.title || "No event chosen";
+		case "booking":
+			return "The website's button";
+		case "divider":
+			return "A dashed line";
+	}
 }
 
 /** The list with a new, empty `kind` before section `at` (at the end for the count), and its key. */

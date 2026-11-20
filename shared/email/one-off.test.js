@@ -186,14 +186,28 @@ describe("drawn for ops' editor (marks)", () => {
     expect(render([{ kind: "image", assetId: "" }]).html).not.toContain("data-");
   });
 
-  it("two pictures sit side by side, each cut to 4:5; an empty side is a dashed box in the editor only", () => {
-    const sections = [{ kind: "pictures", pictures: [{ assetId: ASSET, alt: "Pizza" }, { assetId: "" }] }];
+  it("a row of photos shares the column, each cut to 4:5; an empty cell is a dashed box in the editor only", () => {
+    const sections = [{ kind: "row", cells: [{ kind: "picture", assetId: ASSET, alt: "Pizza" }, { kind: "empty" }] }];
     const sent = render(sections).html;
-    expect(sent).toMatch(/<td width="50%"[^>]*><img src="[^"]+" width="274" alt="Pizza"[^>]*><\/td><td width="50%"[^>]*><\/td>/);
-    expect(sent).toMatch(/fit=crop/);
+    expect(sent).toMatch(/<td width="274"[^>]*><img src="[^"]+fit=crop[^"]*" width="274" alt="Pizza"[^>]*><\/td><td width="274"[^>]*><\/td>/);
     const marked = renderOneOffEmail({ subject: "S", sections }, { site, images, marks: true }).html;
-    expect(marked).toContain(">Right picture</div>");
-    expect(render([{ kind: "pictures", pictures: [{}, {}] }]).html).not.toContain('width="50%"');
+    expect(marked).toMatch(/<td width="274" valign="top" data-cell="1"[^>]*><div data-waiting[^>]*>Empty<\/div>/);
+    expect(render([{ kind: "row", cells: [{ kind: "empty" }, { kind: "picture", assetId: "" }] }]).html).not.toContain('width="274"');
+  });
+
+  it("a row with our logo and a × is the lockup: Gwenda × their logo, centred, each whole", () => {
+    const html = render([{ kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: ASSET, alt: "Pinsa A Roma" }] }]).html;
+    expect(html).toMatch(/<img src="[^"]+\/brand\/logo-email-social\.png" width="130" alt="Gwenda"[^>]*><\/td><td[^>]*>&times;<\/td><td[^>]*><img src="[^"]+" width="130" alt="Pinsa A Roma"/);
+    expect(render([{ kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: ASSET, alt: "Pinsa A Roma" }] }]).text).toContain("GWENDA × [Pinsa A Roma]");
+  });
+
+  it("a row keeps two or three cells", () => {
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "logo" }] }).cells).toEqual([{ kind: "logo" }, { kind: "empty" }]);
+    expect(SECTION_KINDS.row.clean({ cells: [1, 2, 3, 4].map(() => ({ kind: "times" })) }).cells).toHaveLength(3);
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "script" }, { kind: "picture", assetId: ASSET, extra: 1 }] }).cells).toEqual([
+      { kind: "empty" },
+      { kind: "picture", assetId: ASSET, alt: "" },
+    ]);
   });
 
   it("an event card is drawn as the monthly email draws it: a night with its date sticker, a pop-up kitchen with its tag", () => {

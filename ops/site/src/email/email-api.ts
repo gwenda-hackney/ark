@@ -162,13 +162,13 @@ export function getEventCards() {
 	return request<{ choices: EventCardChoice[] }>("/api/email/cards");
 }
 
-/** One of two pictures side by side. */
-export type PairPicture = { assetId: string; alt: string };
+/** One cell of a Row: a picture, our logo, a ×, or nothing yet. */
+export type RowCell = { kind: "picture"; assetId: string; alt: string } | { kind: "logo" } | { kind: "times" } | { kind: "empty" };
 
 export type OneOffSection =
 	| { kind: "image"; assetId: string; alt: string; size: ImageSize }
-	/** Two pictures side by side, left then right. */
-	| { kind: "pictures"; pictures: PairPicture[] }
+	/** Two or three cells side by side: pictures, our logo, a ×. */
+	| { kind: "row"; cells: RowCell[] }
 	/** The monthly email's dashed line. */
 	| { kind: "divider" }
 	/** A night, deal or pop-up kitchen, as the monthly email draws it, in the words it had when picked. */

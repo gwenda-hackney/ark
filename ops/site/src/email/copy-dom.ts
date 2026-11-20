@@ -32,6 +32,8 @@ function bold(words: string): string {
 function inline(node: Node, inBold: boolean, inLink: boolean): string {
 	if (node.nodeType === 3) return (node.nodeValue || "").replace(/ /g, " ");
 	if (!isElement(node)) return "";
+	// The editor's own marks (a drag grip) are never words.
+	if (node.hasAttribute("data-ops")) return "";
 	if (node.tagName === "BR") return "\n";
 	const children = (asBold = inBold, asLink = inLink) =>
 		Array.from(node.childNodes)

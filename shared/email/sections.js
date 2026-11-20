@@ -73,12 +73,54 @@ function waitingRow(words) {
 /** The editor's place for adding a part, before section `at`. */
 const insertRow = (at) => `<tr data-insert="${at}"><td style="padding:0 40px;"></td></tr>`;
 
-/** Two pictures side by side: the gap between them, and each one's width. */
-const PAIR_GAP = 12;
-export const PAIR_WIDTH = (COLUMN - PAIR_GAP) / 2;
+/**
+ * A Row: two or three cells side by side, each a picture, our logo, a × or
+ * nothing. Photos alone share the column, each cut to the website's 4:5 so
+ * they line up; with our logo or a × in it, it's a lockup ("Gwenda × Pinsa A
+ * Roma"), centred, each picture whole at a logo's size.
+ */
+export const ROW_CELLS_MIN = 2;
+export const ROW_CELLS_MAX = 3;
+export const CELL_KINDS = ["picture", "logo", "times", "empty"];
+const ROW_GAP = 12;
 
-/** One of two pictures: its asset and what it shows. */
-const pairPicture = (raw) => ({ assetId: line(raw?.assetId, 200), alt: line(raw?.alt, 300) });
+function cleanCell(raw) {
+  const kind = CELL_KINDS.includes(raw?.kind) ? raw.kind : "empty";
+  return kind === "picture" ? { kind, assetId: line(raw?.assetId, 200), alt: line(raw?.alt, 300) } : { kind };
+}
+
+/** A Row's table: in the editor each cell says where it is (data-cell) and an empty one says so. */
+function rowHtml(cells, { images, site, marks } = {}) {
+  const lockup = cells.some((cell) => cell.kind === "logo" || cell.kind === "times");
+  const share = Math.floor((COLUMN - ROW_GAP * (cells.length - 1)) / cells.length);
+  const waiting = (words) =>
+    marks
+      ? `<div data-waiting style="border:2px dashed ${COLOURS.mustard};border-radius:6px;padding:${lockup ? "24px 8px" : "48px 8px"};min-width:90px;text-align:center;font-family:Georgia,serif;font-size:14px;line-height:1.4;color:${COLOURS.ink2};">${esc(words)}</div>`
+      : "";
+  const drawn = (cell) => {
+    if (cell.kind === "logo") {
+      return `<img src="${esc(emailLogoUrl(site?.origin))}" width="${COLLAB_LOGO_WIDTH}" alt="Gwenda" style="display:block;width:${COLLAB_LOGO_WIDTH}px;max-width:100%;height:auto;border:0;">`;
+    }
+    if (cell.kind === "times") return "&times;";
+    if (cell.kind === "picture" && cell.assetId) {
+      const url = sectionImageUrl(cell.assetId, images);
+      return lockup
+        ? emailPicture({ url, whole: true, alt: cell.alt }, COLLAB_LOGO_WIDTH)
+        : emailPicture({ url, whole: false, alt: cell.alt }, share, { fluid: true });
+    }
+    return waiting(cell.kind === "picture" ? "Picture" : "Empty");
+  };
+  const cellAttrs = (index) => (marks ? ` data-cell="${index}"` : "");
+  const tds = cells.map((cell, index) => {
+    if (cell.kind === "times") {
+      return `<td valign="middle"${cellAttrs(index)} style="font-family:Georgia,serif;font-size:30px;line-height:1;color:${COLOURS.mustard};padding:0 16px;">${drawn(cell)}</td>`;
+    }
+    if (lockup) return `<td valign="middle"${cellAttrs(index)} style="padding:0 4px;">${drawn(cell)}</td>`;
+    const pad = `padding-left:${index ? ROW_GAP / 2 : 0}px;padding-right:${index < cells.length - 1 ? ROW_GAP / 2 : 0}px;`;
+    return `<td width="${share}" valign="top"${cellAttrs(index)} style="width:${share}px;${pad}">${drawn(cell)}</td>`;
+  });
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"${lockup ? ' align="center"' : ' width="100%"'} style="border-collapse:collapse;${lockup ? "margin:0 auto;" : "width:100%;"}"><tr>${tds.join("")}</tr></table>`;
+}
 
 /** Space under each paragraph of copy. */
 const PARAGRAPH_GAP = 18;
@@ -203,35 +245,25 @@ export const SECTION_KINDS = {
           ? [`[${section.alt}]`, ""]
           : [],
   },
-  pictures: {
-    label: "Two pictures",
-    blank: () => ({ kind: "pictures", pictures: [pairPicture(), pairPicture()] }),
+  row: {
+    label: "Row",
+    blank: () => ({ kind: "row", cells: [{ kind: "empty" }, { kind: "empty" }] }),
     clean: (raw) => {
-      const given = Array.isArray(raw?.pictures) ? raw.pictures : [];
-      return { kind: "pictures", pictures: [pairPicture(given[0]), pairPicture(given[1])] };
+      const given = Array.isArray(raw?.cells) ? raw.cells.slice(0, ROW_CELLS_MAX) : [];
+      while (given.length < ROW_CELLS_MIN) given.push({ kind: "empty" });
+      return { kind: "row", cells: given.map(cleanCell) };
     },
-    empty: (section) => !section.pictures.some((picture) => picture.assetId),
-    // Side by side on every screen, each cut to the website's 4:5 so they line up.
-    html(section, { images, marks }) {
-      const cell = (picture, side) => {
-        const drawn = picture.assetId
-          ? emailPicture({ url: sectionImageUrl(picture.assetId, images), whole: false, alt: picture.alt }, PAIR_WIDTH, { fluid: true })
-          : marks
-            ? `<div data-waiting style="border:2px dashed ${COLOURS.mustard};border-radius:6px;padding:48px 8px;text-align:center;font-family:Georgia,serif;font-size:15px;line-height:1.4;color:${COLOURS.ink2};">${side} picture</div>`
-            : "";
-        return drawn;
-      };
-      const [left, right] = section.pictures;
-      return [
-        row(
-          table(
-            `<tr><td width="50%" valign="top" style="width:50%;padding-right:${PAIR_GAP / 2}px;">${cell(left, "Left")}</td><td width="50%" valign="top" style="width:50%;padding-left:${PAIR_GAP / 2}px;">${cell(right, "Right")}</td></tr>`,
-          ),
-          { bottom: 24 },
-        ),
-      ];
+    empty: (section) => section.cells.every((cell) => cell.kind === "empty" || (cell.kind === "picture" && !cell.assetId)),
+    html(section, context) {
+      return [row(rowHtml(section.cells, context), { top: 4, bottom: 22, align: "center" })];
     },
-    text: (section) => section.pictures.filter((picture) => picture.assetId && picture.alt).flatMap((picture) => [`[${picture.alt}]`, ""]),
+    text: (section) => [
+      section.cells
+        .map((cell) => (cell.kind === "logo" ? "GWENDA" : cell.kind === "times" ? "×" : cell.kind === "picture" && cell.assetId ? `[${cell.alt || "picture"}]` : ""))
+        .filter(Boolean)
+        .join(" "),
+      "",
+    ],
   },
   event: {
     label: "Event",

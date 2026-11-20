@@ -6,6 +6,9 @@ import {
 	draftOf,
 	editorSections,
 	insertSection,
+	moveSectionTo,
+	partSummary,
+	swapCells,
 	partName,
 	moveSection,
 	notReady,
@@ -82,6 +85,41 @@ describe("the one-off email editor (#348)", () => {
 		assert.equal(last.list[2].key, last.key);
 		assert.equal(partName("copy"), "Text");
 		assert.equal(partName("image"), "Picture");
+	});
+
+	it("a dragged part drops before the part it's let go on, or after the last", () => {
+		const list = editorSections([
+			{ kind: "heading", text: "A" },
+			{ kind: "copy", text: "B" },
+			{ kind: "copy", text: "C" },
+		]);
+		const text = (l: typeof list) => l.map((entry) => ("text" in entry.section ? entry.section.text : ""));
+		assert.deepEqual(text(moveSectionTo(list, 0, 3)), ["B", "C", "A"]);
+		assert.deepEqual(text(moveSectionTo(list, 2, 0)), ["C", "A", "B"]);
+		assert.deepEqual(text(moveSectionTo(list, 0, 2)), ["B", "A", "C"]);
+		assert.equal(moveSectionTo(list, 1, 1), list, "dropped where it was");
+		assert.equal(moveSectionTo(list, 1, 2), list, "dropped just after itself");
+	});
+
+	it("cells swap within a row and between rows; a picture's \"Gwenda ×\" size opens as a Row", () => {
+		const list = editorSections([
+			{ kind: "image", assetId: "image-a-1x1-jpg", alt: "Pinsa", size: "collab" },
+			{ kind: "row", cells: [{ kind: "picture", assetId: "image-b-1x1-jpg", alt: "B" }, { kind: "empty" }] },
+		]);
+		assert.deepEqual(list[0].section, { kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: "image-a-1x1-jpg", alt: "Pinsa" }] });
+		const within = swapCells(list, { section: 0, cell: 0 }, { section: 0, cell: 2 });
+		assert.equal(partSummary(within[0].section), "Pinsa · × · Our logo");
+		const across = swapCells(list, { section: 1, cell: 0 }, { section: 0, cell: 1 });
+		assert.equal(partSummary(across[0].section), "Our logo · B · Pinsa");
+		assert.equal(partSummary(across[1].section), "× · Empty");
+		assert.equal(partSummary(list[0].section), "Our logo · × · Pinsa", "the list it came from is left as it was");
+	});
+
+	it("each part in a line for the list beside the email", () => {
+		assert.equal(partSummary({ kind: "copy", text: "Doors at **9**. See [what's on](https://a.co)." }), "Doors at 9. See what's on.");
+		assert.equal(partSummary({ kind: "heading", text: "" }), "Nothing typed yet");
+		assert.equal(partSummary({ kind: "image", assetId: "", alt: "", size: "full" }), "No picture yet");
+		assert.equal(partSummary({ kind: "booking" }), "The website's button");
 	});
 
 	it("knows when there's something to save", () => {
