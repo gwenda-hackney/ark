@@ -13,7 +13,9 @@
 	 *   all, between the top bar and the Save bar, the tabs stuck on top.
 	 *
 	 * The head comes from its parts (`kicker`, `heading`, `subtitle`,
-	 * `tools`), or whole from `header` when an editor has more to say there
+	 * `tools`), or whole from `header` when an editor has more to say there.
+	 * With `rename`, the heading is the name itself, typed over where it is
+	 * (an email's name), not a field of its own
 	 * (events' EditorHeader, which is built on EditorCardHeader too).
 	 * Keep it mounted and switch `open`, so the zoom plays both ways.
 	 */
@@ -37,6 +39,8 @@
 		header,
 		kicker,
 		heading = "",
+		rename,
+		compact = false,
 		placeholder = false,
 		subtitle = "",
 		tools,
@@ -66,6 +70,14 @@
 		/** The kicker line: `<p class="eyebrow">Menu</p>` and any badges. */
 		kicker?: Snippet;
 		heading?: string;
+		/**
+		 * The heading can be typed over: its value, what it says while empty,
+		 * what it's called (for screen readers), and the change. Off while
+		 * `disabled`.
+		 */
+		rename?: { value: string; placeholder: string; label: string; maxlength?: number; disabled?: boolean; onchange: (value: string) => void };
+		/** A tight head: a smaller title and line under it, for an editor that needs the room (EditorCardHeader). */
+		compact?: boolean;
 		/** The heading is a stand-in ("New menu"): it shows muted. */
 		placeholder?: boolean;
 		subtitle?: string;
@@ -91,7 +103,26 @@
 
 {#snippet title()}
 	<div class="name-line">
-		<h1 class="title-text" class:placeholder>{heading}</h1>
+		{#if rename && !rename.disabled}
+			<h1 class="title-text rename">
+				<label for="editor-rename" class="sr-only">{rename.label}</label>
+				<input
+					id="editor-rename"
+					class="rename-input"
+					value={rename.value}
+					placeholder={rename.placeholder}
+					maxlength={rename.maxlength}
+					size={Math.max(8, (rename.value || rename.placeholder).length + 1)}
+					autocomplete="off"
+					oninput={(event) => rename.onchange(event.currentTarget.value)}
+					onkeydown={(event) => {
+						if (event.key === "Enter") event.currentTarget.blur();
+					}}
+				/>
+			</h1>
+		{:else}
+			<h1 class="title-text" class:placeholder>{heading}</h1>
+		{/if}
 	</div>
 	{#if subtitle}<p class="sub">{subtitle}</p>{/if}
 {/snippet}
@@ -113,7 +144,7 @@
 				{#if header}
 					{@render header()}
 				{:else if kicker}
-					<EditorCardHeader {kicker} {title} tools={headTools} {onclose} {dirty} />
+					<EditorCardHeader {kicker} {title} tools={headTools} {onclose} {dirty} {compact} />
 				{/if}
 				{#if tabs}
 					<div class="tabs">{@render tabs()}</div>
@@ -243,5 +274,27 @@
 			/* The panel's own colour, solid, so fields don't show through. */
 			background: linear-gradient(var(--panel-bg), var(--panel-bg)), var(--background);
 		}
+	}
+	/* A name typed over where it is: the heading's own letters, a line under it on hover and while typing. */
+	.rename-input {
+		max-width: 100%;
+		padding: 0 0.1em;
+		border: 0;
+		border-bottom: 2px dashed transparent;
+		border-radius: 0;
+		outline: none;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		letter-spacing: inherit;
+	}
+	.rename-input:hover {
+		border-bottom-color: var(--border);
+	}
+	.rename-input:focus {
+		border-bottom-color: var(--primary);
+	}
+	.rename-input::placeholder {
+		color: var(--muted-foreground);
 	}
 </style>

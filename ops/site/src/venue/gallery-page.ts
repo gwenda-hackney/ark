@@ -62,12 +62,6 @@ export function photoTiles(photos: VenuePhoto[]): PhotoTile[] {
 	}));
 }
 
-/** The order after dragging `dragged` onto `target`: it takes the target's place. */
-export function droppedOrder(keys: string[], dragged: string, target: string): string[] {
-	if (!keys.includes(dragged) || !keys.includes(target) || dragged === target) return [...keys];
-	return moveKey(keys, dragged, keys.indexOf(target));
-}
-
 export type Move = "top" | "up" | "down";
 
 /** The order after moving one photo to the top, or one place up or down. */

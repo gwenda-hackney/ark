@@ -51,7 +51,8 @@ export async function up({ env, d1, processEnv, log, dryRun = false, now = new D
 
   const fresh = await promoteDraft(data.env, { template: "popup", id: String(popup.id) }, { site: emailFrame(data.env).site });
   const saved = await emails.updateDraft(draft.id, fresh, { by: BY, now });
-  const logo = fresh.sections.some((part) => part.kind === "image" && part.size === "collab");
+  // Our logo × theirs: an image of size "collab" when this ran; a Row since.
+  const logo = fresh.sections.some((part) => (part.kind === "image" && part.size === "collab") || part.kind === "row");
   log(`${dryRun ? "would make" : "made"} email ${draft.id} a team-up: "${saved?.subject || fresh.subject}"${logo ? "" : " (it has no logo in ops yet, so none shows)"}`);
   return { changed: true, id: draft.id };
 }

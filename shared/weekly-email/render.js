@@ -136,6 +136,20 @@ function standing(card, tag, slipStyle) {
   );
 }
 
+/**
+ * One night, deal or pop-up kitchen on its own, for a one-off email's Event
+ * card (shared/email/sections.js): a night as this email's first night (its
+ * picture across the column, the date sticker beside its name); a deal or a
+ * pop-up kitchen as here, its tag over its name.
+ * @param {{ title: string, href: string, photo: { url: string, whole?: boolean, alt?: string } | null,
+ *   sticker?: { weekday: string, day: string, month: string } | null, tag?: string, when?: string, note?: string }} card
+ */
+export function standaloneCard(card) {
+  if (card.sticker) return leadNight({ ...card, times: card.when ? [card.when] : [] });
+  const slipStyle = card.tag === "Deal" ? SLIPS.deal : SLIPS.popup;
+  return standing({ ...card, times: card.when ? [card.when] : [] }, card.tag || "Pop-up kitchen", slipStyle);
+}
+
 /** One half of Bookings: its heading, its line, its link (text, not a button: Book a table is the one button). */
 function bookingHalf(half) {
   return table(

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MAILCHIMP_TAGS, campaignFoot } from "./campaign.js";
 import { renderOneOffEmail } from "./one-off.js";
-import { BOOKING, SECTION_KINDS, cleanSections, copyInlineHtml, copyInlineText, paragraphs, safeLink } from "./sections.js";
+import { BOOKING, SECTION_KINDS, rowWidths, cleanSections, copyInlineHtml, copyInlineText, paragraphs, safeLink } from "./sections.js";
 import { emailSite } from "./site.js";
 import { renderWeeklyEmail } from "../weekly-email/render.js";
 import { weeklyEmailModel } from "../weekly-email/model.js";
@@ -149,6 +149,113 @@ describe("a one-off email", () => {
   });
 });
 
+describe("drawn for ops' editor (marks)", () => {
+  const sections = [
+    { kind: "heading", text: "Party" },
+    { kind: "copy", text: "Doors at 9.\n\nMusic **till late**." },
+    { kind: "heading", text: "" },
+    { kind: "copy", text: "" },
+  ];
+  const marked = renderOneOffEmail({ subject: "S", sections }, { site, images, marks: true }).html;
+
+  it("never in an email that's sent", () => {
+    const html = render(sections).html;
+    expect(html).not.toContain("data-section");
+    expect(html).not.toContain("data-edit");
+  });
+
+  it("marks each row with its section's place, and the words that can be typed over", () => {
+    expect(marked).toMatch(/<tr data-section="0">[\s\S]*?<h2 class="display" data-edit="heading" data-placeholder="Type a heading"[^>]*>Party<\/h2>/);
+    expect(marked).toMatch(/<tr data-section="1"><td align="left" data-edit="copy" data-placeholder="Type here"[^>]*><p [^>]*>Doors at 9\.<\/p><p [^>]*>Music <strong[^>]*>till late<\/strong>\.<\/p><\/td><\/tr>/);
+  });
+
+  it("draws empty headings and copy, to be typed into; the email that's sent leaves them out", () => {
+    expect(marked).toMatch(/<tr data-section="2">[\s\S]*?data-edit="heading"[^>]*><\/h2>/);
+    expect(marked).toMatch(/<tr data-section="3"><td[^>]*data-edit="copy"[^>]*><p [^>]*><\/p><\/td>/);
+    expect(render(sections).html.match(/<h2 /g)).toHaveLength(1);
+  });
+
+  it("empty pictures and buttons are dashed boxes saying what they need, and there's a place to add before each part and after the last", () => {
+    const html = renderOneOffEmail(
+      { subject: "S", sections: [{ kind: "image", assetId: "" }, { kind: "button", label: "", link: "" }] },
+      { site, images, marks: true },
+    ).html;
+    expect(html).toMatch(/<tr data-section="0">[\s\S]*?<div data-waiting[^>]*>Picture: click here, then Change picture<\/div>/);
+    expect(html).toMatch(/<tr data-section="1">[\s\S]*?<div data-waiting[^>]*>Button: click here to give it words and a link<\/div>/);
+    expect(html.match(/<tr data-insert="(\d)">/g)).toEqual(['<tr data-insert="0">', '<tr data-insert="1">', '<tr data-insert="2">']);
+    expect(render([{ kind: "image", assetId: "" }]).html).not.toContain("data-");
+  });
+
+  it("a row's Fill columns share the column; an empty cell is a dashed box in the editor only", () => {
+    const sections = [{ kind: "row", cells: [{ kind: "picture", assetId: ASSET, alt: "Pizza" }, { kind: "empty" }] }];
+    const sent = render(sections).html;
+    expect(sent).toMatch(/<td width="274"[^>]*><img src="[^"]+" width="274" alt="Pizza"[^>]*><\/td><td width="274"[^>]*><\/td>/);
+    expect(sent).not.toContain("fit=crop");
+    expect(render([{ ...sections[0], crop: true }]).html).toContain("fit=crop");
+    const marked = renderOneOffEmail({ subject: "S", sections }, { site, images, marks: true }).html;
+    expect(marked).toMatch(/<td width="274"[^>]*data-cell="1"[^>]*><div data-waiting[^>]*>Empty<\/div>/);
+    expect(render([{ kind: "row", cells: [{ kind: "empty" }, { kind: "picture", assetId: "" }] }]).html).not.toContain('width="274"');
+  });
+
+  it("a row's columns are as wide as they're set: fixed ones centred, Fill ones sharing what's left", () => {
+    const cells = (...widths) => widths.map((width) => ({ kind: "empty", width }));
+    expect(rowWidths(cells("medium", "small", "medium"))).toEqual([150, 90, 150]);
+    expect(rowWidths(cells("small", "fill", "fill"))).toEqual([90, 223, 223]);
+    expect(rowWidths(cells("large", "large", "large"))).toEqual([178, 178, 178]);
+    const html = render([
+      { kind: "row", cells: [{ kind: "logo", width: "medium" }, { kind: "words", text: "×", look: "big", width: "small" }, { kind: "words", text: "Pinsa A Roma", width: "medium" }] },
+    ]).html;
+    expect(html).toMatch(
+      /<table[^>]*align="center"[^>]*><tr><td width="150"[^>]*><img src="[^"]+\/brand\/logo-email-social\.png" width="150" alt="Gwenda"[^>]*><\/td><td width="90"[^>]*><p style="[^"]*font-size:30px[^"]*#dba63c[^"]*">×<\/p><\/td><td width="150"[^>]*><p style="[^"]*font-size:17px[^"]*">Pinsa A Roma<\/p>/,
+    );
+    const words = [{ kind: "row", cells: [{ kind: "words", text: "Hi" }, { kind: "empty" }] }];
+    expect(render(words).html).not.toContain("data-edit");
+    expect(renderOneOffEmail({ subject: "S", sections: words }, { site, images, marks: true }).html).toMatch(/<td[^>]*data-cell="0"[^>]*><p data-edit="cell"[^>]*>Hi<\/p>/);
+  });
+
+  it("a row saved before columns had sizes keeps its look: a lockup Medium, Small, Medium, its × big gold words; photos Fill", () => {
+    const lockup = SECTION_KINDS.row.clean({ cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: ASSET, alt: "Pinsa A Roma" }] });
+    expect(lockup.cells.map((cell) => cell.width)).toEqual(["medium", "small", "medium"]);
+    expect(lockup.cells[1]).toEqual({ kind: "words", text: "×", look: "big", width: "small" });
+    expect(render([lockup]).text).toContain("GWENDA × [Pinsa A Roma]");
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "picture", assetId: ASSET }, { kind: "empty" }] }).cells.map((cell) => cell.width)).toEqual(["fill", "fill"]);
+  });
+
+  it("a row keeps two or three cells, each a known kind", () => {
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "logo" }] }).cells).toEqual([{ kind: "logo", width: "medium" }, { kind: "empty", width: "medium" }]);
+    expect(SECTION_KINDS.row.clean({ cells: [1, 2, 3, 4].map(() => ({ kind: "logo" })) }).cells).toHaveLength(3);
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "words", text: "Hi", look: "huge" }] }).cells[0]).toEqual({ kind: "words", text: "Hi", look: "plain", width: "fill" });
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "script" }, { kind: "picture", assetId: ASSET, extra: 1, width: "huge" }] }).cells).toEqual([
+      { kind: "empty", width: "fill" },
+      { kind: "picture", assetId: ASSET, alt: "", width: "fill" },
+    ]);
+    expect(SECTION_KINDS.row.blank().cells).toHaveLength(3);
+  });
+
+  it("an event card is drawn as the monthly email draws it: a night with its date sticker, a pop-up kitchen with its tag", () => {
+    const night = render([
+      { kind: "event", date: "2026-12-03", title: "Karaoke", when: "8pm – late", note: "Sing your heart out.", link: "https://gwenda.example/whats-on/karaoke/", assetId: ASSET },
+    ]);
+    expect(night.html).toMatch(/>Thu<\/td>[\s\S]*?>3<\/td>[\s\S]*?>Dec<\/td>/);
+    expect(night.html).toMatch(/<a href="https:\/\/gwenda\.example\/whats-on\/karaoke\/"[^>]*>Karaoke<\/a>/);
+    expect(night.html).toContain("8pm – late");
+    expect(night.text).toContain("2026-12-03: Karaoke");
+    const kitchen = render([{ kind: "event", tag: "Pop-up kitchen", title: "Pinsa A Roma", when: "Mondays and Tuesdays", link: "https://gwenda.example/whats-on/pinsa/" }]);
+    expect(kitchen.html).toMatch(/>Pop-up kitchen<\/td>/);
+    expect(kitchen.html).not.toMatch(/>Dec<\/td>/);
+  });
+
+  it("a divider is the monthly email's dashed line", () => {
+    expect(render([{ kind: "divider" }]).html).toMatch(/border-top:1px dashed/);
+    expect(render([{ kind: "divider" }]).text).toContain("----");
+  });
+
+  it("copy's paragraphs share one cell, each with the gap a row of its own had", () => {
+    const html = render([{ kind: "copy", text: "One\n\nTwo" }]).html;
+    expect(html).toMatch(/<td align="left" style="padding:0px \d+px 0px;"><p [^>]*margin:0 0 18px;[^>]*>One<\/p><p [^>]*margin:0 0 18px;[^>]*>Two<\/p><\/td>/);
+  });
+});
+
 describe("sections", () => {
   it("are cleaned: unknown kinds and stray fields dropped, text trimmed to size", () => {
     expect(
@@ -173,8 +280,8 @@ describe("sections", () => {
       const blank = kind.blank();
       expect(blank.kind).toBe(id);
       expect(kind.clean(blank)).toEqual(blank);
-      // Book a table has nothing to fill in: it is whole as soon as it is added.
-      expect(kind.empty(blank)).toBe(id !== "booking");
+      // Book a table and a divider have nothing to fill in: whole as soon as they're added.
+      expect(kind.empty(blank)).toBe(id !== "booking" && id !== "divider");
     }
   });
 
