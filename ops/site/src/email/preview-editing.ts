@@ -29,8 +29,8 @@ export type EditingHandlers = {
 	ontext: (index: number, kind: EditKind, text: string, cell: number) => void;
 	/** The typing moved, started (a focus) or stopped (null). */
 	onfocus: (focus: WordsFocus | null) => void;
-	/** A part of the email was clicked: section `index`. */
-	onselect: (index: number) => void;
+	/** A part of the email was clicked: section `index` (and, in a Row, its column `cell`; else -1). */
+	onselect: (index: number, cell: number) => void;
 	/** A + was pressed: add a part before section `at` (the count: after the last). */
 	oninsert: (at: number) => void;
 	/** Section `from` was dragged and let go before section `at` (the count: after the last). */
@@ -43,8 +43,12 @@ export type EditingHandlers = {
 	label: (index: number) => string;
 };
 
-/** A button on the picked part's toolbar, inside the email. */
-export type PartAction = { id: string; label: string };
+/**
+ * A button on the picked part's toolbar, inside the email. Buttons with a
+ * `group` sit on a line of their own under its name ("Holds", "Width");
+ * `pressed` shows which of them is chosen.
+ */
+export type PartAction = { id: string; label: string; group?: string; pressed?: boolean };
 
 const GOLD = "#dba63c";
 
@@ -76,7 +80,12 @@ tr.ops-dragging > td { opacity: 0.4; }
 td[data-cell][draggable="true"] { cursor: grab; }
 td[data-cell].ops-cell-drop { outline: 3px dashed ${GOLD}; outline-offset: 2px; }
 td[data-cell].ops-dragging { opacity: 0.4; }
-.ops-tools { position: absolute; z-index: 5; display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: #0b0a08; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55); border: 1px solid ${GOLD}66; }
+td[data-cell] { border-radius: 6px; }
+tr[data-section] td[data-cell]:hover { outline: 2px dashed ${GOLD}99; outline-offset: 2px; cursor: pointer; }
+tr[data-section] td[data-cell].ops-cell-picked { outline: 3px solid ${GOLD}; outline-offset: 2px; }
+.ops-tools-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.ops-tools-name { font: 600 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif; color: #c2b79f; min-width: 44px; padding: 0 4px; }
+.ops-tools { position: absolute; z-index: 5; display: flex; flex-direction: column; gap: 4px; max-width: 470px; padding: 4px; border-radius: 8px; background: #0b0a08; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55); border: 1px solid ${GOLD}66; }
 .ops-tools button { font: 600 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif; color: #f2e8d2; background: #27211a; border: 1px solid #5a5246; border-radius: 6px; padding: 8px 11px; cursor: pointer; white-space: nowrap; }
 .ops-tools button:hover { background: ${GOLD}; border-color: ${GOLD}; color: #1a1510; }
 .ops-tools button[data-action="remove"]:hover { background: #d2342a; border-color: #d2342a; color: #f2e8d2; }
@@ -292,7 +301,8 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 			return;
 		}
 		const part = target?.closest?.("tr[data-section]") as HTMLElement | null;
-		if (part) handlers.onselect(Number(part.dataset.section));
+		const cell = target?.closest?.("td[data-cell]") as HTMLElement | null;
+		if (part) handlers.onselect(Number(part.dataset.section), cell ? Number(cell.dataset.cell) : -1);
 	}, { signal });
 
 	doc.addEventListener("focusin", tell, { signal });
@@ -339,13 +349,17 @@ export function removeLink(doc: Document) {
 }
 
 /**
- * Shows which part is picked, and which + is adding (each may be null),
- * without drawing the email again; the picked part gets its toolbar, at its
- * top right corner, outside its words (so typing never meets it).
+ * Shows which part is picked (and which of a Row's columns: -1 for none),
+ * and which + is adding (each may be null), without drawing the email
+ * again. The picked part gets its toolbar at its top right corner, outside
+ * its words (so typing never meets it); a picked column gets it just above
+ * the column.
  */
-export function showSelected(doc: Document, index: number | null, insertingAt: number | null, actions: PartAction[] = []) {
+export function showSelected(doc: Document, index: number | null, insertingAt: number | null, actions: PartAction[] = [], cell = -1) {
 	for (const row of Array.from(doc.querySelectorAll<HTMLElement>("tr[data-section]"))) {
-		row.classList.toggle("ops-selected", index !== null && Number(row.dataset.section) === index);
+		const picked = index !== null && Number(row.dataset.section) === index;
+		row.classList.toggle("ops-selected", picked);
+		for (const td of Array.from(row.querySelectorAll<HTMLElement>("td[data-cell]"))) td.classList.toggle("ops-cell-picked", picked && Number(td.dataset.cell) === cell);
 	}
 	for (const row of Array.from(doc.querySelectorAll<HTMLElement>("tr[data-insert]"))) {
 		row.querySelector(".ops-add")?.classList.toggle("ops-here", insertingAt !== null && Number(row.dataset.insert) === insertingAt);
@@ -356,7 +370,7 @@ export function showSelected(doc: Document, index: number | null, insertingAt: n
 		tools?.remove();
 		return;
 	}
-	const key = `${index}|${actions.map((action) => `${action.id}:${action.label}`).join(",")}`;
+	const key = `${index}/${cell}|${actions.map((action) => `${action.id}:${action.label}:${action.pressed ?? ""}`).join(",")}`;
 	if (!tools || tools.dataset.key !== key) {
 		tools?.remove();
 		tools = doc.createElement("div");
@@ -364,31 +378,50 @@ export function showSelected(doc: Document, index: number | null, insertingAt: n
 		tools.dataset.key = key;
 		tools.dataset.ops = "";
 		tools.setAttribute("role", "toolbar");
-		tools.setAttribute("aria-label", "This part");
+		tools.setAttribute("aria-label", cell >= 0 ? `Column ${cell + 1}` : "This part");
+		let line: HTMLElement | null = null;
+		let group: string | undefined;
 		for (const action of actions) {
+			if (!line || action.group !== group) {
+				group = action.group;
+				line = doc.createElement("div");
+				line.className = "ops-tools-line";
+				if (group) {
+					const name = doc.createElement("span");
+					name.className = "ops-tools-name";
+					name.textContent = group;
+					line.append(name);
+					line.setAttribute("role", "group");
+					line.setAttribute("aria-label", group);
+				}
+				tools.append(line);
+			}
 			const button = doc.createElement("button");
 			button.type = "button";
 			button.dataset.action = action.id;
 			button.textContent = action.label;
 			if (action.id === "bold") button.setAttribute("aria-pressed", "false");
-			tools.append(button);
+			if (action.pressed !== undefined) button.setAttribute("aria-pressed", String(action.pressed));
+			line.append(button);
 		}
 		doc.body.append(tools);
 	}
 	placeTools(doc);
 }
 
-/** The picked part's toolbar, at its top right corner (again after the part grows or the window changes). */
+/** The picked part's toolbar, at its top right corner, or above its picked column (again after it grows or the window changes). */
 export function placeTools(doc: Document) {
 	const tools = doc.querySelector<HTMLElement>(".ops-tools");
 	const picked = doc.querySelector<HTMLElement>("tr.ops-selected");
 	if (!tools || !picked) return;
-	const box = picked.getBoundingClientRect();
+	const column = picked.querySelector<HTMLElement>("td.ops-cell-picked");
+	const box = (column || picked).getBoundingClientRect();
 	const view = doc.defaultView;
-	const top = box.top + (view?.scrollY ?? 0) - tools.offsetHeight - 6;
-	const left = Math.max(4, box.right + (view?.scrollX ?? 0) - tools.offsetWidth);
+	const room = doc.documentElement.clientWidth;
+	const top = box.top + (view?.scrollY ?? 0) - tools.offsetHeight - 8;
+	const left = column ? Math.min(box.left, room - tools.offsetWidth - 4) : box.right - tools.offsetWidth;
 	tools.style.top = `${Math.max(4, top)}px`;
-	tools.style.left = `${left}px`;
+	tools.style.left = `${Math.max(4, left + (view?.scrollX ?? 0))}px`;
 }
 
 /** The Bold button shows whether the typing is bold. */
@@ -396,9 +429,10 @@ export function showBold(doc: Document, bold: boolean) {
 	doc.querySelector('.ops-tools button[data-action="bold"]')?.setAttribute("aria-pressed", String(bold));
 }
 
-/** Puts the typing in section `index`'s words, at their end (after it's been added). */
-export function focusWords(doc: Document, index: number) {
-	const host = doc.querySelector<HTMLElement>(`tr[data-section="${index}"] [data-edit]`);
+/** Puts the typing in section `index`'s words (or its column `cell`'s), at their end (after they've been added). */
+export function focusWords(doc: Document, index: number, cell = -1) {
+	const inside = cell >= 0 ? ` td[data-cell="${cell}"]` : "";
+	const host = doc.querySelector<HTMLElement>(`tr[data-section="${index}"]${inside} [data-edit]`);
 	if (!host) return;
 	host.focus();
 	const selection = doc.getSelection();

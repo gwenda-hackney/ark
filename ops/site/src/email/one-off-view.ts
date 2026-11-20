@@ -43,6 +43,15 @@ export const CELL_ITEMS = [
 	{ id: "empty", label: "Nothing" },
 ] as const;
 
+/** A column made to hold `kind` instead; it keeps its width (and a picture its description, if it stays one). */
+export function cellHolding(cell: RowCell, kind: RowCell["kind"]): RowCell {
+	if (cell.kind === kind) return cell;
+	const width = cell.width;
+	if (kind === "picture") return { kind, assetId: "", alt: "", width };
+	if (kind === "words") return { kind, text: "", width };
+	return { kind, width };
+}
+
 /** How wide a Row's column is, for its switch. */
 export const CELL_WIDTH_ITEMS = [
 	{ id: "small", label: "Small" },

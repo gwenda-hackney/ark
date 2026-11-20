@@ -212,21 +212,27 @@ test("a button's words, address and look are in its Settings; an empty one says 
 	await expect.poll(() => lastSections(saves)?.[3]).toEqual({ kind: "button", label: "See the menu", link: "https://gwenda.co.uk/menu", look: "link" });
 });
 
-test("a Row: three columns holding anything, swapped by dragging one onto another; each column keeps its width", async ({ page }) => {
+test("a Row: each column is clicked and changed where it is (what it holds, its width, its words); dragged onto another, they swap and keep their widths", async ({ page }) => {
 	const { saves, preview } = await open(page);
 	await addAt(page, 1, /^Row/);
 	await expect(preview.locator('tr[data-section="1"] td[data-cell] [data-waiting]')).toHaveCount(3);
-	const box = await settings(page);
-	await box.getByRole("tablist", { name: "Column 1 holds" }).getByRole("tab", { name: "Picture" }).click();
+	// The new Row's first column is picked: its choices are on a toolbar on it, in the email.
+	await expect(preview.locator('[role="toolbar"][aria-label="Column 1"]')).toBeVisible();
+	await tool(page, "cell-kind:picture").click();
 	await page.getByRole("dialog", { name: "Choose a picture" }).getByRole("button", { name: "The bar at night" }).click();
-	await box.getByRole("tablist", { name: "Column 2 holds" }).getByRole("tab", { name: "Our logo" }).click();
-	await box.getByRole("tablist", { name: "Column 2 width" }).getByRole("tab", { name: "Small" }).click();
-	await box.getByRole("tablist", { name: "Column 3 holds" }).getByRole("tab", { name: "Words" }).click();
+	// Clicking a column picks it.
+	await preview.locator('tr[data-section="1"] td[data-cell="1"]').click();
+	await expect(preview.locator('tr[data-section="1"] td[data-cell="1"]')).toHaveClass(/ops-cell-picked/);
+	await tool(page, "cell-kind:logo").click();
+	await tool(page, "cell-width:small").click();
+	await expect(tool(page, "cell-width:small")).toHaveAttribute("aria-pressed", "true");
+	await preview.locator('tr[data-section="1"] td[data-cell="2"]').click();
+	await tool(page, "cell-kind:words").click();
 	await expect(preview.locator('tr[data-section="1"] img')).toHaveCount(2);
 	await expect(preview.locator('tr[data-section="1"] td[data-cell="1"]')).toHaveAttribute("width", "90");
 
-	// The column's words are typed in the email.
-	await preview.locator('tr[data-section="1"] p[data-edit="cell"]').click();
+	// Words: the typing goes straight into the column.
+	await expect(preview.locator('tr[data-section="1"] p[data-edit="cell"]')).toBeFocused();
 	await page.keyboard.type("Pinsa A Roma");
 	await page.keyboard.press("Enter");
 

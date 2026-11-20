@@ -62,6 +62,9 @@
 		draftOf,
 		emailName,
 		editorSections,
+		cellHolding,
+		CELL_ITEMS,
+		CELL_WIDTH_ITEMS,
 		insertSection,
 		moveSectionTo,
 		partName,
@@ -150,6 +153,8 @@
 
 	// What's picked in the email (by key, so it follows a move), where a + is adding, and the picture chooser.
 	let selectedKey = $state<string | null>(null);
+	/** In a picked Row, the column picked (clicked on), or -1. */
+	let selectedCell = $state(-1);
 	let insertingAt = $state<number | null>(null);
 	/** The picture chooser is open for this part (and, for two pictures, this one of them). */
 	let choosingFor = $state<{ key: string; slot: number } | null>(null);
@@ -157,6 +162,8 @@
 	let eventFor = $state<string | null>(null);
 	/** Words just added: the typing goes into them once the email is drawn again. */
 	let focusKey: string | null = null;
+	/** …and in a Row, into this column's words. */
+	let focusCell = -1;
 	const selectedIndex = $derived(selectedKey ? sections.findIndex((entry) => entry.key === selectedKey) : -1);
 	const selected = $derived(selectedIndex >= 0 ? sections[selectedIndex] : null);
 	/** More: the picked part's settings slide in (⋯ More on its toolbar). */
@@ -173,8 +180,18 @@
 				return [{ id: "bold", label: "Bold" }, words?.inLink ? { id: "unlink", label: "Remove link" } : { id: "link", label: "Link" }, remove];
 			case "image":
 				return [{ id: "picture", label: section.assetId ? "Change picture" : "Choose picture" }, { id: "settings", label: "⋯ More" }, remove];
-			case "row":
-				return [{ id: "settings", label: "⋯ More" }, remove];
+			case "row": {
+				const cell = section.cells[selectedCell];
+				if (!cell) return [{ id: "settings", label: "⋯ More" }, remove];
+				// A column picked: what it holds and how wide it is, right there.
+				return [
+					...CELL_ITEMS.map((item) => ({ id: `cell-kind:${item.id}`, label: item.label, group: "Holds", pressed: cell.kind === item.id })),
+					...CELL_WIDTH_ITEMS.map((item) => ({ id: `cell-width:${item.id}`, label: item.label, group: "Width", pressed: cell.width === item.id })),
+					...(cell.kind === "picture" ? [{ id: "cell-picture", label: cell.assetId ? "Change picture" : "Choose picture" }] : []),
+					{ id: "settings", label: "⋯ More" },
+					{ id: "remove", label: "Remove row" },
+				];
+			}
 			case "button":
 				return [{ id: "settings", label: "⋯ More" }, remove];
 			case "event":
@@ -186,7 +203,7 @@
 	const actions = $derived(actionsFor(selected?.section ?? null, wordsAt));
 	$effect(() => {
 		if (!wordsDoc) return;
-		showSelected(wordsDoc, selectedIndex >= 0 ? selectedIndex : null, insertingAt, actions);
+		showSelected(wordsDoc, selectedIndex >= 0 ? selectedIndex : null, insertingAt, actions, selected?.section.kind === "row" ? selectedCell : -1);
 		showBold(wordsDoc, Boolean(wordsAt?.bold));
 	});
 
@@ -205,7 +222,25 @@
 		else if (action === "picture" && selectedKey) choosingFor = { key: selectedKey, slot: 0 };
 		else if (action === "event" && selectedKey) eventFor = selectedKey;
 		else if (action === "settings") settingsOpen = true;
+		else if (action.startsWith("cell-kind:")) holdInCell(action.slice("cell-kind:".length) as RowCell["kind"]);
+		else if (action.startsWith("cell-width:") && selected?.section.kind === "row") {
+			const cell = selected.section.cells[selectedCell];
+			if (cell) setCell(selectedCell, { ...cell, width: action.slice("cell-width:".length) } as RowCell);
+		} else if (action === "cell-picture" && selectedKey) choosingFor = { key: selectedKey, slot: selectedCell };
 		else if (action === "remove") removeSelected();
+	}
+
+	/** The picked column holds `kind` now: a picture opens the chooser, words get the typing. */
+	function holdInCell(kind: RowCell["kind"]) {
+		const entry = selected;
+		const cell = entry?.section.kind === "row" ? entry.section.cells[selectedCell] : null;
+		if (!entry || !cell || cell.kind === kind) return;
+		setCell(selectedCell, cellHolding(cell, kind));
+		if (kind === "picture") choosingFor = { key: entry.key, slot: selectedCell };
+		if (kind === "words") {
+			focusKey = entry.key;
+			focusCell = selectedCell;
+		}
 	}
 
 	function addLinkHere(address: string) {
@@ -236,8 +271,9 @@
 			onfocus(focus) {
 				wordsAt = focus;
 			},
-			onselect(index) {
+			onselect(index, cell) {
 				selectedKey = sections[index]?.key ?? null;
+				selectedCell = cell;
 				insertingAt = null;
 			},
 			oninsert(at) {
@@ -251,6 +287,7 @@
 			oncells(from, to) {
 				sections = swapCells(sections, from, to);
 				selectedKey = sections[to.section]?.key ?? selectedKey;
+				selectedCell = to.cell;
 			},
 			onaction: act,
 			label(index) {
@@ -258,10 +295,12 @@
 				return part ? `${partName(part.kind)} · ${partSummary(part)}` : "";
 			},
 		});
-		showSelected(doc, selectedIndex >= 0 ? selectedIndex : null, insertingAt, actions);
+		showSelected(doc, selectedIndex >= 0 ? selectedIndex : null, insertingAt, actions, selected?.section.kind === "row" ? selectedCell : -1);
 		const typeInto = focusKey ? sections.findIndex((entry) => entry.key === focusKey) : -1;
+		const intoCell = focusCell;
 		focusKey = null;
-		if (typeInto >= 0) focusWords(doc, typeInto);
+		focusCell = -1;
+		if (typeInto >= 0) focusWords(doc, typeInto, intoCell);
 	}
 
 	/** A kind chosen for the + : it goes there, picked; words get the typing, a picture opens the chooser. */
@@ -275,6 +314,8 @@
 		sections = added.list;
 		insertingAt = null;
 		selectedKey = added.key;
+		// A new Row's first column is picked, its choices on show.
+		selectedCell = kind === "row" ? 0 : -1;
 		if (kind === "heading" || kind === "copy") focusKey = added.key;
 		if (kind === "image") choosingFor = { key: added.key, slot: 0 };
 		if (kind === "event") eventFor = added.key;
@@ -290,6 +331,7 @@
 		if (selectedIndex < 0) return;
 		sections = removeSection(sections, selectedIndex);
 		selectedKey = null;
+		selectedCell = -1;
 	}
 
 	function changeSelected(patch: Partial<OneOffSection>) {

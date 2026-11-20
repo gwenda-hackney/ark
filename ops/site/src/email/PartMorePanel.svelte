@@ -17,6 +17,7 @@
 		CELL_ITEMS,
 		CELL_WIDTH_ITEMS,
 		IMAGE_SIZE_ITEMS,
+		cellHolding,
 		partName,
 		type EditorSection,
 	} from "./one-off-view";
@@ -60,11 +61,7 @@
 	function cellKind(cell: number, kind: string) {
 		const was = section?.kind === "row" ? section.cells[cell] : null;
 		if (!was || was.kind === kind) return;
-		const width = was.width;
-		oncell(
-			cell,
-			kind === "picture" ? { kind: "picture", assetId: "", alt: "", width } : kind === "words" ? { kind: "words", text: "", width } : ({ kind, width } as RowCell),
-		);
+		oncell(cell, cellHolding(was, kind as RowCell["kind"]));
 		if (kind === "picture") onpicture(cell);
 	}
 
