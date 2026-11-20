@@ -18,7 +18,7 @@
  * Everything else is escaped; a link that isn't http(s) or mailto is dropped
  * and its words kept. No raw HTML ever reaches the email.
  */
-import { COLOURS, bookingButton, emailLogoUrl, esc, heading, outlineButton, paragraph, row, rule, table, textLink } from "./shell.js";
+import { COLOURS, FONTS, bookingButton, emailLogoUrl, esc, heading, outlineButton, paragraph, row, rule, table, textLink } from "./shell.js";
 import { bookingUrl } from "../../marketing/web/src/config/booking.ts";
 import { siteConfig } from "../../marketing/web/src/config/site.ts";
 import { emailPicture } from "./image.js";
@@ -74,52 +74,76 @@ function waitingRow(words) {
 const insertRow = (at) => `<tr data-insert="${at}"><td style="padding:0 40px;"></td></tr>`;
 
 /**
- * A Row: two or three cells side by side, each a picture, our logo, a × or
- * nothing. Photos alone share the column, each cut to the website's 4:5 so
- * they line up; with our logo or a × in it, it's a lockup ("Gwenda × Pinsa A
- * Roma"), centred, each picture whole at a logo's size.
+ * A Row: two or three columns side by side, each holding whatever's wanted
+ * (a picture, our logo, a few words, a ×, or nothing), each as wide as it's
+ * set: Small, Medium or Large at a fixed width, or Fill, sharing what's
+ * left. "Gwenda × Pinsa A Roma" is a Row (our logo, Medium; ×, Small; their
+ * logo, Medium), and so are three photos side by side (each Fill).
  */
 export const ROW_CELLS_MIN = 2;
 export const ROW_CELLS_MAX = 3;
-export const CELL_KINDS = ["picture", "logo", "times", "empty"];
+export const CELL_KINDS = ["picture", "logo", "words", "times", "empty"];
+/** How wide a column is: a fixed width, or a share of what the others leave. */
+export const CELL_WIDTHS = ["small", "medium", "large", "fill"];
+const FIXED_WIDTH = { small: 90, medium: 150, large: 240 };
 const ROW_GAP = 12;
+/** The least a Fill column gets, however much the others take. */
+const FILL_MIN = 60;
 
-function cleanCell(raw) {
-  const kind = CELL_KINDS.includes(raw?.kind) ? raw.kind : "empty";
-  return kind === "picture" ? { kind, assetId: line(raw?.assetId, 200), alt: line(raw?.alt, 300) } : { kind };
+/** A column's width when nothing says (a Row saved before columns had sizes): a logo lockup's, else Fill. */
+function defaultWidth(kind, lockup) {
+  if (!lockup) return "fill";
+  return kind === "times" ? "small" : "medium";
 }
 
-/** A Row's table: in the editor each cell says where it is (data-cell) and an empty one says so. */
-function rowHtml(cells, { images, site, marks } = {}) {
-  const lockup = cells.some((cell) => cell.kind === "logo" || cell.kind === "times");
-  const share = Math.floor((COLUMN - ROW_GAP * (cells.length - 1)) / cells.length);
-  const waiting = (words) =>
+function cleanCell(raw, lockup) {
+  const kind = CELL_KINDS.includes(raw?.kind) ? raw.kind : "empty";
+  const width = CELL_WIDTHS.includes(raw?.width) ? raw.width : defaultWidth(kind, lockup);
+  if (kind === "picture") return { kind, assetId: line(raw?.assetId, 200), alt: line(raw?.alt, 300), width };
+  if (kind === "words") return { kind, text: line(raw?.text, 200), width };
+  return { kind, width };
+}
+
+/** Each column's width in pixels: fixed ones as set (smaller together when they'd overflow), Fill ones share the rest. */
+export function rowWidths(cells, column = COLUMN) {
+  const room = column - ROW_GAP * (cells.length - 1);
+  const fills = cells.filter((cell) => cell.width === "fill").length;
+  const fixed = cells.reduce((sum, cell) => sum + (FIXED_WIDTH[cell.width] || 0), 0);
+  const scale = Math.min(1, (room - fills * FILL_MIN) / (fixed || 1));
+  const share = fills ? Math.max(FILL_MIN, Math.floor((room - fixed * scale) / fills)) : 0;
+  return cells.map((cell) => (cell.width === "fill" ? share : Math.floor(FIXED_WIDTH[cell.width] * scale)));
+}
+
+/** A Row's table: in the editor each cell says where it is (data-cell), its words can be typed over, and an empty one says so. */
+function rowHtml(cells, { images, site, marks, crop } = {}) {
+  const widths = rowWidths(cells);
+  const fills = cells.some((cell) => cell.width === "fill");
+  const waiting = (words, width) =>
     marks
-      ? `<div data-waiting style="border:2px dashed ${COLOURS.mustard};border-radius:6px;padding:${lockup ? "24px 8px" : "48px 8px"};min-width:90px;text-align:center;font-family:Georgia,serif;font-size:14px;line-height:1.4;color:${COLOURS.ink2};">${esc(words)}</div>`
+      ? `<div data-waiting style="border:2px dashed ${COLOURS.mustard};border-radius:6px;padding:${width < 120 ? "20px 4px" : "40px 8px"};text-align:center;font-family:Georgia,serif;font-size:14px;line-height:1.4;color:${COLOURS.ink2};">${esc(words)}</div>`
       : "";
-  const drawn = (cell) => {
+  const drawn = (cell, width) => {
     if (cell.kind === "logo") {
-      return `<img src="${esc(emailLogoUrl(site?.origin))}" width="${COLLAB_LOGO_WIDTH}" alt="Gwenda" style="display:block;width:${COLLAB_LOGO_WIDTH}px;max-width:100%;height:auto;border:0;">`;
+      return `<img src="${esc(emailLogoUrl(site?.origin))}" width="${width}" alt="Gwenda" style="display:block;width:100%;max-width:${width}px;height:auto;border:0;margin:0 auto;">`;
     }
     if (cell.kind === "times") return "&times;";
+    if (cell.kind === "words") {
+      const attrs = marks ? ` data-edit="cell" data-placeholder="Type here"` : "";
+      return `<p${attrs} style="margin:0;font-family:${FONTS.slab};font-size:17px;line-height:1.4;color:${COLOURS.ink};text-align:center;">${esc(cell.text)}</p>`;
+    }
     if (cell.kind === "picture" && cell.assetId) {
-      const url = sectionImageUrl(cell.assetId, images);
-      return lockup
-        ? emailPicture({ url, whole: true, alt: cell.alt }, COLLAB_LOGO_WIDTH)
-        : emailPicture({ url, whole: false, alt: cell.alt }, share, { fluid: true });
+      return emailPicture({ url: sectionImageUrl(cell.assetId, images), whole: !crop, alt: cell.alt }, width, { fluid: true });
     }
-    return waiting(cell.kind === "picture" ? "Picture" : "Empty");
+    return waiting(cell.kind === "picture" ? "Picture" : "Empty", width);
   };
-  const cellAttrs = (index) => (marks ? ` data-cell="${index}"` : "");
   const tds = cells.map((cell, index) => {
-    if (cell.kind === "times") {
-      return `<td valign="middle"${cellAttrs(index)} style="font-family:Georgia,serif;font-size:30px;line-height:1;color:${COLOURS.mustard};padding:0 16px;">${drawn(cell)}</td>`;
-    }
-    if (lockup) return `<td valign="middle"${cellAttrs(index)} style="padding:0 4px;">${drawn(cell)}</td>`;
+    const width = widths[index];
     const pad = `padding-left:${index ? ROW_GAP / 2 : 0}px;padding-right:${index < cells.length - 1 ? ROW_GAP / 2 : 0}px;`;
-    return `<td width="${share}" valign="top"${cellAttrs(index)} style="width:${share}px;${pad}">${drawn(cell)}</td>`;
+    const look = cell.kind === "times" ? `font-family:Georgia,serif;font-size:30px;line-height:1;color:${COLOURS.mustard};` : "";
+    return `<td width="${width}" valign="middle" align="center"${marks ? ` data-cell="${index}"` : ""} style="width:${width}px;${pad}${look}">${drawn(cell, width)}</td>`;
   });
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"${lockup ? ' align="center"' : ' width="100%"'} style="border-collapse:collapse;${lockup ? "margin:0 auto;" : "width:100%;"}"><tr>${tds.join("")}</tr></table>`;
+  const table = fills ? ' width="100%"' : ' align="center"';
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"${table} style="border-collapse:collapse;${fills ? "width:100%;" : "margin:0 auto;"}"><tr>${tds.join("")}</tr></table>`;
 }
 
 /** Space under each paragraph of copy. */
@@ -247,19 +271,23 @@ export const SECTION_KINDS = {
   },
   row: {
     label: "Row",
-    blank: () => ({ kind: "row", cells: [{ kind: "empty" }, { kind: "empty" }] }),
+    blank: () => ({ kind: "row", crop: false, cells: [0, 1, 2].map(() => ({ kind: "empty", width: "fill" })) }),
     clean: (raw) => {
       const given = Array.isArray(raw?.cells) ? raw.cells.slice(0, ROW_CELLS_MAX) : [];
       while (given.length < ROW_CELLS_MIN) given.push({ kind: "empty" });
-      return { kind: "row", cells: given.map(cleanCell) };
+      const lockup = given.some((cell) => cell?.kind === "logo" || cell?.kind === "times");
+      return { kind: "row", crop: raw?.crop === true, cells: given.map((cell) => cleanCell(cell, lockup)) };
     },
-    empty: (section) => section.cells.every((cell) => cell.kind === "empty" || (cell.kind === "picture" && !cell.assetId)),
+    empty: (section) =>
+      section.cells.every((cell) => cell.kind === "empty" || (cell.kind === "picture" && !cell.assetId) || (cell.kind === "words" && !cell.text)),
     html(section, context) {
-      return [row(rowHtml(section.cells, context), { top: 4, bottom: 22, align: "center" })];
+      return [row(rowHtml(section.cells, { ...context, crop: section.crop }), { top: 4, bottom: 22, align: "center" })];
     },
     text: (section) => [
       section.cells
-        .map((cell) => (cell.kind === "logo" ? "GWENDA" : cell.kind === "times" ? "×" : cell.kind === "picture" && cell.assetId ? `[${cell.alt || "picture"}]` : ""))
+        .map((cell) =>
+          cell.kind === "logo" ? "GWENDA" : cell.kind === "times" ? "×" : cell.kind === "words" ? cell.text : cell.kind === "picture" && cell.assetId ? `[${cell.alt || "picture"}]` : "",
+        )
         .filter(Boolean)
         .join(" "),
       "",

@@ -14,6 +14,7 @@
 	import {
 		addLink,
 		attachEditing,
+		detachEditing,
 		focusWords,
 		keepSelection,
 		removeLink,
@@ -137,7 +138,15 @@
 		const next = $state.snapshot(draft) as OneOffDraft;
 		if (!typing) shown = next;
 	});
-	const rendered = $derived(frame && shown ? previewOf(shown, frame, { marks: true }) : null);
+	/** Edit: typed into, parts picked and dragged. Desktop and Phone: seen as it arrives, nothing to change. */
+	let mode = $state<"edit" | "desktop" | "phone">("edit");
+	const MODES = [
+		{ id: "edit", label: "Edit" },
+		{ id: "desktop", label: "Desktop" },
+		{ id: "phone", label: "Phone" },
+	];
+	const editing = $derived(mode === "edit");
+	const rendered = $derived(frame && shown ? previewOf(shown, frame, { marks: editing }) : null);
 
 	// What's picked in the email (by key, so it follows a move), where a + is adding, and the picture chooser.
 	let selectedKey = $state<string | null>(null);
@@ -150,12 +159,6 @@
 	let focusKey: string | null = null;
 	const selectedIndex = $derived(selectedKey ? sections.findIndex((entry) => entry.key === selectedKey) : -1);
 	const selected = $derived(selectedIndex >= 0 ? sections[selectedIndex] : null);
-	/** The width the email is seen at. */
-	let width = $state("desktop");
-	const WIDTHS = [
-		{ id: "desktop", label: "Desktop" },
-		{ id: "phone", label: "Phone" },
-	];
 	/** More: the picked part's settings slide in (⋯ More on its toolbar). */
 	let settingsOpen = $state(false);
 	/** The words a link is being made of, kept while its address is typed. */
@@ -212,12 +215,23 @@
 	}
 
 	function typedInto(doc: Document) {
-		wordsDoc = doc;
 		wordsAt = null;
+		if (!editing) {
+			// Seen as it's sent: nothing picked, dragged or typed.
+			wordsDoc = null;
+			settingsOpen = false;
+			detachEditing(doc);
+			return;
+		}
+		wordsDoc = doc;
 		attachEditing(doc, editable && !saving, {
-			ontext(index, kind, text) {
+			ontext(index, kind, text, cell) {
 				const entry = sections[index];
-				if (entry && entry.section.kind === kind) entry.section.text = text;
+				if (!entry) return;
+				if (kind === "cell" && entry.section.kind === "row") {
+					const at = entry.section.cells[cell];
+					if (at?.kind === "words") at.text = text;
+				} else if (entry.section.kind === kind) entry.section.text = text;
 			},
 			onfocus(focus) {
 				wordsAt = focus;
@@ -301,7 +315,7 @@
 		if (entry?.section.kind === "image") Object.assign(entry.section, { assetId, alt: entry.section.alt || alt });
 		if (entry?.section.kind === "row") {
 			entry.section.cells = entry.section.cells.map((cell, at) =>
-				at === slot ? { kind: "picture", assetId, alt: (cell.kind === "picture" && cell.alt) || alt } : cell,
+				at === slot ? { kind: "picture", assetId, alt: (cell.kind === "picture" && cell.alt) || alt, width: cell.width } : cell,
 			);
 		}
 	}
@@ -555,8 +569,8 @@
 	</Button>
 {/snippet}
 
-{#snippet widthSwitch()}
-	<Segmented bind:value={width} items={WIDTHS} tone="soft" size="sm" ariaLabel="See the email on" />
+{#snippet modeSwitch()}
+	<Segmented bind:value={mode} items={MODES} tone="soft" size="sm" ariaLabel="Edit the email, or see it on a computer or a phone" />
 {/snippet}
 
 <EditorShell
@@ -568,7 +582,7 @@
 	{kicker}
 	{heading}
 	compact
-	tools={widthSwitch}
+	tools={modeSwitch}
 	rename={error || loading ? undefined : { value: name, placeholder: subject || "Name this email", label: "The email's name (ops only; the list never sees it)", maxlength: 80, disabled: !editable, onchange: (value) => (name = value) }}
 	placeholder={!emailName({ name, subject })}
 	{subtitle}
@@ -602,7 +616,7 @@
 		<div class="tab-body"><Skeleton rows={5} lines={1} label="Loading the email…" /></div>
 	{:else}
 		<div class="tab-body editing">
-			<EmailCanvas email={rendered} {width} bind:subject bind:previewText {editable} onframe={typedInto} />
+			<EmailCanvas email={rendered} width={mode === "phone" ? "phone" : "desktop"} bind:subject bind:previewText editable={editable && editing} onframe={typedInto} />
 		</div>
 	{/if}
 </EditorShell>

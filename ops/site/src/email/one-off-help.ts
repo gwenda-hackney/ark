@@ -4,15 +4,15 @@ import type { PageHelpTopic } from "../ui/types";
 export const ONE_OFF_HELP: PageHelpTopic[] = [
 	{
 		title: "Changing the email",
-		body: "The page is the email as people get it, and you change it right there. Type the subject and the preview line at the top. Click any words and type. Click a picture, button or anything else to pick it: a small toolbar appears on it (Change picture, Bold, Link, Remove). Drag a part by its gold handle on the left to move it. The logo at the top and the foot are always there.",
+		body: "The page is the email as people get it, and you change it right there. Type the subject and the preview line at the top. Click any words and type. Click a picture, button or anything else to pick it: a small toolbar appears on it (Change picture, Bold, Link, Remove). Drag a part to move it (words by their gold handle on the left). The logo at the top and the foot are always there. Desktop and Phone at the top show it exactly as it arrives; Edit goes back to changing it.",
 	},
 	{
 		title: "Adding something",
-		body: "Press a + between two parts of the email to add something there: a Picture (one of our photos, or upload one), a Heading, Text, a Row (two or three side by side: pictures, our logo, a ×), an Event (a night, deal or pop-up from What's on, as the monthly email shows it), a Button, a Divider line, or Book a table.",
+		body: "Press a + between two parts of the email to add something there: a Picture (one of our photos, or upload one), a Heading, Text, a Row (two or three columns side by side, each holding a picture, our logo, a few words or a ×), an Event (a night, deal or pop-up from What's on, as the monthly email shows it), a Button, a Divider line, or Book a table.",
 	},
 	{
 		title: "More",
-		body: "More (at the top, or on a part's toolbar) slides out a panel: the email's name, every part in order to jump to, and the picked part's settings, like a picture's size, a Row's cells, or a button's words and where it goes. In a Row, drag a cell onto another to swap them.",
+		body: "⋯ More on a part's toolbar slides out its settings: a picture's size, a Row's columns (what each holds and how wide it is: Small, Medium, Large, or Fill to share what's left), or a button's words and where it goes. In a Row, drag a column's picture onto another column to swap them.",
 	},
 	{
 		title: "Bold and links",

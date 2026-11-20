@@ -3,10 +3,13 @@
 	 * The one-off email editor's page (#348): the email as a mail app shows
 	 * it, from Gwenda, its subject and preview line over it, both typed
 	 * straight in; then the email itself, as tall as the page allows, edited
-	 * where it is (preview-editing.ts), at Desktop or Phone width. The frame
+	 * where it is (preview-editing.ts), or seen as it's sent at Desktop or
+	 * Phone width. The frame
 	 * runs no scripts; ops reaches into it to edit.
 	 */
 	import { previewDocument } from "./email-view";
+	import { patchEmail } from "./frame-patch";
+	import { untrack } from "svelte";
 
 	let {
 		email,
@@ -26,20 +29,52 @@
 	} = $props();
 
 	// The frame is as tall as the email, so the mail head and the email scroll
-	// as one page; it keeps its height while the email is drawn again, so the
-	// page keeps its place.
+	// as one page. It loads the email once; after that each change is made in
+	// place (frame-patch.ts), so nothing blinks and the page keeps its place.
 	let frameEl = $state<HTMLIFrameElement | null>(null);
 	let watching: ResizeObserver | null = null;
-	const srcdoc = $derived(email ? previewDocument(email.html) : "");
+	/** What the frame loaded: the first email it was given. */
+	let srcdoc = $state("");
+	/** The frame's document, once loaded, and the email it shows now. */
+	let shownDoc: Document | null = null;
+	let shownHtml = "";
 
 	function fit(doc: Document) {
 		if (frameEl) frameEl.style.height = `${Math.ceil(doc.documentElement.scrollHeight)}px`;
 	}
 
+	/** The email as it is now, in the loaded frame. */
+	function catchUp() {
+		const doc = shownDoc;
+		const html = email?.html;
+		if (!doc || !html || html === shownHtml) return;
+		patchEmail(doc, previewDocument(shownHtml), previewDocument(html));
+		shownHtml = html;
+		onframe(doc);
+	}
+
+	$effect(() => {
+		const html = email?.html;
+		if (!html) return;
+		if (!untrack(() => srcdoc)) {
+			srcdoc = previewDocument(html);
+			shownHtml = html;
+		} else catchUp();
+	});
+
+	// No frame (the email is loading again): the next one loads afresh.
+	$effect(() => {
+		if (frameEl) return;
+		srcdoc = "";
+		shownDoc = null;
+		shownHtml = "";
+	});
+
 	function loaded() {
 		const doc = frameEl?.contentDocument;
-		if (!doc) return;
+		if (!doc || !srcdoc) return;
 		const still = doc.createElement("style");
+		still.setAttribute("data-ops", "");
 		still.textContent = "html, body { overflow: hidden !important; }";
 		doc.head.append(still);
 		fit(doc);
@@ -47,7 +82,10 @@
 		// Pictures arriving and typing make it taller or shorter.
 		watching = new ResizeObserver(() => fit(doc));
 		watching.observe(doc.body);
+		shownDoc = doc;
 		onframe(doc);
+		// It may have changed while loading.
+		catchUp();
 	}
 
 	$effect(() => () => watching?.disconnect());

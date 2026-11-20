@@ -9,7 +9,8 @@
 import { attachReorder } from "../ui/drag-reorder";
 import { copyFromDom, headingFromDom } from "./copy-dom";
 
-export type EditKind = "heading" | "copy";
+/** Typed words: a heading, copy, or a Row column's few words. */
+export type EditKind = "heading" | "copy" | "cell";
 
 /** Where the typing is, for the toolbar: which kind of words, and what the selection could become. */
 export type WordsFocus = {
@@ -24,8 +25,8 @@ export type WordsFocus = {
 };
 
 export type EditingHandlers = {
-	/** What a section's words are now. */
-	ontext: (index: number, kind: EditKind, text: string) => void;
+	/** What a section's words are now (for a Row's column, its column `cell`). */
+	ontext: (index: number, kind: EditKind, text: string, cell: number) => void;
 	/** The typing moved, started (a focus) or stopped (null). */
 	onfocus: (focus: WordsFocus | null) => void;
 	/** A part of the email was clicked: section `index`. */
@@ -56,11 +57,12 @@ const GOLD = "#dba63c";
 const EDITING_CSS = `
 tr[data-section] > td { transition: background-color 120ms, box-shadow 120ms; }
 tr[data-section]:hover > td { background-color: ${GOLD}1f; cursor: pointer; }
-tr[data-section].ops-selected > td { background-color: ${GOLD}2e; box-shadow: inset 4px 0 0 ${GOLD}; }
+tr[data-section].ops-selected > td { background-color: ${GOLD}38; }
 [data-edit] { cursor: text; outline: none; min-height: 1.2em; border-radius: 2px; }
 [data-edit]:focus { background-color: ${GOLD}14; box-shadow: 0 2px 0 ${GOLD}; }
 [data-edit][data-empty]::before, [data-edit][data-empty] > p:first-child::before { color: rgba(242, 232, 210, 0.45); font-style: italic; pointer-events: none; float: left; height: 0; }
-h2[data-edit][data-empty]::before { content: attr(data-placeholder); }
+h2[data-edit][data-empty]::before, p[data-edit][data-empty]::before { content: attr(data-placeholder); }
+p[data-edit][data-empty]::before { float: none; }
 td[data-edit][data-empty] > p:first-child::before { content: attr(data-placeholder); }
 [data-waiting] { cursor: pointer; }
 a { cursor: text; }
@@ -96,11 +98,19 @@ function indexOf(host: HTMLElement): number {
 }
 
 function kindOf(host: HTMLElement): EditKind {
-	return host.dataset.edit === "heading" ? "heading" : "copy";
+	const kind = host.dataset.edit;
+	return kind === "heading" || kind === "cell" ? kind : "copy";
+}
+
+/** One line of words: a heading, or a Row column's. */
+const oneLine = (host: HTMLElement) => kindOf(host) !== "copy";
+
+function cellOf(host: HTMLElement): number {
+	return Number((host.closest("[data-cell]") as HTMLElement | null)?.dataset.cell ?? -1);
 }
 
 function textOf(host: HTMLElement): string {
-	return kindOf(host) === "heading" ? headingFromDom(host) : copyFromDom(host);
+	return oneLine(host) ? headingFromDom(host) : copyFromDom(host);
 }
 
 function markEmpty(host: HTMLElement) {
@@ -127,25 +137,49 @@ export function wordsFocus(doc: Document): WordsFocus | null {
 	};
 }
 
+/** What stops the editing attached to each frame's document: its listeners and its drags. */
+const attached = new WeakMap<Document, () => void>();
+
+/** Stops editing the frame's email (shown as it's sent, say): its listeners go; the editor's marks on it go with the next drawing. */
+export function detachEditing(doc: Document) {
+	attached.get(doc)?.();
+	attached.delete(doc);
+	doc.querySelector("style[data-ops-editing]")?.remove();
+	for (const el of Array.from(doc.querySelectorAll("[data-ops]"))) el.remove();
+}
+
 /**
  * Makes the preview's words typeable (when the email can still change) and
- * listens. Called each time the frame loads its document; the listeners go
- * with the document.
+ * listens. Called each time the frame's email is drawn (loaded, or brought
+ * up to date in place: frame-patch.ts); calling it again replaces what it
+ * attached before, and adds to the page only what isn't there yet.
  */
 export function attachEditing(doc: Document, editable: boolean, handlers: EditingHandlers) {
-	const style = doc.createElement("style");
-	style.textContent = EDITING_CSS;
-	doc.head.append(style);
+	attached.get(doc)?.();
+	const listening = new AbortController();
+	const signal = listening.signal;
+	let stopDrags = () => {};
+	attached.set(doc, () => {
+		listening.abort();
+		stopDrags();
+	});
+
+	if (!doc.querySelector("style[data-ops-editing]")) {
+		const style = doc.createElement("style");
+		style.textContent = EDITING_CSS;
+		style.setAttribute("data-ops-editing", "");
+		doc.head.append(style);
+	}
 
 	for (const host of Array.from(doc.querySelectorAll<HTMLElement>("[data-edit]"))) {
 		if (!editable) continue;
-		const heading = kindOf(host) === "heading";
-		// A heading is plain words; copy keeps bold and links.
+		const heading = oneLine(host);
+		// A heading (or a column's words) is plain words; copy keeps bold and links.
 		host.setAttribute("contenteditable", heading ? "plaintext-only" : "true");
 		host.setAttribute("spellcheck", "true");
 		host.setAttribute("lang", "en-GB");
 		host.setAttribute("role", "textbox");
-		host.setAttribute("aria-label", heading ? "Heading" : "Text");
+		host.setAttribute("aria-label", kindOf(host) === "heading" ? "Heading" : kindOf(host) === "cell" ? "Words" : "Text");
 		if (!heading) {
 			host.setAttribute("aria-multiline", "true");
 			// The caret lands inside the paragraph, not beside it.
@@ -159,7 +193,9 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 
 	// A + in each place a part can go.
 	for (const slot of Array.from(doc.querySelectorAll<HTMLElement>("tr[data-insert] > td"))) {
+		if (slot.querySelector(".ops-add")) continue;
 		const add = doc.createElement("button");
+		add.dataset.ops = "";
 		add.type = "button";
 		add.className = "ops-add";
 		add.textContent = "+";
@@ -170,7 +206,7 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 	// A grip on each part, to drag it by; a Row's filled cells drag on their own.
 	for (const row of Array.from(doc.querySelectorAll<HTMLElement>("tr[data-section]"))) {
 		const cell = row.querySelector(":scope > td");
-		if (!cell) continue;
+		if (!cell || cell.querySelector(":scope > .ops-grip")) continue;
 		const grip = doc.createElement("span");
 		grip.className = "ops-grip";
 		grip.draggable = true;
@@ -183,11 +219,12 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 		cell.prepend(grip);
 	}
 	for (const cell of Array.from(doc.querySelectorAll<HTMLElement>("td[data-cell]"))) {
-		if (!cell.querySelector("[data-waiting]")) cell.draggable = true;
+		// A column's words are selected by dragging across them, so only a column without them drags.
+		cell.draggable = !cell.querySelector("[data-waiting], [data-edit]");
 	}
 	// Parts move the way ops moves things (ui/drag-reorder.ts): a part that isn't words is grabbed
 	// anywhere on it; words only by their handle, so dragging across them still selects them.
-	attachReorder(doc.body, {
+	stopDrags = attachReorder(doc.body, {
 		items: "tr[data-section]",
 		handle: ".ops-grip",
 		whole: (row) => !row.querySelector("[data-edit]"),
@@ -197,11 +234,11 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 		onmove: (from, at) => handlers.onmove(from, at),
 		scroller: () => (doc.defaultView?.frameElement as HTMLElement | null)?.closest<HTMLElement>(".stage") ?? null,
 	});
-	attachCellSwaps(doc, handlers);
+	attachCellSwaps(doc, handlers, signal);
 
 	const tell = () => handlers.onfocus(wordsFocus(doc));
 
-	doc.defaultView?.addEventListener("resize", () => placeTools(doc));
+	doc.defaultView?.addEventListener("resize", () => placeTools(doc), { signal });
 
 	doc.addEventListener("input", (event) => {
 		const host = hostOf(event.target as Node);
@@ -210,19 +247,19 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 		markEmpty(host);
 		const first = host.querySelector("p");
 		if (first && !first.dataset.placeholder) first.setAttribute("data-placeholder", host.dataset.placeholder || "");
-		handlers.ontext(indexOf(host), kindOf(host), textOf(host));
+		handlers.ontext(indexOf(host), kindOf(host), textOf(host), cellOf(host));
 		tell();
-	});
+	}, { signal });
 
 	doc.addEventListener("keydown", (event) => {
 		const host = hostOf(event.target as Node);
 		if (!host) return;
 		// A heading is one line: Enter finishes it. Escape finishes either.
-		if (event.key === "Escape" || (event.key === "Enter" && kindOf(host) === "heading")) {
+		if (event.key === "Escape" || (event.key === "Enter" && oneLine(host))) {
 			event.preventDefault();
 			host.blur();
 		}
-	});
+	}, { signal });
 
 	// Pasted words come in as plain words, never someone else's styles.
 	doc.addEventListener("paste", (event) => {
@@ -230,14 +267,14 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 		if (!host) return;
 		event.preventDefault();
 		let words = event.clipboardData?.getData("text/plain") || "";
-		if (kindOf(host) === "heading") words = words.replace(/\s+/g, " ");
+		if (oneLine(host)) words = words.replace(/\s+/g, " ");
 		doc.execCommand("insertText", false, words);
-	});
+	}, { signal });
 
 	// The picked part's toolbar keeps the typing's place: pressing Bold mustn't take the selection away.
 	doc.addEventListener("mousedown", (event) => {
 		if ((event.target as Element | null)?.closest?.(".ops-tools")) event.preventDefault();
-	});
+	}, { signal });
 
 	// A click picks the part it's on (or adds, on a +); links don't open: a click is for changing.
 	doc.addEventListener("click", (event) => {
@@ -256,12 +293,12 @@ export function attachEditing(doc: Document, editable: boolean, handlers: Editin
 		}
 		const part = target?.closest?.("tr[data-section]") as HTMLElement | null;
 		if (part) handlers.onselect(Number(part.dataset.section));
-	});
+	}, { signal });
 
-	doc.addEventListener("focusin", tell);
-	doc.addEventListener("focusout", () => queueMicrotask(tell));
-	doc.addEventListener("selectionchange", tell);
-	doc.defaultView?.addEventListener("blur", () => handlers.onfocus(null));
+	doc.addEventListener("focusin", tell, { signal });
+	doc.addEventListener("focusout", () => queueMicrotask(tell), { signal });
+	doc.addEventListener("selectionchange", tell, { signal });
+	doc.defaultView?.addEventListener("blur", () => handlers.onfocus(null), { signal });
 }
 
 /** Bold on or off for the selected words. */
@@ -376,7 +413,7 @@ export function focusWords(doc: Document, index: number) {
 const sectionOf = (el: Element | null) => Number((el?.closest("tr[data-section]") as HTMLElement | null)?.dataset.section ?? -1);
 
 /** A Row's filled cells drag onto other cells, in that Row or another: the two swap. The cell it'd swap with is outlined. */
-function attachCellSwaps(doc: Document, handlers: EditingHandlers) {
+function attachCellSwaps(doc: Document, handlers: EditingHandlers, signal: AbortSignal) {
 	let from: { section: number; cell: number } | null = null;
 	const clear = () => {
 		for (const el of Array.from(doc.querySelectorAll(".ops-cell-drop, td.ops-dragging"))) el.classList.remove("ops-cell-drop", "ops-dragging");
@@ -389,7 +426,7 @@ function attachCellSwaps(doc: Document, handlers: EditingHandlers) {
 		cell.classList.add("ops-dragging");
 		event.dataTransfer?.setData("text/plain", "ops-cell");
 		if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-	});
+	}, { signal });
 
 	doc.addEventListener("dragover", (event) => {
 		if (!from) return;
@@ -398,7 +435,7 @@ function attachCellSwaps(doc: Document, handlers: EditingHandlers) {
 		if (!cell) return;
 		event.preventDefault();
 		cell.classList.add("ops-cell-drop");
-	});
+	}, { signal });
 
 	doc.addEventListener("drop", (event) => {
 		if (!from) return;
@@ -408,10 +445,10 @@ function attachCellSwaps(doc: Document, handlers: EditingHandlers) {
 		from = null;
 		clear();
 		if (cell) handlers.oncells(was, { section: sectionOf(cell), cell: Number(cell.dataset.cell) });
-	});
+	}, { signal });
 
 	doc.addEventListener("dragend", () => {
 		from = null;
 		clear();
-	});
+	}, { signal });
 }

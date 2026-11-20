@@ -162,13 +162,21 @@ export function getEventCards() {
 	return request<{ choices: EventCardChoice[] }>("/api/email/cards");
 }
 
-/** One cell of a Row: a picture, our logo, a ×, or nothing yet. */
-export type RowCell = { kind: "picture"; assetId: string; alt: string } | { kind: "logo" } | { kind: "times" } | { kind: "empty" };
+/** How wide a Row's column is: a fixed width, or Fill (a share of what's left). */
+export type CellWidth = "small" | "medium" | "large" | "fill";
+/** One column of a Row: a picture, our logo, a few words, a ×, or nothing yet; and how wide it is. */
+export type RowCell = (
+	| { kind: "picture"; assetId: string; alt: string }
+	| { kind: "words"; text: string }
+	| { kind: "logo" }
+	| { kind: "times" }
+	| { kind: "empty" }
+) & { width: CellWidth };
 
 export type OneOffSection =
 	| { kind: "image"; assetId: string; alt: string; size: ImageSize }
-	/** Two or three cells side by side: pictures, our logo, a ×. */
-	| { kind: "row"; cells: RowCell[] }
+	/** Two or three columns side by side, each holding anything; `crop` cuts its pictures to one shape. */
+	| { kind: "row"; crop: boolean; cells: RowCell[] }
 	/** The monthly email's dashed line. */
 	| { kind: "divider" }
 	/** A night, deal or pop-up kitchen, as the monthly email draws it, in the words it had when picked. */

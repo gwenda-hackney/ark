@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MAILCHIMP_TAGS, campaignFoot } from "./campaign.js";
 import { renderOneOffEmail } from "./one-off.js";
-import { BOOKING, SECTION_KINDS, cleanSections, copyInlineHtml, copyInlineText, paragraphs, safeLink } from "./sections.js";
+import { BOOKING, SECTION_KINDS, rowWidths, cleanSections, copyInlineHtml, copyInlineText, paragraphs, safeLink } from "./sections.js";
 import { emailSite } from "./site.js";
 import { renderWeeklyEmail } from "../weekly-email/render.js";
 import { weeklyEmailModel } from "../weekly-email/model.js";
@@ -186,28 +186,44 @@ describe("drawn for ops' editor (marks)", () => {
     expect(render([{ kind: "image", assetId: "" }]).html).not.toContain("data-");
   });
 
-  it("a row of photos shares the column, each cut to 4:5; an empty cell is a dashed box in the editor only", () => {
+  it("a row's Fill columns share the column; an empty cell is a dashed box in the editor only", () => {
     const sections = [{ kind: "row", cells: [{ kind: "picture", assetId: ASSET, alt: "Pizza" }, { kind: "empty" }] }];
     const sent = render(sections).html;
-    expect(sent).toMatch(/<td width="274"[^>]*><img src="[^"]+fit=crop[^"]*" width="274" alt="Pizza"[^>]*><\/td><td width="274"[^>]*><\/td>/);
+    expect(sent).toMatch(/<td width="274"[^>]*><img src="[^"]+" width="274" alt="Pizza"[^>]*><\/td><td width="274"[^>]*><\/td>/);
+    expect(sent).not.toContain("fit=crop");
+    expect(render([{ ...sections[0], crop: true }]).html).toContain("fit=crop");
     const marked = renderOneOffEmail({ subject: "S", sections }, { site, images, marks: true }).html;
-    expect(marked).toMatch(/<td width="274" valign="top" data-cell="1"[^>]*><div data-waiting[^>]*>Empty<\/div>/);
+    expect(marked).toMatch(/<td width="274"[^>]*data-cell="1"[^>]*><div data-waiting[^>]*>Empty<\/div>/);
     expect(render([{ kind: "row", cells: [{ kind: "empty" }, { kind: "picture", assetId: "" }] }]).html).not.toContain('width="274"');
   });
 
-  it("a row with our logo and a × is the lockup: Gwenda × their logo, centred, each whole", () => {
-    const html = render([{ kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: ASSET, alt: "Pinsa A Roma" }] }]).html;
-    expect(html).toMatch(/<img src="[^"]+\/brand\/logo-email-social\.png" width="130" alt="Gwenda"[^>]*><\/td><td[^>]*>&times;<\/td><td[^>]*><img src="[^"]+" width="130" alt="Pinsa A Roma"/);
-    expect(render([{ kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: ASSET, alt: "Pinsa A Roma" }] }]).text).toContain("GWENDA × [Pinsa A Roma]");
+  it("a row's columns are as wide as they're set: fixed ones centred, Fill ones sharing what's left", () => {
+    const cells = (...widths) => widths.map((width) => ({ kind: "empty", width }));
+    expect(rowWidths(cells("medium", "small", "medium"))).toEqual([150, 90, 150]);
+    expect(rowWidths(cells("small", "fill", "fill"))).toEqual([90, 223, 223]);
+    expect(rowWidths(cells("large", "large", "large"))).toEqual([178, 178, 178]);
+    const html = render([{ kind: "row", cells: [{ kind: "logo", width: "medium" }, { kind: "times", width: "small" }, { kind: "words", text: "Pinsa A Roma", width: "medium" }] }]).html;
+    expect(html).toMatch(/<table[^>]*align="center"[^>]*><tr><td width="150"[^>]*><img src="[^"]+\/brand\/logo-email-social\.png" width="150" alt="Gwenda"[^>]*><\/td><td width="90"[^>]*>&times;<\/td><td width="150"[^>]*><p[^>]*>Pinsa A Roma<\/p>/);
+    const words = [{ kind: "row", cells: [{ kind: "words", text: "Hi" }, { kind: "empty" }] }];
+    expect(render(words).html).not.toContain("data-edit");
+    expect(renderOneOffEmail({ subject: "S", sections: words }, { site, images, marks: true }).html).toMatch(/<td[^>]*data-cell="0"[^>]*><p data-edit="cell"[^>]*>Hi<\/p>/);
   });
 
-  it("a row keeps two or three cells", () => {
-    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "logo" }] }).cells).toEqual([{ kind: "logo" }, { kind: "empty" }]);
+  it("a row saved before columns had sizes keeps its look: a lockup Medium × Small × Medium, photos Fill", () => {
+    const lockup = SECTION_KINDS.row.clean({ cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: ASSET, alt: "Pinsa A Roma" }] });
+    expect(lockup.cells.map((cell) => cell.width)).toEqual(["medium", "small", "medium"]);
+    expect(render([lockup]).text).toContain("GWENDA × [Pinsa A Roma]");
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "picture", assetId: ASSET }, { kind: "empty" }] }).cells.map((cell) => cell.width)).toEqual(["fill", "fill"]);
+  });
+
+  it("a row keeps two or three cells, each a known kind", () => {
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "logo" }] }).cells).toEqual([{ kind: "logo", width: "medium" }, { kind: "empty", width: "medium" }]);
     expect(SECTION_KINDS.row.clean({ cells: [1, 2, 3, 4].map(() => ({ kind: "times" })) }).cells).toHaveLength(3);
-    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "script" }, { kind: "picture", assetId: ASSET, extra: 1 }] }).cells).toEqual([
-      { kind: "empty" },
-      { kind: "picture", assetId: ASSET, alt: "" },
+    expect(SECTION_KINDS.row.clean({ cells: [{ kind: "script" }, { kind: "picture", assetId: ASSET, extra: 1, width: "huge" }] }).cells).toEqual([
+      { kind: "empty", width: "fill" },
+      { kind: "picture", assetId: ASSET, alt: "", width: "fill" },
     ]);
+    expect(SECTION_KINDS.row.blank().cells).toHaveLength(3);
   });
 
   it("an event card is drawn as the monthly email draws it: a night with its date sticker, a pop-up kitchen with its tag", () => {

@@ -15,6 +15,7 @@
 	import {
 		BUTTON_LOOK_ITEMS,
 		CELL_ITEMS,
+		CELL_WIDTH_ITEMS,
 		IMAGE_SIZE_ITEMS,
 		partName,
 		type EditorSection,
@@ -55,16 +56,22 @@
 		return fly(node, phone ? { y: 400, duration: 240, easing: cubicOut, opacity: 1 } : { x: 420, duration: 240, easing: cubicOut, opacity: 1 });
 	}
 
+	/** What column `cell` holds changes; it keeps its size. */
 	function cellKind(cell: number, kind: string) {
-		if (section?.kind !== "row" || section.cells[cell]?.kind === kind) return;
-		oncell(cell, kind === "picture" ? { kind: "picture", assetId: "", alt: "" } : ({ kind } as RowCell));
+		const was = section?.kind === "row" ? section.cells[cell] : null;
+		if (!was || was.kind === kind) return;
+		const width = was.width;
+		oncell(
+			cell,
+			kind === "picture" ? { kind: "picture", assetId: "", alt: "", width } : kind === "words" ? { kind: "words", text: "", width } : ({ kind, width } as RowCell),
+		);
 		if (kind === "picture") onpicture(cell);
 	}
 
 	function cellCount(count: number) {
 		if (section?.kind !== "row" || count === section.cells.length) return;
 		const cells = section.cells.slice(0, count);
-		while (cells.length < count) cells.push({ kind: "empty" });
+		while (cells.length < count) cells.push({ kind: "empty", width: "fill" });
 		onchange({ cells } as Partial<OneOffSection>);
 	}
 </script>
@@ -87,7 +94,7 @@
 						<TextField id="side-alt" value={section.alt} oninput={(event) => onchange({ alt: event.currentTarget.value })} maxlength={300} placeholder="The bar on New Year's Eve" />
 					</Field>
 				{:else if section.kind === "row"}
-					<Field label="Cells">
+					<Field label="Columns">
 						<Segmented
 							bind:value={() => String(section.cells.length), (count) => cellCount(Number(count))}
 							items={[
@@ -95,14 +102,29 @@
 								{ id: "3", label: "Three" },
 							]}
 							tone="soft"
-							ariaLabel="How many cells"
+							ariaLabel="How many columns"
 						/>
 					</Field>
-					<p class="hint">Drag a cell onto another in the email to swap them.</p>
+					<Field label="Pictures" hint="Cut to one shape, side by side photos line up.">
+						<Segmented
+							bind:value={() => (section.crop ? "same" : "whole"), (shape) => onchange({ crop: shape === "same" } as Partial<OneOffSection>)}
+							items={[
+								{ id: "whole", label: "As they are" },
+								{ id: "same", label: "Same shape" },
+							]}
+							tone="soft"
+							ariaLabel="Pictures' shape"
+						/>
+					</Field>
+					<p class="hint">Drag a column's picture onto another column in the email to swap them. Words are typed in the email.</p>
 					{#each section.cells as cell, at (at)}
 						<div class="cell">
-							<Field label={`Cell ${at + 1}`}>
-								<Segmented bind:value={() => cell.kind, (kind) => cellKind(at, kind)} items={CELL_ITEMS} tone="soft" ariaLabel={`Cell ${at + 1} holds`} />
+							<p class="cell-name">Column {at + 1}</p>
+							<Field label="Holds">
+								<Segmented bind:value={() => cell.kind, (kind) => cellKind(at, kind)} items={CELL_ITEMS} tone="soft" ariaLabel={`Column ${at + 1} holds`} />
+							</Field>
+							<Field label="Width">
+								<Segmented bind:value={() => cell.width, (width) => oncell(at, { ...cell, width } as RowCell)} items={CELL_WIDTH_ITEMS} tone="soft" ariaLabel={`Column ${at + 1} width`} />
 							</Field>
 							{#if cell.kind === "picture"}
 								<Button size="sm" variant="outline" busy={uploading} onclick={() => onpicture(at)}>
@@ -185,6 +207,11 @@
 		padding: var(--space-2);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
+	}
+	.cell-name {
+		margin: 0;
+		font-weight: 600;
+		font-size: var(--text-sm);
 	}
 	.hint {
 		margin: 0;

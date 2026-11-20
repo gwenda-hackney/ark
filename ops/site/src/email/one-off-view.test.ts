@@ -104,9 +104,17 @@ describe("the one-off email editor (#348)", () => {
 	it("cells swap within a row and between rows; a picture's \"Gwenda ×\" size opens as a Row", () => {
 		const list = editorSections([
 			{ kind: "image", assetId: "image-a-1x1-jpg", alt: "Pinsa", size: "collab" },
-			{ kind: "row", cells: [{ kind: "picture", assetId: "image-b-1x1-jpg", alt: "B" }, { kind: "empty" }] },
+			{ kind: "row", crop: false, cells: [{ kind: "picture", assetId: "image-b-1x1-jpg", alt: "B", width: "fill" }, { kind: "empty", width: "fill" }] },
 		]);
-		assert.deepEqual(list[0].section, { kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: "image-a-1x1-jpg", alt: "Pinsa" }] });
+		assert.deepEqual(list[0].section, {
+			kind: "row",
+			crop: false,
+			cells: [
+				{ kind: "logo", width: "medium" },
+				{ kind: "times", width: "small" },
+				{ kind: "picture", assetId: "image-a-1x1-jpg", alt: "Pinsa", width: "medium" },
+			],
+		});
 		const within = swapCells(list, { section: 0, cell: 0 }, { section: 0, cell: 2 });
 		assert.equal(partSummary(within[0].section), "Pinsa · × · Our logo");
 		const across = swapCells(list, { section: 1, cell: 0 }, { section: 0, cell: 1 });

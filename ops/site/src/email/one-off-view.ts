@@ -14,7 +14,7 @@ export type SectionKind = OneOffSection["kind"];
 /** The kinds the editor offers, in order, with the names the owner sees and what each is for. */
 export const SECTION_CHOICES: { kind: SectionKind; label: string; about: string }[] = [
 	{ kind: "image", label: "Picture", about: "One of our photos, or a new one" },
-	{ kind: "row", label: "Row", about: "Two or three side by side: pictures, our logo, a ×" },
+	{ kind: "row", label: "Row", about: "Two or three columns side by side: pictures, logos, words" },
 	{ kind: "heading", label: "Heading", about: "Big words in the poster letters" },
 	{ kind: "copy", label: "Text", about: "Paragraphs, with bold and links" },
 	{ kind: "event", label: "Event", about: "A night, deal or pop-up, as the monthly email shows it" },
@@ -34,12 +34,21 @@ export const IMAGE_SIZE_ITEMS = [
 	{ id: "logo", label: "Logo" },
 ] as const;
 
-/** What a Row's cell can hold, for its switch. */
+/** What a Row's column can hold, for its switch. */
 export const CELL_ITEMS = [
 	{ id: "picture", label: "Picture" },
 	{ id: "logo", label: "Our logo" },
+	{ id: "words", label: "Words" },
 	{ id: "times", label: "×" },
 	{ id: "empty", label: "Nothing" },
+] as const;
+
+/** How wide a Row's column is, for its switch. */
+export const CELL_WIDTH_ITEMS = [
+	{ id: "small", label: "Small" },
+	{ id: "medium", label: "Medium" },
+	{ id: "large", label: "Large" },
+	{ id: "fill", label: "Fill" },
 ] as const;
 
 /** A button's looks, for its switch. */
@@ -69,10 +78,19 @@ export function editorSections(sections: OneOffSection[]): EditorSection[] {
 		if (section.kind === "button") return keyed({ ...section, look: section.look === "outline" ? "outline" : "link" });
 		// "Gwenda ×" was a picture's size; it's a Row now: our logo, ×, the picture.
 		if (section.kind === "image" && section.size === "collab") {
-			return keyed({ kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "picture", assetId: section.assetId, alt: section.alt }] });
+			return keyed({
+				kind: "row",
+				crop: false,
+				cells: [
+					{ kind: "logo", width: "medium" },
+					{ kind: "times", width: "small" },
+					{ kind: "picture", assetId: section.assetId, alt: section.alt, width: "medium" },
+				],
+			});
 		}
 		if (section.kind === "image") return keyed({ ...section, size: section.size === "logo" ? "logo" : "full" });
-		if (section.kind === "row") return keyed({ kind: "row", cells: section.cells.map((cell) => ({ ...cell })) });
+		// Rows come cleaned by the server (shared/email/sections.js), sizes and all.
+		if (section.kind === "row") return keyed({ kind: "row", crop: Boolean(section.crop), cells: section.cells.map((cell) => ({ ...cell })) });
 		return keyed({ ...section });
 	});
 }
@@ -89,7 +107,7 @@ export function moveSectionTo(list: EditorSection[], from: number, at: number): 
 /** A Row's cell, by its section and its place in the row. */
 export type CellAt = { section: number; cell: number };
 
-/** Two cells swapped, in one Row or between two; anything else leaves the list as it was. */
+/** What two cells hold swapped (each column keeps its size), in one Row or between two; anything else leaves the list as it was. */
 export function swapCells(list: EditorSection[], a: CellAt, b: CellAt): EditorSection[] {
 	const first = list[a.section]?.section;
 	const second = list[b.section]?.section;
@@ -98,8 +116,9 @@ export function swapCells(list: EditorSection[], a: CellAt, b: CellAt): EditorSe
 	const two = second.cells[b.cell];
 	if (!one || !two) return list;
 	const out = list.map((entry) => (entry.section.kind === "row" ? { ...entry, section: { ...entry.section, cells: [...entry.section.cells] } } : entry));
-	(out[a.section].section as { cells: RowCell[] }).cells[a.cell] = two;
-	(out[b.section].section as { cells: RowCell[] }).cells[b.cell] = one;
+	// What's in them moves; each column keeps its size.
+	(out[a.section].section as { cells: RowCell[] }).cells[a.cell] = { ...two, width: one.width };
+	(out[b.section].section as { cells: RowCell[] }).cells[b.cell] = { ...one, width: two.width };
 	return out;
 }
 
@@ -113,7 +132,11 @@ export function partSummary(section: OneOffSection): string {
 		case "image":
 			return section.assetId ? section.alt || "A picture" : "No picture yet";
 		case "row":
-			return section.cells.map((cell) => (cell.kind === "logo" ? "Our logo" : cell.kind === "times" ? "×" : cell.kind === "picture" ? cell.alt || "Picture" : "Empty")).join(" · ");
+			return section.cells
+				.map((cell) =>
+					cell.kind === "logo" ? "Our logo" : cell.kind === "times" ? "×" : cell.kind === "picture" ? cell.alt || "Picture" : cell.kind === "words" ? cell.text || "Words" : "Empty",
+				)
+				.join(" · ");
 		case "button":
 			return section.label || "No words yet";
 		case "event":
