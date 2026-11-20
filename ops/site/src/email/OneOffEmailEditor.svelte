@@ -3,13 +3,34 @@
 	 * A one-off email (#348): its name (ops' own), its subject and preview line, then its sections
 	 * between the fixed logo and foot, with the email as it arrives beside
 	 * them, drawn live by the same renderer Mailchimp gets
-	 * (shared/email/one-off.js). The same editor card as an event's or a
+	 * (shared/email/one-off.js). Its headings and text are typed straight into
+	 * that email (preview-editing.ts, WordsToolbar for Bold and Link): while
+	 * someone types there, the preview keeps still and the sections follow it. The same editor card as an event's or a
 	 * menu's (EditorShell). /email/write/new starts one; Save email keeps it
 	 * as a draft; Send me a test sends the saved one to your own address.
 	 * Sent or scheduled ones open read-only.
 	 */
 	import { onDestroy } from "svelte";
-	import { Badge, Button, ConfirmDialog, EditorShell, EmptyState, Field, FormSection, HelpDrawer, Skeleton, TextField } from "../ui";
+	import {
+		addLink,
+		attachEditing,
+		detachEditing,
+		focusWords,
+		keepSelection,
+		removeLink,
+		showBold,
+		showSelected,
+		toggleBold,
+		type PartAction,
+		type WordsFocus,
+	} from "./preview-editing";
+	import PartMorePanel from "./PartMorePanel.svelte";
+	import EmailCanvas from "./EmailCanvas.svelte";
+	import AddPartDialog from "./AddPartDialog.svelte";
+	import LinkDialog from "./LinkDialog.svelte";
+	import PictureChooser from "./PictureChooser.svelte";
+	import EventChooser from "./EventChooser.svelte";
+	import { Badge, Button, ConfirmDialog, EditorShell, EmptyState, HelpDrawer, Segmented, Skeleton } from "../ui";
 	import { Icon } from "../app/shell";
 	import type { AuthMe } from "../app/api";
 	import { leaveEditor, navigate, parseShellPath } from "../app/nav";
@@ -31,18 +52,22 @@
 		type EmailFrame,
 		type OneOffDraft,
 		type OneOffEmail,
+		type OneOffSection,
+		type EventCard,
+		type RowCell,
 		type WeeklyEmailAccess,
 	} from "./email-api";
-	import EmailPreview from "./EmailPreview.svelte";
-	import OneOffSectionCard from "./OneOffSectionCard.svelte";
 	import { ONE_OFF_HELP } from "./one-off-help";
 	import {
-		SECTION_CHOICES,
-		addSection,
 		draftOf,
 		emailName,
 		editorSections,
-		moveSection,
+		cellHolding,
+		insertSection,
+		moveSectionTo,
+		partName,
+		partSummary,
+		swapCells,
 		notReady,
 		oneOffSendBlocked,
 		oneOffTestBlocked,
@@ -101,7 +126,243 @@
 	const dirty = $derived(!loading && !error && !sameDraft(draft, saved));
 	const editable = $derived(isNew || email?.status === "draft");
 	const canSave = $derived(editable && !saving && !uploading && (isNew || dirty));
-	const rendered = $derived(frame ? previewOf(draft, frame) : null);
+	// Typing in the preview: its document, where the typing is, and whether a link's address is being typed.
+	let wordsDoc = $state<Document | null>(null);
+	let wordsAt = $state<WordsFocus | null>(null);
+	let linking = $state(false);
+	const typing = $derived(Boolean(wordsAt) || linking);
+	// What the preview shows: the draft, except it keeps still while someone types into it
+	// (redrawing would lose their place); it catches up when they stop.
+	let shown = $state<OneOffDraft | null>(null);
+	$effect(() => {
+		// A copy, not the draft's live sections: those change under the typing.
+		const next = $state.snapshot(draft) as OneOffDraft;
+		if (!typing) shown = next;
+	});
+	/** Edit: typed into, parts picked and dragged. Desktop and Phone: seen as it arrives, nothing to change. */
+	let mode = $state<"edit" | "desktop" | "phone">("edit");
+	const MODES = [
+		{ id: "edit", label: "Edit" },
+		{ id: "desktop", label: "Desktop" },
+		{ id: "phone", label: "Phone" },
+	];
+	const editing = $derived(mode === "edit");
+	const rendered = $derived(frame && shown ? previewOf(shown, frame, { marks: editing }) : null);
+
+	// What's picked in the email (by key, so it follows a move), where a + is adding, and the picture chooser.
+	let selectedKey = $state<string | null>(null);
+	/** In a picked Row, the column picked (clicked on), or -1. */
+	let selectedCell = $state(-1);
+	let insertingAt = $state<number | null>(null);
+	/** The picture chooser is open for this part (and, for two pictures, this one of them). */
+	let choosingFor = $state<{ key: string; slot: number } | null>(null);
+	/** The event chooser is open for this part. */
+	let eventFor = $state<string | null>(null);
+	/** Words just added: the typing goes into them once the email is drawn again. */
+	let focusKey: string | null = null;
+	/** …and in a Row, into this column's words. */
+	let focusCell = -1;
+	const selectedIndex = $derived(selectedKey ? sections.findIndex((entry) => entry.key === selectedKey) : -1);
+	const selected = $derived(selectedIndex >= 0 ? sections[selectedIndex] : null);
+	/** More: the picked part's settings slide in (⋯ More on its toolbar). */
+	let settingsOpen = $state(false);
+	/** The words a link is being made of, kept while its address is typed. */
+	let linkFrom: Range | null = null;
+
+	/** The picked part's toolbar, in the email: what that kind of part can do there. */
+	function actionsFor(section: OneOffSection | null, words: WordsFocus | null): PartAction[] {
+		if (!section || !editable) return [];
+		const remove = { id: "remove", label: "Remove" };
+		switch (section.kind) {
+			case "copy":
+				return [{ id: "bold", label: "Bold" }, words?.inLink ? { id: "unlink", label: "Remove link" } : { id: "link", label: "Link" }, remove];
+			case "image":
+				return [{ id: "picture", label: section.assetId ? "Change picture" : "Choose picture" }, { id: "settings", label: "⋯ More" }, remove];
+			case "row":
+				return [{ id: "settings", label: "⋯ More" }, remove];
+			case "button":
+				return [{ id: "settings", label: "⋯ More" }, remove];
+			case "event":
+				return [{ id: "event", label: section.title ? "Change event" : "Choose event" }, remove];
+			default:
+				return [remove];
+		}
+	}
+	const actions = $derived(actionsFor(selected?.section ?? null, wordsAt));
+	$effect(() => {
+		if (!wordsDoc) return;
+		showSelected(wordsDoc, selectedIndex >= 0 ? selectedIndex : null, insertingAt, actions, selected?.section.kind === "row" ? selectedCell : -1);
+		showBold(wordsDoc, Boolean(wordsAt?.bold));
+	});
+
+	function act(action: string) {
+		const doc = wordsDoc;
+		if (!doc) return;
+		if (action === "bold") toggleBold(doc);
+		else if (action === "link") {
+			if (!wordsAt?.selected) {
+				toast.info("Select the words to make a link first.");
+				return;
+			}
+			linkFrom = keepSelection(doc);
+			linking = true;
+		} else if (action === "unlink") removeLink(doc);
+		else if (action === "picture" && selectedKey) choosingFor = { key: selectedKey, slot: 0 };
+		else if (action === "event" && selectedKey) eventFor = selectedKey;
+		else if (action === "settings") settingsOpen = true;
+		else if (action === "remove") removeSelected();
+	}
+
+	/** The picked Row's column `at` holds `kind` now: a picture opens the chooser, words get the typing. */
+	function holdInCell(at: number, kind: RowCell["kind"]) {
+		const entry = selected;
+		const cell = entry?.section.kind === "row" ? entry.section.cells[at] : null;
+		if (!entry || !cell || cell.kind === kind) return;
+		selectedCell = at;
+		setCell(at, cellHolding(cell, kind));
+		if (kind === "picture") choosingFor = { key: entry.key, slot: at };
+		if (kind === "words") {
+			focusKey = entry.key;
+			focusCell = at;
+		}
+	}
+
+	function addLinkHere(address: string) {
+		if (wordsDoc) addLink(wordsDoc, linkFrom, address);
+		linkFrom = null;
+		linking = false;
+	}
+
+	function typedInto(doc: Document) {
+		wordsAt = null;
+		if (!editing) {
+			// Seen as it's sent: nothing picked, dragged or typed.
+			wordsDoc = null;
+			settingsOpen = false;
+			detachEditing(doc);
+			return;
+		}
+		wordsDoc = doc;
+		attachEditing(doc, editable && !saving, {
+			ontext(index, kind, text, cell) {
+				const entry = sections[index];
+				if (!entry) return;
+				if (kind === "cell" && entry.section.kind === "row") {
+					const at = entry.section.cells[cell];
+					if (at?.kind === "words") at.text = text;
+				} else if (entry.section.kind === kind) entry.section.text = text;
+			},
+			onfocus(focus) {
+				wordsAt = focus;
+			},
+			onselect(index, cell) {
+				selectedKey = sections[index]?.key ?? null;
+				selectedCell = cell;
+				// A Row's column clicked: its settings slide in beside the email.
+				if (cell >= 0 && sections[index]?.section.kind === "row") settingsOpen = true;
+				insertingAt = null;
+			},
+			oninsert(at) {
+				insertingAt = at;
+				selectedKey = null;
+			},
+			onmove(from, at) {
+				selectedKey = sections[from]?.key ?? selectedKey;
+				sections = moveSectionTo(sections, from, at);
+			},
+			oncells(from, to) {
+				sections = swapCells(sections, from, to);
+				selectedKey = sections[to.section]?.key ?? selectedKey;
+				selectedCell = to.cell;
+			},
+			onaction: act,
+			label(index) {
+				const part = sections[index]?.section;
+				return part ? `${partName(part.kind)} · ${partSummary(part)}` : "";
+			},
+		});
+		showSelected(doc, selectedIndex >= 0 ? selectedIndex : null, insertingAt, actions, selected?.section.kind === "row" ? selectedCell : -1);
+		const typeInto = focusKey ? sections.findIndex((entry) => entry.key === focusKey) : -1;
+		const intoCell = focusCell;
+		focusKey = null;
+		focusCell = -1;
+		if (typeInto >= 0) focusWords(doc, typeInto, intoCell);
+	}
+
+	/** A kind chosen for the + : it goes there, picked; words get the typing, a picture opens the chooser. */
+	function choose(kind: SectionKind) {
+		if (insertingAt === null) return;
+		if (sections.length >= MAX_SECTIONS) {
+			toast.error(`${MAX_SECTIONS} parts at most.`);
+			return;
+		}
+		const added = insertSection(sections, insertingAt, kind);
+		sections = added.list;
+		insertingAt = null;
+		selectedKey = added.key;
+		// A new Row's first column is picked, its settings beside the email.
+		selectedCell = kind === "row" ? 0 : -1;
+		if (kind === "row") settingsOpen = true;
+		if (kind === "heading" || kind === "copy") focusKey = added.key;
+		if (kind === "image") choosingFor = { key: added.key, slot: 0 };
+		if (kind === "event") eventFor = added.key;
+	}
+
+	function setCell(cell: number, value: RowCell) {
+		const entry = selected;
+		if (entry?.section.kind !== "row") return;
+		entry.section.cells = entry.section.cells.map((other, at) => (at === cell ? value : other));
+	}
+
+	function removeSelected() {
+		if (selectedIndex < 0) return;
+		sections = removeSection(sections, selectedIndex);
+		selectedKey = null;
+		selectedCell = -1;
+	}
+
+	function changeSelected(patch: Partial<OneOffSection>) {
+		if (selected) Object.assign(selected.section, patch);
+	}
+
+	/** A picture from the library, for the section the chooser opened for. */
+	function pickEvent(card: EventCard) {
+		const entry = sections.find((other) => other.key === eventFor);
+		eventFor = null;
+		if (entry?.section.kind === "event") Object.assign(entry.section, card);
+	}
+
+	function pickPicture(assetId: string, alt: string) {
+		const target = choosingFor;
+		choosingFor = null;
+		if (target) setPicture(target.key, target.slot, assetId, alt);
+	}
+
+	/** Puts a picture in a part: a Picture, or a Row's cell `slot`. */
+	function setPicture(key: string, slot: number, assetId: string, alt: string) {
+		const entry = sections.find((other) => other.key === key);
+		if (entry?.section.kind === "image") Object.assign(entry.section, { assetId, alt: entry.section.alt || alt });
+		if (entry?.section.kind === "row") {
+			entry.section.cells = entry.section.cells.map((cell, at) =>
+				at === slot ? { kind: "picture", assetId, alt: (cell.kind === "picture" && cell.alt) || alt, width: cell.width } : cell,
+			);
+		}
+	}
+
+	async function uploadPicture(file: File) {
+		const target = choosingFor;
+		choosingFor = null;
+		if (!target) return;
+		uploading = target.key;
+		try {
+			const { assetId } = await uploadEmailImage(file);
+			setPicture(target.key, target.slot, assetId, "");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "The picture didn't upload.");
+		} finally {
+			uploading = null;
+		}
+	}
 	const testReason = $derived(
 		oneOffTestBlocked({
 			saved: Boolean(email),
@@ -128,7 +389,8 @@
 		subject = source.subject;
 		previewText = source.previewText;
 		sections = editorSections(source.sections);
-		saved = draftOf(name, subject, previewText, sections);
+		// A copy: the draft's sections are the ones being edited, and the saved ones must not change with them.
+		saved = $state.snapshot(draftOf(name, subject, previewText, sections)) as OneOffDraft;
 	}
 
 	async function load(id: number, fresh: boolean) {
@@ -169,7 +431,7 @@
 		try {
 			if (isNew) {
 				const { email: made } = await createOneOffEmail(draft);
-				saved = draft;
+				saved = $state.snapshot(draft) as OneOffDraft;
 				toast.ok("Email saved as a draft.");
 				onchanged?.();
 				navigate(writePath(made.id), { replace: true, force: true });
@@ -178,7 +440,7 @@
 			const { email: next } = await saveOneOffEmail(emailId, draft);
 			email = next;
 			// Keep the editor's own sections (and their keys); only what was cleaned changes.
-			if (sameDraft(draftOf(next.name, next.subject, next.previewText, editorSections(next.sections)), draft)) saved = draft;
+			if (sameDraft(draftOf(next.name, next.subject, next.previewText, editorSections(next.sections)), draft)) saved = $state.snapshot(draft) as OneOffDraft;
 			else fill(next);
 			setCrumbLeaf(emailName(next) || "Email");
 			toast.ok("Email saved.");
@@ -247,27 +509,6 @@
 		} finally {
 			deleting = false;
 		}
-	}
-
-	async function upload(entry: EditorSection, file: File) {
-		uploading = entry.key;
-		try {
-			const { assetId } = await uploadEmailImage(file);
-			if (entry.section.kind === "image") {
-				const index = sections.findIndex((other) => other.key === entry.key);
-				if (index >= 0 && sections[index].section.kind === "image") {
-					sections[index].section = { ...sections[index].section, assetId } as EditorSection["section"];
-				}
-			}
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "The image didn't upload.");
-		} finally {
-			uploading = null;
-		}
-	}
-
-	function add(kind: SectionKind) {
-		sections = addSection(sections, kind);
 	}
 
 	function back() {
@@ -357,6 +598,10 @@
 	</Button>
 {/snippet}
 
+{#snippet modeSwitch()}
+	<Segmented bind:value={mode} items={MODES} tone="soft" size="sm" ariaLabel="Edit the email, or see it on a computer or a phone" />
+{/snippet}
+
 <EditorShell
 	{open}
 	backLabel="Write"
@@ -365,6 +610,9 @@
 	busy={saving}
 	{kicker}
 	{heading}
+	compact
+	tools={modeSwitch}
+	rename={error || loading ? undefined : { value: name, placeholder: subject || "Name this email", label: "The email's name (ops only; the list never sees it)", maxlength: 80, disabled: !editable, onchange: (value) => (name = value) }}
 	placeholder={!emailName({ name, subject })}
 	{subtitle}
 	actions={{
@@ -396,70 +644,8 @@
 	{:else if loading && !frame}
 		<div class="tab-body"><Skeleton rows={5} lines={1} label="Loading the email…" /></div>
 	{:else}
-		<div class="tab-body split">
-			<div class="form">
-				<FormSection title="Email" description={editable ? "Its name here, and what the inbox shows." : "Sent or scheduled: it can't be changed."}>
-					<Field class="span-12" label="Name" for="email-name" optional hint="What ops calls it, on its card. The list never sees it.">
-						<TextField id="email-name" size="sm" bind:value={name} maxlength={80} disabled={!editable} placeholder="New Year's Eve promo" autocomplete="off" />
-					</Field>
-					<Field class="span-12" label="Subject" for="email-subject" required>
-						<TextField id="email-subject" size="sm" bind:value={subject} maxlength={150} disabled={!editable} placeholder="New Year's Eve at Gwenda" autocomplete="off" />
-					</Field>
-					<Field class="span-12" label="Preview line" for="email-preview" optional hint="Shown after the subject in most inboxes.">
-						<TextField id="email-preview" size="sm" bind:value={previewText} maxlength={200} disabled={!editable} placeholder="Doors at 9, music till late" autocomplete="off" />
-					</Field>
-				</FormSection>
-
-				<FormSection title="Sections" description="Between the logo and the foot, in this order." help="What goes in it">
-					<div class="span-12 sections">
-						<div class="fixed">Logo · Hackney Wick</div>
-						{#each sections as entry, index (entry.key)}
-							<OneOffSectionCard
-								bind:section={entry.section}
-								id={`section-${entry.key}`}
-								{index}
-								count={sections.length}
-								{frame}
-								disabled={!editable || saving}
-								uploading={uploading === entry.key}
-								onmove={(by) => (sections = moveSection(sections, index, by))}
-								onremove={() => (sections = removeSection(sections, index))}
-								onfile={(file) => void upload(entry, file)}
-							/>
-						{:else}
-							<p class="empty">No sections yet. Add one below.</p>
-						{/each}
-						<div class="fixed">Foot · links, unsubscribe, address</div>
-						<div class="add" role="group" aria-label="Add a section">
-							<span class="add-label">Add</span>
-							{#each SECTION_CHOICES as choice (choice.kind)}
-								<Button
-									variant="outline"
-									size="sm"
-									type="button"
-									disabled={!editable || saving || sections.length >= MAX_SECTIONS}
-									reason={!editable ? "Sent or scheduled" : sections.length >= MAX_SECTIONS ? `${MAX_SECTIONS} sections at most` : undefined}
-									onclick={() => add(choice.kind)}
-								>
-									{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
-									{choice.label}
-								</Button>
-							{/each}
-						</div>
-					</div>
-				</FormSection>
-			</div>
-
-			<div class="preview">
-				<EmailPreview
-					title="Preview"
-					subtitle="As it arrives"
-					email={rendered}
-					blank="Nothing yet"
-					frameHeight="min(44rem, calc(100dvh - 21rem))"
-					note={frame ? `Links to ${frame.site.origin} · Gmail's fonts (Apple Mail shows the website's)` : ""}
-				/>
-			</div>
+		<div class="tab-body editing">
+			<EmailCanvas email={rendered} width={mode === "phone" ? "phone" : "desktop"} bind:subject bind:previewText editable={editable && editing} onframe={typedInto} />
 		</div>
 	{/if}
 </EditorShell>
@@ -492,72 +678,51 @@
 
 <HelpDrawer {help} />
 
+<PartMorePanel
+	open={settingsOpen && Boolean(selected)}
+	onclose={() => (settingsOpen = false)}
+	{sections}
+	index={selectedIndex}
+	uploading={Boolean(selected && uploading === selected.key)}
+	onchange={changeSelected}
+	onpicture={(slot = 0) => (choosingFor = selectedKey ? { key: selectedKey, slot } : null)}
+	onevent={() => (eventFor = selectedKey)}
+	oncell={setCell}
+	cell={selectedCell}
+	onpickcell={(at) => (selectedCell = at)}
+	onhold={holdInCell}
+/>
+<AddPartDialog open={insertingAt !== null} onclose={() => (insertingAt = null)} onchoose={choose} />
+<LinkDialog
+	open={linking}
+	onclose={() => {
+		linkFrom = null;
+		linking = false;
+	}}
+	onadd={addLinkHere}
+/>
+<EventChooser open={eventFor !== null} onclose={() => (eventFor = null)} onpick={pickEvent} />
+<PictureChooser open={choosingFor !== null} onclose={() => (choosingFor = null)} onpick={pickPicture} onupload={uploadPicture} />
+
 <style>
 	.tab-body {
 		position: relative;
 		padding: 1rem var(--card-pad-lg) var(--card-pad-lg);
 	}
-	.split {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(22rem, 1fr);
-		gap: var(--space-5, 1.5rem);
-		align-items: start;
-	}
-	.form {
-		display: grid;
-		gap: var(--space-4);
-		min-width: 0;
-	}
-	.form > :global(.form-section:first-child) {
-		padding-top: 0;
-		border-top: 0;
-	}
-	.preview {
-		position: sticky;
-		top: 0;
-		min-width: 0;
-	}
-	.sections {
-		display: grid;
-		gap: var(--space-2);
-	}
-	.fixed {
-		padding: var(--space-2) var(--space-3);
-		border: 1px dashed var(--border);
-		border-radius: var(--radius-md);
-		color: var(--muted-foreground);
-		font-size: var(--text-xs);
-		text-align: center;
-	}
-	.empty {
-		margin: 0;
-		padding: var(--space-3);
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-		text-align: center;
-	}
-	.add {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-2);
-		padding-top: var(--space-1);
-	}
-	.add-label {
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-	}
-	@media (max-width: 1100px) {
-		.split {
-			grid-template-columns: minmax(0, 1fr);
-		}
-		.preview {
-			position: static;
-		}
+	/* The email, all the room the card has. */
+	.tab-body.editing {
+		height: 100%;
+		min-height: 30rem;
+		box-sizing: border-box;
+		padding: var(--space-2);
 	}
 	@media (max-width: 900px) {
 		.tab-body {
 			padding: var(--space-4) max(var(--page-gutter), 1.125rem) max(var(--page-gutter), 1.125rem);
+		}
+		.tab-body.editing {
+			height: max(28rem, calc(100dvh - 12rem));
+			padding: var(--space-1);
 		}
 	}
 </style>

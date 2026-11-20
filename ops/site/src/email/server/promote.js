@@ -120,7 +120,7 @@ export async function popupDraft(env, id, { site, today = londonToday() }) {
   const sections = [
     ...(picture ? [{ kind: "image", assetId: picture, alt: name, size: "full" }] : []),
     // Our logo × its logo: a pop-up kitchen is the two of us together.
-    ...(logo ? [{ kind: "image", assetId: logo, alt: name, size: "collab" }] : []),
+    ...(logo ? [{ kind: "row", crop: false, cells: [{ kind: "logo", width: "medium" }, { kind: "words", text: "×", look: "big", width: "small" }, { kind: "picture", assetId: logo, alt: name, width: "medium" }] }] : []),
     { kind: "heading", text: headline },
     { kind: "copy", text: [line, when ? `**${when}.**` : "", POPUP_NUDGE].filter(Boolean).join("\n\n") },
     ...(dishes.length

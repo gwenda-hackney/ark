@@ -1,0 +1,342 @@
+/**
+ * The one-off email editor (#348) as the owner uses it: the email itself,
+ * typed into and changed where it is; the picked part's toolbar in the
+ * email and its settings; and what's saved. The app's /api is answered by
+ * the test (fake-api.ts).
+ */
+import { expect, test, type Page } from "@playwright/test";
+import { fakeApi, type OneOffFixture } from "./fake-api";
+
+const DRAFT: OneOffFixture = {
+	id: 1,
+	name: "Party",
+	subject: "Party at Gwenda",
+	sections: [
+		{ kind: "heading", text: "Party" },
+		{ kind: "copy", text: "Doors at 9." },
+		{ kind: "heading", text: "" },
+	],
+};
+
+async function open(page: Page, email: OneOffFixture = DRAFT) {
+	const saves = await fakeApi(page, { email });
+	await page.goto(`/email/write/${email.id}`);
+	const preview = page.frameLocator('iframe[title="The email"]');
+	await expect(preview.locator('tr[data-insert="0"]')).toBeAttached();
+	return { saves, preview };
+}
+
+async function save(page: Page) {
+	await page.getByRole("button", { name: "Save email" }).click();
+}
+
+/** The last draft saved: its sections. */
+const lastSections = (saves: Record<string, unknown>[]) => saves.at(-1)?.sections as Record<string, unknown>[] | undefined;
+
+/** A + in the email, then a choice in the box it opens. */
+async function addAt(page: Page, at: number, choice: RegExp) {
+	await page.frameLocator('iframe[title="The email"]').locator(`tr[data-insert="${at}"] .ops-add`).click();
+	await page.getByRole("dialog", { name: "Add something here" }).getByRole("button", { name: choice }).click();
+}
+
+/** A button on the picked part's toolbar, in the email. */
+const tool = (page: Page, action: string) => page.frameLocator('iframe[title="The email"]').locator(`.ops-tools button[data-action="${action}"]`);
+
+/** ⋯ More on the picked part's toolbar: its settings slide in. */
+async function settings(page: Page) {
+	await tool(page, "settings").click();
+	return page.getByRole("complementary", { name: /: more$/ });
+}
+
+/** Drags in the email as the browser does: Playwright's own drag can't reach into the email's frame. */
+async function drag(page: Page, from: string, to: string, ratio = 0.2) {
+	const frame = page.frames().find((one) => one !== page.mainFrame())!;
+	await frame.evaluate(
+		([fromSel, toSel, at]) => {
+			const source = document.querySelector(fromSel)!;
+			const target = document.querySelector(toSel)!;
+			const data = new DataTransfer();
+			const box = target.getBoundingClientRect();
+			const y = box.top + box.height * Number(at);
+			source.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: data }));
+			target.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y }));
+			target.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y }));
+			source.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: data }));
+		},
+		[from, to, String(ratio)],
+	);
+}
+
+test("a heading is typed straight into the email, and saved", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	const heading = preview.locator('h2[data-edit="heading"]').first();
+	await heading.click();
+	await page.keyboard.press("ControlOrMeta+A");
+	await page.keyboard.type("New Year's Eve");
+	await page.keyboard.press("Enter");
+
+	// It stays as typed once the email is drawn again.
+	await expect(preview.locator('h2[data-edit="heading"]').first()).toHaveText("New Year's Eve");
+	await save(page);
+	await expect.poll(() => saves.at(-1)?.sections).toEqual([
+		{ kind: "heading", text: "New Year's Eve" },
+		{ kind: "copy", text: "Doors at 9." },
+		{ kind: "heading", text: "" },
+	]);
+});
+
+test("Enter starts a new paragraph; Bold and Link are on the text's toolbar in the email", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	await preview.locator('td[data-edit="copy"] p').first().click();
+	await page.keyboard.press("End");
+	await page.keyboard.press("Enter");
+	await page.keyboard.type("Music till late");
+
+	// Bold: select "Music".
+	await page.keyboard.press("Home");
+	for (let i = 0; i < "Music".length; i++) await page.keyboard.press("Shift+ArrowRight");
+	await tool(page, "bold").click();
+
+	// Link: select "late", say where it goes.
+	await page.keyboard.press("End");
+	for (let i = 0; i < "late".length; i++) await page.keyboard.press("Shift+ArrowLeft");
+	await tool(page, "link").click();
+	await page.getByRole("dialog", { name: "Make it a link" }).getByLabel("Where it goes").fill("gwenda.co.uk/whats-on");
+	await page.getByRole("button", { name: "Add link" }).click();
+
+	await save(page);
+	await expect.poll(() => lastSections(saves)?.[1]?.text).toBe("Doors at 9.\n\n**Music** till [late](https://gwenda.co.uk/whats-on)");
+});
+
+test("an empty heading shows what to type, and can be typed into", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	const empty = preview.locator('h2[data-edit="heading"]').nth(1);
+	await expect(empty).toHaveAttribute("data-empty", "");
+	await expect(empty).toHaveAttribute("data-placeholder", "Type a heading");
+	await empty.click();
+	await page.keyboard.type("See you there");
+	await page.keyboard.press("Enter");
+	await save(page);
+	await expect.poll(() => lastSections(saves)?.[2]?.text).toBe("See you there");
+});
+
+test("a sent email can't be changed: no typing, no toolbar, no subject", async ({ page }) => {
+	const { preview } = await open(page, { ...DRAFT, status: "sent" });
+	await expect(preview.locator('h2[data-edit="heading"]').first()).not.toHaveAttribute("contenteditable", /.*/);
+	await preview.locator('tr[data-section="0"]').click();
+	await expect(preview.locator(".ops-tools")).toHaveCount(0);
+	await expect(preview.locator(".ops-add")).toHaveCount(0);
+	await expect(page.getByLabel("Subject")).toBeDisabled();
+});
+
+test("an email whose picture was added before pictures had sizes opens (#369)", async ({ page }) => {
+	const { preview } = await open(page, { ...DRAFT, sections: [{ kind: "image", assetId: "image-abc-10x10-jpg", alt: "The bar" }, ...DRAFT.sections] });
+	await expect(page.getByText("This page hit an error")).toHaveCount(0);
+	await preview.locator('tr[data-section="0"]').click();
+	await expect((await settings(page)).getByRole("tablist", { name: "Picture size" }).getByRole("tab", { name: "Full width" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("a change to a saved email wakes Save, and after saving it sleeps until the next one (it never woke before)", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	const button = page.getByRole("button", { name: "Save email" });
+	await expect(button).toBeDisabled();
+	await preview.locator('td[data-edit="copy"] p').first().click();
+	await page.keyboard.press("End");
+	await page.keyboard.type(" Late.");
+	await expect(button).toBeEnabled();
+	await button.click();
+	await expect.poll(() => lastSections(saves)?.[1]?.text).toBe("Doors at 9. Late.");
+	await expect(button).toBeDisabled();
+	await page.getByLabel("Subject").fill("Party!");
+	await expect(button).toBeEnabled();
+	await button.click();
+	await expect.poll(() => saves.at(-1)?.subject).toBe("Party!");
+});
+
+test("a part is dragged to a new place by its handle, and removed from its toolbar", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	// Its handle, onto the top half of the first part: it goes first.
+	await drag(page, 'tr[data-section="1"] .ops-grip', 'tr[data-section="0"]', 0.2);
+	await preview.locator('tr[data-section="2"]').click();
+	await tool(page, "remove").click();
+	await save(page);
+	await expect.poll(() => lastSections(saves)).toEqual([
+		{ kind: "copy", text: "Doors at 9." },
+		{ kind: "heading", text: "Party" },
+	]);
+});
+
+test("the name is typed over in the heading; the subject and preview line in the mail head over the email", async ({ page }) => {
+	const { saves } = await open(page);
+	await page.getByRole("textbox", { name: /The email.s name/ }).fill("Party promo");
+	await page.getByRole("textbox", { name: "Subject" }).fill("Party tonight");
+	await page.getByRole("textbox", { name: "Preview line" }).fill("Doors at 9");
+	await save(page);
+	await expect.poll(() => [saves.at(-1)?.name, saves.at(-1)?.subject, saves.at(-1)?.previewText]).toEqual(["Party promo", "Party tonight", "Doors at 9"]);
+});
+
+test("a + adds a heading there, ready to type into", async ({ page }) => {
+	const { saves } = await open(page);
+	await addAt(page, 1, /^Heading/);
+	await page.keyboard.type("Tonight");
+	await page.keyboard.press("Enter");
+	await save(page);
+	await expect.poll(() => lastSections(saves)?.map((part) => part.text)).toEqual(["Party", "Tonight", "Doors at 9.", ""]);
+});
+
+test("a picture comes from our photos; its size and description in its Settings", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	await addAt(page, 0, /^Picture/);
+	const chooser = page.getByRole("dialog", { name: "Choose a picture" });
+	await expect(chooser.getByRole("region", { name: "Chez Pickle" })).toBeVisible();
+	await chooser.getByRole("button", { name: "The bar at night" }).click();
+	await expect(chooser).toHaveCount(0);
+	await expect(preview.locator('tr[data-section="0"] img')).toHaveAttribute("alt", "The bar at night");
+
+	const box = await settings(page);
+	await box.getByRole("tab", { name: "Logo" }).click();
+	await box.getByLabel("What it shows").fill("Our bar");
+	await save(page);
+	await expect.poll(() => lastSections(saves)?.[0]).toEqual({ kind: "image", assetId: "image-aaa111-1600x1200-jpg", alt: "Our bar", size: "logo" });
+});
+
+test("a button's words, address and look are in its Settings; an empty one says what it needs", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	await addAt(page, 3, /^Button/);
+	await expect(preview.locator('tr[data-section="3"] [data-waiting]')).toHaveText("Button: click here to give it words and a link");
+	const box = await settings(page);
+	await box.getByLabel("Words on it").fill("See the menu");
+	await box.getByLabel("Where it goes").fill("https://gwenda.co.uk/menu");
+	await expect(preview.locator('tr[data-section="3"] a')).toHaveText(/See the menu/i);
+	await save(page);
+	await expect.poll(() => lastSections(saves)?.[3]).toEqual({ kind: "button", label: "See the menu", link: "https://gwenda.co.uk/menu", look: "link" });
+});
+
+test("a Row: clicking a column opens its settings beside the email (what it holds, its width, its words' look); dragged onto another, they swap and keep their widths", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	await addAt(page, 1, /^Row/);
+	await expect(preview.locator('tr[data-section="1"] td[data-cell] [data-waiting]')).toHaveCount(3);
+	// The new Row's first column is picked, its settings already beside the email.
+	const box = page.getByRole("complementary", { name: /: more$/ });
+	await box.getByRole("tablist", { name: "Column 1 holds" }).getByRole("tab", { name: "Picture" }).click();
+	await page.getByRole("dialog", { name: "Choose a picture" }).getByRole("button", { name: "The bar at night" }).click();
+
+	// Clicking a column in the email picks it, there and in the settings.
+	await preview.locator('tr[data-section="1"] td[data-cell="1"]').click();
+	await expect(preview.locator('tr[data-section="1"] td[data-cell="1"]')).toHaveClass(/ops-cell-picked/);
+	await box.getByRole("tablist", { name: "Column 2 holds" }).getByRole("tab", { name: "Words" }).click();
+	await box.getByLabel("Words", { exact: true }).fill("×");
+	await box.getByRole("tablist", { name: "Column 2 words look" }).getByRole("tab", { name: "Big gold" }).click();
+	await box.getByRole("tablist", { name: "Column 2 width" }).getByRole("tab", { name: "Small" }).click();
+	await expect(preview.locator('tr[data-section="1"] td[data-cell="1"]')).toHaveAttribute("width", "90");
+
+	// Words typed straight into a column, too.
+	await preview.locator('tr[data-section="1"] td[data-cell="2"]').click();
+	await box.getByRole("tablist", { name: "Column 3 holds" }).getByRole("tab", { name: "Words" }).click();
+	await expect(preview.locator('tr[data-section="1"] td[data-cell="2"] p[data-edit="cell"]')).toBeFocused();
+	await page.keyboard.type("Pinsa A Roma");
+	await page.keyboard.press("Enter");
+
+	await drag(page, 'tr[data-section="1"] td[data-cell="0"]', 'tr[data-section="1"] td[data-cell="2"]');
+	await save(page);
+	await expect.poll(() => lastSections(saves)?.[1]).toEqual({
+		kind: "row",
+		crop: false,
+		cells: [
+			{ kind: "words", text: "Pinsa A Roma", look: "plain", width: "fill" },
+			{ kind: "words", text: "×", look: "big", width: "small" },
+			{ kind: "picture", assetId: "image-aaa111-1600x1200-jpg", alt: "The bar at night", width: "fill" },
+		],
+	});
+});
+
+test("a picture made \"Gwenda ×\" before Rows opens as a Row: our logo, a big gold ×, the picture, at a lockup's widths", async ({ page }) => {
+	const { preview } = await open(page, { ...DRAFT, sections: [{ kind: "image", assetId: "image-abc-10x10-jpg", alt: "Pinsa A Roma", size: "collab" }] });
+	await expect(preview.locator('tr[data-section="0"] td[data-cell]')).toHaveCount(3);
+	await preview.locator('tr[data-section="0"] td[data-cell="1"]').click();
+	const box = page.getByRole("complementary", { name: /: more$/ });
+	await expect(box.getByRole("tablist", { name: "Column 2 holds" }).getByRole("tab", { name: "Words" })).toHaveAttribute("aria-selected", "true");
+	await expect(box.getByRole("tablist", { name: "Column 2 words look" }).getByRole("tab", { name: "Big gold" })).toHaveAttribute("aria-selected", "true");
+	await expect(box.getByRole("tablist", { name: "Column 2 width" }).getByRole("tab", { name: "Small" })).toHaveAttribute("aria-selected", "true");
+	await box.getByRole("tablist", { name: "Which column" }).getByRole("tab", { name: "Column 1" }).click();
+	await expect(box.getByRole("tablist", { name: "Column 1 holds" }).getByRole("tab", { name: "Our logo" })).toHaveAttribute("aria-selected", "true");
+	await expect(preview.locator('tr[data-section="0"] td[data-cell="0"]')).toHaveClass(/ops-cell-picked/);
+});
+
+test("a Row saved with a × of its own and no widths opens: the × is big gold words", async ({ page }) => {
+	const { preview } = await open(page, {
+		...DRAFT,
+		sections: [{ kind: "row", cells: [{ kind: "logo" }, { kind: "times" }, { kind: "words", text: "Pinsa" }] }] as never,
+	});
+	await preview.locator('tr[data-section="0"] td[data-cell="1"]').click();
+	const box = page.getByRole("complementary", { name: /: more$/ });
+	await expect(box.getByRole("tablist", { name: "Column 2 words look" }).getByRole("tab", { name: "Big gold" })).toHaveAttribute("aria-selected", "true");
+	await expect(preview.locator('tr[data-section="0"] td[data-cell="1"]')).toHaveText("×");
+});
+
+test("a dropped part moves in place: the email isn't loaded again, its pictures stay as they were", async ({ page }) => {
+	const { preview } = await open(page, {
+		...DRAFT,
+		sections: [{ kind: "image", assetId: "image-aaa111-1600x1200-jpg", alt: "The bar", size: "full" }, ...DRAFT.sections],
+	});
+	const frame = page.frames().find((one) => one !== page.mainFrame())!;
+	// Marks on the page and the picture that a fresh load would lose.
+	await frame.evaluate(() => {
+		(window as unknown as { kept: boolean }).kept = true;
+		(document.querySelector('tr[data-section="0"] img') as unknown as { kept: boolean }).kept = true;
+	});
+	await drag(page, 'tr[data-section="0"] img', "body", 0.98);
+	await expect(preview.locator('tr[data-section="3"] img')).toBeAttached();
+	expect(
+		await frame.evaluate(() => ({
+			page: (window as unknown as { kept?: boolean }).kept,
+			picture: (document.querySelector('tr[data-section="3"] img') as unknown as { kept?: boolean }).kept,
+			grips: document.querySelectorAll(".ops-grip").length,
+		})),
+	).toEqual({ page: true, picture: true, grips: 4 });
+});
+
+test("Desktop and Phone show it as it arrives, nothing to change; Edit goes back", async ({ page }) => {
+	const { preview } = await open(page);
+	const modes = page.getByRole("tablist", { name: /Edit the email/ });
+	await modes.getByRole("tab", { name: "Phone" }).click();
+	await expect(preview.locator("[data-section], [data-insert], .ops-grip")).toHaveCount(0);
+	await expect(page.getByLabel("Subject")).toBeDisabled();
+	expect((await page.locator('iframe[title="The email"]').boundingBox())!.width).toBeLessThanOrEqual(390);
+	await modes.getByRole("tab", { name: "Desktop" }).click();
+	await expect(preview.locator("h2").first()).toHaveText("Party");
+	await expect(preview.locator("h2").first()).not.toHaveAttribute("contenteditable");
+	await modes.getByRole("tab", { name: "Edit" }).click();
+	await expect(preview.locator('h2[data-edit="heading"]').first()).toHaveAttribute("contenteditable", "plaintext-only");
+	await expect(preview.locator(".ops-grip")).toHaveCount(3);
+	await expect(page.getByLabel("Subject")).toBeEnabled();
+});
+
+test("an Event card shows a night from What's on, as the monthly email does", async ({ page }) => {
+	const { saves, preview } = await open(page);
+	await addAt(page, 1, /^Event/);
+	const chooser = page.getByRole("dialog", { name: "Choose an event" });
+	await chooser.getByRole("region", { name: "Nights" }).getByRole("button", { name: /Karaoke/ }).click();
+	await expect(chooser).toHaveCount(0);
+	await expect(preview.locator('tr[data-section="1"]')).toContainText("Karaoke");
+	await expect(preview.locator('tr[data-section="1"]')).toContainText("Dec");
+	await save(page);
+	await expect.poll(() => lastSections(saves)?.[1]).toMatchObject({ kind: "event", title: "Karaoke", date: "2026-12-03" });
+});
+
+test("a picture is dragged by grabbing it anywhere, and letting go over the foot puts it last", async ({ page }) => {
+	const { saves } = await open(page, {
+		...DRAFT,
+		sections: [{ kind: "image", assetId: "image-aaa111-1600x1200-jpg", alt: "The bar", size: "full" }, ...DRAFT.sections],
+	});
+	// The picture itself, not its handle; let go well below the last part (the foot).
+	await drag(page, 'tr[data-section="0"] img', "body", 0.98);
+	await save(page);
+	await expect.poll(() => lastSections(saves)?.map((part) => part.kind)).toEqual(["heading", "copy", "heading", "image"]);
+});
+
+test("words drag only by their handle, so dragging across them still selects them", async ({ page }) => {
+	const { preview } = await open(page);
+	await expect(preview.locator('tr[data-section="1"]')).not.toHaveAttribute("draggable", "true");
+	await expect(preview.locator('tr[data-section="1"] .ops-grip')).toHaveAttribute("draggable", "true");
+});

@@ -141,8 +141,47 @@ export function sendWeeklyEmailAgain(after: number) {
 // ------------------------------------------------------- one-off emails (#348)
 
 /** A part of a one-off email, between its fixed logo and foot (shared/email/sections.js). */
+/** An Event card: a night (with its date) or a deal or pop-up kitchen (with its tag). */
+export type EventCard = {
+	kind: "event";
+	eventId: string;
+	date: string;
+	tag: string;
+	title: string;
+	when: string;
+	note: string;
+	link: string;
+	assetId: string;
+};
+
+/** One thing an Event card can show, from GET /api/email/cards. */
+export type EventCardChoice = { id: string; group: string; label: string; detail: string; card: EventCard };
+
+/** What Event cards can show now: nights to come, then deals and pop-up kitchens. */
+export function getEventCards() {
+	return request<{ choices: EventCardChoice[] }>("/api/email/cards");
+}
+
+/** How wide a Row's column is: a fixed width, or Fill (a share of what's left). */
+export type CellWidth = "small" | "medium" | "large" | "fill";
+/** How a Row column's words look: as the email's text, or big and gold (the × between two logos). */
+export type WordsLook = "plain" | "big";
+/** One column of a Row: a picture, our logo, a few words, or nothing yet; and how wide it is. */
+export type RowCell = (
+	| { kind: "picture"; assetId: string; alt: string }
+	| { kind: "words"; text: string; look: WordsLook }
+	| { kind: "logo" }
+	| { kind: "empty" }
+) & { width: CellWidth };
+
 export type OneOffSection =
 	| { kind: "image"; assetId: string; alt: string; size: ImageSize }
+	/** Two or three columns side by side, each holding anything; `crop` cuts its pictures to one shape. */
+	| { kind: "row"; crop: boolean; cells: RowCell[] }
+	/** The monthly email's dashed line. */
+	| { kind: "divider" }
+	/** A night, deal or pop-up kitchen, as the monthly email draws it, in the words it had when picked. */
+	| EventCard
 	| { kind: "heading"; text: string }
 	| { kind: "copy"; text: string }
 	| { kind: "button"; label: string; link: string; look: ButtonLook }

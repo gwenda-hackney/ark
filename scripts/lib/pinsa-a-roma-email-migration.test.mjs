@@ -45,9 +45,10 @@ describe("2026-11-20-pinsa-a-roma-email", () => {
     assert.equal(made.subject, "Gwenda is teaming up with Pinsa A Roma! Mondays and Tuesdays");
     assert.deepEqual(
       made.sections.map((section) => section.kind),
-      ["image", "image", "heading", "copy", "heading", "copy", "image", "button", "booking"],
+      ["image", "row", "heading", "copy", "heading", "copy", "image", "button", "booking"],
     );
-    assert.equal(made.sections[1].size, "collab", "Gwenda × its logo, above its name");
+    assert.deepEqual(made.sections[1].cells.map((cell) => cell.kind), ["logo", "words", "picture"], "Gwenda × its logo, above its name");
+    assert.equal(made.sections[1].cells[1].text, "×");
     assert.match(made.sections[5].text, /\*\*Trastevere \(V\)\*\* £13\.50/);
     assert.equal(made.sections[7].link, "https://gwenda-web-dev.pages.dev/whats-on/pinsa-a-roma/");
     assert.match(text, /drafted "Gwenda is teaming up with Pinsa A Roma! Mondays and Tuesdays"/);

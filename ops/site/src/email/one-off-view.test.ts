@@ -5,6 +5,11 @@ import {
 	addSection,
 	draftOf,
 	editorSections,
+	insertSection,
+	moveSectionTo,
+	partSummary,
+	swapCells,
+	partName,
 	moveSection,
 	notReady,
 	oneOffSendBlocked,
@@ -15,7 +20,7 @@ import {
 	statusBadge,
 	writePath,
 } from "./one-off-view";
-import type { EmailFrame } from "./email-api";
+import type { EmailFrame, OneOffSection } from "./email-api";
 
 const frame: EmailFrame = {
 	site: {
@@ -58,6 +63,71 @@ describe("the one-off email editor (#348)", () => {
 		assert.deepEqual(text(removeSection(list, 1)), ["A", "C"]);
 		// Keys follow their sections.
 		assert.equal(moveSection(list, 2, -1)[1].key, list[2].key);
+	});
+
+	it("an image saved before it had a size opens at full width, never without one (Svelte can't bind an empty size)", () => {
+		const [old] = editorSections([{ kind: "image", assetId: "image-a-10x10-jpg", alt: "" } as unknown as OneOffSection]);
+		assert.equal(old.section.kind === "image" && old.section.size, "full");
+		const [logo] = editorSections([{ kind: "image", assetId: "image-a-10x10-jpg", alt: "", size: "logo" }]);
+		assert.equal(logo.section.kind === "image" && logo.section.size, "logo");
+	});
+
+	it("adds a part at the place its + was pressed, the first, between two or after the last", () => {
+		const list = editorSections([
+			{ kind: "heading", text: "A" },
+			{ kind: "copy", text: "B" },
+		]);
+		const kinds = (l: typeof list) => l.map((entry) => entry.section.kind);
+		assert.deepEqual(kinds(insertSection(list, 0, "image").list), ["image", "heading", "copy"]);
+		assert.deepEqual(kinds(insertSection(list, 1, "button").list), ["heading", "button", "copy"]);
+		const last = insertSection(list, 2, "booking");
+		assert.deepEqual(kinds(last.list), ["heading", "copy", "booking"]);
+		assert.equal(last.list[2].key, last.key);
+		assert.equal(partName("copy"), "Text");
+		assert.equal(partName("image"), "Picture");
+	});
+
+	it("a dragged part drops before the part it's let go on, or after the last", () => {
+		const list = editorSections([
+			{ kind: "heading", text: "A" },
+			{ kind: "copy", text: "B" },
+			{ kind: "copy", text: "C" },
+		]);
+		const text = (l: typeof list) => l.map((entry) => ("text" in entry.section ? entry.section.text : ""));
+		assert.deepEqual(text(moveSectionTo(list, 0, 3)), ["B", "C", "A"]);
+		assert.deepEqual(text(moveSectionTo(list, 2, 0)), ["C", "A", "B"]);
+		assert.deepEqual(text(moveSectionTo(list, 0, 2)), ["B", "A", "C"]);
+		assert.equal(moveSectionTo(list, 1, 1), list, "dropped where it was");
+		assert.equal(moveSectionTo(list, 1, 2), list, "dropped just after itself");
+	});
+
+	it("cells swap within a row and between rows; a picture's \"Gwenda ×\" size opens as a Row", () => {
+		const list = editorSections([
+			{ kind: "image", assetId: "image-a-1x1-jpg", alt: "Pinsa", size: "collab" },
+			{ kind: "row", crop: false, cells: [{ kind: "picture", assetId: "image-b-1x1-jpg", alt: "B", width: "fill" }, { kind: "empty", width: "fill" }] },
+		]);
+		assert.deepEqual(list[0].section, {
+			kind: "row",
+			crop: false,
+			cells: [
+				{ kind: "logo", width: "medium" },
+				{ kind: "words", text: "×", look: "big", width: "small" },
+				{ kind: "picture", assetId: "image-a-1x1-jpg", alt: "Pinsa", width: "medium" },
+			],
+		});
+		const within = swapCells(list, { section: 0, cell: 0 }, { section: 0, cell: 2 });
+		assert.equal(partSummary(within[0].section), "Pinsa · × · Our logo");
+		const across = swapCells(list, { section: 1, cell: 0 }, { section: 0, cell: 1 });
+		assert.equal(partSummary(across[0].section), "Our logo · B · Pinsa");
+		assert.equal(partSummary(across[1].section), "× · Empty");
+		assert.equal(partSummary(list[0].section), "Our logo · × · Pinsa", "the list it came from is left as it was");
+	});
+
+	it("each part in a line for the list beside the email", () => {
+		assert.equal(partSummary({ kind: "copy", text: "Doors at **9**. See [what's on](https://a.co)." }), "Doors at 9. See what's on.");
+		assert.equal(partSummary({ kind: "heading", text: "" }), "Nothing typed yet");
+		assert.equal(partSummary({ kind: "image", assetId: "", alt: "", size: "full" }), "No picture yet");
+		assert.equal(partSummary({ kind: "booking" }), "The website's button");
 	});
 
 	it("knows when there's something to save", () => {

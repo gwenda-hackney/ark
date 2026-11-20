@@ -90,8 +90,8 @@ export function spacer(height) {
 }
 
 /** One row of the email's column, inside the gutter. */
-export function row(content, { top = 0, bottom = 0, align = "left" } = {}) {
-  return `<tr><td align="${align}" style="padding:${top}px ${GUTTER}px ${bottom}px;">${content}</td></tr>`;
+export function row(content, { top = 0, bottom = 0, align = "left", cellAttrs = "" } = {}) {
+  return `<tr><td align="${align}"${cellAttrs} style="padding:${top}px ${GUTTER}px ${bottom}px;">${content}</td></tr>`;
 }
 
 /** A dashed line between two parts. */
@@ -119,9 +119,9 @@ export function title(text, { align = "left" } = {}) {
 }
 
 /** A section's name in the poster face, with the red stroke under it. */
-export function heading(text) {
+export function heading(text, { attrs = "" } = {}) {
   return table(
-    `<tr><td style="border-bottom:4px solid ${COLOURS.pop};padding:0 2px 4px 0;"><h2 class="display" style="margin:0;font-family:${FONTS.display};font-size:30px;line-height:1.1;font-weight:700;font-synthesis:none;color:${COLOURS.cream};">${esc(text)}</h2></td></tr>`,
+    `<tr><td style="border-bottom:4px solid ${COLOURS.pop};padding:0 2px 4px 0;"><h2 class="display"${attrs} style="margin:0;font-family:${FONTS.display};font-size:30px;line-height:1.1;font-weight:700;font-synthesis:none;color:${COLOURS.cream};">${esc(text)}</h2></td></tr>`,
     { width: "", style: "width:auto;" },
   );
 }

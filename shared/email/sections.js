@@ -7,14 +7,24 @@
  * and the editor's list follow.
  *
  * Copy is plain text with two marks only: **bold** and [text](https://link).
+ *
+ * Drawn for ops' editor (`marks` in the context), the same HTML carries
+ * where each part came from: every row its section's place (data-section),
+ * and the words that can be typed over in the preview (data-edit, with what
+ * an empty one says), and a place for adding before each part and after the
+ * last (data-insert). Empty parts are drawn there too: headings and copy to
+ * be typed into, a picture or button as a dashed box saying what it needs.
+ * The email that's sent never has any of it.
  * Everything else is escaped; a link that isn't http(s) or mailto is dropped
  * and its words kept. No raw HTML ever reaches the email.
  */
-import { COLOURS, bookingButton, emailLogoUrl, esc, heading, outlineButton, paragraph, row, textLink } from "./shell.js";
+import { COLOURS, FONTS, bookingButton, emailLogoUrl, esc, heading, outlineButton, paragraph, row, rule, table, textLink } from "./shell.js";
 import { bookingUrl } from "../../marketing/web/src/config/booking.ts";
 import { siteConfig } from "../../marketing/web/src/config/site.ts";
 import { emailPicture } from "./image.js";
 import { sanityImageUrl } from "../sanity-image.js";
+import { standaloneCard } from "../weekly-email/render.js";
+import { runDay } from "../../marketing/web/src/lib/night-cards.js";
 
 /** The column's width inside its gutter: a picture across it. */
 export const COLUMN = 560;
@@ -39,6 +49,112 @@ export function safeLink(value) {
   if (/^mailto:[^\s"'<>]+@[^\s"'<>]+$/i.test(raw)) return raw;
   return "";
 }
+
+/** The editor's marks on words that can be typed over in the preview; nothing in an email that's sent. */
+function editable(context, kind, placeholder) {
+  return context?.marks ? ` data-edit="${kind}" data-placeholder="${esc(placeholder)}"` : "";
+}
+
+/** What an empty picture or button says in the editor, in place of itself. */
+const WAITING = {
+  image: "Picture: click here, then Change picture",
+  event: "Event: click here, then Choose an event",
+  button: "Button: click here to give it words and a link",
+};
+
+/** The editor's dashed box for a part that isn't filled in yet. */
+function waitingRow(words) {
+  return row(
+    `<div data-waiting style="border:2px dashed ${COLOURS.mustard};border-radius:6px;padding:28px 16px;text-align:center;font-family:Georgia,serif;font-size:16px;line-height:1.4;color:${COLOURS.ink2};">${esc(words)}</div>`,
+    { bottom: 20 },
+  );
+}
+
+/** The editor's place for adding a part, before section `at`. */
+const insertRow = (at) => `<tr data-insert="${at}"><td style="padding:0 40px;"></td></tr>`;
+
+/**
+ * A Row: two or three columns side by side, each holding whatever's wanted
+ * (a picture, our logo, a few words, or nothing), each as wide as it's set:
+ * Small, Medium or Large at a fixed width, or Fill, sharing what's left.
+ * Words are plain, or big and gold. "Gwenda × Pinsa A Roma" is a Row (our
+ * logo, Medium; "×" in big gold, Small; their logo, Medium), and so are
+ * three photos side by side (each Fill).
+ */
+export const ROW_CELLS_MIN = 2;
+export const ROW_CELLS_MAX = 3;
+export const CELL_KINDS = ["picture", "logo", "words", "empty"];
+/** How a column's words look: as the email's text, or big and gold (the × between two logos). */
+export const WORDS_LOOKS = ["plain", "big"];
+/** How wide a column is: a fixed width, or a share of what the others leave. */
+export const CELL_WIDTHS = ["small", "medium", "large", "fill"];
+const FIXED_WIDTH = { small: 90, medium: 150, large: 240 };
+const ROW_GAP = 12;
+/** The least a Fill column gets, however much the others take. */
+const FILL_MIN = 60;
+
+/** A column's width when nothing says (a Row saved before columns had sizes): a logo lockup's, else Fill. */
+function defaultWidth(kind, lockup) {
+  if (!lockup) return "fill";
+  return kind === "times" ? "small" : "medium";
+}
+
+function cleanCell(raw, lockup) {
+  const width = CELL_WIDTHS.includes(raw?.width) ? raw.width : defaultWidth(raw?.kind, lockup);
+  // A × was a kind of its own before words had looks: it's words now, "×" big and gold.
+  if (raw?.kind === "times") return { kind: "words", text: "×", look: "big", width };
+  const kind = CELL_KINDS.includes(raw?.kind) ? raw.kind : "empty";
+  if (kind === "picture") return { kind, assetId: line(raw?.assetId, 200), alt: line(raw?.alt, 300), width };
+  if (kind === "words") return { kind, text: line(raw?.text, 200), look: WORDS_LOOKS.includes(raw?.look) ? raw.look : "plain", width };
+  return { kind, width };
+}
+
+/** Each column's width in pixels: fixed ones as set (smaller together when they'd overflow), Fill ones share the rest. */
+export function rowWidths(cells, column = COLUMN) {
+  const room = column - ROW_GAP * (cells.length - 1);
+  const fills = cells.filter((cell) => cell.width === "fill").length;
+  const fixed = cells.reduce((sum, cell) => sum + (FIXED_WIDTH[cell.width] || 0), 0);
+  const scale = Math.min(1, (room - fills * FILL_MIN) / (fixed || 1));
+  const share = fills ? Math.max(FILL_MIN, Math.floor((room - fixed * scale) / fills)) : 0;
+  return cells.map((cell) => (cell.width === "fill" ? share : Math.floor(FIXED_WIDTH[cell.width] * scale)));
+}
+
+/** A Row's table: in the editor each cell says where it is (data-cell), its words can be typed over, and an empty one says so. */
+function rowHtml(cells, { images, site, marks, crop } = {}) {
+  const widths = rowWidths(cells);
+  const fills = cells.some((cell) => cell.width === "fill");
+  const waiting = (words, width) =>
+    marks
+      ? `<div data-waiting style="border:2px dashed ${COLOURS.mustard};border-radius:6px;padding:${width < 120 ? "20px 4px" : "40px 8px"};text-align:center;font-family:Georgia,serif;font-size:14px;line-height:1.4;color:${COLOURS.ink2};">${esc(words)}</div>`
+      : "";
+  const drawn = (cell, width) => {
+    if (cell.kind === "logo") {
+      return `<img src="${esc(emailLogoUrl(site?.origin))}" width="${width}" alt="Gwenda" style="display:block;width:100%;max-width:${width}px;height:auto;border:0;margin:0 auto;">`;
+    }
+    if (cell.kind === "words") {
+      const attrs = marks ? ` data-edit="cell" data-placeholder="Type here"` : "";
+      const look =
+        cell.look === "big"
+          ? `font-family:Georgia,serif;font-size:30px;line-height:1;color:${COLOURS.mustard};`
+          : `font-family:${FONTS.slab};font-size:17px;line-height:1.4;color:${COLOURS.ink};`;
+      return `<p${attrs} style="margin:0;${look}text-align:center;">${esc(cell.text)}</p>`;
+    }
+    if (cell.kind === "picture" && cell.assetId) {
+      return emailPicture({ url: sectionImageUrl(cell.assetId, images), whole: !crop, alt: cell.alt }, width, { fluid: true });
+    }
+    return waiting(cell.kind === "picture" ? "Picture" : "Empty", width);
+  };
+  const tds = cells.map((cell, index) => {
+    const width = widths[index];
+    const pad = `padding-left:${index ? ROW_GAP / 2 : 0}px;padding-right:${index < cells.length - 1 ? ROW_GAP / 2 : 0}px;`;
+    return `<td width="${width}" valign="middle" align="center"${marks ? ` data-cell="${index}"` : ""} style="width:${width}px;${pad}">${drawn(cell, width)}</td>`;
+  });
+  const table = fills ? ' width="100%"' : ' align="center"';
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"${table} style="border-collapse:collapse;${fills ? "width:100%;" : "margin:0 auto;"}"><tr>${tds.join("")}</tr></table>`;
+}
+
+/** Space under each paragraph of copy. */
+const PARAGRAPH_GAP = 18;
 
 /** **bold**, and [words](address) whose address may hold one level of brackets (Wikipedia's do). */
 const MARKS = /\*\*(.+?)\*\*|\[([^\]\n]+)\]\(((?:[^()\s]|\([^()\s]*\))*)\)/g;
@@ -160,12 +276,84 @@ export const SECTION_KINDS = {
           ? [`[${section.alt}]`, ""]
           : [],
   },
+  row: {
+    label: "Row",
+    blank: () => ({ kind: "row", crop: false, cells: [0, 1, 2].map(() => ({ kind: "empty", width: "fill" })) }),
+    clean: (raw) => {
+      const given = Array.isArray(raw?.cells) ? raw.cells.slice(0, ROW_CELLS_MAX) : [];
+      while (given.length < ROW_CELLS_MIN) given.push({ kind: "empty" });
+      const lockup = given.some((cell) => cell?.kind === "logo" || cell?.kind === "times");
+      return { kind: "row", crop: raw?.crop === true, cells: given.map((cell) => cleanCell(cell, lockup)) };
+    },
+    empty: (section) =>
+      section.cells.every((cell) => cell.kind === "empty" || (cell.kind === "picture" && !cell.assetId) || (cell.kind === "words" && !cell.text)),
+    html(section, context) {
+      return [row(rowHtml(section.cells, { ...context, crop: section.crop }), { top: 4, bottom: 22, align: "center" })];
+    },
+    text: (section) => [
+      section.cells
+        .map((cell) =>
+          cell.kind === "logo" ? "GWENDA" : cell.kind === "words" ? cell.text : cell.kind === "picture" && cell.assetId ? `[${cell.alt || "picture"}]` : "",
+        )
+        .filter(Boolean)
+        .join(" "),
+      "",
+    ],
+  },
+  event: {
+    label: "Event",
+    // What the card shows, taken from the event in ops when it was picked (api/email/cards):
+    // a night with its date, or a deal or pop-up kitchen with its tag.
+    blank: () => ({ kind: "event", eventId: "", date: "", tag: "", title: "", when: "", note: "", link: "", assetId: "" }),
+    clean: (raw) => ({
+      kind: "event",
+      eventId: line(raw?.eventId, 40),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(raw?.date ?? "")) ? String(raw.date) : "",
+      tag: line(raw?.tag, 30),
+      title: line(raw?.title, 150),
+      when: line(raw?.when, 150),
+      note: line(raw?.note, 300),
+      link: line(raw?.link, 1000),
+      assetId: line(raw?.assetId, 200),
+    }),
+    empty: (section) => !section.title,
+    html(section, { images }) {
+      const url = section.assetId ? sectionImageUrl(section.assetId, images) : "";
+      const card = standaloneCard({
+        title: section.title,
+        href: safeLink(section.link),
+        photo: url ? { url, whole: false, alt: section.title } : null,
+        sticker: section.date ? runDay(section.date) : null,
+        tag: section.tag,
+        when: section.when,
+        note: section.note,
+      });
+      return [row(card, { bottom: 26 })];
+    },
+    text: (section) => [
+      [section.date ? section.date : section.tag, section.title].filter(Boolean).join(": "),
+      ...[section.when, section.note].filter(Boolean),
+      ...(safeLink(section.link) ? [safeLink(section.link)] : []),
+      "",
+    ],
+  },
+  divider: {
+    label: "Divider",
+    blank: () => ({ kind: "divider" }),
+    clean: () => ({ kind: "divider" }),
+    empty: () => false,
+    // The monthly email's dashed line between its parts.
+    html: () => [rule({ top: 6, bottom: 30 })],
+    text: () => ["----", ""],
+  },
   heading: {
     label: "Heading",
     blank: () => ({ kind: "heading", text: "" }),
     clean: (raw) => ({ kind: "heading", text: line(raw?.text, 150) }),
     empty: (section) => !section.text,
-    html: (section) => [row(heading(section.text), { top: 6, bottom: 20 })],
+    html: (section, context) => [
+      row(heading(section.text, { attrs: editable(context, "heading", "Type a heading") }), { top: 6, bottom: 20 }),
+    ],
     text: (section) => [section.text.toUpperCase(), ""],
   },
   copy: {
@@ -173,8 +361,15 @@ export const SECTION_KINDS = {
     blank: () => ({ kind: "copy", text: "" }),
     clean: (raw) => ({ kind: "copy", text: text(raw?.text).trim() }),
     empty: (section) => !paragraphs(section.text).length,
-    html: (section) =>
-      paragraphs(section.text).map((part) => row(paragraph(copyInlineHtml(part)), { bottom: 18 })),
+    // Its paragraphs in one cell, so the editor can type across them (Enter
+    // makes the next one); each has its gap under it, as a row of its own did.
+    html(section, context) {
+      const parts = paragraphs(section.text);
+      const drawn = (parts.length ? parts : [""]).map((part) =>
+        paragraph(copyInlineHtml(part), { margin: `0 0 ${PARAGRAPH_GAP}px` }),
+      );
+      return [row(drawn.join(""), { cellAttrs: editable(context, "copy", "Type here") })];
+    },
     text: (section) => paragraphs(section.text).flatMap((part) => [copyInlineText(part), ""]),
   },
   button: {
@@ -235,11 +430,18 @@ export function cleanSections(raw, kinds = SECTION_KINDS) {
 export function renderSections(sections, context, kinds = SECTION_KINDS) {
   const rows = [];
   const lines = [];
-  for (const section of sections) {
+  const marks = Boolean(context?.marks);
+  sections.forEach((section, index) => {
     const kind = kinds[section?.kind];
-    if (!kind || kind.empty(section)) continue;
-    rows.push(...kind.html(section, context));
-    lines.push(...kind.text(section, context));
-  }
+    if (!kind) return;
+    if (marks) rows.push(insertRow(index));
+    const empty = kind.empty(section);
+    if (empty && !marks) return;
+    if (!empty) lines.push(...kind.text(section, context));
+    // In the editor, empty words still show, to be typed into; an empty picture or button says what it needs.
+    const drawn = empty && WAITING[section.kind] ? [waitingRow(WAITING[section.kind])] : kind.html(section, context);
+    rows.push(...(marks ? drawn.map((part) => part.replace(/^<tr/, `<tr data-section="${index}"`)) : drawn));
+  });
+  if (marks) rows.push(insertRow(sections.length));
   return { rows, lines };
 }
