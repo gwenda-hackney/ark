@@ -29,9 +29,8 @@ export function mapOpsUser(user) {
     email: user.email,
     name: user.name || undefined,
     active: user.active,
-    // Their role (null: the default role) and areas given to them alone (#375).
+    // Their role (#375); null: the default role.
     roleId: user.roleId ?? null,
-    extras: user.extras || {},
   };
 }
 
@@ -104,7 +103,7 @@ export async function createOpsUser(env, input, actor = null) {
   const repo = usersRepository(env);
   const fields = {
     ...fieldsFromInput(input || {}),
-    ...(await checkUserAccessChange(env, actor, null, { roleId: input?.roleId, extras: input?.extras })),
+    ...(await checkUserAccessChange(env, actor, null, { roleId: input?.roleId })),
   };
   if (!fields.name) fields.name = fields.email;
   const siblings = await repo.list();
@@ -125,7 +124,7 @@ export async function updateOpsUser(env, id, input, actor = null) {
   const fields = fieldsFromInput(input || {}, { partial: true });
   Object.assign(
     fields,
-    await checkUserAccessChange(env, actor, rowId, { roleId: input?.roleId, extras: input?.extras, active: fields.active }),
+    await checkUserAccessChange(env, actor, rowId, { roleId: input?.roleId, active: fields.active }),
   );
   if (fields.email) {
     const siblings = await repo.list();

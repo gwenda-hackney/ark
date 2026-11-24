@@ -1,9 +1,9 @@
 /**
  * Roles and who has which (#375), the rules on top of the repositories:
  *
- *   - only owners change roles, or give someone a role or extras
+ *   - only owners change roles, or give someone a role
  *   - the Owner role has everything: its areas can't be changed, and it
- *     can't be renamed or removed; nor can the default role (Manager), which
+ *     can't be renamed or removed; nor can the default role (Marketing), which
  *     everyone without a role has
  *   - there is always an active owner: the last one can't lose the role, be
  *     switched off or be removed
@@ -106,14 +106,14 @@ async function isOwnerUser(env, user) {
 }
 
 /**
- * Checks a change to who someone is (role, extras, switched off, removed)
- * against the rules, and returns the role and extras fields to save.
- * @param {{ roleId?: unknown, extras?: unknown, active?: boolean, removing?: boolean }} change
+ * Checks a change to who someone is (role, switched off, removed) against
+ * the rules, and returns the role field to save. What they can do is their
+ * role's alone: there's nothing to give one person above it.
+ * @param {{ roleId?: unknown, active?: boolean, removing?: boolean }} change
  */
 export async function checkUserAccessChange(env, actor, id, change) {
   const fields = {};
-  const touchesAccess = change.roleId !== undefined || change.extras !== undefined;
-  if (touchesAccess) requireOwner(actor);
+  if (change.roleId !== undefined) requireOwner(actor);
   const current = id == null ? null : await usersRepository(env).get(id);
 
   if (change.roleId !== undefined) {
@@ -121,7 +121,6 @@ export async function checkUserAccessChange(env, actor, id, change) {
     if (roleId !== null && !(await rolesRepository(env).get(roleId))) throw refuse(400, "That role doesn't exist.");
     fields.roleId = roleId;
   }
-  if (change.extras !== undefined) fields.extras = areaLevels(change.extras, { keepNone: false });
 
   if (current && (await isOwnerUser(env, current))) {
     const losesOwner =

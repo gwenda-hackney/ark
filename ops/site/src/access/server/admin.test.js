@@ -27,7 +27,7 @@ test("admin list parses commas, spaces and case", () => {
 test("an owner is whoever has the Owner role; everyone is on dev and locally", async () => {
   const env = hosted([
     { id: 1, email: "dan@gwenda.co.uk", roleId: 1 },
-    { id: 2, email: "play@gwenda.co.uk", roleId: 2 },
+    { id: 2, email: "play@gwenda.co.uk", roleId: 3 },
   ]);
   assert.equal(await isOpsAdmin(env, "Dan@Gwenda.co.uk"), true);
   assert.equal(await isOpsAdmin(env, "play@gwenda.co.uk"), false);
@@ -35,35 +35,35 @@ test("an owner is whoever has the Owner role; everyone is on dev and locally", a
   assert.equal(await isOpsAdmin({ SITE_ENV: "local" }, ""), true);
 });
 
-test("no role is the default role; extras raise it; someone off the list has nothing", async () => {
+test("no role is the default role (Marketing); a role is all they have; someone off the list has nothing", async () => {
   const roles = memoryRoleRepository();
   const bar = await roles.create({ name: "Bar", areas: { stock: "edit", menus: "view" } });
   const env = hosted(
     [
       { id: 1, email: "new@gwenda.co.uk" },
-      { id: 2, email: "sam@gwenda.co.uk", roleId: bar.id, extras: { "whats-on": "edit" } },
+      { id: 2, email: "sam@gwenda.co.uk", roleId: bar.id },
       { id: 3, email: "gone@gwenda.co.uk", roleId: 1, active: false },
     ],
     roles,
   );
   const fresh = await accessFor(env, "new@gwenda.co.uk");
-  assert.deepEqual([fresh.role.name, fresh.levels.email, fresh.levels["email-send"]], ["Manager", "edit", "none"]);
+  assert.deepEqual([fresh.role.name, fresh.levels.email, fresh.levels["email-send"], fresh.levels.menus], ["Marketing", "edit", "edit", "none"]);
   const sam = await accessFor(env, "sam@gwenda.co.uk");
-  assert.deepEqual([sam.role.name, sam.levels.stock, sam.levels.menus, sam.levels["whats-on"], sam.levels.users], ["Bar", "edit", "view", "edit", "none"]);
+  assert.deepEqual([sam.role.name, sam.levels.stock, sam.levels.menus, sam.levels["whats-on"], sam.levels.users], ["Bar", "edit", "view", "none", "none"]);
   const gone = await accessFor(env, "gone@gwenda.co.uk");
   assert.deepEqual([gone.owner, gone.levels.stock], [false, "none"]);
 });
 
-test("before roles are migrated, the old admin list makes owners and everyone else a Manager", async () => {
+test("before roles are migrated, the old admin list makes owners and everyone else has the default role", async () => {
   const broken = { list: async () => { throw new Error("no such table: roles"); } };
   const env = hosted([{ id: 1, email: "dan@gwenda.co.uk" }, { id: 2, email: "play@gwenda.co.uk" }], broken);
   env.CONFIG_DB.exec(`INSERT INTO config_values (name, value, env, service) VALUES ('ops.admin_emails', 'dan@gwenda.co.uk', 'production', 'ops')`);
   assert.equal(await isOpsAdmin(env, "dan@gwenda.co.uk"), true);
   const play = await accessFor(env, "play@gwenda.co.uk");
-  assert.deepEqual([play.owner, play.role.name], [false, "Manager"]);
+  assert.deepEqual([play.owner, play.role.name], [false, "Marketing"]);
 });
 
 test("who to tell about an area follows roles, also on dev", async () => {
   const env = { ...hosted([{ id: 1, email: "dan@gwenda.co.uk", roleId: 1 }, { id: 2, email: "play@gwenda.co.uk" }]), SITE_ENV: "dev" };
-  assert.deepEqual(await emailsWithAccess(env, "email-send"), ["dan@gwenda.co.uk"]);
+  assert.deepEqual(await emailsWithAccess(env, "users"), ["dan@gwenda.co.uk"]);
 });

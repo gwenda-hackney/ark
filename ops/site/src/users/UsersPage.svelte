@@ -12,7 +12,6 @@
 		BusyOverlay,
 		Dialog,
 		NativeSelect,
-		Segmented,
 		Button,
 		Confirm,
 		ConfirmDialog,
@@ -35,12 +34,12 @@
 		type AuthMe,
 	} from "../app/api";
 	import { navTabs } from "../app/nav-routes";
-	import { AREAS } from "../access/areas.js";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import RolesList from "./RolesList.svelte";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
-	import type { Level, OpsRole, OpsUser } from "./types";
+	import type { OpsRole, OpsUser } from "./types";
+	import { roleSummary } from "./role-summary";
 
 	let { me, view = "people" }: { me: AuthMe; view?: "people" | "roles" } = $props();
 
@@ -54,33 +53,21 @@
 	function roleOf(user: OpsUser): OpsRole | null {
 		return roles.find((role) => role.id === user.roleId) || defaultRole;
 	}
-	function extrasCount(user: OpsUser): number {
-		return Object.keys(user.extras || {}).length;
-	}
-
-	// Changing one person's access: their role, and areas given to them alone.
+	// Changing one person's role: what they can do is their role's alone.
 	let accessFor = $state<OpsUser | null>(null);
 	let accessRoleId = $state("");
-	let accessExtras = $state<Record<string, Level>>({});
 	let accessSaving = $state(false);
 	function openAccess(user: OpsUser) {
 		accessFor = user;
 		accessRoleId = String(user.roleId ?? defaultRole?.id ?? "");
-		accessExtras = Object.fromEntries(AREAS.map((area) => [area.id, (user.extras?.[area.id] as Level) || "none"]));
 	}
 	const accessRole = $derived(roles.find((role) => String(role.id) === accessRoleId) || null);
-	const EXTRA_ITEMS = [
-		{ id: "none", label: "As role" },
-		{ id: "view", label: "View" },
-		{ id: "edit", label: "Edit" },
-	];
 	async function saveAccess() {
 		if (!accessFor || !isOwner) return;
 		const id = String(accessFor.id || accessFor._id || "");
 		accessSaving = true;
 		try {
-			const extras = Object.fromEntries(Object.entries(accessExtras).filter(([, level]) => level !== "none"));
-			const data = await updateOpsUser(id, { roleId: accessRoleId ? Number(accessRoleId) : null, extras });
+			const data = await updateOpsUser(id, { roleId: accessRoleId ? Number(accessRoleId) : null });
 			users = users.map((row) => (String(row.id) === id ? data.user : row));
 			toast.ok(`${accessFor.name || accessFor.email} is ${accessRole?.name || "set"} now.`);
 			accessFor = null;
@@ -297,7 +284,6 @@
 						<td class="roles" data-label="Role">
 							<span class="role-cell">
 								<Badge tone={role?.owner ? "success" : "neutral"} label={role?.name || "…"} />
-								{#if extrasCount(user)}<span class="extras">+{extrasCount(user)} {extrasCount(user) === 1 ? "area" : "areas"}</span>{/if}
 								<Button variant="ghost" size="sm" disabled={!isOwner || busy} reason={NOT_OWNER} onclick={() => openAccess(user)}>Change</Button>
 							</span>
 						</td>
@@ -351,7 +337,7 @@
 				oninput={() => errors.clear("user-email")}
 			/>
 		</Field>
-		<Field label="Role" for="new-user-role" hint={isOwner ? "What they can do in ops. Change it, or give extras, later with Change." : NOT_OWNER}>
+		<Field label="Role" for="new-user-role" hint={isOwner ? "What they can do in ops. Change it later with Change." : NOT_OWNER}>
 			<NativeSelect
 				id="new-user-role"
 				bind:value={newRoleId}
@@ -374,25 +360,11 @@
 
 <ConfirmDialog {confirm} />
 
-<Dialog open={accessFor !== null} sheet={phone.matches} size="lg" title={accessFor ? `What ${accessFor.name || accessFor.email} can do` : "Access"} onclose={() => !accessSaving && (accessFor = null)}>
+<Dialog open={accessFor !== null} sheet={phone.matches} title={accessFor ? `${accessFor.name || accessFor.email}'s role` : "Role"} onclose={() => !accessSaving && (accessFor = null)}>
 	{#if accessFor}
-		<div class="access-form">
-			<Field label="Role" for="user-role" hint={accessRole?.owner ? "Everything in ops." : "What their role lets them do; give more on single areas below."}>
-				<NativeSelect id="user-role" bind:value={accessRoleId} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))} />
-			</Field>
-			{#if !accessRole?.owner}
-				<p class="extras-lead">More than their role, for {accessFor.name || accessFor.email} alone:</p>
-				<ul class="extras-list">
-					{#each AREAS as area (area.id)}
-						{@const has = accessRole?.areas[area.id] || "none"}
-						<li>
-							<span class="area"><span class="area-name">{area.label}</span><span class="area-hint">Their role: {has === "edit" ? "Edit" : has === "view" ? "View" : "None"}</span></span>
-							<Segmented size="sm" tone="soft" items={EXTRA_ITEMS} ariaLabel="{area.label} for {accessFor.email}" bind:value={accessExtras[area.id]} />
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</div>
+		<Field label="Role" for="user-role" hint={accessRole ? `${roleSummary(accessRole)}. Change what a role can do on the Roles tab.` : ""}>
+			<NativeSelect id="user-role" bind:value={accessRoleId} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))} />
+		</Field>
 	{/if}
 	{#snippet footer()}
 		<Button variant="ghost" disabled={accessSaving} onclick={() => (accessFor = null)}>Cancel</Button>
@@ -408,39 +380,6 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
-	}
-	.extras,
-	.extras-lead,
-	.area-hint {
-		color: var(--fg-muted);
-		font-size: var(--text-sm);
-	}
-	.access-form {
-		display: grid;
-		gap: var(--space-4);
-	}
-	.extras-lead {
-		margin: 0;
-	}
-	.extras-list {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
-	.extras-list li {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-3);
-		padding: var(--space-2) 0;
-		border-bottom: 1px solid var(--border);
-	}
-	.area {
-		display: grid;
-		gap: 0.125rem;
-	}
-	.area-name {
-		font-weight: 500;
 	}
 	.page {
 		position: relative;

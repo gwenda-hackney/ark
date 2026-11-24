@@ -16,26 +16,8 @@
 import { databaseFor } from "../../../../../shared/d1-env.js";
 import { d1RoleRepository } from "./adapters/d1-roles.js";
 
-/** The roles the migration makes (db/ops/migrations/0021_roles.sql): Owner, Manager, Marketing. */
+/** The roles the migrations make (db/ops/migrations/0021, 0022): Owner, and Marketing, everyone's by default. */
 export const OWNER_ROLE_ID = 1;
-export const MANAGER_ROLE_ID = 2;
-export const MANAGER_AREAS = {
-  "email-people": "none",
-  "email-send": "none",
-  email: "edit",
-  "whats-on": "edit",
-  occasions: "edit",
-  artists: "edit",
-  photos: "edit",
-  menus: "edit",
-  stock: "edit",
-  lightspeed: "edit",
-  venue: "edit",
-  website: "edit",
-  config: "edit",
-  users: "edit",
-  devtools: "none",
-};
 export const MARKETING_ROLE_ID = 3;
 /** All of What's on, sending email included, and the website. */
 export const MARKETING_AREAS = {
@@ -49,8 +31,7 @@ export const MARKETING_AREAS = {
 };
 export const DEFAULT_ROLES = [
   { id: OWNER_ROLE_ID, name: "Owner", owner: true, isDefault: false, areas: {} },
-  { id: MANAGER_ROLE_ID, name: "Manager", owner: false, isDefault: true, areas: MANAGER_AREAS },
-  { id: MARKETING_ROLE_ID, name: "Marketing", owner: false, isDefault: false, areas: MARKETING_AREAS },
+  { id: MARKETING_ROLE_ID, name: "Marketing", owner: false, isDefault: true, areas: MARKETING_AREAS },
 ];
 
 /** The repository for this runtime. Tests may hand one in as env.rolesRepository. */

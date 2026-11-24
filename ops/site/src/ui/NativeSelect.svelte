@@ -4,6 +4,7 @@
 	 * button + listbox that matches TextField.
 	 */
 	import { onMount, tick } from "svelte";
+	import { portal } from "./portal";
 	import type { SelectOption } from "./types";
 	import { getFieldContext } from "./field-context";
 
@@ -187,6 +188,7 @@
 	{#if open}
 		<div
 			bind:this={menuEl}
+			use:portal
 			class="menu scrollbar-fade"
 			style={menuStyle}
 			role="listbox"
@@ -291,9 +293,14 @@
 		cursor: not-allowed;
 	}
 
+	/*
+	 * Drawn on the page itself (portal), above panels (180) and dialogs (200):
+	 * inside a side panel, which moves what's fixed within it, the list was
+	 * placed for the page but drawn in the panel, off its edge (#375).
+	 */
 	.menu {
 		position: fixed;
-		z-index: 80;
+		z-index: 260;
 		display: flex;
 		flex-direction: column;
 		gap: 0.15rem;

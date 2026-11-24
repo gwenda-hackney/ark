@@ -1,16 +1,16 @@
 /**
  * Who can do what (#375): a signed-in person's level on every area, from
- * their role (users module's roles) and the extras given to them alone.
+ * their role (users module's roles).
  * The middleware refuses what their levels don't allow (areas.js
  * refusalFor); /api/auth/me tells the app, for its menu and buttons.
  *
  * Owners have everything. On dev and a developer's machine everyone is an
  * owner, as everyone was an admin there before roles. A person with no role
- * has the default role (Manager). There an owner can look at ops as a role
+ * has the default role (Marketing). There an owner can look at ops as a role
  * sees it ("view as", the ops_view_as cookie, viewAsFrom): their levels are
  * that role's until they switch back; production ignores it. Before the roles migration has run (a
  * local database, a deploy that skipped it) the old rule holds: admins
- * (config ops.admin_emails) are owners and everyone else a Manager.
+ * (config ops.admin_emails) are owners and everyone else has the default role.
  */
 import { levelsFor } from "../areas.js";
 import { getConfigString, siteEnvName } from "../../platform/config-store.js";
@@ -99,11 +99,11 @@ async function accessByRole(env, email) {
   const { users, roles } = await usersAndRoles(env);
   const user = users.find((candidate) => candidate.email === address && candidate.active) || null;
   if (!roles) {
-    // Roles not migrated here yet: admins are owners, everyone else a Manager.
+    // Roles not migrated here yet: admins are owners, everyone else the default role.
     const admins = parseAdminEmails(await getConfigString(env, ADMIN_EMAILS_KEY).catch(() => ""));
     if (address && admins.has(address)) return ownerOf({ id: DEFAULT_ROLES[0].id, name: DEFAULT_ROLES[0].name });
-    const manager = DEFAULT_ROLES[1];
-    return { owner: false, role: { id: manager.id, name: manager.name }, levels: levelsFor(manager) };
+    const fallback = DEFAULT_ROLES.find((candidate) => candidate.isDefault);
+    return { owner: false, role: { id: fallback.id, name: fallback.name }, levels: levelsFor(fallback) };
   }
   if (!user) return { owner: false, role: null, levels: levelsFor(null) };
   const role = roles.find((candidate) => candidate.id === user.roleId) || roles.find((candidate) => candidate.isDefault) || null;
@@ -111,7 +111,7 @@ async function accessByRole(env, email) {
   return {
     owner: false,
     role: role ? { id: role.id, name: role.name } : null,
-    levels: levelsFor(role, user.extras),
+    levels: levelsFor(role),
   };
 }
 

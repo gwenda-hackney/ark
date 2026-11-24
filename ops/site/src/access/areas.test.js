@@ -68,10 +68,10 @@ describe("what a level lets through", () => {
     assert.match(refusalFor(everyone("edit"), "/api/nothing-here", "GET"), /isn't part of any area/);
   });
 
-  it("an owner has edit on everything; extras raise a role, never lower it", () => {
+  it("an owner has edit on everything; anyone else has their role's levels, none where it says nothing", () => {
     assert.deepEqual(levelsFor({ owner: true, areas: {} }), everyone("edit"));
-    const promoter = levelsFor({ areas: { "whats-on": "edit", email: "view" } }, { email: "edit", "whats-on": "none" });
-    assert.equal(promoter.email, "edit");
+    const promoter = levelsFor({ areas: { "whats-on": "edit", email: "view" } });
+    assert.equal(promoter.email, "view");
     assert.equal(promoter["whats-on"], "edit");
     assert.equal(promoter.users, "none");
     assert.equal(levelsFor(null).stock, "none");

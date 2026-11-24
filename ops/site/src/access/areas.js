@@ -126,16 +126,13 @@ export function higher(a, b) {
 }
 
 /**
- * Every area's level for one person: their role's, raised by any extras
- * given to them alone; an owner has edit on everything.
+ * Every area's level for one person: their role's; an owner has edit on
+ * everything.
  * @param {{ owner?: boolean, areas?: Record<string, string> } | null} role
- * @param {Record<string, string>} [extras]
  * @returns {Record<string, "none" | "view" | "edit">}
  */
-export function levelsFor(role, extras = {}) {
-  return Object.fromEntries(
-    AREA_IDS.map((id) => [id, role?.owner ? "edit" : higher(role?.areas?.[id], extras?.[id])]),
-  );
+export function levelsFor(role) {
+  return Object.fromEntries(AREA_IDS.map((id) => [id, role?.owner ? "edit" : level(role?.areas?.[id])]));
 }
 
 /**

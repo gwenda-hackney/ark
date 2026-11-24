@@ -5,7 +5,7 @@
  *                  areas: { [area]: "none" | "view" | "edit" } }
  *
  * owner: everything, whatever `areas` says (the Owner role). isDefault: the
- * role of anyone who hasn't been given one (Manager).
+ * role of anyone who hasn't been given one (Marketing).
  */
 import { text } from "./user-model.js";
 import { areaLevels } from "./user-model.js";
