@@ -4,7 +4,7 @@
  * database a real SQLite with the migrations.
  */
 import assert from "node:assert/strict";
-import { POPUP_NUDGE } from "./server/promote.js";
+import { DEAL_NUDGE, NIGHT_NUDGE, POPUP_NUDGE } from "./server/promote.js";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { resetConfigCacheForTests } from "../../../../shared/config.js";
 import { renderOneOffEmail } from "../../../../shared/email/one-off.js";
@@ -16,7 +16,7 @@ import { createMenuItem, createMenuSection } from "../menu/server/menu-store.js"
 import { createMenu } from "../menu/server/menus.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { timeLabel } from "../venue/hours-model.js";
-import { daysWords, popupWhen } from "./server/promote.js";
+import { atGwenda, daysWords, popupWhen, previewLine } from "./server/promote.js";
 
 /** Twelve o'clock as ops says it (hours-model.js): noon. */
 const NOON = timeLabel("12:00");
@@ -77,6 +77,8 @@ describe("promoting a pop-up kitchen", () => {
     const { status, data } = await api(listChoices, { path: "/api/email/promote" });
     assert.equal(status, 200);
     assert.deepEqual(data.templates, [
+      { id: "night", label: "A night", choices: [] },
+      { id: "deal", label: "A deal", choices: [] },
       {
         id: "popup",
         label: "A pop-up kitchen",
@@ -130,12 +132,181 @@ describe("promoting a pop-up kitchen", () => {
   });
 });
 
+/** A one-off night with a guest, an offer and a running order; a weekly quiz; a deal that isn't a night. */
+async function seedNights() {
+  const env = world.env;
+  const party = await createEvent(env, {
+    name: "Soul Saturday",
+    category: "event",
+    artist: "DJ Ana",
+    offer: "£8 Negronis till 9",
+    shortDescription: "Northern soul and Motown all night. Dancing shoes on.",
+    startsOn: "2026-12-05",
+    startTime: "19:00",
+    endTime: "23:00",
+    repeatUnit: "once",
+    nightSchedule: [
+      { label: "Warm-up", startTime: "19:00" },
+      { label: "DJ Ana", startTime: "21:00", endTime: "23:00" },
+    ],
+  });
+  await setEventImage(env, party.id, picture("dancefloor"));
+  await addGalleryImage(env, party.id, picture("crowd"));
+  const quiz = await createEvent(env, {
+    name: "Pub Quiz",
+    category: "event",
+    description: "Six rounds, one winner.",
+    startsOn: "2026-11-26",
+    startTime: "19:30",
+    repeatUnit: "week",
+    repeatEvery: 1,
+    weekdays: ["thu"],
+  });
+  const deal = await createEvent(env, {
+    name: "Cocktail Hour",
+    category: "promotion",
+    offer: "20% off all cocktails",
+    shortDescription: "The best part of the day starts early. **Every** cocktail, cheaper.",
+    startsOn: "2026-11-25",
+    startTime: "17:00",
+    endTime: "18:30",
+    repeatUnit: "week",
+    repeatEvery: 1,
+    weekdays: ["wed", "thu", "fri", "sat"],
+  });
+  await setEventImage(env, deal.id, picture("cocktails"));
+  return { party, quiz, deal };
+}
+
+describe("promoting a night", () => {
+  it("lists the nights to come, soonest first, and no deals", async () => {
+    const { party, quiz } = await seedNights();
+    const { data } = await api(listChoices, { path: "/api/email/promote" });
+    const nights = data.templates.find((template) => template.id === "night");
+    assert.deepEqual(nights.choices, [
+      { id: String(quiz.id), name: "Pub Quiz", when: "Thursdays from Thursday 26 November, 7:30pm" },
+      { id: String(party.id), name: "Soul Saturday", when: "Saturday 5 December, 7pm – 11pm" },
+    ]);
+  });
+
+  it("saves a draft: picture, name with its guest, when and the offer, the running order, a second picture, its page and booking", async () => {
+    const { party } = await seedNights();
+    const res = await api(promote, { method: "POST", path: "/api/email/promote", body: { template: "night", id: String(party.id) } });
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    const email = res.data.email;
+    assert.equal(email.name, "Soul Saturday promo");
+    assert.equal(email.subject, "Soul Saturday with DJ Ana at Gwenda, Saturday 5 December");
+    assert.equal(email.previewText, "Northern soul and Motown all night.");
+    assert.deepEqual(
+      email.sections.map((section) => section.kind),
+      ["image", "heading", "copy", "heading", "copy", "image", "button", "booking"],
+    );
+    assert.equal(email.sections[1].text, "Soul Saturday with DJ Ana");
+    assert.equal(
+      email.sections[2].text,
+      ["Northern soul and Motown all night. Dancing shoes on.", "**Saturday 5 December, 7pm – 11pm.**", "**£8 Negronis till 9.**", NIGHT_NUDGE].join("\n\n"),
+    );
+    assert.equal(email.sections[4].text, "**7pm** Warm-up\n\n**9pm – 11pm** DJ Ana");
+    assert.notEqual(email.sections[0].assetId, email.sections[5].assetId, "two different pictures");
+    assert.deepEqual(email.sections.slice(6), [
+      { kind: "button", label: "More about the night →", link: "https://gwenda-web-dev.pages.dev/whats-on/soul-saturday/", look: "link" },
+      { kind: "booking" },
+    ]);
+    const opened = await api(getEmail, { path: `/api/email/one-off/${email.id}`, params: { id: String(email.id) } });
+    assert.match(renderOneOffEmail(opened.data.email, opened.data.frame).html, /Soul Saturday with DJ Ana/);
+  });
+
+  it("names a weekly night by its days, and leaves out what it hasn't got", async () => {
+    const { quiz } = await seedNights();
+    const { data } = await api(promote, { method: "POST", path: "/api/email/promote", body: { template: "night", id: String(quiz.id) } });
+    assert.equal(data.email.subject, "Pub Quiz at Gwenda, Thursdays");
+    assert.deepEqual(
+      data.email.sections.map((section) => section.kind),
+      ["heading", "copy", "button", "booking"],
+    );
+  });
+
+  it("refuses a deal or a pop-up as a night", async () => {
+    await seedNights();
+    const pinsa = await seedPinsa();
+    const res = await api(promote, { method: "POST", path: "/api/email/promote", body: { template: "night", id: String(pinsa.id) } });
+    assert.equal(res.status, 404);
+  });
+});
+
+describe("promoting a deal", () => {
+  it("lists the deals with a day to come", async () => {
+    const { deal } = await seedNights();
+    const { data } = await api(listChoices, { path: "/api/email/promote" });
+    assert.deepEqual(data.templates.find((template) => template.id === "deal").choices, [
+      { id: String(deal.id), name: "Cocktail Hour", when: "Wednesdays to Saturdays from Wednesday 25 November, 5pm – 6:30pm" },
+    ]);
+  });
+
+  it("saves a draft: picture, the deal in bold, its line, when, its page and booking", async () => {
+    const { deal } = await seedNights();
+    const { data } = await api(promote, { method: "POST", path: "/api/email/promote", body: { template: "deal", id: String(deal.id) } });
+    const email = data.email;
+    assert.equal(email.subject, "Cocktail Hour at Gwenda: 20% off all cocktails, Wednesdays to Saturdays");
+    assert.equal(email.previewText, "The best part of the day starts early.");
+    assert.deepEqual(
+      email.sections.map((section) => section.kind),
+      ["image", "heading", "copy", "button", "booking"],
+    );
+    assert.equal(
+      email.sections[2].text,
+      [
+        "**20% off all cocktails.**",
+        "The best part of the day starts early. **Every** cocktail, cheaper.",
+        "**Wednesdays to Saturdays from Wednesday 25 November, 5pm – 6:30pm.**",
+        DEAL_NUDGE,
+      ].join("\n\n"),
+    );
+    assert.deepEqual(email.sections[3], {
+      kind: "button",
+      label: "More about the deal →",
+      link: "https://gwenda-web-dev.pages.dev/whats-on/cocktail-hour/",
+      look: "link",
+    });
+  });
+});
+
+describe("promoting from the event itself", () => {
+  it("picks the template from what the series is: a night, a deal or a pop-up", async () => {
+    const { party, deal } = await seedNights();
+    const pinsa = await seedPinsa();
+    const made = async (event) =>
+      (await api(promote, { method: "POST", path: "/api/email/promote", body: { id: String(event.id) } })).data.email.sections.find(
+        (section) => section.kind === "button",
+      ).label;
+    assert.equal(await made(party), "More about the night →");
+    assert.equal(await made(deal), "More about the deal →");
+    assert.equal(await made(pinsa), "See the whole menu →");
+  });
+
+  it("is a 404 for a series that isn't there", async () => {
+    const res = await api(promote, { method: "POST", path: "/api/email/promote", body: { id: "999" } });
+    assert.equal(res.status, 404);
+  });
+});
+
 describe("promote words", () => {
   it("names the days as a guest would", () => {
     assert.equal(daysWords(["mon", "tue"]), "Mondays and Tuesdays");
     assert.equal(daysWords(["wed", "thu", "fri", "sat", "sun"]), "Wednesdays to Sundays");
     assert.equal(daysWords(["thu"]), "Thursdays");
     assert.equal(daysWords(["mon", "wed", "fri"]), "Mondays, Wednesdays and Fridays");
+  });
+
+  it("says at Gwenda once in a subject", () => {
+    assert.equal(atGwenda("Pub Quiz"), "Pub Quiz at Gwenda");
+    assert.equal(atGwenda("EPIC Jam at Gwenda: A Weekend of Hip Hop Culture"), "EPIC Jam at Gwenda: A Weekend of Hip Hop Culture");
+  });
+
+  it("keeps the inbox preview to plain words", () => {
+    assert.equal(previewLine("**Karaoke Thursdays 🎤** Every Thursday, the mic is open. Come sing."), "Karaoke Thursdays 🎤 Every Thursday, the mic is open.");
+    assert.equal(previewLine("See [our menu](https://gwenda.co.uk/menu/) tonight"), "See our menu tonight");
+    assert.equal(previewLine("", "Thursdays, 7pm"), "Thursdays, 7pm");
   });
 
   it("says from when only while it hasn't started, and a one-off by its date", () => {

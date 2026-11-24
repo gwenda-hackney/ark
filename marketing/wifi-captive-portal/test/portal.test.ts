@@ -339,3 +339,50 @@ describe("handler", () => {
     });
   });
 });
+
+describe("a guest coming back", () => {
+  const subscribe = vi.fn(async () => ({ ok: true as const, status: 200 as const, subscriber: null, changed: true }));
+  const authorize = vi.fn(async () => ({ ok: true as const }));
+  const signIn = (email: string) =>
+    handlePortalRequest(
+      new Request("https://wifi.example/authorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ email, id: "aa:bb:cc:dd:ee:ff", site: "default" }),
+      }),
+      env,
+      { subscribe, authorize },
+    );
+  const page = (cookie = "") =>
+    handlePortalRequest(
+      new Request("https://wifi.example/guest/s/default/?id=aa:bb:cc:dd:ee:ff", { headers: cookie ? { Cookie: cookie } : {} }),
+      env,
+      { subscribe, authorize },
+    );
+  const cookieFrom = (res: Response) => (res.headers.get("Set-Cookie") || "").split(";")[0];
+
+  it("finds their email filled in on this phone, so getting online is one tap", async () => {
+    const first = await signIn("Guest@Example.com");
+    expect(first.status).toBe(200);
+    const setCookie = first.headers.get("Set-Cookie") || "";
+    expect(setCookie).toMatch(/HttpOnly/);
+    expect(setCookie).toMatch(/Secure/);
+    expect(setCookie).toMatch(/Max-Age=31536000/);
+
+    const back = await (await page(cookieFrom(first))).text();
+    expect(back).toContain('value="guest@example.com"');
+    expect(back).toContain("Welcome back");
+  });
+
+  it("a phone that hasn't signed in here sees an empty email", async () => {
+    const html = await (await page()).text();
+    expect(html).not.toContain("Welcome back");
+    expect(html).toMatch(/<input id="email"[^>]*value=""/);
+  });
+
+  it("a cookie that isn't an email is ignored", async () => {
+    const html = await (await page('gwenda_wifi_email="><script>x</script>')).text();
+    expect(html).not.toContain("<script>x");
+    expect(html).not.toContain("Welcome back");
+  });
+});

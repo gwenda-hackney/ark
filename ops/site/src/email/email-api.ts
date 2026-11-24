@@ -291,3 +291,32 @@ export function getPromoteChoices() {
 export function promoteInEmail(template: string, id: string) {
 	return request<{ email: OneOffEmail }>("/api/email/promote", post({ template, id }));
 }
+
+/** Promote a series from its editor: its kind (night, deal or pop-up) picks the template. */
+export function promoteEvent(id: string) {
+	return request<{ email: OneOffEmail }>("/api/email/promote", post({ id }));
+}
+
+/** One person on our list (Email → People): where we got them, when, and where they stand with Mailchimp. */
+export type ListPerson = {
+	id: number;
+	email: string;
+	/** "Wi-Fi", "Website", or both. */
+	source: string;
+	/** YYYY-MM-DD: when we got them. */
+	acquiredOn: string | null;
+	/** YYYY-MM-DD: the last day on the guest Wi-Fi. */
+	lastSeenOn: string | null;
+	/** Days they have got online through the guest Wi-Fi. */
+	visitDays: number;
+	onListSince: string | null;
+	unsubscribedOn: string | null;
+	mailchimp: { status: "in" | "waiting" | "unsubscribed" | "off"; label: string; tone: string; detail: string };
+};
+
+export type PeopleCounts = { total: number; in: number; waiting: number; unsubscribed: number; off: number };
+
+/** Everyone on our list, newest first. Admins only. */
+export function listPeople() {
+	return request<{ people: ListPerson[]; counts: PeopleCounts }>("/api/email/people");
+}

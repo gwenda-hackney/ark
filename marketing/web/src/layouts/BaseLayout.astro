@@ -96,6 +96,30 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
       } catch {
         // Older browsers without navigation timing: nothing to restore.
       }
+      // Home opened or reloaded on one of its sections (/#bookings): glide
+      // there from the top, as its links do, rather than appear there. The
+      // section waits here, out of the address, so the browser doesn't jump;
+      // chart-nav.js glideToOpeningSection puts it back and glides.
+      try {
+        const nav = performance.getEntriesByType("navigation")[0];
+        if (
+          location.pathname === "/" &&
+          location.hash.length > 1 &&
+          nav &&
+          nav.type !== "back_forward"
+        ) {
+          window.__chartGlideTo = decodeURIComponent(location.hash.slice(1));
+          history.scrollRestoration = "manual";
+          history.replaceState(
+            history.state,
+            "",
+            location.pathname + location.search,
+          );
+          scrollTo(0, 0);
+        }
+      } catch {
+        // It just lands there, as before.
+      }
     </script>
 
     <Fonts />

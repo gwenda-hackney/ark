@@ -382,6 +382,7 @@ describe("spa-path", () => {
     assert.deepEqual(parseShellPath("/email/monthly"), { page: "email", view: "monthly" });
     assert.deepEqual(parseShellPath("/email/week"), { page: "email", view: "monthly" }, "the old weekly tab");
     assert.deepEqual(parseShellPath("/email/sent"), { page: "email", view: "sent" });
+    assert.deepEqual(parseShellPath("/email/people"), { page: "email", view: "people" });
     assert.deepEqual(parseShellPath("/email/settings"), { page: "email", view: "monthly" }, "the old settings tab");
     assert.deepEqual(parseShellPath("/email/write"), { page: "email", view: "write", slug: null, isNew: false });
     assert.deepEqual(parseShellPath("/email/write/new"), { page: "email", view: "write", slug: null, isNew: true });

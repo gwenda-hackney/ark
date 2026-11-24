@@ -10,6 +10,7 @@
  *                        marketingOn: "YYYY-MM-DD" | null,  // the day they last said yes
  *                        marketingOffOn: "YYYY-MM-DD" | null, // the day they unsubscribed
  *                        lastSeenOn: "YYYY-MM-DD" | null,   // last on the guest Wi-Fi
+ *                        visitDays: number,                 // days on the guest Wi-Fi
  *                        synced: boolean }
  *
  * Tags say where an address came from (website; prelaunch: the website
@@ -82,6 +83,7 @@ export function newSubscriber(
     marketingOn: marketing ? day(now) : null,
     marketingOffOn: null,
     lastSeenOn: visit ? day(now) : null,
+    visitDays: visit ? 1 : 0,
     synced: false,
   };
 }
@@ -91,7 +93,8 @@ export function newSubscriber(
  * Consent (`marketing`) is always recorded afresh, even for an address and
  * tag we have: on the list from today, any unsubscribe cleared, and synced
  * again (so someone who unsubscribed is asked to confirm). A visit without
- * consent only moves lastSeenOn: it never changes consent either way.
+ * consent only moves lastSeenOn (and counts the day in visitDays): it never
+ * changes consent either way.
  */
 function changesFor(existing, { tag, marketing, visit, now }) {
   const changes = {};
@@ -104,7 +107,10 @@ function changesFor(existing, { tag, marketing, visit, now }) {
       synced: false,
     });
   }
-  if (visit && existing.lastSeenOn !== day(now)) changes.lastSeenOn = day(now);
+  if (visit && existing.lastSeenOn !== day(now)) {
+    changes.lastSeenOn = day(now);
+    changes.visitDays = (Number(existing.visitDays) || 0) + 1;
+  }
   return Object.keys(changes).length ? changes : null;
 }
 

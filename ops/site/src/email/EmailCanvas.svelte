@@ -70,9 +70,14 @@
 		shownHtml = "";
 	});
 
+	/**
+	 * The frame's email is ready once its page is read, not once every picture
+	 * has arrived: a picture that's slow or never comes (the logo, when the
+	 * website it's on doesn't answer) mustn't leave the email half drawn.
+	 */
 	function loaded() {
 		const doc = frameEl?.contentDocument;
-		if (!doc || !srcdoc) return;
+		if (!doc || !srcdoc || doc === shownDoc || doc.URL !== "about:srcdoc" || doc.readyState === "loading") return;
 		const still = doc.createElement("style");
 		still.setAttribute("data-ops", "");
 		still.textContent = "html, body { overflow: hidden !important; }";
@@ -87,6 +92,17 @@
 		// It may have changed while loading.
 		catchUp();
 	}
+
+	// Take the frame's email as soon as its page is read (see loaded); its load
+	// event still comes after the pictures, and finds it done.
+	$effect(() => {
+		if (!srcdoc || !frameEl) return;
+		let frame = requestAnimationFrame(function check() {
+			loaded();
+			if (!shownDoc) frame = requestAnimationFrame(check);
+		});
+		return () => cancelAnimationFrame(frame);
+	});
 
 	$effect(() => () => watching?.disconnect());
 

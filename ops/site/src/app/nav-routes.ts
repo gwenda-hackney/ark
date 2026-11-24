@@ -56,6 +56,7 @@ export const NAV_ROUTES: NavRoute[] = [
 				tabs: [
 					{ id: "emails", label: "Emails", path: "/email" },
 					{ id: "sent", label: "Sent", path: "/email/sent" },
+					{ id: "people", label: "People", path: "/email/people" },
 				],
 			},
 			{ id: "photos", path: "/venue/gallery", name: "Photos", icon: "camera", hint: "The venue's own photos, on the website" },

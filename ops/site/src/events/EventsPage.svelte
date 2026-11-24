@@ -16,6 +16,9 @@
 	import type { SegmentedItem } from "../ui/types";
 	import { onWebsiteJobEvent } from "./website-jobs.svelte";
 	import EditorHeader from "./EditorHeader.svelte";
+	import OneOffEmailEditor from "../email/OneOffEmailEditor.svelte";
+	import { writePath } from "../email/one-off-view";
+	import type { AuthMe } from "../app/api";
 	import EventsList from "./EventsList.svelte";
 	import PopupMenus from "./PopupMenus.svelte";
 	import { categoryOf } from "./event-category";
@@ -48,6 +51,11 @@
 	import { EventEditor } from "./event-editor.svelte";
 
 	let { path = "/" }: { path?: string } = $props();
+
+	/** Who's signed in: the email editor needs it. */
+	let me = $state<AuthMe | null>(null);
+	/** The email the header's Email button just drafted, open over the event; closing it comes back here. */
+	let promotedEmail = $state<number | null>(null);
 
 	const editor = new EventEditor(() => path);
 	let openedKey = $state("");
@@ -127,8 +135,9 @@
 			.catch(() => {});
 		const stopJobEvents = onWebsiteJobEvent(editor.takeReadyEvent);
 		getMe()
-			.then((me) => {
-				editor.localOps = me.siteEnv === "local";
+			.then((got) => {
+				me = got;
+				editor.localOps = got.siteEnv === "local";
 			})
 			.catch(() => undefined);
 		return stopJobEvents;
@@ -294,6 +303,8 @@
 			if (editor.busy) return;
 			if (e.key !== "Escape") return;
 			if (editor.deleteOpen || editor.deleteScopeOpen || discardOpen) return;
+			// The Email button's draft is over the event: Escape is the email's.
+			if (promotedEmail !== null) return;
 			e.preventDefault();
 			requestClose();
 		}
@@ -396,6 +407,7 @@
 				calendarSyncing={editor.calendarSyncing}
 				localOps={editor.localOps}
 				onsynccalendar={() => void editor.onSyncCalendar()}
+				onpromoted={(id) => (promotedEmail = id)}
 				onputonwebsite={editor.openPutOnWebsite}
 				onreload={requestReload}
 				onclose={requestClose}
@@ -627,6 +639,15 @@
 	/>
 		{/snippet}
 	</EditorShell>
+{#if me}
+	<!-- The Email button's draft, over the event: closing it comes back to the event. -->
+	<OneOffEmailEditor
+		path={writePath(promotedEmail ?? "new")}
+		{me}
+		open={promotedEmail !== null}
+		onclose={() => (promotedEmail = null)}
+	/>
+{/if}
 	<!-- The list shows skeleton rows while it loads; the overlay is for the editor and saves. -->
 	<BusyOverlay active={editor.busy && (editor.editing || !editor.loading)} label={editor.busyLabel} />
 </div>

@@ -9,6 +9,8 @@
 	import type { EventForm } from "./event-form.svelte";
 	import { websiteJobFor } from "./website-jobs.svelte";
 	import { getSitePendingState } from "../website/site-pending.svelte";
+	import { toast } from "../ui/toast.svelte";
+	import { promoteEvent } from "../email/email-api";
 
 	let {
 		form,
@@ -25,6 +27,7 @@
 		calendarSyncing,
 		localOps,
 		onsynccalendar,
+		onpromoted,
 		onputonwebsite,
 		onreload,
 		onclose,
@@ -47,6 +50,8 @@
 		/** Local ops: Save and Update website change the Gwenda Dev copy only. */
 		localOps: boolean;
 		onsynccalendar: () => void;
+		/** Email made a draft to promote it: open it over the event. */
+		onpromoted: (emailId: number) => void;
 		onputonwebsite: () => void;
 		onreload: () => void;
 		onclose: () => void;
@@ -80,6 +85,21 @@
 		}),
 	);
 	const liveCurrent = $derived(current?.publish.live === "current");
+
+	/** Email: its kind picks the template; the draft opens over the event (onpromoted). */
+	let promoting = $state(false);
+	async function promote() {
+		promoting = true;
+		try {
+			const { email } = await promoteEvent(eventId);
+			toast.ok("Drafted an email to promote it. Change anything, then send yourself a test.");
+			onpromoted(email.id);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Couldn't make the email.");
+		} finally {
+			promoting = false;
+		}
+	}
 	const actions = $derived(
 		editorHeaderActions({
 			eventId,
@@ -147,6 +167,37 @@
 					<Icon name="calendar" size={14} />
 	{/snippet}
 					Update calendar
+				</Button>
+				<Button
+					class="desk-tool"
+					variant="outline"
+					size="sm"
+					data-compact
+					aria-label="Email: promote this in an email"
+					disabled={actions.promote.disabled || promoting}
+					reason={actions.promote.reason}
+					busy={promoting}
+					title="Make an email that promotes this, and open it to change and send."
+					onclick={() => void promote()}
+				>
+					{#snippet icon()}
+						<Icon name="send" size={14} />
+					{/snippet}
+					Email
+				</Button>
+				<Button
+					class="desk-tool"
+					variant="outline"
+					size="sm"
+					data-compact
+					aria-label="Instagram: post this to Instagram"
+					disabled
+					reason="Posting to Instagram from ops is coming"
+				>
+					{#snippet icon()}
+						<Icon name="instagram" size={14} />
+					{/snippet}
+					Instagram
 				</Button>
 				<Button
 					variant="primary"
