@@ -8,6 +8,7 @@
 	 */
 	import type { Snippet } from "svelte";
 	import type { HTMLButtonAttributes } from "svelte/elements";
+	import { scopeEditReason } from "../access/access.svelte";
 
 	type Variant =
 		| "primary"
@@ -29,6 +30,7 @@
 		trailing,
 		children,
 		reason,
+		look = false,
 		disabled = false,
 		title,
 		onclick,
@@ -50,10 +52,24 @@
 		 * still shows on hover and keyboard users can reach it and hear why.
 		 */
 		reason?: string;
+		/**
+		 * A primary or destructive button that changes nothing (Open, Export,
+		 * Close): it stays on in a page the person can only look at (#375).
+		 */
+		look?: boolean;
 	} = $props();
 
+	/*
+	 * In a page of an area they can only look at (#375, access/AreaScope),
+	 * a button that changes things (primary, destructive) is disabled, saying why.
+	 */
+	const scopeReason = scopeEditReason();
+	const viewOnly = $derived(!look && (variant === "primary" || variant === "destructive") ? scopeReason() : "");
+	const off = $derived(disabled || Boolean(viewOnly));
+	const why = $derived(viewOnly || reason);
+
 	/** Disabled with a reason: still hoverable and focusable, but inert. */
-	const soft = $derived(Boolean(disabled && reason));
+	const soft = $derived(Boolean(off && why));
 
 	function handleClick(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }) {
 		if (soft) {
@@ -73,9 +89,9 @@
 	class:icon-only={!children && !!icon}
 	aria-busy={busy || undefined}
 	{...rest}
-	disabled={soft ? undefined : disabled}
+	disabled={soft ? undefined : off}
 	aria-disabled={soft ? "true" : rest["aria-disabled"]}
-	title={soft ? reason : title}
+	title={soft ? why : title}
 	onclick={handleClick}
 >
 	{#if icon}

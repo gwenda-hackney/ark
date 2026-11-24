@@ -1,14 +1,16 @@
 /**
  * Who can do what (#375): a signed-in person's level on every area, from
- * their role (users module's roles) and the extras given to them alone.
+ * their role (users module's roles).
  * The middleware refuses what their levels don't allow (areas.js
  * refusalFor); /api/auth/me tells the app, for its menu and buttons.
  *
  * Owners have everything. On dev and a developer's machine everyone is an
  * owner, as everyone was an admin there before roles. A person with no role
- * has the default role (Manager). Before the roles migration has run (a
+ * has the default role (Marketing). There an owner can look at ops as a role
+ * sees it ("view as", the ops_view_as cookie, viewAsFrom): their levels are
+ * that role's until they switch back; production ignores it. Before the roles migration has run (a
  * local database, a deploy that skipped it) the old rule holds: admins
- * (config ops.admin_emails) are owners and everyone else a Manager.
+ * (config ops.admin_emails) are owners and everyone else has the default role.
  */
 import { levelsFor } from "../areas.js";
 import { getConfigString, siteEnvName } from "../../platform/config-store.js";
@@ -56,9 +58,37 @@ async function usersAndRoles(env) {
  * One person's access: { owner, role: { id, name } | null, levels }.
  * `levels` has every area (areas.js levelsFor).
  */
-export async function accessFor(env, email) {
-  if (siteEnvName(env) === "dev") return ownerOf({ id: DEFAULT_ROLES[0].id, name: DEFAULT_ROLES[0].name });
+export async function accessFor(env, email, { viewAs = null } = {}) {
+  if (siteEnvName(env) === "dev") {
+    const viewing = viewAs == null ? null : await viewingAs(env, viewAs);
+    return viewing || ownerOf({ id: DEFAULT_ROLES[0].id, name: DEFAULT_ROLES[0].name });
+  }
   return accessByRole(env, email);
+}
+
+/** The cookie an owner on dev sets to look at ops as a role sees it. */
+export const VIEW_AS_COOKIE = "ops_view_as";
+
+/** The role id a request asks to view as, or null. */
+export function viewAsFrom(request) {
+  const cookies = String(request?.headers?.get("Cookie") || "");
+  const match = cookies.match(new RegExp(`(?:^|;\\s*)${VIEW_AS_COOKIE}=(\\d+)`));
+  return match ? Number(match[1]) : null;
+}
+
+/** On dev: the access of a role that isn't Owner, marked as viewing as it; null for any other. */
+async function viewingAs(env, roleId) {
+  const { roles } = await usersAndRoles(env);
+  const role = roles?.find((candidate) => candidate.id === Number(roleId));
+  if (!role || role.owner) return null;
+  return { owner: false, role: { id: role.id, name: role.name }, levels: levelsFor(role), viewingAs: true };
+}
+
+/** The roles an owner on dev can view ops as: every one, Owner first (Owner = back to themselves). */
+export async function viewAsChoices(env) {
+  if (siteEnvName(env) !== "dev") return null;
+  const { roles } = await usersAndRoles(env);
+  return (roles || []).map((role) => ({ id: role.id, name: role.name, owner: Boolean(role.owner) }));
 }
 
 const ownerOf = (role) => ({ owner: true, role, levels: levelsFor({ owner: true }) });
@@ -69,11 +99,11 @@ async function accessByRole(env, email) {
   const { users, roles } = await usersAndRoles(env);
   const user = users.find((candidate) => candidate.email === address && candidate.active) || null;
   if (!roles) {
-    // Roles not migrated here yet: admins are owners, everyone else a Manager.
+    // Roles not migrated here yet: admins are owners, everyone else the default role.
     const admins = parseAdminEmails(await getConfigString(env, ADMIN_EMAILS_KEY).catch(() => ""));
     if (address && admins.has(address)) return ownerOf({ id: DEFAULT_ROLES[0].id, name: DEFAULT_ROLES[0].name });
-    const manager = DEFAULT_ROLES[1];
-    return { owner: false, role: { id: manager.id, name: manager.name }, levels: levelsFor(manager) };
+    const fallback = DEFAULT_ROLES.find((candidate) => candidate.isDefault);
+    return { owner: false, role: { id: fallback.id, name: fallback.name }, levels: levelsFor(fallback) };
   }
   if (!user) return { owner: false, role: null, levels: levelsFor(null) };
   const role = roles.find((candidate) => candidate.id === user.roleId) || roles.find((candidate) => candidate.isDefault) || null;
@@ -81,7 +111,7 @@ async function accessByRole(env, email) {
   return {
     owner: false,
     role: role ? { id: role.id, name: role.name } : null,
-    levels: levelsFor(role, user.extras),
+    levels: levelsFor(role),
   };
 }
 
@@ -111,5 +141,5 @@ export async function requireArea(env, email, area, need = "edit") {
 export async function requestAccess(context) {
   const { resolveAuth, resolveSessionEmail } = await import("./auth.js");
   const email = await resolveSessionEmail(context.request, resolveAuth(context.env)).catch(() => "");
-  return { email, ...(await accessFor(context.env, email)) };
+  return { email, ...(await accessFor(context.env, email, { viewAs: viewAsFrom(context.request) })) };
 }

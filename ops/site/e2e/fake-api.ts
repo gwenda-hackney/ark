@@ -16,8 +16,16 @@ export const ME = {
   isProductionDb: false,
   risk: null,
   isAdmin: true,
+  access: { owner: true, role: { id: 1, name: "Owner" }, levels: {} },
   frozen: [],
 };
+
+/** Users → People and Roles: an owner, and the two roles (#375). */
+export const ROLES = [
+  { id: 1, name: "Owner", owner: true, isDefault: false, areas: {}, people: 1 },
+  { id: 3, name: "Marketing", owner: false, isDefault: true, areas: { "whats-on": "edit", email: "edit" }, people: 0 },
+];
+export const USERS = [{ id: "1", _id: "1", email: ME.email, active: true, roleId: 1 }];
 
 export const FRAME = {
   site: {
@@ -136,6 +144,8 @@ export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
       });
     }
     if (pathname === "/api/web/jobs") return json({ ok: true, jobs: [] });
+    if (pathname === "/api/users") return json({ users: USERS });
+    if (pathname === "/api/roles") return json({ roles: ROLES });
     if (pathname === "/api/venue/gallery") {
       if (request.method() === "PUT") {
         const { keys } = request.postDataJSON();

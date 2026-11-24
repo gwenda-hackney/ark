@@ -1,7 +1,7 @@
 /**
  * RoleRepository in memory (#375): for tests, and the reference for what
  * every adapter must do (role-repository.contract.test.js). Starts with the
- * two roles the migration makes, Owner and Manager.
+ * two roles the migrations make, Owner and Marketing.
  */
 import { roleNotFound, roleRecord } from "../role-model.js";
 import { DEFAULT_ROLES } from "../role-repository.js";

@@ -22,7 +22,7 @@ import { attachLogger } from "../src/platform/log.js";
 import { opsEnv } from "../src/platform/ops-env.js";
 import { isSpaDocumentPath } from "../src/app/spa-path.js";
 import { isOpsUser } from "../src/users/server/user-store.js";
-import { accessFor } from "../src/access/server/access.js";
+import { accessFor, viewAsFrom } from "../src/access/server/access.js";
 import { refusalFor } from "../src/access/areas.js";
 import { opsWriteFeatures } from "../src/platform/write-freeze-paths.js";
 import { frozenWriteResponse, isWriteRequest } from "../../../shared/write-freeze.js";
@@ -67,7 +67,7 @@ export async function protect(context) {
     }
     if (isSpaDocumentPath(url.pathname)) return serveSpaIndex(context);
     if (url.pathname.startsWith("/api/")) {
-      const { levels } = await accessFor(env, email);
+      const { levels } = await accessFor(env, email, { viewAs: viewAsFrom(context.request) });
       const refused = refusalFor(levels, url.pathname, context.request.method);
       if (refused) return Response.json({ error: refused }, { status: 403 });
     }

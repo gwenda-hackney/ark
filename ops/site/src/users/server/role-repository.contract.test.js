@@ -1,7 +1,7 @@
 /**
  * What every RoleRepository adapter must do (#375): the same cases on memory
- * and D1 (SQLite with the real migrations), so the migration's Owner and
- * Manager are the ones the code expects.
+ * and D1 (SQLite with the real migrations), so the migrations' Owner and
+ * Marketing are the ones the code expects.
  */
 import assert from "node:assert/strict";
 import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
@@ -16,7 +16,7 @@ repositoryContract("RoleRepository", {
     d1: () => d1RoleRepository(createTestD1("ops")),
   },
   cases: {
-    "starts with Owner, Manager and Marketing, as the migration makes them": async (repo) => {
+    "starts with Owner and Marketing (the default), as the migrations make them": async (repo) => {
       assert.deepEqual(await repo.list(), DEFAULT_ROLES);
     },
     "a role's levels round-trip; unknown areas and levels are dropped": async (repo) => {
@@ -33,7 +33,7 @@ repositoryContract("RoleRepository", {
       const bar = await repo.create({ name: "Bar" });
       await repo.remove(bar.id);
       assert.equal(await repo.get(bar.id), null);
-      assert.equal((await repo.list()).length, 3);
+      assert.equal((await repo.list()).length, 2);
     },
   },
 });

@@ -40,6 +40,7 @@
 				aria-selected={item.id === value}
 				aria-disabled={item.disabled || undefined}
 				tabindex={item.disabled ? -1 : 0}
+				title={item.disabled ? item.reason : undefined}
 				onclick={item.disabled ? (e) => e.preventDefault() : undefined}
 			>
 				<span class="label" data-label={item.label}>{item.label}</span>
@@ -57,6 +58,7 @@
 				class="tab"
 				aria-selected={item.id === value}
 				disabled={item.disabled}
+				title={item.disabled ? item.reason : undefined}
 				onclick={() => pick(item)}
 			>
 				<span class="label" data-label={item.label}>{item.label}</span>

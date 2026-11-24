@@ -2,10 +2,9 @@
  * The ops user record (#186): who may sign in to ops.
  *
  *   UserRecord = { id: number, name: string, email: string, active: boolean,
- *                  roleId: number | null, extras: { [area]: "view" | "edit" } }
+ *                  roleId: number | null }
  *
- * roleId: their role (role-model.js); null counts as the default role.
- * extras: areas given to them alone, above their role (#375).
+ * roleId: their role (role-model.js, #375); null counts as the default role.
  *
  * Emails are kept trimmed and lower case, so comparing them is comparing
  * strings: "Person@Gwenda.co.uk" signs in as person@gwenda.co.uk.
@@ -24,14 +23,13 @@ export function text(value) {
 }
 
 /** A record from any fields, filling what's missing. */
-export function userRecord({ id, name, email, active, roleId, extras } = {}) {
+export function userRecord({ id, name, email, active, roleId } = {}) {
   return {
     id: Number(id),
     name: text(name),
     email: normalizeEmail(email),
     active: active == null ? true : Boolean(active),
     roleId: roleId == null || roleId === "" ? null : Number(roleId),
-    extras: areaLevels(extras, { keepNone: false }),
   };
 }
 

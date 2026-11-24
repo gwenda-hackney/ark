@@ -10,6 +10,7 @@
 	 * component resets row heights when it changes.
 	 */
 	import { untrack } from "svelte";
+	import { scopeEditReason } from "../access/access.svelte";
 	import {
 		createGrid,
 		type ColDef,
@@ -58,8 +59,12 @@
 		});
 	}
 
+	/* In a page they can only look at (#375, access/AreaScope), no cell is editable. */
+	const scopeReason = scopeEditReason();
+
 	function prepareColDefs<T>(defs: ColDef<T>[]): ColDef<T>[] {
-		return withNumericAlignment(lockPixelCols(defs));
+		const shown = withNumericAlignment(lockPixelCols(defs));
+		return scopeReason() ? shown.map((def) => ({ ...def, editable: false })) : shown;
 	}
 
 	/** Right-align headers and cells for `type: "num"` (and explicit num classes). */

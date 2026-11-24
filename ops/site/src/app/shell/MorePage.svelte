@@ -11,6 +11,8 @@
 	import { navigate } from "../nav";
 	import { NAV_ROUTES } from "../nav-routes";
 	import { visibleRoutes } from "../nav-tree";
+	import { canSee, viewAs } from "../../access/access.svelte";
+	import { NativeSelect } from "../../ui";
 	import { tabPages } from "../mobile-nav";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../../ui/viewport.svelte";
 
@@ -18,7 +20,7 @@
 	const local = $derived(me?.mode === "local");
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
-	const rows = $derived(tabPages("more", visibleRoutes(NAV_ROUTES, Boolean(me?.isAdmin))));
+	const rows = $derived(tabPages("more", visibleRoutes(NAV_ROUTES, Boolean(me?.isAdmin), canSee)));
 	const envSummary = $derived(
 		!me ? "" : `${me.envLabel} · ${me.databaseLabel}`,
 	);
@@ -74,6 +76,26 @@
 			<div class="card env" class:risk={Boolean(me?.risk)}>
 				<p class="label">{envSummary}</p>
 				<p class="hint">{envNote}</p>
+			</div>
+		</section>
+	{/if}
+
+	{#if me?.viewAs?.length}
+		<!-- Dev and local: an owner looks at ops as a role sees it (#375). -->
+		<section class="block" aria-labelledby="more-view-as">
+			<h2 id="more-view-as" class="heading">View as</h2>
+			<div class="card">
+				<NativeSelect
+					id="more-view-as-role"
+					aria-label="View ops as"
+					value={String(me.access?.viewingAs ? me.access.role?.id : me.viewAs.find((role) => role.owner)?.id)}
+					options={me.viewAs.map((role) => ({ value: String(role.id), label: role.owner ? "Owner (you)" : role.name }))}
+					onchange={(event) => {
+						const id = Number(event.currentTarget.value);
+						viewAs(me?.viewAs?.find((role) => role.id === id)?.owner ? null : id);
+					}}
+				/>
+				<p class="hint">See ops as that role does: its menu, and what it can change.</p>
 			</div>
 		</section>
 	{/if}

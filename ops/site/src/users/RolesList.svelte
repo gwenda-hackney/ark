@@ -15,6 +15,7 @@
 	import { createRole, deleteRole, getRoles, updateRole } from "../app/api";
 	import { AREAS } from "../access/areas.js";
 	import type { Level, OpsRole } from "./types";
+	import { roleSummary } from "./role-summary";
 
 	let { canEdit }: { canEdit: boolean } = $props();
 
@@ -41,16 +42,7 @@
 
 	const labelOf = (id: string) => AREAS.find((area) => area.id === id)?.label || id;
 
-	/** "Edit: What's on, Email · View: Menus", or "Everything". */
-	function summary(role: OpsRole): string {
-		if (role.owner) return "Everything";
-		const by = (level: Level) => AREAS.filter((area) => role.areas[area.id] === level).map((area) => area.label);
-		const parts = [
-			by("edit").length ? `Edit: ${by("edit").join(", ")}` : "",
-			by("view").length ? `View: ${by("view").join(", ")}` : "",
-		].filter(Boolean);
-		return parts.join(" · ") || "Nothing to change; looks at the open areas";
-	}
+	const summary = roleSummary;
 
 	const columnDefs: ColDef<OpsRole>[] = [
 		{ headerName: "Role", field: "name", width: 170, minWidth: 140 },

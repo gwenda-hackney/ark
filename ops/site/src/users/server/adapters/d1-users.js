@@ -11,7 +11,7 @@ import { notFound, userRecord } from "../user-model.js";
 
 export const usersTable = d1Table({
   table: "users",
-  columns: { id: "int", name: "text", email: "text", active: "bool", roleId: "int", extras: "json" },
+  columns: { id: "int", name: "text", email: "text", active: "bool", roleId: "int" },
   orderBy: "id",
 });
 

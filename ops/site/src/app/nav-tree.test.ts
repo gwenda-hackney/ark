@@ -5,6 +5,7 @@ import {
 	isPagePath,
 	matchActiveRoute,
 	pageFrame,
+	areaOfPath,
 	pageTabs,
 	visibleRoutes,
 } from "./nav-tree.ts";
@@ -199,6 +200,33 @@ describe("matchActiveRoute", () => {
 		assert.deepEqual(opens("/venue/gallery"), ["photos", "venue"]);
 		// Menu sections live on each menu now: the Menus page takes it to /menus (#305).
 		assert.equal(parseShellPath("/config/sections").page, "menus");
+	});
+});
+
+describe("access by area (#375)", () => {
+	const levels: Record<string, string> = { "whats-on": "edit", email: "view", "email-people": "none", menus: "none" };
+	const see = (area?: string) => !area || (levels[area] ?? "none") !== "none";
+
+	it("the menu leaves out pages they have no access to, and headings left empty", () => {
+		const ids = visibleRoutes(routes, false, see).map((row) => [row.id, row.children?.map((child) => child.id)]);
+		assert.deepEqual(ids, [
+			["home", undefined],
+			["whats-on", ["schedule", "events", "popups", "deals", "email"]],
+		]);
+	});
+
+	it("a tab of an area they can't see is disabled, saying why; the others stay links", () => {
+		const tabs = pageTabs(routes, "email", see);
+		assert.deepEqual(tabs.map((tab) => [tab.id, Boolean(tab.disabled)]), [["emails", false], ["sent", false], ["people", true]]);
+		assert.match(tabs[2]?.reason || "", /Ask an owner/);
+	});
+
+	it("a path's area is its tab's own, else its page's", () => {
+		const page = (id: string) => routes.flatMap((row) => row.children || [row]).find((row) => row.id === id) || null;
+		assert.equal(areaOfPath(page("email"), "/email/people"), "email-people");
+		assert.equal(areaOfPath(page("email"), "/email/sent"), "email");
+		assert.equal(areaOfPath(page("stock"), "/suppliers"), "stock");
+		assert.equal(areaOfPath(null, "/"), undefined);
 	});
 });
 
