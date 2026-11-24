@@ -1,39 +1,26 @@
 /**
- * Admins see developer tools (code, databases, resetting the preview site).
- * Everyone else sees the plain editor screens. The list is a setting in the
- * config database (ops.admin_emails, comma-separated) rather than a Users
- * column. Local ops: everyone is an admin.
+ * Owners (#375; "admins" before roles): everything in ops, developer tools
+ * included. Who is one comes from their role (access.js); on dev and a
+ * developer's machine everyone is.
  */
 import { resolveAuth, resolveSessionEmail } from "./auth.js";
-import { getConfigString, siteEnvName } from "../../platform/config-store.js";
+import { accessFor, requireArea } from "./access.js";
 
-export const ADMIN_EMAILS_KEY = "ops.admin_emails";
+export { ADMIN_EMAILS_KEY, parseAdminEmails } from "./access.js";
 
-export function parseAdminEmails(value) {
-  return new Set(
-    String(value || "")
-      .split(/[\s,;]+/)
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean),
-  );
+export async function isOpsAdmin(env, email) {
+  return (await accessFor(env, email)).owner;
 }
 
-export async function isOpsAdmin(env, email, { read = getConfigString } = {}) {
-  if (siteEnvName(env) === "dev") return true;
-  const normalized = String(email || "").trim().toLowerCase();
-  if (!normalized) return false;
-  return parseAdminEmails(await read(env, ADMIN_EMAILS_KEY)).has(normalized);
+export async function requestEmail(env, request) {
+  return resolveSessionEmail(request, resolveAuth(env)).catch(() => "");
 }
 
 export async function requestIsAdmin(env, request) {
-  const email = await resolveSessionEmail(request, resolveAuth(env)).catch(() => "");
-  return isOpsAdmin(env, email);
+  return isOpsAdmin(env, await requestEmail(env, request));
 }
 
-/** Throws 403 for non-admins. */
+/** Throws 403 unless they can use developer tools. */
 export async function requireAdmin(env, request) {
-  if (await requestIsAdmin(env, request)) return;
-  const error = new Error("Only admins can use developer tools.");
-  error.status = 403;
-  throw error;
+  await requireArea(env, await requestEmail(env, request), "devtools", "edit");
 }

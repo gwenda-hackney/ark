@@ -10,7 +10,7 @@
 import { nowIso } from "../../../../../shared/d1.js";
 import { isGmailConfigured, sendGmail } from "../../../../../shared/gmail-send.js";
 import { NOTIFICATIONS_FROM } from "../../../../../shared/mail-from.js";
-import { ADMIN_EMAILS_KEY, parseAdminEmails } from "../../access/server/admin.js";
+import { emailsWithAccess } from "../../access/server/access.js";
 import { getConfigValues, setConfigString } from "../../platform/config-store.js";
 import {
   MailchimpError,
@@ -244,13 +244,13 @@ async function settleStuck(env, run, { now }) {
   return repo.move(run.id, ["sending"], "failed", { reason: CUT_OFF_SENDING }, now);
 }
 
-/** Tell whoever looks after the email (the notify list, else the admins). Never fails the caller. */
+/** Tell whoever looks after the email (the notify list, else whoever can send to the list). Never fails the caller. */
 async function tell(env, settings, { subject, lines, opsUrl }) {
   try {
     if (!isGmailConfigured(env)) return false;
     const to = settings.notify.length
       ? settings.notify
-      : [...parseAdminEmails((await getConfigValues(env))[ADMIN_EMAILS_KEY])];
+      : await emailsWithAccess(env, "email-send", "edit");
     if (!to.length) return false;
     const link = opsUrl ? `${String(opsUrl).replace(/\/+$/, "")}/email` : "";
     await sendGmail(env, {

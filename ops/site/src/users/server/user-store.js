@@ -4,6 +4,8 @@
  */
 import { normalizeEmail, text } from "./user-model.js";
 import { usersRepository } from "./user-repository.js";
+import { bustAccessCache } from "../../access/server/access.js";
+import { checkUserAccessChange } from "./role-store.js";
 
 export { normalizeEmail };
 
@@ -16,6 +18,7 @@ export function resetUsersCacheForTests() {
 
 function bustUsersCache() {
   cache = { at: 0, emails: null };
+  bustAccessCache();
 }
 
 /** A user as the API returns it. */
@@ -26,6 +29,9 @@ export function mapOpsUser(user) {
     email: user.email,
     name: user.name || undefined,
     active: user.active,
+    // Their role (null: the default role) and areas given to them alone (#375).
+    roleId: user.roleId ?? null,
+    extras: user.extras || {},
   };
 }
 
@@ -93,9 +99,13 @@ function emailTaken() {
   return error;
 }
 
-export async function createOpsUser(env, input) {
+/** `actor`: the person doing it ({ owner }), for the role rules (role-store.js). */
+export async function createOpsUser(env, input, actor = null) {
   const repo = usersRepository(env);
-  const fields = fieldsFromInput(input || {});
+  const fields = {
+    ...fieldsFromInput(input || {}),
+    ...(await checkUserAccessChange(env, actor, null, { roleId: input?.roleId, extras: input?.extras })),
+  };
   if (!fields.name) fields.name = fields.email;
   const siblings = await repo.list();
   if (siblings.some((user) => user.email === fields.email)) throw emailTaken();
@@ -104,7 +114,7 @@ export async function createOpsUser(env, input) {
   return mapOpsUser(user);
 }
 
-export async function updateOpsUser(env, id, input) {
+export async function updateOpsUser(env, id, input, actor = null) {
   const repo = usersRepository(env);
   const rowId = String(id || "").trim();
   if (!rowId) {
@@ -113,6 +123,10 @@ export async function updateOpsUser(env, id, input) {
     throw error;
   }
   const fields = fieldsFromInput(input || {}, { partial: true });
+  Object.assign(
+    fields,
+    await checkUserAccessChange(env, actor, rowId, { roleId: input?.roleId, extras: input?.extras, active: fields.active }),
+  );
   if (fields.email) {
     const siblings = await repo.list();
     const clash = siblings.find(
@@ -129,13 +143,14 @@ export async function updateOpsUser(env, id, input) {
   return mapOpsUser(user);
 }
 
-export async function deleteOpsUser(env, id) {
+export async function deleteOpsUser(env, id, actor = null) {
   const rowId = String(id || "").trim();
   if (!rowId) {
     const error = new Error("Missing id.");
     error.status = 400;
     throw error;
   }
+  await checkUserAccessChange(env, actor, rowId, { removing: true });
   await usersRepository(env).remove(rowId);
   bustUsersCache();
 }

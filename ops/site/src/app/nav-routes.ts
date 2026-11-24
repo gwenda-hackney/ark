@@ -99,7 +99,17 @@ export const NAV_ROUTES: NavRoute[] = [
 		heading: true,
 		children: [
 			{ id: "venue", path: "/venue", name: "Venue", icon: "clock", hint: "Opening hours and parties, on the website" },
-			{ id: "users", path: "/users", name: "Users", icon: "users", hint: "Who may sign in" },
+			{
+				id: "users",
+				path: "/users",
+				name: "Users",
+				icon: "users",
+				hint: "Who may sign in, and what they can do",
+				tabs: [
+					{ id: "people", label: "People", path: "/users" },
+					{ id: "roles", label: "Roles", path: "/users/roles" },
+				],
+			},
 			{
 				id: "lightspeed",
 				path: "/lightspeed",

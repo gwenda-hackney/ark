@@ -51,7 +51,7 @@ function production({ nights = true } = {}) {
   world.env.SITE_ENV = "production";
   world.env.GMAIL_SERVICE_ACCOUNT_JSON = world.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON;
   world.mailchimp.connect(world.env);
-  setting("ops.admin_emails", ADMIN);
+  world.makeOwner(ADMIN);
   if (nights) publishMonth(world);
 }
 
@@ -187,7 +187,7 @@ describe("monthly email: off until an admin switches it on", () => {
     production();
     const refused = await as(STAFF, saveSettings, "/api/email/settings", { sending: true });
     assert.equal(refused.status, 403);
-    assert.equal(refused.data.error, "Only admins can change the schedule or send to the mailing list.");
+    assert.equal(refused.data.error, "You can't change the schedule or send to the mailing list. Ask an owner.");
     resetConfigCacheForTests();
     assert.equal((await status()).settings.sending, false);
 

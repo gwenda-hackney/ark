@@ -96,7 +96,7 @@
 							<LightspeedPage />
 						{/if}
 					{:else if key === "users"}
-						<UsersPage />
+						<UsersPage {me} view={route.view === "roles" ? "roles" : "people"} />
 					{:else if key === "venue"}
 						{#if route.view === "gallery"}
 							<GalleryPage />
