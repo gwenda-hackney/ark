@@ -1,14 +1,14 @@
 <script lang="ts">
 	/**
-	 * Email's first page (#348): every email at a glance, as cards.
+	 * Email's first page (#348): every email at a glance, as a list with its picture.
 	 * Scheduled: the monthly what's on (where it stands, when it next goes, the
 	 * last one sent) and any one-off set to go. One-off: the rest written
 	 * here, drafts and sent
-	 * (Promote… and New email are in the page's header). A card opens its email.
+	 * (Promote… and New email are in the page's header). A row opens its email.
 	 */
-	import { Badge, Button, EmptyState, Skeleton } from "../ui";
+	import { Button, EmptyState, Skeleton } from "../ui";
 	import { Icon } from "../app/shell";
-	import { navigate } from "../app/nav";
+	import EmailListGrid, { type EmailListRow } from "./EmailListGrid.svelte";
 	import { getWeeklyEmailPreview, type EmailFrame, type OneOffSummary, type WeeklyEmailStatus } from "./email-api";
 	import { leadPicture, nextLine, sentLine, statusLine } from "./email-view";
 	import { sectionImageUrl } from "../../../../shared/email/sections.js";
@@ -74,6 +74,39 @@
 				String(b.updatedAt).localeCompare(String(a.updatedAt)),
 		),
 	);
+
+	/** A one-off email as a row of the list. */
+	function oneOffRow(email: OneOffSummary): EmailListRow {
+		const badge = statusBadge(email.status);
+		const foot = oneOffFooter(email);
+		const name = emailName(email) || "No name yet";
+		return {
+			id: String(email.id),
+			href: writePath(email.id),
+			photo: oneOffPicture(email),
+			name,
+			subject: email.subject && email.subject !== name ? email.subject : "",
+			status: badge.label,
+			tone: badge.tone,
+			when: `${foot.label}: ${foot.value || "–"}`,
+		};
+	}
+
+	/** Scheduled: the monthly what's on first, then one-offs set to go. */
+	const scheduledRows = $derived<EmailListRow[]>([
+		{
+			id: "monthly",
+			href: "/email/monthly",
+			photo: weeklyPicture,
+			name: "Monthly what's on",
+			subject: status ? `Next: ${nextLine(status)}` : "Loading…",
+			status: weekly?.label || "",
+			tone: weekly?.tone || "neutral",
+			when: `Last sent: ${lastSent ? sentLine(lastSent.sentAt) : "Not yet"}`,
+		},
+		...scheduled.map(oneOffRow),
+	]);
+	const oneOffRows = $derived(ordered.map(oneOffRow));
 </script>
 
 <div class="overview">
@@ -84,24 +117,7 @@
 				<p>They go out by themselves: the monthly what's on, and any email set to go.</p>
 			</div>
 		</header>
-		<div class="cards">
-			<button type="button" class="card" onclick={() => navigate("/email/monthly")}>
-				<span class="card-top">
-					{#if weeklyPicture}
-						<img class="card-picture" src={weeklyPicture} alt="" loading="lazy" />
-					{:else}
-						<span class="card-icon"><Icon name="calendar" size={20} /></span>
-					{/if}
-					{#if weekly}<Badge tone={weekly.tone} label={weekly.label} />{/if}
-				</span>
-				<span class="card-name">Monthly what's on</span>
-				<span class="card-sub">{status ? `Next: ${nextLine(status)}` : "Loading…"}</span>
-				{@render footer("Last sent", lastSent ? sentLine(lastSent.sentAt) : "Not yet")}
-			</button>
-			{#each scheduled as email (email.id)}
-				{@render oneOffCard(email)}
-			{/each}
-		</div>
+		<EmailListGrid rows={scheduledRows} scrollKey="email-scheduled" />
 	</section>
 
 	<section class="group" aria-labelledby="one-off">
@@ -122,39 +138,10 @@
 		{:else if !ordered.length}
 			<EmptyState icon="send" title="No one-off emails yet" text="Promote a night or a pop-up kitchen, or write your own: a picture, a few words, a button." />
 		{:else}
-			<div class="cards">
-				{#each ordered as email (email.id)}
-					{@render oneOffCard(email)}
-				{/each}
-			</div>
+			<EmailListGrid rows={oneOffRows} scrollKey="email-one-off" />
 		{/if}
 	</section>
 </div>
-
-{#snippet footer(label: string, value: string)}
-	<span class="card-gap"></span>
-	<span class="card-foot"><span class="card-foot-label">{label}:</span> {value || "–"}</span>
-{/snippet}
-
-{#snippet oneOffCard(email: OneOffSummary)}
-	{@const badge = statusBadge(email.status)}
-	{@const picture = oneOffPicture(email)}
-	{@const foot = oneOffFooter(email)}
-	<button type="button" class="card" onclick={() => navigate(writePath(email.id))}>
-		<span class="card-top">
-			{#if picture}
-				<img class="card-picture" src={picture} alt="" loading="lazy" />
-			{:else}
-				<span class="card-icon"><Icon name="send" size={20} /></span>
-			{/if}
-			<Badge tone={badge.tone} label={badge.label} />
-		</span>
-		<span class="card-name">{emailName(email) || "No name yet"}</span>
-		{#if email.subject && email.subject !== emailName(email)}<span class="card-sub">{email.subject}</span>{/if}
-		{@render footer(foot.label, foot.value)}
-	</button>
-{/snippet}
-
 
 <style>
 	.overview {
@@ -182,87 +169,5 @@
 		margin: 0.125rem 0 0;
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
-	}
-	.cards {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
-		gap: var(--space-3);
-	}
-	/* A column, its footer at the bottom: side by side, the footers line up */
-	.card {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-		padding: var(--space-4);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--card);
-		color: inherit;
-		font: inherit;
-		text-align: left;
-		cursor: pointer;
-		transition:
-			border-color 150ms var(--ease),
-			background 150ms var(--ease);
-	}
-	.card:hover,
-	.card:focus-visible {
-		border-color: var(--ring);
-		background: var(--accent);
-	}
-	.card-top {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		margin-bottom: var(--space-2);
-	}
-	/* The email's lead picture, small: enough to tell them apart */
-	.card-picture,
-	.card-icon {
-		width: 4rem;
-		height: 4rem;
-		border-radius: var(--radius-md);
-	}
-	.card-picture {
-		object-fit: cover;
-		background: var(--muted);
-	}
-	.card-icon {
-		display: grid;
-		place-items: center;
-		background: var(--muted);
-		color: var(--muted-foreground);
-	}
-	/* Its name, in the page titles' face and the gold: what it is, at a glance */
-	.card-name {
-		font-family: var(--font-display);
-		font-size: var(--text-xl);
-		font-weight: 600;
-		line-height: 1.1;
-		color: var(--primary);
-	}
-	/* One quiet line under it: the subject the list sees */
-	.card-sub {
-		font-size: var(--text-sm);
-		line-height: 1.4;
-		color: var(--foreground);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	/* When it last went or was edited, at the foot of every card alike */
-	/* Takes up what's left, at least a little: the footer goes to the bottom */
-	.card-gap {
-		flex: 1;
-		min-height: var(--space-2);
-	}
-	.card-foot {
-		padding-top: var(--space-3);
-		border-top: 1px solid var(--border);
-		font-size: var(--text-xs);
-		color: var(--muted-foreground);
-	}
-	.card-foot-label {
-		font-weight: 600;
 	}
 </style>
