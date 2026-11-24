@@ -1,11 +1,12 @@
 <script lang="ts">
 	/**
-	 * Email: what goes to the mailing list, in two tabs. Emails: every email
+	 * Email: what goes to the mailing list, in three tabs. Emails: every email
 	 * as cards, the monthly what's on and the one-offs (EmailOverview); a
 	 * card opens its email over them, the monthly one in MonthlyEmailEditor
 	 * (this month's email, its buttons, its schedule), a one-off in
 	 * OneOffEmailEditor (#348). Sent: every email sent, with Mailchimp's
-	 * numbers. Everyone signed in can look and test; admins change the
+	 * numbers. People: everyone on our own list, with their Mailchimp status
+	 * (admins only). Everyone signed in can look and test; admins change the
 	 * schedule and send. Only production ops reaches the list.
 	 */
 
@@ -23,12 +24,13 @@
 	import { listOneOffEmails, type EmailFrame, type OneOffSummary } from "./email-api";
 	import { navigate, parseShellPath } from "../app/nav";
 	import SentEmails from "./SentEmails.svelte";
+	import PeopleList from "./PeopleList.svelte";
 
 	let {
 		me,
 		path = "/email",
 		view = "emails",
-	}: { me: AuthMe; path?: string; view?: "emails" | "monthly" | "write" | "sent" } = $props();
+	}: { me: AuthMe; path?: string; view?: "emails" | "monthly" | "write" | "sent" | "people" } = $props();
 
 	/** The cards' page, with an email open over it or not. */
 	const onCards = $derived(view === "emails" || view === "write" || view === "monthly");
@@ -73,7 +75,7 @@
 	let sentKey = $state(0);
 	function refresh() {
 		void loadStatus();
-		if (view === "sent") sentKey += 1;
+		if (view === "sent" || view === "people") sentKey += 1;
 		if (onCards) void loadOneOffs();
 	}
 
@@ -95,8 +97,8 @@
 </script>
 
 <div class="root">
-<div class="page scrollbar-fade" class:fill={view === "sent"} class:parked={editing} inert={editing}>
-	<PageHeader title="Email" tabs={{ items: navTabs("email"), value: view === "sent" ? "sent" : "emails" }}>
+<div class="page scrollbar-fade" class:fill={view === "sent" || view === "people"} class:parked={editing} inert={editing}>
+	<PageHeader title="Email" tabs={{ items: navTabs("email"), value: view === "sent" || view === "people" ? view : "emails" }}>
 		{#snippet actions()}
 			{#if onCards}
 				<Button variant="outline" size="sm" data-compact onclick={() => (promoting = true)}>
@@ -122,6 +124,10 @@
 	{#if view === "sent"}
 		{#key sentKey}
 			<SentEmails available={status ? status.access.mailchimp : null} />
+		{/key}
+	{:else if view === "people"}
+		{#key sentKey}
+			<PeopleList isAdmin={Boolean(me.isAdmin)} />
 		{/key}
 	{:else}
 		<EmailOverview {status} frame={oneOffFrame} emails={oneOffs} loading={oneOffsLoading} error={oneOffsError} onretry={() => void loadOneOffs()} />
