@@ -173,6 +173,9 @@ export async function popupChoices(env, { today = londonToday() } = {}) {
     .map(({ event }) => ({ id: String(event.id), name: event.name, when: popupWhen(event, today) }));
 }
 
+/** "Quiz at Gwenda", unless its name says so already ("EPIC Jam at Gwenda: …"). */
+export const atGwenda = (name) => (/\bgwenda\b/i.test(name) ? name : `${name} at Gwenda`);
+
 /** A night is any series that isn't a deal or a pop-up kitchen (one saved before categories is a night). */
 const isNight = (event) => event.category !== "promotion" && event.category !== "popup";
 
@@ -225,7 +228,7 @@ export async function nightDraft(env, id, { site, today = londonToday() }) {
   const days = event.repeatUnit === "week" ? daysWords(event.weekdays) : "";
   return {
     name: `${name} promo`,
-    subject: `${headline} at Gwenda, ${once || !days ? dateWords(next) : days}`,
+    subject: `${atGwenda(headline)}, ${once || !days ? dateWords(next) : days}`,
     previewText: previewLine(line, when),
     sections,
   };
@@ -274,7 +277,7 @@ export async function dealDraft(env, id, { site, today = londonToday() }) {
   ];
   return {
     name: `${name} promo`,
-    subject: `${name} at Gwenda${offer ? `: ${offer}` : ""}, ${once || !days ? dateWords(next) : days}`,
+    subject: `${atGwenda(name)}${offer ? `: ${offer}` : ""}, ${once || !days ? dateWords(next) : days}`,
     previewText: previewLine(line, when),
     sections,
   };

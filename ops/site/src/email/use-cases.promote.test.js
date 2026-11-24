@@ -16,7 +16,7 @@ import { createMenuItem, createMenuSection } from "../menu/server/menu-store.js"
 import { createMenu } from "../menu/server/menus.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { timeLabel } from "../venue/hours-model.js";
-import { daysWords, popupWhen, previewLine } from "./server/promote.js";
+import { atGwenda, daysWords, popupWhen, previewLine } from "./server/promote.js";
 
 /** Twelve o'clock as ops says it (hours-model.js): noon. */
 const NOON = timeLabel("12:00");
@@ -296,6 +296,11 @@ describe("promote words", () => {
     assert.equal(daysWords(["wed", "thu", "fri", "sat", "sun"]), "Wednesdays to Sundays");
     assert.equal(daysWords(["thu"]), "Thursdays");
     assert.equal(daysWords(["mon", "wed", "fri"]), "Mondays, Wednesdays and Fridays");
+  });
+
+  it("says at Gwenda once in a subject", () => {
+    assert.equal(atGwenda("Pub Quiz"), "Pub Quiz at Gwenda");
+    assert.equal(atGwenda("EPIC Jam at Gwenda: A Weekend of Hip Hop Culture"), "EPIC Jam at Gwenda: A Weekend of Hip Hop Culture");
   });
 
   it("keeps the inbox preview to plain words", () => {
