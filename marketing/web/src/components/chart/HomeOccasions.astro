@@ -7,6 +7,8 @@
  * marked with it. The page is built ahead of time, so every occasion not yet
  * over is in it, and the browser shows the ones on today
  * (scripts/occasion-cards.js); with none on, the section isn't there.
+ * On a phone the card gives way to a bar that peeks up from the bottom and
+ * opens the occasion in a sheet (initOccasionPeek).
  */
 import "../../styles/chart-nights.css";
 import {
@@ -82,8 +84,37 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
   )
 }
 
+{
+  occasions.length > 0 && (
+    <>
+      {/* Phones (scripts/occasion-cards.js initOccasionPeek): a slim bar rises from the
+          bottom; tapping it slides the occasion up in a sheet. × hides it for the visit. */}
+      <div class="ch-occasion-peek" data-occasion-peek hidden>
+        <button type="button" class="ch-occasion-peek-open" data-peek-open aria-haspopup="dialog">
+          <img class="ch-occasion-peek-img" data-peek-img alt="" width="56" height="56" />
+          <span class="ch-occasion-peek-words">
+            <span class="ch-occasion-peek-tag">Booking now</span>
+            <span class="ch-occasion-peek-name" data-peek-name />
+          </span>
+          <span class="ch-occasion-peek-more" aria-hidden="true">›</span>
+        </button>
+        <button type="button" class="ch-occasion-peek-close" data-peek-close aria-label="Hide this">×</button>
+      </div>
+      <dialog class="ch-occasion-sheet" data-occasion-sheet aria-label="Booking now">
+        <span class="ch-occasion-sheet-grip" aria-hidden="true" />
+        <button type="button" class="ch-occasion-sheet-close" data-sheet-close aria-label="Close">×</button>
+        <div data-sheet-body />
+      </dialog>
+    </>
+  )
+}
+
 <script>
-  import { initOccasionCards } from "../../scripts/occasion-cards.js";
+  import { initOccasionCards, initOccasionPeek } from "../../scripts/occasion-cards.js";
   initOccasionCards();
-  document.addEventListener("astro:page-load", () => initOccasionCards());
+  initOccasionPeek();
+  document.addEventListener("astro:page-load", () => {
+    initOccasionCards();
+    initOccasionPeek();
+  });
 </script>
