@@ -23,19 +23,20 @@ describe("copySteps", () => {
     copySteps(target, {
       provider: fakeProvider(calls),
       copyContent: ({ dryRun }) => calls.push(`content${dryRun ? " (dry)" : ""}`),
+      copyRecord: ({ dryRun }) => calls.push(`record${dryRun ? " (dry)" : ""}`),
     });
 
-  it("everything copies content, then each database the provider has", () => {
+  it("everything copies content, then each database the provider has, then the migrations record", () => {
     assert.deepEqual(
       steps("everything").map((step) => step.id),
-      ["content", "ops-data", "website-data"],
+      ["content", "ops-data", "website-data", "migrations"],
     );
   });
 
-  it("each single target runs one step", () => {
-    assert.deepEqual(steps("content").map((s) => s.id), ["content"]);
-    assert.deepEqual(steps("ops-data").map((s) => s.id), ["ops-data"]);
-    assert.deepEqual(steps("website-data").map((s) => s.id), ["website-data"]);
+  it("each single target runs its one copy, then the migrations record", () => {
+    assert.deepEqual(steps("content").map((s) => s.id), ["content", "migrations"]);
+    assert.deepEqual(steps("ops-data").map((s) => s.id), ["ops-data", "migrations"]);
+    assert.deepEqual(steps("website-data").map((s) => s.id), ["website-data", "migrations"]);
   });
 
   it("labels data steps with the provider, not a hard-coded name", () => {
@@ -59,15 +60,17 @@ describe("runCopySteps", () => {
     const steps = copySteps("everything", {
       provider: fakeProvider(calls, { fail: "ops" }),
       copyContent: () => calls.push("content"),
+      copyRecord: () => calls.push("record"),
     });
     const results = await runCopySteps(steps, { dryRun: true });
-    assert.deepEqual(calls, ["content", "ops (dry)", "website (dry)"]);
+    assert.deepEqual(calls, ["content", "ops (dry)", "website (dry)", "record"]);
     assert.deepEqual(
       results.map((r) => [r.id, r.ok]),
       [
         ["content", true],
         ["ops-data", false],
         ["website-data", true],
+        ["migrations", true],
       ],
     );
     const summary = copySummary("everything", results, { dryRun: true });

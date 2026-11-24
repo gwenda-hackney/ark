@@ -12,6 +12,8 @@ import {
   selectMigrations,
   siteChanges,
 } from "./migrations.mjs";
+import { migrationRecord } from "./migration-record.mjs";
+import { copyMigrationRecord } from "./dev-copy/migration-record.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -40,7 +42,7 @@ describe("migrations", () => {
     const run = (list) => runMigrations(list, { env: "dev", site, log: () => {} });
     assert.equal((await run([make("1.mjs", async () => {})])).rebuild, false);
     const result = await run([make("2.mjs", async () => site.note("series-x"))]);
-    assert.deepEqual(result, { rebuild: true, changes: ["series-x"] });
+    assert.deepEqual([result.rebuild, result.changes], [true, ["series-x"]]);
   });
 
   it("notes Sanity changes to published documents or by query, not drafts", async () => {
@@ -75,6 +77,68 @@ describe("migrations", () => {
     // No config token: it would throw if it tried to touch the database.
     await cleanup.up({ env: "dev", processEnv: {}, log: (line) => lines.push(line) });
     assert.deepEqual(lines, ["production only"]);
+  });
+});
+
+describe("each migration runs once per environment", () => {
+  /** A deploy of these migrations against `db`'s record; returns what ran. */
+  function deploy(db, migrations, opts = {}) {
+    return runMigrations(migrations, { env: "dev", log: () => {}, record: migrationRecord(db), ...opts });
+  }
+  const make = (name, up = async () => {}, extra = {}) => checkMigration(name, { app: "ops", phase: "post", about: name, up, ...extra });
+
+  it("a one-off runs at one deploy and is skipped at the next; a standing one runs at both", async () => {
+    const db = createTestD1("config");
+    const list = [make("2099-01-01-once.mjs"), make("tidy.mjs", undefined, { every: true })];
+    assert.deepEqual((await deploy(db, list)).ran, ["2099-01-01-once.mjs", "tidy.mjs"]);
+    assert.deepEqual((await deploy(db, list)).ran, ["tidy.mjs"]);
+    assert.ok((await migrationRecord(db).ran()).has("2099-01-01-once.mjs"));
+    assert.ok(!(await migrationRecord(db).ran()).has("tidy.mjs"), "a standing one isn't recorded");
+  });
+
+  it("one that fails isn't recorded, so the next deploy tries it again", async () => {
+    const db = createTestD1("config");
+    let broken = true;
+    const list = [
+      make("2099-01-01-flaky.mjs", async () => {
+        if (broken) throw new Error("not yet");
+      }),
+    ];
+    await assert.rejects(deploy(db, list), /not yet/);
+    broken = false;
+    assert.deepEqual((await deploy(db, list)).ran, ["2099-01-01-flaky.mjs"]);
+  });
+
+  it("a dry run records nothing; asked for by name (--only), it runs even after it has", async () => {
+    const db = createTestD1("config");
+    const list = [make("2099-01-01-once.mjs")];
+    await deploy(db, list, { dryRun: true });
+    assert.ok(!(await migrationRecord(db).ran()).has("2099-01-01-once.mjs"));
+    await deploy(db, list);
+    assert.deepEqual((await deploy(db, list, { again: true })).ran, ["2099-01-01-once.mjs"]);
+  });
+
+  it("every one-off in migrations/ today is recorded as run (they've all reached production)", async () => {
+    const ran = await migrationRecord(createTestD1("config")).ran();
+    const oneOffs = (await loadMigrations(resolve(ROOT, "migrations"))).filter((m) => !m.every);
+    for (const m of oneOffs.filter((m) => m.name < "2026-11-23")) assert.ok(ran.has(m.name), m.name);
+  });
+
+  it("copying production to dev gives dev production's record: what only dev ran runs again on the copied data", async () => {
+    const production = createTestD1("config");
+    const dev = createTestD1("config");
+    await migrationRecord(production).add({ name: "2099-01-01-released.mjs", app: "ops", phase: "post" });
+    await migrationRecord(dev).add({ name: "2099-01-01-released.mjs", app: "ops", phase: "post" });
+    await migrationRecord(dev).add({ name: "2099-01-02-unreleased.mjs", app: "ops", phase: "post" });
+
+    const lines = [];
+    await copyMigrationRecord({ from: production, to: dev, dryRun: true, log: (line) => lines.push(line) });
+    assert.ok((await migrationRecord(dev).ran()).has("2099-01-02-unreleased.mjs"), "a dry run changes nothing");
+    await copyMigrationRecord({ from: production, to: dev, log: (line) => lines.push(line) });
+    assert.deepEqual(await migrationRecord(dev).rows(), await migrationRecord(production).rows());
+    assert.match(lines.at(-1), /runs again: 2099-01-02-unreleased\.mjs/);
+    const list = [make("2099-01-01-released.mjs"), make("2099-01-02-unreleased.mjs")];
+    assert.deepEqual((await deploy(dev, list)).ran, ["2099-01-02-unreleased.mjs"]);
   });
 });
 
