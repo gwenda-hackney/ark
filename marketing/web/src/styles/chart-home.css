@@ -909,12 +909,41 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* A phone: still the feature, but one screen at most. A wide, short
+     picture and tighter words. */
   .ch-occasion-photo {
     min-height: 0;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 9;
   }
 
   .ch-occasion-body {
-    padding: 1.75rem 1.25rem 2rem;
+    gap: 0.625rem;
+    padding: 1.25rem 1.25rem 1.5rem;
+  }
+
+  .ch-occasion-tag {
+    font-size: 1.125rem;
+  }
+
+  .ch-occasion-name.ch-poster {
+    font-size: 2.5rem;
+  }
+
+  .ch-occasion-covers {
+    font-size: 1.75rem;
+  }
+
+  .ch-occasion-line {
+    font-size: 1.0625rem;
+    line-height: 1.4;
+  }
+
+  .ch-occasion-included {
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+
+  .ch-occasion-cta {
+    margin-top: 0.25rem;
   }
 }
