@@ -120,7 +120,7 @@
 		{:else if loading && !emails.length}
 			<Skeleton rows={2} lines={2} label="Loading emails…" />
 		{:else if !ordered.length}
-			<EmptyState icon="send" title="No one-off emails yet" text="Promote a pop-up kitchen, or write your own: a picture, a few words, a button." />
+			<EmptyState icon="send" title="No one-off emails yet" text="Promote a night or a pop-up kitchen, or write your own: a picture, a few words, a button." />
 		{:else}
 			<div class="cards">
 				{#each ordered as email (email.id)}

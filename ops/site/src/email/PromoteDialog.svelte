@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
-	 * Email → Write → Promote (#348): pick what to promote (a pop-up kitchen
-	 * for now) and which one; its template makes the draft, which opens in
+	 * Email → Write → Promote (#348): pick what to promote (a night or a
+	 * pop-up kitchen) and which one; its template makes the draft, which opens in
 	 * the editor to change, test and send like any other.
 	 */
 	import { Button, Dialog, EmptyState, Field, NativeSelect, Skeleton } from "../ui";
@@ -74,7 +74,7 @@
 				/>
 			</Field>
 			{#if template && !template.choices.length}
-				<p class="none">Nothing to promote: no {template.label.toLowerCase().replace(/^an? /, "")} has nights to come.</p>
+				<p class="none">Nothing to promote: no {template.label.toLowerCase().replace(/^an? /, "")} coming up.</p>
 			{:else if template}
 				<Field label="Which" for="promote-choice" hint={choice?.when}>
 					<NativeSelect
@@ -84,7 +84,7 @@
 					/>
 				</Field>
 			{/if}
-			<p class="note">It makes a draft from what ops knows (its picture, when, a few dishes and the links), for you to change before it goes.</p>
+			<p class="note">It makes a draft from what ops knows ({templateId === "popup" ? "its picture, when, a few dishes" : "its picture, who and when, the running order"} and the links), for you to change before it goes.</p>
 		</div>
 	{/if}
 	{#snippet footer()}
