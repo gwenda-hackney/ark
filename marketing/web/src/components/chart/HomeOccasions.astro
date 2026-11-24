@@ -1,12 +1,14 @@
 ---
 /**
- * Occasions on home (#353), under the hero: a card for each occasion whose
+ * Occasions on home (#353), the first row of Bookings across both halves: a card for each occasion whose
  * show days include today (ops: What's on → Occasions), such as Christmas
  * parties. Its picture, a "Booking now" tag, its name, when it's for, its
  * line, what's included, and Make an enquiry, which opens the party form
  * marked with it. The page is built ahead of time, so every occasion not yet
  * over is in it, and the browser shows the ones on today
  * (scripts/occasion-cards.js); with none on, the section isn't there.
+ * It also pops up the first time it's seen, a sheet on a phone and a window
+ * on a wider screen (initOccasionSheet); closed, the card is still here.
  */
 import "../../styles/chart-nights.css";
 import {
@@ -29,9 +31,9 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
 
 {
   occasions.length > 0 && (
-    <section
-      class="ch-home-section ch-home-occasions"
-      aria-label="Booking now"
+    <div
+      class="ch-home-occasions"
+      id="occasions"
       data-occasion-cards
       hidden={!occasions.some((occasion) => occasionShowing(occasion, today))}
     >
@@ -47,7 +49,7 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
               <img
                 src={sizedImageUrl(occasion.image.url, 720)}
                 srcset={imageSrcset(occasion.image.url) || undefined}
-                sizes="(max-width: 40rem) 92vw, 26rem"
+                sizes="(max-width: 48rem) 92vw, 50vw"
                 alt={occasion.image.alt}
                 width={occasion.image.width || undefined}
                 height={occasion.image.height || undefined}
@@ -57,7 +59,7 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
           )}
           <div class="ch-occasion-body">
             <span class="ch-occasion-tag">Booking now</span>
-            <h2 class="ch-poster ch-occasion-name">{occasion.name}</h2>
+            <h3 class="ch-poster ch-occasion-name">{occasion.name}</h3>
             {occasion.covers && (
               <p class="ch-occasion-covers">{occasion.covers}</p>
             )}
@@ -78,12 +80,45 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
           </div>
         </article>
       ))}
-    </section>
+    </div>
+  )
+}
+
+{
+  occasions.length > 0 && (
+    <>
+      {/* scripts/occasion-cards.js initOccasionSheet: the occasion pops up the first
+          time (a sheet on a phone, a window wider); closed, it stays in the page. */}
+      <dialog
+        class="ch-occasion-sheet"
+        data-occasion-sheet
+        aria-label="Booking now"
+        tabindex="-1"
+      >
+        <span class="ch-occasion-sheet-grip" aria-hidden="true" />
+        <button
+          type="button"
+          class="ch-occasion-sheet-close"
+          data-sheet-close
+          aria-label="Close"
+        >
+          ×
+        </button>
+        <div data-sheet-body />
+      </dialog>
+    </>
   )
 }
 
 <script>
-  import { initOccasionCards } from "../../scripts/occasion-cards.js";
+  import {
+    initOccasionCards,
+    initOccasionSheet,
+  } from "../../scripts/occasion-cards.js";
   initOccasionCards();
-  document.addEventListener("astro:page-load", () => initOccasionCards());
+  initOccasionSheet();
+  document.addEventListener("astro:page-load", () => {
+    initOccasionCards();
+    initOccasionSheet();
+  });
 </script>

@@ -67,6 +67,16 @@ async function drag(page: Page, from: string, to: string, ratio = 0.2) {
 	);
 }
 
+test("the email shows its parts while a picture is still on its way", async ({ page }) => {
+	await fakeApi(page, { email: DRAFT });
+	// The logo never arrives, as when the website it comes from doesn't answer.
+	await page.route("**/brand/logo-email-social.png", () => new Promise(() => {}));
+	await page.goto(`/email/write/${DRAFT.id}`, { waitUntil: "domcontentloaded" });
+	const preview = page.frameLocator('iframe[title="The email"]');
+	await expect(preview.locator('h2[data-edit="heading"]').first()).toHaveText("Party");
+	await expect(preview.getByText("Doors at 9.")).toBeVisible();
+});
+
 test("a heading is typed straight into the email, and saved", async ({ page }) => {
 	const { saves, preview } = await open(page);
 	const heading = preview.locator('h2[data-edit="heading"]').first();

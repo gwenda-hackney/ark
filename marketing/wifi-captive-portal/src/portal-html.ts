@@ -14,6 +14,8 @@ export type PortalPageInput = {
   ssid?: string;
   site?: string;
   error?: string;
+  /** Filled in: the email this phone signed in with before, or the one just typed. */
+  email?: string;
 };
 
 const SHARED_STYLES = `
@@ -362,6 +364,8 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
   const error = input.error
     ? `<p class="error" role="alert">${escapeHtml(input.error)}</p>`
     : "";
+  // Back on a phone that signed in before (not just a typo being shown again).
+  const back = Boolean(input.email) && !input.error;
 
   return `<!DOCTYPE html>
 <html lang="en-GB">
@@ -378,8 +382,8 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
     <img class="logo" src="/logo.svg" width="3824" height="3376" alt="Gwenda Social" />
     <div class="panel">
       <p class="eyebrow">Guest Wi‑Fi</p>
-      <h1>Welcome aboard</h1>
-      <p class="lead">Share your email to join the network.</p>
+      <h1>${back ? "Welcome back" : "Welcome aboard"}</h1>
+      <p class="lead">${back ? "Your email is in. Tap Get online." : "Share your email to join the network."}</p>
       ${error}
       <form method="post" action="/authorize" autocomplete="email">
         <input type="hidden" name="id" value="${escapeHtml(input.id ?? "")}" />
@@ -388,7 +392,7 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
         <input type="hidden" name="ssid" value="${escapeHtml(input.ssid ?? "")}" />
         <input type="hidden" name="site" value="${escapeHtml(input.site ?? "default")}" />
         <label for="email">Email</label>
-        <input id="email" name="email" type="email" required inputmode="email" autocomplete="email" placeholder="your@email.com" autofocus />
+        <input id="email" name="email" type="email" value="${escapeHtml(input.email ?? "")}" required inputmode="email" autocomplete="email" placeholder="your@email.com"${input.email ? "" : " autofocus"} />
         <label class="opt-in">
           <input type="checkbox" name="marketing" value="yes" />
           <span>Send me what’s on at Gwenda<small>Now and then, by email. Unsubscribe anytime.</small></span>

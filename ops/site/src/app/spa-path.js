@@ -282,6 +282,7 @@ export function parseShellPath(path) {
   // old weekly tabs' addresses lead there too.
   if (p === "/email/monthly" || p === "/email/week" || p === "/email/settings") return { page: "email", view: "monthly" };
   if (p === "/email/sent") return { page: "email", view: "sent" };
+  if (p === "/email/people") return { page: "email", view: "people" };
   // Write (#348): the one-off emails, a new one, or one opened by id.
   if (p === "/email/write" || p.startsWith("/email/write/")) {
     const part = decodeSegment(p.slice("/email/write/".length).split("/")[0] || "");

@@ -2,7 +2,7 @@
 	/**
 	 * What's on's lists (#312): the Schedule (a list or a calendar of every
 	 * night, with its kind filter and search), or one kind's list, Events,
-	 * Pop-ups or Deals, as cards. The page keeps it mounted under the editor
+	 * Pop-ups or Deals, as a list. The page keeps it mounted under the editor
 	 * so the week list keeps its scroll position.
 	 */
 	import { fly } from "svelte/transition";
@@ -28,7 +28,7 @@
 	import { eventItemPath, eventNewPath, navigate } from "../app/nav";
 	import ScheduleCalendar from "./ScheduleCalendar.svelte";
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
-	import SeriesCards from "./SeriesCards.svelte";
+	import SeriesListGrid from "./SeriesListGrid.svelte";
 	import { seriesCardRow } from "./series-card";
 	import { filterByCategory, type CategoryFilter } from "./event-category";
 	import { LIST_COPY, SCHEDULE_KINDS, eventPath, sectionEvents, type EventList, type EventSection } from "./event-lists";
@@ -352,7 +352,7 @@
 				{/if}
 			{/snippet}
 		</PageHeader>
-		<div class="list-main fill" class:bleed={Boolean(section) && sectionRows.length > 0 && !loading}>
+		<div class="list-main fill" >
 			{#if error && !editing && !missing && !events.length}
 				<EmptyState tone="error" title="Could not load events" text={error}>
 					{#snippet action()}
@@ -366,7 +366,7 @@
 				{#if section}
 					{#if sectionRows.length}
 						<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-							<SeriesCards rows={sectionRows} />
+							<SeriesListGrid rows={sectionRows} scrollKey={`events-${section}`} />
 						</div>
 					{:else if filtersActive}
 						<EmptyState icon="search" title="Nothing matches" text="Try another name, or clear the search." />
@@ -426,12 +426,6 @@
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
-	}
-
-	/* Series cards scroll edge to edge, like the menu's, so the scrollbar sits
-	   at the side of the page; SeriesCards puts the gutter back inside. */
-	.list-main.bleed {
-		margin: 0 calc(-1 * var(--page-gutter)) calc(-1 * var(--page-gutter));
 	}
 
 	.grid-host,

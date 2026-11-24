@@ -1,7 +1,8 @@
 ---
 /**
  * Home's Bookings (#240), IV in the navigation: the section's heading and
- * note, then the two halves, a party and playing here (BookingHalves, the
+ * note, an occasion on sale across both halves when there is one
+ * (HomeOccasions, such as Christmas parties), then the two halves, a party and playing here (BookingHalves, the
  * same as on /bookings). Home's own links to Bookings come down here; from
  * every other page Bookings goes to its page. Like every section on home it
  * links on to its page: "More →" by the heading, as Photos does, since the
@@ -9,6 +10,7 @@
  */
 import { bookingsWords } from "../../lib/bookings.js";
 import BookingHalves from "./BookingHalves.astro";
+import HomeOccasions from "./HomeOccasions.astro";
 
 const words = bookingsWords();
 ---
@@ -32,5 +34,7 @@ const words = bookingsWords();
     </div>
   </header>
 
-  <BookingHalves />
+  <BookingHalves>
+    <HomeOccasions slot="first" />
+  </BookingHalves>
 </section>

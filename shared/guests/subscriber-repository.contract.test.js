@@ -66,6 +66,7 @@ repositoryContract("SubscriberRepository", {
         marketingOn: "2026-07-04",
         marketingOffOn: "2026-09-01",
         lastSeenOn: "2026-11-15",
+        visitDays: 4,
         synced: true,
       });
       assert.equal(typeof created.id, "number");
@@ -79,13 +80,14 @@ repositoryContract("SubscriberRepository", {
           marketingOn: "2026-07-04",
           marketingOffOn: "2026-09-01",
           lastSeenOn: "2026-11-15",
+          visitDays: 4,
           synced: true,
         },
       ]);
       const plain = await repo.create({ email: "grace@example.com" });
       assert.deepEqual(
-        [plain.marketing, plain.marketingOn, plain.marketingOffOn, plain.lastSeenOn],
-        [true, null, null, null],
+        [plain.marketing, plain.marketingOn, plain.marketingOffOn, plain.lastSeenOn, plain.visitDays],
+        [true, null, null, null, 0],
         "an address is on the list unless it says otherwise",
       );
       assert.deepEqual(await repo.listByEmail("nobody@example.com"), []);
@@ -116,6 +118,7 @@ repositoryContract("SubscriberRepository", {
             marketingOn: "2026-11-18",
             marketingOffOn: null,
             lastSeenOn: null,
+            visitDays: 0,
             synced: false,
           },
         ]);
@@ -195,10 +198,20 @@ repositoryContract("SubscriberRepository", {
           after.subscribers,
           before.subscribers.map((record) =>
             ["ada@example.com", "gone@example.com"].includes(record.email)
-              ? { ...record, lastSeenOn: "2026-11-18" }
+              ? { ...record, lastSeenOn: "2026-11-18", visitDays: record.visitDays + 1 }
               : record,
           ),
         );
+      },
+    "each new day on the Wi-Fi counts one visit; the same day again doesn't":
+      async (repo) => {
+        const visit = (now) =>
+          subscribe(repo, { email: "regular@example.com", tag: "wifi", marketing: false, visit: true, now });
+        await visit(NOW);
+        await visit(new Date(NOW.getTime() + 3 * 3600_000));
+        await visit(LATER);
+        const [regular] = await repo.listByEmail("regular@example.com");
+        assert.deepEqual([regular.visitDays, regular.lastSeenOn], [2, "2026-11-18"]);
       },
     "the latest unsubscribe day, or null": async (repo) => {
       assert.equal(await repo.latestMarketingOff(), null);

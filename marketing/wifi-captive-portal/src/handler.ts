@@ -30,14 +30,42 @@ export type HandlerDeps = {
   authorize?: typeof authorizeGuest;
 };
 
-function html(body: string, status = 200): Response {
+function html(body: string, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(body, {
     status,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
+      ...headers,
     },
   });
+}
+
+/**
+ * The guest's email, kept on their phone for a year after they get online,
+ * so next time the page has it filled in and getting online is one tap.
+ * HttpOnly: only this page reads it.
+ */
+const EMAIL_COOKIE = "gwenda_wifi_email";
+const YEAR_SECONDS = 365 * 24 * 60 * 60;
+
+function rememberEmail(email: string): string {
+  return `${EMAIL_COOKIE}=${encodeURIComponent(email)}; Max-Age=${YEAR_SECONDS}; Path=/; Secure; HttpOnly; SameSite=Lax`;
+}
+
+/** The email this phone signed in with before, if it's still a valid one. */
+function rememberedEmail(request: Request): string {
+  const cookies = request.headers.get("Cookie") || "";
+  for (const part of cookies.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name !== EMAIL_COOKIE) continue;
+    try {
+      return normalizeEmail(decodeURIComponent(rest.join("="))) || "";
+    } catch {
+      return "";
+    }
+  }
+  return "";
 }
 
 function queryParam(url: URL, key: string): string {
@@ -134,6 +162,7 @@ export async function handlePortalRequest(
         url: queryParam(url, "url"),
         ssid: queryParam(url, "ssid"),
         site: siteMatch?.[1] ?? (queryParam(url, "site") || "default"),
+        email: rememberedEmail(request),
       }),
     );
   }
@@ -152,6 +181,7 @@ export async function handlePortalRequest(
       url: form.url ?? "",
       ssid: form.ssid ?? "",
       site: site || "default",
+      email: (form.email ?? "").trim(),
     };
 
     if (!email) {
@@ -192,7 +222,7 @@ export async function handlePortalRequest(
       );
     }
 
-    return html(renderSuccessPage(redirect));
+    return html(renderSuccessPage(redirect), 200, { "Set-Cookie": rememberEmail(email) });
   }
 
   return html(renderPortalPage({ error: "Page not found." }), 404);

@@ -9,7 +9,7 @@ export const onRequestGet = withApiHandler(async (context) => {
   return jsonResponse(await promoteChoices(context.env));
 });
 
-/** Promote one: `{ template, id }` → a draft built from its template, saved, to open in the editor. */
+/** Promote one: `{ template, id }`, or just `{ id }` of a series (its kind picks the template) → a draft built from its template, saved, to open in the editor. */
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);
   if (!body || typeof body !== "object") return jsonResponse({ error: "Invalid request." }, 400);
