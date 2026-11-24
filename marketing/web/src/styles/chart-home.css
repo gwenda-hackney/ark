@@ -989,8 +989,11 @@
   transform: none;
 }
 
+/* A dark shade over the page, so nothing behind (the hero's logo) shows
+   round the card */
 .ch-occasion-sheet::backdrop {
-  background: rgb(0 0 0 / 0.6);
+  background: rgb(11 10 8 / 0.92);
+  backdrop-filter: blur(6px);
 }
 
 /* The handle, centred in a strip across the top that × shares on the right,
