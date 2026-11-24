@@ -16,7 +16,7 @@ repositoryContract("RoleRepository", {
     d1: () => d1RoleRepository(createTestD1("ops")),
   },
   cases: {
-    "starts with Owner and Manager, as the migration makes them": async (repo) => {
+    "starts with Owner, Manager and Marketing, as the migration makes them": async (repo) => {
       assert.deepEqual(await repo.list(), DEFAULT_ROLES);
     },
     "a role's levels round-trip; unknown areas and levels are dropped": async (repo) => {
@@ -33,7 +33,7 @@ repositoryContract("RoleRepository", {
       const bar = await repo.create({ name: "Bar" });
       await repo.remove(bar.id);
       assert.equal(await repo.get(bar.id), null);
-      assert.equal((await repo.list()).length, 2);
+      assert.equal((await repo.list()).length, 3);
     },
   },
 });

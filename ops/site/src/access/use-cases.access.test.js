@@ -78,3 +78,24 @@ describe("access by area", () => {
     }
   });
 });
+
+describe("the Marketing role", () => {
+  it("changes all of What's on, sends email and puts the website live; looks at the rest", async () => {
+    const users = d1UserRepository(world.env.OPS_DB);
+    await users.create({ email: "mo@gwenda.co.uk", roleId: 3 });
+    for (const [method, path] of [
+      ["POST", "/api/events"],
+      ["PATCH", "/api/occasions/1"],
+      ["POST", "/api/forms/1/decision"],
+      ["POST", "/api/email/one-off/4/send"],
+      ["POST", "/api/venue/gallery"],
+      ["POST", "/api/web/update"],
+    ]) {
+      assert.equal((await as("mo@gwenda.co.uk", method, path)).status, 200, path);
+    }
+    assert.equal((await as("mo@gwenda.co.uk", "GET", "/api/menus")).status, 200);
+    assert.equal((await as("mo@gwenda.co.uk", "PATCH", "/api/menus/3")).status, 403);
+    assert.equal((await as("mo@gwenda.co.uk", "GET", "/api/email/people")).status, 403);
+    assert.equal((await as("mo@gwenda.co.uk", "GET", "/api/users")).status, 403);
+  });
+});
