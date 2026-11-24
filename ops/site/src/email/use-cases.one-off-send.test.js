@@ -31,7 +31,7 @@ beforeEach(async () => {
   world = await createFakeWorld();
   world.env.OPS_DB = createTestD1("ops");
   world.install();
-  world.setConfig("ops.admin_emails", ADMIN, { env: world.env.SITE_ENV });
+  world.makeOwner(ADMIN);
 });
 
 afterEach(() => {
@@ -43,7 +43,7 @@ afterEach(() => {
 function production() {
   world.env.SITE_ENV = "production";
   world.mailchimp.connect(world.env);
-  world.setConfig("ops.admin_emails", ADMIN, { env: "production" });
+  world.makeOwner(ADMIN);
 }
 
 const SECTIONS = [

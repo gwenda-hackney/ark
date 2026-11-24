@@ -4,6 +4,7 @@
  */
 import { normalizeEmail, text } from "./user-model.js";
 import { usersRepository } from "./user-repository.js";
+import { bustAccessCache } from "../../access/server/access.js";
 
 export { normalizeEmail };
 
@@ -16,6 +17,7 @@ export function resetUsersCacheForTests() {
 
 function bustUsersCache() {
   cache = { at: 0, emails: null };
+  bustAccessCache();
 }
 
 /** A user as the API returns it. */

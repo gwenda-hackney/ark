@@ -20,6 +20,8 @@ import { evaluate, parse } from "groq-js";
 import { resetConfigCacheForTests } from "../../../../shared/config.js";
 import { createTestD1 } from "../../../../shared/testing/d1-sqlite.js";
 import { d1UserRepository } from "../users/server/adapters/d1-users.js";
+import { resetAccessCacheForTests } from "../access/server/access.js";
+import { OWNER_ROLE_ID } from "../users/server/role-repository.js";
 import { eventRepository } from "../events/server/event-repository.js";
 import { menuRepository } from "../menu/server/menu-repository.js";
 
@@ -526,6 +528,7 @@ export async function createFakeWorld() {
        ON CONFLICT (name, env, service) DO UPDATE SET value = excluded.value`,
     );
     resetConfigCacheForTests();
+    resetAccessCacheForTests();
   }
   setConfig("google.drive_events_folder_id", DRIVE_EVENTS_ROOT);
   setConfig("google.calendar_id", CALENDAR_ID);
@@ -577,8 +580,21 @@ export async function createFakeWorld() {
     google,
     mailchimp,
     calls,
+    /**
+     * Make someone an owner (#375): on the ops users list with the Owner
+     * role, in whatever ops database the world has now. Synchronous.
+     */
+    makeOwner(email) {
+      const sql = (text) => `'${String(text).replaceAll("'", "''")}'`;
+      env.OPS_DB.exec(
+        `INSERT INTO users (name, email, active, role_id) VALUES ('', ${sql(email)}, 1, ${OWNER_ROLE_ID})
+         ON CONFLICT (email) DO UPDATE SET role_id = excluded.role_id, active = 1`,
+      );
+      resetAccessCacheForTests();
+    },
     install() {
       globalThis.fetch = fakeFetch;
+      resetAccessCacheForTests();
     },
     restore() {
       globalThis.fetch = realFetch;
