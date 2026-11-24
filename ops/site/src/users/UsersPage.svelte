@@ -1,10 +1,18 @@
 <script lang="ts">
+	/**
+	 * Users: who can sign in (People), and what they can do (#375): each
+	 * person's role, and the Roles tab. Owners change roles and give people
+	 * them; everyone else with Users can look.
+	 */
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
 		Badge,
 		BusyOverlay,
+		Dialog,
+		NativeSelect,
+		Segmented,
 		Button,
 		Confirm,
 		ConfirmDialog,
@@ -22,11 +30,74 @@
 		createOpsUser,
 		deleteOpsUser,
 		getOpsUsers,
+		getRoles,
 		updateOpsUser,
+		type AuthMe,
 	} from "../app/api";
+	import { navTabs } from "../app/nav-routes";
+	import { AREAS } from "../access/areas.js";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
+	import RolesList from "./RolesList.svelte";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
-	import type { OpsUser } from "./types";
+	import type { Level, OpsRole, OpsUser } from "./types";
+
+	let { me, view = "people" }: { me: AuthMe; view?: "people" | "roles" } = $props();
+
+	/** Only owners change roles and who has which. */
+	const isOwner = $derived(Boolean(me?.access?.owner));
+	const NOT_OWNER = "Only owners can change roles";
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+
+	let roles = $state<OpsRole[]>([]);
+	const defaultRole = $derived(roles.find((role) => role.isDefault) || null);
+	function roleOf(user: OpsUser): OpsRole | null {
+		return roles.find((role) => role.id === user.roleId) || defaultRole;
+	}
+	function extrasCount(user: OpsUser): number {
+		return Object.keys(user.extras || {}).length;
+	}
+
+	// Changing one person's access: their role, and areas given to them alone.
+	let accessFor = $state<OpsUser | null>(null);
+	let accessRoleId = $state("");
+	let accessExtras = $state<Record<string, Level>>({});
+	let accessSaving = $state(false);
+	function openAccess(user: OpsUser) {
+		accessFor = user;
+		accessRoleId = String(user.roleId ?? defaultRole?.id ?? "");
+		accessExtras = Object.fromEntries(AREAS.map((area) => [area.id, (user.extras?.[area.id] as Level) || "none"]));
+	}
+	const accessRole = $derived(roles.find((role) => String(role.id) === accessRoleId) || null);
+	const EXTRA_ITEMS = [
+		{ id: "none", label: "As role" },
+		{ id: "view", label: "View" },
+		{ id: "edit", label: "Edit" },
+	];
+	async function saveAccess() {
+		if (!accessFor || !isOwner) return;
+		const id = String(accessFor.id || accessFor._id || "");
+		accessSaving = true;
+		try {
+			const extras = Object.fromEntries(Object.entries(accessExtras).filter(([, level]) => level !== "none"));
+			const data = await updateOpsUser(id, { roleId: accessRoleId ? Number(accessRoleId) : null, extras });
+			users = users.map((row) => (String(row.id) === id ? data.user : row));
+			toast.ok(`${accessFor.name || accessFor.email} is ${accessRole?.name || "set"} now.`);
+			accessFor = null;
+			void loadRoles();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Couldn't change their access.");
+		} finally {
+			accessSaving = false;
+		}
+	}
+	async function loadRoles() {
+		try {
+			roles = (await getRoles()).roles;
+		} catch {
+			roles = [];
+		}
+	}
 
 	let users = $state<OpsUser[]>([]);
 	let loading = $state(true);
@@ -62,6 +133,7 @@
 
 	onMount(() => {
 		void reload();
+		void loadRoles();
 	});
 
 	function openDrawer() {
@@ -160,10 +232,11 @@
 <div class="page scrollbar-fade">
 	<PageHeader
 		title="Users"
-		subtitle="Who can sign in to ops with their Google account."
+		subtitle="Who can sign in to ops, and what they can do."
+		tabs={{ items: navTabs("users"), value: view }}
 	>
 		{#snippet actions()}
-			<Button type="button" onclick={openDrawer}>
+			<Button type="button" disabled={view !== "people"} reason="Add people on the People tab" onclick={openDrawer}>
 				{#snippet icon()}
 					<Icon name="plus" size={16} />
 				{/snippet}
@@ -172,7 +245,9 @@
 		{/snippet}
 	</PageHeader>
 
-	{#if loadError}
+	{#if view === "roles"}
+		<RolesList canEdit={isOwner} />
+	{:else if loadError}
 		<EmptyState tone="error" title="Could not load users" text={loadError}>
 			{#snippet action()}
 				<Button variant="outline" size="sm" onclick={() => void reload()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
@@ -192,7 +267,7 @@
 			<thead>
 				<tr>
 					<th scope="col">Person</th>
-					<th scope="col">Roles</th>
+					<th scope="col">Role</th>
 					<th scope="col">Can sign in</th>
 					<th scope="col"><span class="sr-only">Actions</span></th>
 				</tr>
@@ -200,6 +275,7 @@
 			<tbody>
 				{#each users as user (user.id)}
 					{@const busy = busyId === String(user.id)}
+					{@const role = roleOf(user)}
 					<tr class:off={!user.active}>
 						<td class="person">
 							<div class="person-inner">
@@ -212,8 +288,12 @@
 								</span>
 							</div>
 						</td>
-						<td class="roles" data-label="Roles">
-							<Badge tone="neutral" label="No roles yet" />
+						<td class="roles" data-label="Role">
+							<span class="role-cell">
+								<Badge tone={role?.owner ? "success" : "neutral"} label={role?.name || "…"} />
+								{#if extrasCount(user)}<span class="extras">+{extrasCount(user)} {extrasCount(user) === 1 ? "area" : "areas"}</span>{/if}
+								<Button variant="ghost" size="sm" disabled={!isOwner || busy} reason={NOT_OWNER} onclick={() => openAccess(user)}>Change</Button>
+							</span>
 						</td>
 						<td class="status" data-label="Can sign in">
 							<span class="access">
@@ -280,7 +360,74 @@
 
 <ConfirmDialog {confirm} />
 
+<Dialog open={accessFor !== null} sheet={phone.matches} size="lg" title={accessFor ? `What ${accessFor.name || accessFor.email} can do` : "Access"} onclose={() => !accessSaving && (accessFor = null)}>
+	{#if accessFor}
+		<div class="access-form">
+			<Field label="Role" for="user-role" hint={accessRole?.owner ? "Everything in ops." : "What their role lets them do; give more on single areas below."}>
+				<NativeSelect id="user-role" bind:value={accessRoleId} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))} />
+			</Field>
+			{#if !accessRole?.owner}
+				<p class="extras-lead">More than their role, for {accessFor.name || accessFor.email} alone:</p>
+				<ul class="extras-list">
+					{#each AREAS as area (area.id)}
+						{@const has = accessRole?.areas[area.id] || "none"}
+						<li>
+							<span class="area"><span class="area-name">{area.label}</span><span class="area-hint">Their role: {has === "edit" ? "Edit" : has === "view" ? "View" : "None"}</span></span>
+							<Segmented size="sm" tone="soft" items={EXTRA_ITEMS} ariaLabel="{area.label} for {accessFor.email}" bind:value={accessExtras[area.id]} />
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</div>
+	{/if}
+	{#snippet footer()}
+		<Button variant="ghost" disabled={accessSaving} onclick={() => (accessFor = null)}>Cancel</Button>
+		<Button variant="primary" busy={accessSaving} disabled={!isOwner} reason={NOT_OWNER} onclick={() => void saveAccess()}>
+			{#snippet icon()}<Icon name="check" size={14} />{/snippet}
+			Save
+		</Button>
+	{/snippet}
+</Dialog>
+
 <style>
+	.role-cell {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+	.extras,
+	.extras-lead,
+	.area-hint {
+		color: var(--fg-muted);
+		font-size: var(--text-sm);
+	}
+	.access-form {
+		display: grid;
+		gap: var(--space-4);
+	}
+	.extras-lead {
+		margin: 0;
+	}
+	.extras-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.extras-list li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: var(--space-2) 0;
+		border-bottom: 1px solid var(--border);
+	}
+	.area {
+		display: grid;
+		gap: 0.125rem;
+	}
+	.area-name {
+		font-weight: 500;
+	}
 	.page {
 		position: relative;
 		flex: 1;

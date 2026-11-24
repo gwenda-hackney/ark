@@ -50,8 +50,14 @@ export type AuthMe = {
   databaseLabel: string;
   isProductionDb: boolean;
   risk: "nonprod_on_production_db" | "production_on_nonprod_db" | null;
-  /** Sees developer tools. Always true in dev. */
+  /** An owner: everything, developer tools included. Always true in dev. */
   isAdmin?: boolean;
+  /** Their role and level on each area of ops (#375, src/access/areas.js). */
+  access?: {
+    owner: boolean;
+    role: { id: number; name: string } | null;
+    levels: Record<string, "none" | "view" | "edit">;
+  } | null;
   /** Features that are read-only while their data moves to D1 (#191). */
   frozen?: string[];
 };
@@ -553,6 +559,31 @@ export function deleteOpsUser(id: string) {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/** Every role with its levels and how many have it (#375). */
+export function getRoles() {
+  return request<{ roles: import("../users/types").OpsRole[] }>("/api/roles");
+}
+
+export function createRole(body: { name: string; areas?: Record<string, string> }) {
+  return request<{ role: import("../users/types").OpsRole }>("/api/roles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateRole(id: number, body: { name?: string; areas?: Record<string, string> }) {
+  return request<{ role: import("../users/types").OpsRole }>(`/api/roles/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteRole(id: number) {
+  return request(`/api/roles/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
 }
 
 export function getVenueDetails() {

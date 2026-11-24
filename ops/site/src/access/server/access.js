@@ -106,3 +106,10 @@ export async function requireArea(env, email, area, need = "edit") {
   error.status = 403;
   throw error;
 }
+
+/** The access of the person making a request (their session's email). */
+export async function requestAccess(context) {
+  const { resolveAuth, resolveSessionEmail } = await import("./auth.js");
+  const email = await resolveSessionEmail(context.request, resolveAuth(context.env)).catch(() => "");
+  return { email, ...(await accessFor(context.env, email)) };
+}

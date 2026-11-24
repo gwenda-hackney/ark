@@ -215,6 +215,7 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/menus"), "menus");
     assert.equal(shellPageKey("/menus/3"), "menus");
     assert.equal(shellPageKey("/users"), "users");
+    assert.deepEqual(parseShellPath("/users/roles"), { page: "users", view: "roles" });
     assert.equal(shellPageKey("/venue"), "venue");
     assert.equal(shellPageKey("/venue/gallery"), "venue");
     assert.equal(parseShellPath("/venue").view, "details");
