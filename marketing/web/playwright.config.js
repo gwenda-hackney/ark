@@ -37,6 +37,12 @@ export default defineConfig({
     baseURL,
     // A desk screen: home's bar shows from 1000px
     viewport: { width: 1440, height: 900 },
+    // A visitor who has seen today's occasion already: it doesn't pop up
+    // over home (scripts/occasion-cards.js). Its own tests start empty.
+    storageState: {
+      cookies: [],
+      origins: [{ origin: new URL(baseURL).origin, localStorage: [{ name: "gwenda:occasions-seen", value: '["*"]' }] }],
+    },
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],

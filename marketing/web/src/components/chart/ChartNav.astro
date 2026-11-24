@@ -4,10 +4,10 @@
  * (lib/chart-nav), and CSS shows one set at a time (chart.css):
  *
  * - On a desk screen: a slim bar across the top, the logo and the five
- *   numbered links; Book a table floats in the bottom right corner.
+ *   numbered links.
  * - Narrower: the menu button in the corner opens a panel down the left (the
- *   logo, a compass rose, the links in rings), and a dock along the foot
- *   holds What's on and Book a table.
+ *   logo, a compass rose, the links in rings).
+ * - Every screen: Book a table floats in the bottom right corner.
  * - Home has the five on its hero (ChartHome). There the bar and the menu
  *   button stay out of sight until the visitor, past the hero, scrolls back
  *   up (scripts/chart-nav.js), and their links go down the page to each
@@ -121,9 +121,8 @@ const prefetchInView = (item: (typeof sections)[number]) =>
 </nav>
 
 {
-  /* Book a table, in one place on every page: floating in the bottom right
-     corner of a desk screen; on anything narrower the dock has it, in the
-     same corner */
+  /* Book a table, in one place on every page and every screen: floating in
+     the bottom right corner */
   bookingEnabled && (
     <a
       href={bookingUrl}
@@ -199,28 +198,6 @@ const prefetchInView = (item: (typeof sections)[number]) =>
     }
   </ul>
 </nav>
-
-<div class="ch-dock">
-  <a
-    href={placeHref(whatsOn)}
-    class="ch-btn ch-btn--compact"
-    aria-current={whatsOn.ariaCurrent}
-    data-astro-prefetch={prefetchInView(whatsOn)}>{whatsOn.label}</a
-  >
-  {
-    bookingEnabled && (
-      <a
-        href={bookingUrl}
-        class="ch-btn ch-btn--solid ch-btn--compact"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <ChartBell />
-        {siteConfig.copy.bookingCta}
-      </a>
-    )
-  }
-</div>
 
 <script>
   import { initChartNav, markRouterArrivals } from "../../scripts/chart-nav.js";

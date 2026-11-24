@@ -1,14 +1,14 @@
 ---
 /**
- * Occasions on home (#353), under the hero: a card for each occasion whose
+ * Occasions on home (#353), their own section before Bookings: a card for each occasion whose
  * show days include today (ops: What's on → Occasions), such as Christmas
  * parties. Its picture, a "Booking now" tag, its name, when it's for, its
  * line, what's included, and Make an enquiry, which opens the party form
  * marked with it. The page is built ahead of time, so every occasion not yet
  * over is in it, and the browser shows the ones on today
  * (scripts/occasion-cards.js); with none on, the section isn't there.
- * On a phone the card gives way to a bar that peeks up from the bottom and
- * opens the occasion in a sheet (initOccasionPeek).
+ * It also pops up the first time it's seen, a sheet on a phone and a window
+ * on a wider screen (initOccasionSheet); closed, the card is still here.
  */
 import "../../styles/chart-nights.css";
 import {
@@ -33,10 +33,17 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
   occasions.length > 0 && (
     <section
       class="ch-home-section ch-home-occasions"
-      aria-label="Booking now"
+      id="occasions"
+      aria-labelledby="home-occasions"
       data-occasion-cards
       hidden={!occasions.some((occasion) => occasionShowing(occasion, today))}
     >
+      <header class="ch-home-head">
+        <h2 class="ch-poster" id="home-occasions">Parties</h2>
+        <div class="ch-home-head-end">
+          <p class="ch-home-head-note">Booking now. Tell us what you're after and we'll sort the rest.</p>
+        </div>
+      </header>
       {occasions.map((occasion) => (
         <article
           class="ch-occasion"
@@ -59,7 +66,7 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
           )}
           <div class="ch-occasion-body">
             <span class="ch-occasion-tag">Booking now</span>
-            <h2 class="ch-poster ch-occasion-name">{occasion.name}</h2>
+            <h3 class="ch-poster ch-occasion-name">{occasion.name}</h3>
             {occasion.covers && (
               <p class="ch-occasion-covers">{occasion.covers}</p>
             )}
@@ -87,20 +94,9 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
 {
   occasions.length > 0 && (
     <>
-      {/* Phones (scripts/occasion-cards.js initOccasionPeek): a slim bar rises from the
-          bottom; tapping it slides the occasion up in a sheet. × hides it for the visit. */}
-      <div class="ch-occasion-peek" data-occasion-peek hidden>
-        <button type="button" class="ch-occasion-peek-open" data-peek-open aria-haspopup="dialog">
-          <img class="ch-occasion-peek-img" data-peek-img alt="" width="56" height="56" />
-          <span class="ch-occasion-peek-words">
-            <span class="ch-occasion-peek-tag">Booking now</span>
-            <span class="ch-occasion-peek-name" data-peek-name />
-          </span>
-          <span class="ch-occasion-peek-more" aria-hidden="true">›</span>
-        </button>
-        <button type="button" class="ch-occasion-peek-close" data-peek-close aria-label="Hide this">×</button>
-      </div>
-      <dialog class="ch-occasion-sheet" data-occasion-sheet aria-label="Booking now">
+      {/* scripts/occasion-cards.js initOccasionSheet: the occasion pops up the first
+          time (a sheet on a phone, a window wider); closed, it stays in the page. */}
+      <dialog class="ch-occasion-sheet" data-occasion-sheet aria-label="Booking now" tabindex="-1">
         <span class="ch-occasion-sheet-grip" aria-hidden="true" />
         <button type="button" class="ch-occasion-sheet-close" data-sheet-close aria-label="Close">×</button>
         <div data-sheet-body />
@@ -110,11 +106,11 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
 }
 
 <script>
-  import { initOccasionCards, initOccasionPeek } from "../../scripts/occasion-cards.js";
+  import { initOccasionCards, initOccasionSheet } from "../../scripts/occasion-cards.js";
   initOccasionCards();
-  initOccasionPeek();
+  initOccasionSheet();
   document.addEventListener("astro:page-load", () => {
     initOccasionCards();
-    initOccasionPeek();
+    initOccasionSheet();
   });
 </script>

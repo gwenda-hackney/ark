@@ -489,10 +489,10 @@ html :where(.ch-page) a:where(:not(.ch-btn)) {
   /* Room round the logo, under it especially (its GWENDA is its foot) */
   --ch-bar-size: 4.5rem;
   --ch-bar-h: 0px;
-  --ch-dock-h: 0px;
+  --ch-foot-clear: 0px;
   --ch-fixed-top: 0px;
   scroll-padding-top: var(--ch-fixed-top);
-  scroll-padding-bottom: var(--ch-dock-h);
+  scroll-padding-bottom: var(--ch-foot-clear);
 }
 
 :root:has(.ch-chart-btn:not(.ch-chart-btn--reveal)) {
@@ -511,15 +511,17 @@ html :where(.ch-page) a:where(:not(.ch-btn)) {
   }
 }
 
+/* Below the bar's width the page keeps its foot clear of the floating Book
+   a table, so the last words and the foot never sit under it */
 @media not all and (min-width: 62.5rem) {
-  :root:has(.ch-dock) {
-    --ch-dock-h: calc(3.75rem + 1px + env(safe-area-inset-bottom, 0px));
+  :root:has(.ch-book-fixed) {
+    --ch-foot-clear: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
 .ch-page {
   padding-top: var(--ch-bar-h);
-  padding-bottom: var(--ch-dock-h);
+  padding-bottom: var(--ch-foot-clear);
 }
 
 /*
@@ -664,54 +666,6 @@ html :where(.ch-page) a:where(:not(.ch-btn)) {
 }
 
 /*
- * The dock, along the foot of every page below the bar's width: What's on,
- * and Book a table with its bell, side by side on a solid board with a thin
- * gold rule on top. With bookings off What's on stays the same size, in the
- * middle.
- */
-.ch-dock {
-  display: none;
-}
-
-@media not all and (min-width: 62.5rem) {
-  .ch-dock {
-    position: fixed;
-    inset: auto 0 0;
-    z-index: 40;
-    display: flex;
-    justify-content: center;
-    gap: 0.75rem;
-    height: var(--ch-dock-h);
-    padding: 0.5rem max(var(--ch-gutter), env(safe-area-inset-right))
-      calc(0.5rem + env(safe-area-inset-bottom, 0px))
-      max(var(--ch-gutter), env(safe-area-inset-left));
-    background: var(--ch-board);
-    border-top: 1px solid var(--ch-gold);
-  }
-}
-
-/* Half each, as far as Book a table's words allow; on its own, What's on
-   keeps its half */
-.ch-page .ch-dock .ch-btn.ch-btn--compact {
-  flex: 1 1 0;
-  max-width: 16rem;
-  padding: 0 0.75rem;
-}
-
-.ch-page .ch-dock .ch-btn.ch-btn--compact:only-child {
-  flex: 0 1 calc(50% - 0.375rem);
-}
-
-/* The narrowest phones: a size down, so the two still fit side by side */
-@media (max-width: 22.4375rem) {
-  .ch-page .ch-dock .ch-btn.ch-btn--compact {
-    padding: 0 0.5rem;
-    font-size: 0.875rem;
-    letter-spacing: 0.06em;
-  }
-}
-
-/*
  * Home's bar and menu button (#240): out of sight while the hero is, and on
  * the way down; back, sliding in from the top edge, when the visitor, past
  * the hero, scrolls back up (scripts/chart-nav.js puts data-reveal on the
@@ -795,10 +749,6 @@ html[data-chart-leaving] .ch-page {
 
 .ch-chart-btn:not(.ch-chart-btn--reveal) {
   view-transition-name: chart-menu;
-}
-
-.ch-dock {
-  view-transition-name: chart-dock;
 }
 
 .ch-book-fixed {
@@ -921,7 +871,7 @@ html[data-chart-leaving] .ch-page {
  * the links, for Book a table floating at the foot of a desk screen.
  */
 .ch-hero {
-  --ch-hero-h: calc(100vh - var(--ch-bar-h) - var(--ch-dock-h));
+  --ch-hero-h: calc(100vh - var(--ch-bar-h));
   --ch-hero-foot: 3.5rem;
   /* Everything but the logo, as it is at its tallest: the room above it,
      SOCIAL, the line and the links */
@@ -1052,7 +1002,7 @@ html:not(.fonts-ready) :is(.ch-hero-social, .ch-hero-line, .ch-hero-nav) {
 
 @supports (height: 100svh) {
   .ch-hero {
-    --ch-hero-h: calc(100svh - var(--ch-bar-h) - var(--ch-dock-h));
+    --ch-hero-h: calc(100svh - var(--ch-bar-h));
   }
 }
 
@@ -1897,7 +1847,7 @@ html:not(.fonts-ready) :is(.ch-hero-social, .ch-hero-line, .ch-hero-nav) {
   background: #d8b25a;
 }
 
-/* The smaller button: Book a table floating, and the dock's two. .ch-page in
+/* The smaller button: Book a table floating. .ch-page in
    front so home's bigger buttons don't resize them: one size on every page */
 .ch-page .ch-btn.ch-btn--compact {
   min-height: 2.75rem;
@@ -1905,9 +1855,8 @@ html:not(.fonts-ready) :is(.ch-hero-social, .ch-hero-line, .ch-hero-nav) {
   font-size: 0.9375rem;
 }
 
-/* Book a table, in one place on every desk screen: floating in the bottom
-   right corner, the same size and spot on every page. Narrower, the dock has
-   it, in the same corner */
+/* Book a table, in one place on every page and screen: floating in the
+   bottom right corner, the same size and spot everywhere */
 .ch-page .ch-btn.ch-book-fixed {
   position: fixed;
   right: max(var(--ch-gutter), env(safe-area-inset-right));
@@ -1948,11 +1897,6 @@ html:not(.fonts-ready) :is(.ch-hero-social, .ch-hero-line, .ch-hero-nav) {
   }
 }
 
-@media not all and (min-width: 62.5rem) {
-  .ch-page .ch-btn.ch-book-fixed {
-    display: none;
-  }
-}
 
 /* Eyebrows over the section titles: a size up, in gold, so they read */
 .ch-path > .ch-caps {
@@ -2391,4 +2335,14 @@ html:not(.fonts-ready) :is(.ch-hero-social, .ch-hero-line, .ch-hero-nav) {
 /* Under a page's own title a section's is smaller */
 .ch-main .ch-poster {
   font-size: clamp(1.75rem, 3.6vw, 2.375rem);
+}
+
+/* The hero's logo is a link home that starts it afresh (ChartHome): it sits
+   just as the logo did, and only the keyboard's ring shows it's a link */
+.ch-hero-logo-link {
+  display: block;
+  width: fit-content;
+  margin-inline: auto;
+  line-height: 0;
+  border-radius: 0.5rem;
 }

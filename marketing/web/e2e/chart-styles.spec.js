@@ -94,7 +94,7 @@ test.describe("the keyboard's ring", () => {
   }
 });
 
-test.describe("a thumb's targets, wherever the dock shows", () => {
+test.describe("a thumb's targets, on a touch screen", () => {
   test.use({ viewport: { width: 800, height: 900 } });
 
   /**

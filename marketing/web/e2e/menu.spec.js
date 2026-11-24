@@ -3,7 +3,7 @@ import { PHONE, arrived, settle } from "./support.js";
 
 /**
  * The phone's navigation (#240): the menu button opens a panel down the left
- * over a scrim; the dock along the foot holds What's on and Book a table.
+ * over a scrim; Book a table floats in the bottom right corner.
  */
 
 test.use({ viewport: PHONE });
@@ -69,9 +69,7 @@ test.describe("the open menu", () => {
     );
     await expect(button(page)).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(
-      page.locator(".ch-dock").getByRole("link", { name: /What.s on/ }),
-    ).toBeFocused();
+    expect(await focusIn(page)).not.toBe("the panel");
   });
 
   test("closes when the screen grows to the bar's width, and leaves the page usable", async ({
@@ -87,15 +85,14 @@ test.describe("the open menu", () => {
   });
 });
 
-test("the dock's What's on goes down home, not off it", async ({ page }) => {
-  await page.goto("/");
-  await arrived(page, ".ch-home #hero");
-  await page
-    .locator(".ch-dock")
-    .getByRole("link", { name: /What.s on/ })
-    .click();
-  await expect(page).toHaveURL((url) => url.pathname === "/");
-  await expect(page).toHaveURL((url) => url.hash === "#whats-on");
-  await settle(page);
-  await expect(page.locator("#whats-on")).toBeInViewport();
+test("on a phone Book a table floats in the corner, with no bar along the foot", async ({ page }) => {
+  await page.goto("/menu");
+  const book = page.locator(".ch-book-fixed");
+  await expect(book).toBeVisible();
+  const box = await book.boundingBox();
+  const { width, height } = page.viewportSize();
+  expect(box.x + box.width).toBeGreaterThan(width - 40);
+  expect(box.y + box.height).toBeGreaterThan(height - 60);
+  expect(box.width).toBeLessThan(width / 2);
+  await expect(page.locator(".ch-dock")).toHaveCount(0);
 });

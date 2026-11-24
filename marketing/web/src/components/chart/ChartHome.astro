@@ -35,14 +35,17 @@ const sections = chartSections("/");
     <section class="ch-hero" id="hero">
       <div class="ch-hero-content">
         <h1 class="visually-hidden">{siteConfig.seoTitle}</h1>
-        <img
-          {...chartHeroLogo}
-          alt="Gwenda"
-          class="ch-hero-logo"
-          loading="eager"
-          fetchpriority="high"
-          decoding="async"
-        />
+        {/* The logo starts home afresh: a full reload, from the top */}
+        <a href="/" class="ch-hero-logo-link" data-astro-reload aria-label="Gwenda: start again from the top">
+          <img
+            {...chartHeroLogo}
+            alt="Gwenda"
+            class="ch-hero-logo"
+            loading="eager"
+            fetchpriority="high"
+            decoding="async"
+          />
+        </a>
         <p class="ch-hero-social">{copy.social}</p>
         <p class="ch-hero-line">{copy.heroLine}</p>
         <nav class="ch-hero-nav" aria-label="Site">
@@ -62,9 +65,9 @@ const sections = chartSections("/");
       </div>
     </section>
 
-    <HomeOccasions />
     <HomeNights />
     <HomeMenu />
+    <HomeOccasions />
     <HomeBookings />
     <HomePhotos />
   </main>

@@ -39,5 +39,5 @@ export async function arrived(page, selector = ".ch-page") {
   await settle(page);
 }
 
-/** A phone: the menu button and its panel, and the dock along the foot. */
+/** A phone: the menu button and its panel, and Book a table floating in the corner. */
 export const PHONE = { width: 390, height: 844 };
