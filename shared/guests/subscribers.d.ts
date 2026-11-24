@@ -13,6 +13,8 @@ export type SubscriberRecord = {
   marketingOffOn: string | null;
   /** YYYY-MM-DD: the last day they got online through the guest Wi-Fi. */
   lastSeenOn: string | null;
+  /** How many days they have got online through the guest Wi-Fi. */
+  visitDays: number;
   synced: boolean;
 };
 

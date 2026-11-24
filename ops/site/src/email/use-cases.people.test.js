@@ -36,9 +36,9 @@ const api = async (email) => callApi(world, listPeople, { path: "/api/email/peop
 async function seed() {
   const repo = subscriberRepository(world.env);
   await repo.create({ email: "in@example.com", tags: ["website"], signedUpOn: "2026-10-01", marketing: true, marketingOn: "2026-10-01", synced: true });
-  await repo.create({ email: "new@example.com", tags: ["wifi"], signedUpOn: "2026-11-09", marketing: true, marketingOn: "2026-11-09", lastSeenOn: "2026-11-09", synced: false });
+  await repo.create({ email: "new@example.com", tags: ["wifi"], signedUpOn: "2026-11-09", marketing: true, marketingOn: "2026-11-09", lastSeenOn: "2026-11-09", visitDays: 1, synced: false });
   await repo.create({ email: "left@example.com", tags: ["website", "wifi"], signedUpOn: "2026-09-20", marketing: false, marketingOn: "2026-09-20", marketingOffOn: "2026-11-02", lastSeenOn: "2026-10-30", synced: true });
-  await repo.create({ email: "guest@example.com", tags: ["wifi"], signedUpOn: "2026-11-05", marketing: false, lastSeenOn: "2026-11-08", synced: false });
+  await repo.create({ email: "guest@example.com", tags: ["wifi"], signedUpOn: "2026-11-05", marketing: false, lastSeenOn: "2026-11-08", visitDays: 3, synced: false });
 }
 
 describe("the people on our list", () => {
@@ -47,12 +47,12 @@ describe("the people on our list", () => {
     const { status, data } = await api(ADMIN);
     assert.equal(status, 200, JSON.stringify(data));
     assert.deepEqual(
-      data.people.map((person) => [person.email, person.source, person.acquiredOn, person.lastSeenOn, person.mailchimp.label]),
+      data.people.map((person) => [person.email, person.source, person.acquiredOn, person.lastSeenOn, person.visitDays, person.mailchimp.label]),
       [
-        ["new@example.com", "Wi-Fi", "2026-11-09", "2026-11-09", "Waiting"],
-        ["guest@example.com", "Wi-Fi", "2026-11-05", "2026-11-08", "Not on the list"],
-        ["in@example.com", "Website", "2026-10-01", null, "In Mailchimp"],
-        ["left@example.com", "Website, Wi-Fi", "2026-09-20", "2026-10-30", "Unsubscribed"],
+        ["new@example.com", "Wi-Fi", "2026-11-09", "2026-11-09", 1, "Waiting"],
+        ["guest@example.com", "Wi-Fi", "2026-11-05", "2026-11-08", 3, "Not on the list"],
+        ["in@example.com", "Website", "2026-10-01", null, 0, "In Mailchimp"],
+        ["left@example.com", "Website, Wi-Fi", "2026-09-20", "2026-10-30", 0, "Unsubscribed"],
       ],
     );
     assert.equal(data.people.at(-1).unsubscribedOn, "2026-11-02");

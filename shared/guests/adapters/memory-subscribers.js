@@ -12,6 +12,7 @@ const EMPTY = {
   marketingOn: null,
   marketingOffOn: null,
   lastSeenOn: null,
+  visitDays: 0,
   synced: false,
 };
 const DATES = ["signedUpOn", "marketingOn", "marketingOffOn", "lastSeenOn"];
@@ -30,6 +31,7 @@ export function memorySubscriberRepository() {
     for (const key of DATES) if (key in fields) out[key] = fields[key] || null;
     if ("marketing" in fields) out.marketing = Boolean(fields.marketing);
     if ("synced" in fields) out.synced = Boolean(fields.synced);
+    if ("visitDays" in fields) out.visitDays = Number(fields.visitDays) || 0;
     return out;
   };
   const sorted = () => [...records.values()].sort((a, b) => a.id - b.id);

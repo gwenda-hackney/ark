@@ -17,6 +17,7 @@ export const subscribersTable = d1Table({
     marketingOn: "date",
     marketingOffOn: "date",
     lastSeenOn: "date",
+    visitDays: "int",
     synced: "bool",
   },
   orderBy: "id",

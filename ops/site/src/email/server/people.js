@@ -38,6 +38,7 @@ export function personView(record) {
     source: sources.join(", "),
     acquiredOn: record.signedUpOn || null,
     lastSeenOn: record.lastSeenOn || null,
+    visitDays: Number(record.visitDays) || 0,
     onListSince: record.marketing ? record.marketingOn || null : null,
     unsubscribedOn: record.marketingOffOn || null,
     mailchimp: mailchimpStatus(record),

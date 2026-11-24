@@ -3,7 +3,8 @@
 	 * Email → People: everyone on our own list (Wi-Fi and website sign-ups),
 	 * which the Mailchimp sync copies to Mailchimp every hour. Each with where
 	 * they stand in Mailchimp, where and when we got them, and the last day
-	 * they were on the Wi-Fi. Reads only; admins only.
+	 * they were on the Wi-Fi, and how many days they have been on it. Reads
+	 * only; admins only.
 	 */
 	import type { ColDef } from "ag-grid-community";
 	import { Card, DataGrid, SearchField } from "../ui";
@@ -79,6 +80,15 @@
 			minWidth: 120,
 			valueFormatter: (p) => day(p.value),
 			comparator: (a, b) => String(a || "").localeCompare(String(b || "")),
+		},
+		{
+			headerName: "Visits",
+			field: "visitDays",
+			width: 100,
+			minWidth: 90,
+			type: "numericColumn",
+			headerTooltip: "Days they got online through the guest Wi-Fi",
+			valueFormatter: (p) => (p.value ? String(p.value) : "–"),
 		},
 		{
 			headerName: "Last seen on the Wi-Fi",

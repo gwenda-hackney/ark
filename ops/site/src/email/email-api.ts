@@ -307,6 +307,8 @@ export type ListPerson = {
 	acquiredOn: string | null;
 	/** YYYY-MM-DD: the last day on the guest Wi-Fi. */
 	lastSeenOn: string | null;
+	/** Days they have got online through the guest Wi-Fi. */
+	visitDays: number;
 	onListSince: string | null;
 	unsubscribedOn: string | null;
 	mailchimp: { status: "in" | "waiting" | "unsubscribed" | "off"; label: string; tone: string; detail: string };
