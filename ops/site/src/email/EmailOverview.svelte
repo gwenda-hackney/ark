@@ -123,8 +123,8 @@
 	<section class="group" aria-labelledby="one-off">
 		<header class="group-head">
 			<div>
-				<h2 id="one-off">One-off</h2>
-				<p>Written here: a promotion from a template, or your own.</p>
+				<h2 id="one-off">Manually sent</h2>
+				<p>You send them when you're ready: a promotion from a template, or your own.</p>
 			</div>
 		</header>
 		{#if error}
