@@ -812,6 +812,9 @@
 .ch-home-occasions {
   display: grid;
   gap: 3rem;
+  /* Bookings' first row, across both halves (HomeBookings) */
+  grid-column: 1 / -1;
+  margin-bottom: 1rem;
 }
 
 .ch-home-occasions[hidden],

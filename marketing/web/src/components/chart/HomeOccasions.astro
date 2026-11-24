@@ -1,6 +1,6 @@
 ---
 /**
- * Occasions on home (#353), their own section before Bookings: a card for each occasion whose
+ * Occasions on home (#353), the first row of Bookings across both halves: a card for each occasion whose
  * show days include today (ops: What's on → Occasions), such as Christmas
  * parties. Its picture, a "Booking now" tag, its name, when it's for, its
  * line, what's included, and Make an enquiry, which opens the party form
@@ -31,19 +31,12 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
 
 {
   occasions.length > 0 && (
-    <section
-      class="ch-home-section ch-home-occasions"
+    <div
+      class="ch-home-occasions"
       id="occasions"
-      aria-labelledby="home-occasions"
       data-occasion-cards
       hidden={!occasions.some((occasion) => occasionShowing(occasion, today))}
     >
-      <header class="ch-home-head">
-        <h2 class="ch-poster" id="home-occasions">Parties</h2>
-        <div class="ch-home-head-end">
-          <p class="ch-home-head-note">Booking now. Tell us what you're after and we'll sort the rest.</p>
-        </div>
-      </header>
       {occasions.map((occasion) => (
         <article
           class="ch-occasion"
@@ -87,7 +80,7 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
           </div>
         </article>
       ))}
-    </section>
+    </div>
   )
 }
 

@@ -60,6 +60,8 @@ const halves = bookingsWords().halves.map((half) => ({
 ---
 
 <div class="ch-bookings">
+  {/* A first row across both halves, when the page has one (home's occasion on sale) */}
+  <slot name="first" />
   {
     halves.map((half) => (
       <article
