@@ -11,7 +11,7 @@ import { notFound, userRecord } from "../user-model.js";
 
 export const usersTable = d1Table({
   table: "users",
-  columns: { id: "int", name: "text", email: "text", active: "bool" },
+  columns: { id: "int", name: "text", email: "text", active: "bool", roleId: "int" },
   orderBy: "id",
 });
 
@@ -26,18 +26,19 @@ function cleanFields(fields) {
 }
 
 export function d1UserRepository(db) {
-  const list = () => usersTable.list(db);
+  const record = (row) => (row ? userRecord(row) : null);
+  const list = async () => (await usersTable.list(db)).map(record);
   return {
     list,
-    get: (id) => usersTable.get(db, id),
-    create(fields) {
+    get: async (id) => record(await usersTable.get(db, id)),
+    async create(fields) {
       const { id: _new, ...row } = userRecord(fields);
-      return usersTable.insert(db, row);
+      return record(await usersTable.insert(db, row));
     },
     async update(id, fields) {
       const user = await usersTable.patch(db, id, cleanFields(fields));
       if (!user) throw notFound();
-      return user;
+      return record(user);
     },
     remove: (id) => usersTable.remove(db, id),
     async exportAll() {

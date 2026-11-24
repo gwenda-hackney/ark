@@ -32,8 +32,13 @@
 	import { normalizeClientError, reportClientError } from "./client-error";
 	import { toast } from "../ui/toast.svelte";
 	import type { AuthMe } from "./api";
+	import AreaScope from "../access/AreaScope.svelte";
+	import { setAccess } from "../access/access.svelte";
+	import { areaOfPath } from "./nav-tree";
+	import { untrack } from "svelte";
 
 	let { me }: { me: AuthMe } = $props();
+	setAccess(untrack(() => me));
 
 	const routes = NAV_ROUTES;
 
@@ -62,7 +67,7 @@
 </script>
 
 <ShellLayout {routes} {me} bind:path>
-	{#snippet children({ path: current })}
+	{#snippet children({ path: current, active })}
 		{@const key = pageKey(current)}
 		{@const route = parseShellPath(current)}
 		{@const print = Boolean(route.print)}
@@ -74,6 +79,7 @@
 					in:fly={{ y: print ? 0 : 10, duration: print ? 0 : flyMs, easing: easeOut }}
 					out:fade={{ duration: print ? 0 : fadeMs, easing: easeOut }}
 				>
+					<AreaScope area={areaOfPath(active, current)}>
 					{#if key === "home"}
 						<HomeOverview />
 					{:else if key === "menu"}
@@ -96,7 +102,7 @@
 							<LightspeedPage />
 						{/if}
 					{:else if key === "users"}
-						<UsersPage />
+						<UsersPage {me} view={route.view === "roles" ? "roles" : "people"} />
 					{:else if key === "venue"}
 						{#if route.view === "gallery"}
 							<GalleryPage />
@@ -115,7 +121,7 @@
 						<WeeklyEmailPage
 							{me}
 							path={current}
-							view={route.view === "monthly" || route.view === "sent" || route.view === "write" ? route.view : "emails"}
+							view={route.view === "monthly" || route.view === "sent" || route.view === "people" || route.view === "write" ? route.view : "emails"}
 						/>
 					{:else if key === "events"}
 						<EventsPage path={current} />
@@ -135,6 +141,7 @@
 					{:else}
 						<HomeOverview />
 					{/if}
+					</AreaScope>
 				</div>
 
 				{#snippet failed(error, reset)}

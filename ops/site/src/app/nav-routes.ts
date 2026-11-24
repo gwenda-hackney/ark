@@ -1,6 +1,7 @@
 import type { NavRoute } from "./shell/types";
 import type { SegmentedItem } from "../ui/types";
 import { pageTabs } from "./nav-tree";
+import { canSee } from "../access/access.svelte";
 import { FEATURED_ARTIST_CLOSED } from "../artists/featured-artist.js";
 
 /**
@@ -11,6 +12,10 @@ import { FEATURED_ARTIST_CLOSED } from "../artists/featured-artist.js";
  * photos stay on each event's Images tab). Bar & kitchen is the menus, their
  * items and the stock behind them. Publish is the website: what's waiting to
  * go live. Settings is the rest.
+ *
+ * Each page names its area of ops (src/access/areas.js): someone with no
+ * access to it doesn't see it (visibleRoutes), and a tab of another area
+ * is disabled for them (navTabs).
  *
  * A page with tabs lists them here, each with its own address: old
  * addresses (/suppliers, /forms, /lightspeed/export) are those tabs.
@@ -23,13 +28,13 @@ export const NAV_ROUTES: NavRoute[] = [
 		icon: "",
 		heading: true,
 		children: [
-			{ id: "schedule", path: "/events/schedule", name: "Schedule", icon: "calendar", hint: "Every night in one calendar" },
-			{ id: "events", path: "/events", name: "Events", icon: "star", hint: "Gigs, residencies, one-off nights" },
-			{ id: "popups", path: "/popups", name: "Pop-ups", icon: "recipes", hint: "Guest kitchens, their menus and nights" },
-			{ id: "deals", path: "/deals", name: "Deals", icon: "tag", hint: "Happy Hour and the like" },
-			{ id: "occasions", path: "/occasions", name: "Occasions", icon: "events", hint: "Christmas parties and the like, on home" },
+			{ id: "schedule", area: "whats-on", path: "/events/schedule", name: "Schedule", icon: "calendar", hint: "Every night in one calendar" },
+			{ id: "events", area: "whats-on", path: "/events", name: "Events", icon: "star", hint: "Gigs, residencies, one-off nights" },
+			{ id: "popups", area: "whats-on", path: "/popups", name: "Pop-ups", icon: "recipes", hint: "Guest kitchens, their menus and nights" },
+			{ id: "deals", area: "whats-on", path: "/deals", name: "Deals", icon: "tag", hint: "Happy Hour and the like" },
+			{ id: "occasions", area: "occasions", path: "/occasions", name: "Occasions", icon: "events", hint: "Christmas parties and the like, on home" },
 			{
-				id: "artists",
+				id: "artists", area: "artists",
 				path: "/forms",
 				name: "Artists",
 				icon: "artist",
@@ -47,7 +52,7 @@ export const NAV_ROUTES: NavRoute[] = [
 				],
 			},
 			{
-				id: "email",
+				id: "email", area: "email",
 				path: "/email",
 				name: "Email",
 				short: "Email",
@@ -56,9 +61,10 @@ export const NAV_ROUTES: NavRoute[] = [
 				tabs: [
 					{ id: "emails", label: "Emails", path: "/email" },
 					{ id: "sent", label: "Sent", path: "/email/sent" },
+					{ id: "people", label: "People", path: "/email/people", area: "email-people" },
 				],
 			},
-			{ id: "photos", path: "/venue/gallery", name: "Photos", icon: "camera", hint: "The venue's own photos, on the website" },
+			{ id: "photos", area: "photos", path: "/venue/gallery", name: "Photos", icon: "camera", hint: "The venue's own photos, on the website" },
 		],
 	},
 	{
@@ -67,10 +73,10 @@ export const NAV_ROUTES: NavRoute[] = [
 		icon: "",
 		heading: true,
 		children: [
-			{ id: "menus", path: "/menus", name: "Menus", icon: "list", hint: "Drinks and pop-up menus, their dates and sections" },
-			{ id: "recipes", path: "/menu", name: "Items", icon: "menu", hint: "Every drink and dish" },
+			{ id: "menus", area: "menus", path: "/menus", name: "Menus", icon: "list", hint: "Drinks and pop-up menus, their dates and sections" },
+			{ id: "recipes", area: "menus", path: "/menu", name: "Items", icon: "menu", hint: "Every drink and dish" },
 			{
-				id: "stock",
+				id: "stock", area: "stock",
 				path: "/inventory",
 				name: "Stock",
 				icon: "stock",
@@ -88,7 +94,7 @@ export const NAV_ROUTES: NavRoute[] = [
 		icon: "",
 		heading: true,
 		children: [
-			{ id: "web", path: "/web", name: "Website", icon: "web", badge: "website", hint: "What's waiting to go live" },
+			{ id: "web", area: "website", path: "/web", name: "Website", icon: "web", badge: "website", hint: "What's waiting to go live" },
 		],
 	},
 	{
@@ -97,10 +103,20 @@ export const NAV_ROUTES: NavRoute[] = [
 		icon: "",
 		heading: true,
 		children: [
-			{ id: "venue", path: "/venue", name: "Venue", icon: "clock", hint: "Opening hours and parties, on the website" },
-			{ id: "users", path: "/users", name: "Users", icon: "users", hint: "Who may sign in" },
+			{ id: "venue", area: "venue", path: "/venue", name: "Venue", icon: "clock", hint: "Opening hours and parties, on the website" },
 			{
-				id: "lightspeed",
+				id: "users", area: "users",
+				path: "/users",
+				name: "Users",
+				icon: "users",
+				hint: "Who may sign in, and what they can do",
+				tabs: [
+					{ id: "people", label: "People", path: "/users" },
+					{ id: "roles", label: "Roles", path: "/users/roles" },
+				],
+			},
+			{
+				id: "lightspeed", area: "lightspeed",
 				path: "/lightspeed",
 				name: "Lightspeed",
 				icon: "lightspeed",
@@ -110,9 +126,9 @@ export const NAV_ROUTES: NavRoute[] = [
 					{ id: "export", label: "Export", path: "/lightspeed/export" },
 				],
 			},
-			{ id: "config", path: "/config", name: "Configuration", icon: "settings", hint: "Pour targets, event tasks" },
+			{ id: "config", area: "config", path: "/config", name: "Configuration", icon: "settings", hint: "Pour targets, event tasks" },
 			{
-				id: "dev-tools",
+				id: "dev-tools", area: "devtools",
 				path: "/web/dev",
 				name: "Developer tools",
 				icon: "code",
@@ -123,7 +139,7 @@ export const NAV_ROUTES: NavRoute[] = [
 	},
 ];
 
-/** A rail page's tabs, for its header: `PageHeader tabs={{ items: navTabs("stock"), value }}`. */
+/** A rail page's tabs, for its header: `PageHeader tabs={{ items: navTabs("stock"), value }}`. A tab they have no access to is disabled. */
 export function navTabs(id: string): SegmentedItem[] {
-	return pageTabs(NAV_ROUTES, id);
+	return pageTabs(NAV_ROUTES, id, canSee);
 }

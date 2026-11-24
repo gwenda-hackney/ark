@@ -246,6 +246,7 @@ export function parseShellPath(path) {
   if (p === "/suppliers" || p.startsWith("/suppliers/")) {
     return { page: "suppliers" };
   }
+  if (p === "/users/roles") return { page: "users", view: "roles" };
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
   // Venue, and (#291) the venue's photos (What's on → Photos)
   if (p === "/venue" || p.startsWith("/venue/")) {
@@ -282,6 +283,7 @@ export function parseShellPath(path) {
   // old weekly tabs' addresses lead there too.
   if (p === "/email/monthly" || p === "/email/week" || p === "/email/settings") return { page: "email", view: "monthly" };
   if (p === "/email/sent") return { page: "email", view: "sent" };
+  if (p === "/email/people") return { page: "email", view: "people" };
   // Write (#348): the one-off emails, a new one, or one opened by id.
   if (p === "/email/write" || p.startsWith("/email/write/")) {
     const part = decodeSegment(p.slice("/email/write/".length).split("/")[0] || "");

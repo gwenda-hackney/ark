@@ -12,6 +12,8 @@ import { SIGNUP_SMOKE_EMAIL } from "../shared/smoke-test.js";
 
 export const app = "web";
 export const phase = "post";
+// Standing: tidies up after every deploy, so it runs each time.
+export const every = true;
 export const about = "Smoke tests: remove the test sign-up from Subscribers and Mailchimp";
 
 /** The sync Worker's audience (marketing/subscribe-mailchimp-sync/wrangler.toml). */

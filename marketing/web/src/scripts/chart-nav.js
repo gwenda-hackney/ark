@@ -92,6 +92,7 @@ function initHome() {
   };
 
   setShown(false);
+  glideToOpeningSection(startJump);
 
   addEventListener(
     "scroll",
@@ -115,6 +116,40 @@ function initHome() {
     { passive: true, signal },
   );
   addEventListener("scrollend", () => jumping && endJump(), { signal });
+  // Once a scroll of their own settles, the address says which section the
+  // visitor is in. A jump (a link down the page, Skip to content, Back) sets
+  // its own address, so it holds this off until it has landed.
+  let holdUntil = 0;
+  const hold = () => (holdUntil = Date.now() + 2000);
+  let followTimer = 0;
+  addEventListener("popstate", hold, { signal });
+  page.addEventListener(
+    "click",
+    (event) => {
+      const link =
+        event.target instanceof Element
+          ? event.target.closest("a[href]")
+          : null;
+      if (
+        link instanceof HTMLAnchorElement &&
+        link.pathname === location.pathname &&
+        link.hash
+      )
+        hold();
+    },
+    { signal, capture: true },
+  );
+  addEventListener(
+    "scrollend",
+    () => {
+      clearTimeout(followTimer);
+      followTimer = window.setTimeout(() => {
+        if (Date.now() < holdUntil || jumping) return;
+        followSection(page);
+      }, 250);
+    },
+    { signal },
+  );
   // Back and Forward move the page too
   addEventListener("popstate", startJump, { signal });
 
@@ -146,6 +181,70 @@ function initHome() {
       requestAnimationFrame(() => focusLanding(target));
     },
     { signal },
+  );
+}
+
+/**
+ * Home opened or reloaded on one of its sections (/#bookings): the head's
+ * script (BaseLayout) kept the browser from jumping there and left the
+ * section's id in window.__chartGlideTo. Put it back in the address, and
+ * glide down to it once the hero has shown, as home's links do; with
+ * reduced motion, go straight there. Focus follows to where it lands.
+ *
+ * @param {() => void} startJump keeps the bar away until it has landed
+ */
+function glideToOpeningSection(startJump) {
+  const id = window.__chartGlideTo;
+  if (!id) return;
+  delete window.__chartGlideTo;
+  history.replaceState(
+    history.state,
+    "",
+    `${location.pathname}${location.search}#${encodeURIComponent(id)}`,
+  );
+  const target = document.getElementById(id);
+  if (!target) return;
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  setTimeout(
+    () => {
+      startJump();
+      target.scrollIntoView({
+        behavior: still ? "auto" : "smooth",
+        block: "start",
+      });
+      focusLanding(target);
+      history.scrollRestoration = "auto";
+    },
+    still ? 0 : 450,
+  );
+}
+
+/**
+ * Home's address follows the visitor down the page: once a scroll settles,
+ * it names the section they're in (/#menu, /#bookings; plain / on the hero),
+ * so a reload or a copied link opens where they were. It replaces the
+ * address rather than adding a step, so Back still leaves home as before,
+ * and it waits while the browser puts a page back (Back, Forward).
+ *
+ * @param {HTMLElement} page
+ */
+function followSection(page) {
+  if (document.documentElement.classList.contains("is-restoring-scroll"))
+    return;
+  const line = innerHeight * 0.3;
+  let current = "";
+  for (const section of page.querySelectorAll("main > section[id]")) {
+    if (section.hidden) continue;
+    if (section.getBoundingClientRect().top <= line) current = section.id;
+  }
+  const hash = !current || current === "hero" ? "" : `#${current}`;
+  if (hash === location.hash) return;
+  // Skip to content and Back to top's #main is the top too: leave it
+  if (!hash && location.hash === "#main") return;
+  history.replaceState(
+    history.state,
+    "",
+    `${location.pathname}${location.search}${hash}`,
   );
 }
 

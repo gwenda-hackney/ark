@@ -7,6 +7,8 @@ import { RETIRED_SETTINGS, removeRetiredSettings } from "../shared/config.js";
 
 export const app = "ops";
 export const phase = "post";
+// Standing: tidies up after every deploy, so it runs each time.
+export const every = true;
 export const about = "Config: remove retired settings";
 
 export async function up({ env, processEnv, log }) {

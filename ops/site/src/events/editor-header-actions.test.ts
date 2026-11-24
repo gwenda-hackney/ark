@@ -15,6 +15,7 @@ describe("editorHeaderActions", () => {
 	it("enables everything on a saved series with changes waiting", () => {
 		const actions = editorHeaderActions(series);
 		expect(actions.calendar).toEqual({ disabled: false });
+		expect(actions.promote).toEqual({ disabled: false });
 		expect(actions.website).toEqual({ disabled: false });
 		expect(actions.reload).toEqual({ disabled: false });
 	});
@@ -22,6 +23,7 @@ describe("editorHeaderActions", () => {
 	it("asks for a save first on a new series", () => {
 		const actions = editorHeaderActions({ ...series, eventId: "", isNew: true });
 		expect(actions.calendar.reason).toBe("Save the series first");
+		expect(actions.promote.reason).toBe("Save the series first");
 		expect(actions.website.reason).toBe("Save the series first");
 		expect(actions.reload.reason).toBe("Nothing saved to reload yet");
 	});
@@ -36,6 +38,7 @@ describe("editorHeaderActions", () => {
 	it("waits for unsaved changes before the calendar and website", () => {
 		const actions = editorHeaderActions({ ...series, dirty: true });
 		expect(actions.calendar.reason).toBe("Save your changes first");
+		expect(actions.promote.reason).toBe("Save your changes first");
 		expect(actions.website.reason).toBe("Save your changes first");
 	});
 

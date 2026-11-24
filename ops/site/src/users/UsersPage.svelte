@@ -1,10 +1,17 @@
 <script lang="ts">
+	/**
+	 * Users: who can sign in (People), and what they can do (#375): each
+	 * person's role, and the Roles tab. Owners change roles and give people
+	 * them; everyone else with Users can look.
+	 */
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
 		Badge,
 		BusyOverlay,
+		Dialog,
+		NativeSelect,
 		Button,
 		Confirm,
 		ConfirmDialog,
@@ -22,11 +29,70 @@
 		createOpsUser,
 		deleteOpsUser,
 		getOpsUsers,
+		getRoles,
 		updateOpsUser,
+		type AuthMe,
 	} from "../app/api";
+	import { navTabs } from "../app/nav-routes";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
+	import RolesList from "./RolesList.svelte";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
-	import type { OpsUser } from "./types";
+	import type { OpsRole, OpsUser } from "./types";
+	import { roleSummary } from "./role-summary";
+
+	let { me, view = "people" }: { me: AuthMe; view?: "people" | "roles" } = $props();
+
+	/** Only owners change roles and who has which. */
+	const isOwner = $derived(Boolean(me?.access?.owner));
+	const NOT_OWNER = "Only owners can change roles";
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+
+	let roles = $state<OpsRole[]>([]);
+	const defaultRole = $derived(roles.find((role) => role.isDefault) || null);
+	function roleOf(user: OpsUser): OpsRole | null {
+		return roles.find((role) => role.id === user.roleId) || defaultRole;
+	}
+	// Editing one person (a row, or its pencil): their name and role. What
+	// they can do is their role's alone; only owners change it.
+	let editFor = $state<OpsUser | null>(null);
+	let editName = $state("");
+	let editRoleId = $state("");
+	let editSaving = $state(false);
+	function openEdit(user: OpsUser) {
+		editFor = user;
+		editName = user.name && user.name !== user.email ? user.name : "";
+		editRoleId = String(user.roleId ?? defaultRole?.id ?? "");
+	}
+	const editRole = $derived(roles.find((role) => String(role.id) === editRoleId) || null);
+	async function saveEdit() {
+		if (!editFor) return;
+		const id = String(editFor.id || editFor._id || "");
+		const roleId = editRoleId ? Number(editRoleId) : null;
+		const roleChanged = roleId !== (editFor.roleId ?? defaultRole?.id ?? null);
+		editSaving = true;
+		try {
+			const data = await updateOpsUser(id, {
+				name: editName.trim() || editFor.email,
+				...(isOwner && roleChanged ? { roleId } : {}),
+			});
+			users = users.map((row) => (String(row.id) === id ? data.user : row));
+			toast.ok(`${data.user.name || data.user.email} saved.`);
+			editFor = null;
+			if (roleChanged) void loadRoles();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Couldn't save them.");
+		} finally {
+			editSaving = false;
+		}
+	}
+	async function loadRoles() {
+		try {
+			roles = (await getRoles()).roles;
+		} catch {
+			roles = [];
+		}
+	}
 
 	let users = $state<OpsUser[]>([]);
 	let loading = $state(true);
@@ -62,11 +128,13 @@
 
 	onMount(() => {
 		void reload();
+		void loadRoles();
 	});
 
 	function openDrawer() {
 		name = "";
 		email = "";
+		newRoleId = String(defaultRole?.id ?? "");
 		error = "";
 		errors.clearAll();
 		drawerOpen = true;
@@ -76,6 +144,9 @@
 		if (saving) return;
 		drawerOpen = false;
 	}
+
+	/** The role a new person starts with: the default role unless an owner picks another. */
+	let newRoleId = $state("");
 
 	async function onAdd(event: Event) {
 		event.preventDefault();
@@ -98,6 +169,8 @@
 				name: name.trim() || undefined,
 				email: email.trim(),
 				active: true,
+				// Only owners give roles; anyone else's new person has the default.
+				...(isOwner && newRoleId && newRoleId !== String(defaultRole?.id ?? "") ? { roleId: Number(newRoleId) } : {}),
 			});
 			users = [...users, data.user].sort((a, b) =>
 				String(a.email).localeCompare(String(b.email)),
@@ -160,10 +233,11 @@
 <div class="page scrollbar-fade">
 	<PageHeader
 		title="Users"
-		subtitle="Who can sign in to ops with their Google account."
+		subtitle="Who can sign in to ops, and what they can do."
+		tabs={{ items: navTabs("users"), value: view }}
 	>
 		{#snippet actions()}
-			<Button type="button" onclick={openDrawer}>
+			<Button type="button" disabled={view !== "people"} reason="Add people on the People tab" onclick={openDrawer}>
 				{#snippet icon()}
 					<Icon name="plus" size={16} />
 				{/snippet}
@@ -172,7 +246,9 @@
 		{/snippet}
 	</PageHeader>
 
-	{#if loadError}
+	{#if view === "roles"}
+		<RolesList canEdit={isOwner} />
+	{:else if loadError}
 		<EmptyState tone="error" title="Could not load users" text={loadError}>
 			{#snippet action()}
 				<Button variant="outline" size="sm" onclick={() => void reload()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
@@ -192,7 +268,7 @@
 			<thead>
 				<tr>
 					<th scope="col">Person</th>
-					<th scope="col">Roles</th>
+					<th scope="col">Role</th>
 					<th scope="col">Can sign in</th>
 					<th scope="col"><span class="sr-only">Actions</span></th>
 				</tr>
@@ -200,7 +276,8 @@
 			<tbody>
 				{#each users as user (user.id)}
 					{@const busy = busyId === String(user.id)}
-					<tr class:off={!user.active}>
+					{@const role = roleOf(user)}
+					<tr class="editable" class:off={!user.active} onclick={() => openEdit(user)}>
 						<td class="person">
 							<div class="person-inner">
 								<span class="avatar" aria-hidden="true">{initial(user)}</span>
@@ -212,10 +289,13 @@
 								</span>
 							</div>
 						</td>
-						<td class="roles" data-label="Roles">
-							<Badge tone="neutral" label="No roles yet" />
+						<td class="roles" data-label="Role">
+							<span class="role-cell">
+								<Badge tone={role?.owner ? "success" : "neutral"} label={role?.name || "…"} />
+							</span>
 						</td>
-						<td class="status" data-label="Can sign in">
+						<!-- Its own control: switching sign-in doesn't open the person. -->
+						<td class="status" data-label="Can sign in" onclick={(event) => event.stopPropagation()}>
 							<span class="access">
 								<Switch
 									checked={Boolean(user.active)}
@@ -226,7 +306,8 @@
 								<Badge tone={user.active ? "success" : "neutral"} label={user.active ? "Yes" : "No"} />
 							</span>
 						</td>
-						<td class="row-actions">
+						<td class="row-actions" onclick={(event) => event.stopPropagation()}>
+							<RowAction icon="pencil" label="Edit {user.email}" disabled={busy} reason="Saving…" onclick={() => openEdit(user)} />
 							<RowAction label="Delete {user.email}" disabled={busy} reason="Saving…" onclick={() => onRemove(user)} />
 						</td>
 					</tr>
@@ -265,6 +346,14 @@
 				oninput={() => errors.clear("user-email")}
 			/>
 		</Field>
+		<Field label="Role" for="new-user-role" hint={isOwner ? "What they can do in ops. Change it later with Change." : NOT_OWNER}>
+			<NativeSelect
+				id="new-user-role"
+				bind:value={newRoleId}
+				disabled={!isOwner || !roles.length}
+				options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))}
+			/>
+		</Field>
 		{#if error}
 			<p class="error">{error}</p>
 		{/if}
@@ -280,7 +369,33 @@
 
 <ConfirmDialog {confirm} />
 
+<Dialog open={editFor !== null} sheet={phone.matches} title="Edit user" onclose={() => !editSaving && (editFor = null)}>
+	{#if editFor}
+		<form class="edit" novalidate onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>
+			<p class="edit-email">{editFor.email}</p>
+			<Field label="Name" for="edit-user-name" optional>
+				<TextField id="edit-user-name" bind:value={editName} autocomplete="off" />
+			</Field>
+			<Field label="Role" for="edit-user-role" hint={!isOwner ? NOT_OWNER : editRole ? `${roleSummary(editRole)}. Change what a role can do on the Roles tab.` : ""}>
+				<NativeSelect id="edit-user-role" bind:value={editRoleId} disabled={!isOwner} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))} />
+			</Field>
+		</form>
+	{/if}
+	{#snippet footer()}
+		<Button variant="ghost" disabled={editSaving} onclick={() => (editFor = null)}>Cancel</Button>
+		<Button variant="primary" busy={editSaving} onclick={() => void saveEdit()}>
+			{#snippet icon()}<Icon name="check" size={14} />{/snippet}
+			Save
+		</Button>
+	{/snippet}
+</Dialog>
+
 <style>
+	.role-cell {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
 	.page {
 		position: relative;
 		flex: 1;
@@ -331,6 +446,21 @@
 
 	.table tbody tr:hover {
 		background: var(--surface-3);
+	}
+
+	.table tbody tr.editable {
+		cursor: pointer;
+	}
+
+	.edit {
+		display: grid;
+		gap: var(--space-4);
+	}
+
+	.edit-email {
+		margin: 0;
+		color: var(--fg-muted);
+		font-size: var(--text-sm);
 	}
 
 	/* The flex row lives inside the cell: a flex td stops being a table

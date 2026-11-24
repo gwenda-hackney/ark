@@ -23,6 +23,8 @@ export type EditorHeaderInput = {
 
 export type EditorHeaderActions = {
 	calendar: ActionState;
+	/** Promote it in an email: a draft from its template, opened to change. */
+	promote: ActionState;
 	website: ActionState;
 	reload: ActionState;
 };
@@ -50,6 +52,8 @@ export function editorHeaderActions(input: EditorHeaderInput): EditorHeaderActio
 
 	return {
 		calendar: actionState(calendar, input.busy),
+		// The email is made from what's saved, so it waits for a save like the calendar.
+		promote: actionState(calendar, input.busy),
 		website: actionState(website, input.busy),
 		reload: actionState(reload, input.busy),
 	};

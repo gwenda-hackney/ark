@@ -36,6 +36,7 @@ repositoryContract("UserRepository", {
         name: "Ada",
         email: "ada@gwenda.co.uk",
         active: true,
+        roleId: null,
       });
       assert.deepEqual(await repo.get(created.id), created);
       assert.deepEqual(await repo.get(String(created.id)), created);
@@ -78,8 +79,15 @@ repositoryContract("UserRepository", {
         name: "Ada L",
         email: "ada.l@gwenda.co.uk",
         active: false,
+        roleId: null,
       });
       assert.deepEqual(await repo.get(user.id), renamed);
+    },
+    "a user's role round-trips, and null is the default role": async (repo) => {
+      const user = await repo.create({ name: "Sam", email: "sam@gwenda.co.uk", roleId: 3 });
+      assert.equal(user.roleId, 3);
+      assert.equal((await repo.update(user.id, { name: "Sam B" })).roleId, 3, "kept when other fields change");
+      assert.equal((await repo.update(user.id, { roleId: null })).roleId, null);
     },
     "a missing user: get is null, update is a 404, remove is fine": async (
       repo,

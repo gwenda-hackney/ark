@@ -6,7 +6,7 @@ import {
 } from "../../../src/access/server/auth.js";
 import { opsConnectionInfo } from "../../../src/platform/config-store.js";
 import { opsEnv } from "../../../src/platform/ops-env.js";
-import { isOpsAdmin } from "../../../src/access/server/admin.js";
+import { accessFor, viewAsChoices, viewAsFrom } from "../../../src/access/server/access.js";
 import { isOpsUser } from "../../../src/users/server/user-store.js";
 import { frozenFeatures } from "../../../../../shared/write-freeze.js";
 
@@ -28,6 +28,9 @@ export async function onRequestGet(context) {
     return opsUserForbiddenResponse({ json: true });
   }
   const connection = opsConnectionInfo(env);
+  const access = await accessFor(env, email, { viewAs: viewAsFrom(context.request) }).catch(() => null);
+  // Dev and local only: the roles an owner can look at ops as.
+  const viewAs = await viewAsChoices(env).catch(() => null);
   return new Response(
     JSON.stringify({
       email,
@@ -39,7 +42,11 @@ export async function onRequestGet(context) {
       databaseLabel: connection.databaseLabel,
       isProductionDb: connection.isProductionDb,
       risk: connection.risk,
-      isAdmin: await isOpsAdmin(env, email).catch(() => false),
+      // An owner: everything (#375; "admin" before roles).
+      isAdmin: Boolean(access?.owner),
+      // Their role and level on every area of ops (src/access/areas.js).
+      access: access ? { owner: access.owner, role: access.role, levels: access.levels, viewingAs: Boolean(access.viewingAs) } : null,
+      viewAs,
       // Features whose data is moving to D1 right now: read-only (#191).
       frozen: await frozenFeatures(context.env),
     }),

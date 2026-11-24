@@ -1,4 +1,5 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { requestAccess } from "../../../src/access/server/access.js";
 import { createOpsUser, listOpsUsers } from "../../../src/users/server/user-store.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
@@ -11,6 +12,6 @@ export const onRequestPost = withApiHandler(async (context) => {
   if (!body || typeof body !== "object") {
     return jsonResponse({ error: "Invalid request." }, 400);
   }
-  const user = await createOpsUser(context.env, body);
+  const user = await createOpsUser(context.env, body, await requestAccess(context));
   return jsonResponse({ ok: true, user }, 201);
 });

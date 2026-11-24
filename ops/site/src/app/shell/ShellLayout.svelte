@@ -34,7 +34,8 @@
 		type LastPages,
 		type MobileTabId,
 	} from "../mobile-nav";
-	import { isPagePath, matchActiveRoute, visibleRoutes } from "../nav-tree";
+	import { areaOfPath, isPagePath, matchActiveRoute, visibleRoutes } from "../nav-tree";
+	import { canSee, editReason } from "../../access/access.svelte";
 	import { startSitePendingPolling, websiteBadge } from "../../website/site-pending.svelte";
 	import { startWebsiteJobs } from "../../events/website-jobs.svelte";
 	import WebsiteJobsTray from "./WebsiteJobsTray.svelte";
@@ -83,6 +84,10 @@
 	);
 	/** Read-only while their data moves to the new database (#191). */
 	const frozen = $derived(me?.frozen ?? []);
+	/** On a page they can only look at (#375): why, said once at the top. */
+	const viewOnly = $derived(editReason(areaOfPath(matchActiveRoute(routes, path), path)));
+	/** An owner on dev looking at ops as a role sees it. */
+	const viewingAs = $derived(me?.access?.viewingAs ? me.access.role?.name || "" : "");
 	const envBannerText = $derived(
 		!me
 			? ""
@@ -90,6 +95,10 @@
 				? `Maintenance: ${frozenList(frozen)} ${frozen.length === 1 ? "is" : "are"} read-only for a few minutes while the data moves. Saving will work again shortly.`
 			: me.risk
 				? `${me.envLabel} is using ${me.databaseLabel}. Check this before you edit.`
+			: viewingAs
+				? `Viewing as ${viewingAs}. ${viewOnly ? `${viewOnly.replace(" Ask an owner.", "")} ` : ""}Switch back in the account menu.`
+			: viewOnly
+				? `View only: ${viewOnly}`
 				: me.siteEnv === "local"
 				? `Local · edits go to ${me.databaseLabel}, not production.`
 				: `${me.envLabel} · ${me.databaseLabel}.`,
@@ -104,7 +113,7 @@
 		};
 	});
 
-	const shownRoutes = $derived(visibleRoutes(routes, Boolean(me?.isAdmin)));
+	const shownRoutes = $derived(visibleRoutes(routes, Boolean(me?.isAdmin), canSee));
 	const badge = $derived(websiteBadge());
 
 	function badgeTitle(tone: string, count: number): string {
@@ -127,7 +136,7 @@
 	const showEnvBanner = $derived(
 		!printBook &&
 			Boolean(
-				me && (frozen.length || me.risk || (!phone.matches && me.siteEnv !== "production")),
+				me && (frozen.length || me.risk || viewOnly || viewingAs || (!phone.matches && me.siteEnv !== "production")),
 			),
 	);
 
@@ -405,7 +414,7 @@
 		{#if showEnvBanner}
 			<div
 				class="env-banner"
-				class:risk={Boolean(me?.risk) || frozen.length > 0}
+				class:risk={Boolean(me?.risk) || frozen.length > 0 || Boolean(viewingAs)}
 				role="status"
 				title={envDetail}
 			>

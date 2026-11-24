@@ -3,10 +3,15 @@
 	 * Who's signed in, top right of the desktop shell. Opens a small menu with
 	 * the account, which copy of ops this is, and Sign out. Escape or a click
 	 * outside closes it. Phones have the same on the More page.
+	 *
+	 * On dev and local ops an owner can view ops as a role sees it (#375):
+	 * the menu, the pages and what the server allows become that role's
+	 * until they pick Owner again.
 	 */
 	import { tick } from "svelte";
 	import Icon from "./Icon.svelte";
 	import type { AuthMe } from "../api";
+	import { viewAs } from "../../access/access.svelte";
 
 	let { me }: { me: AuthMe | null } = $props();
 
@@ -16,6 +21,9 @@
 	let menu = $state<HTMLDivElement | undefined>();
 
 	const account = $derived(me?.email || "Account");
+	const roles = $derived(me?.viewAs ?? []);
+	/** The role they're viewing as; the Owner role when they're themselves. */
+	const viewing = $derived(me?.access?.viewingAs ? me.access.role?.id : roles.find((role) => role.owner)?.id);
 	const mark = $derived((me?.email || "").trim().charAt(0).toUpperCase() || "?");
 	// npm run ops:dev signs you in by itself, so there is nothing to sign out of.
 	const local = $derived(me?.mode === "local");
@@ -78,6 +86,25 @@
 				<p class="env" class:risk={Boolean(me.risk)}>
 					{me.envLabel}{#if me.databaseLabel} · {me.databaseLabel}{/if}
 				</p>
+			{/if}
+			{#if roles.length}
+				<div class="sep" role="separator"></div>
+				<p class="group" id="view-as-label">View as</p>
+				<div role="group" aria-labelledby="view-as-label">
+					{#each roles as role (role.id)}
+						<button
+							type="button"
+							class="item"
+							role="menuitemradio"
+							aria-checked={role.id === viewing}
+							tabindex="-1"
+							onclick={() => role.id !== viewing && viewAs(role.owner ? null : role.id)}
+						>
+							<span class="check" aria-hidden="true">{#if role.id === viewing}<Icon name="check" size={14} />{/if}</span>
+							{role.owner ? "Owner (you)" : role.name}
+						</button>
+					{/each}
+				</div>
 			{/if}
 			<div class="sep" role="separator"></div>
 			{#if local}
@@ -219,12 +246,36 @@
 		text-decoration: none;
 	}
 
-	a.item:hover {
+	a.item:hover,
+	button.item:hover {
 		background: var(--surface-3);
 	}
 
 	.item[aria-disabled="true"] {
 		color: var(--fg-subtle);
 		cursor: not-allowed;
+	}
+	.group {
+		margin: 0;
+		padding: var(--space-1) var(--space-2);
+		color: var(--fg-muted);
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	button.item {
+		width: 100%;
+		border: 0;
+		background: transparent;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.check {
+		display: inline-flex;
+		width: 1rem;
 	}
 </style>
