@@ -31,8 +31,6 @@ interface Props {
 const { pathname = Astro.url.pathname, home = false } = Astro.props;
 const { bookingEnabled } = await fetchSiteSettings();
 const sections = chartSections(pathname);
-/** The dock's one link: the first place in the list, What's on. */
-const [whatsOn] = sections;
 /** On home a place with a section there is down the page; else, its page. */
 const placeHref = (item: (typeof sections)[number]) =>
   home && item.home ? `/#${item.home}` : item.href;

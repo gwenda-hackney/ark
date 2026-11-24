@@ -85,7 +85,9 @@ test.describe("the open menu", () => {
   });
 });
 
-test("on a phone Book a table floats in the corner, with no bar along the foot", async ({ page }) => {
+test("on a phone Book a table floats in the corner, with no bar along the foot", async ({
+  page,
+}) => {
   await page.goto("/menu");
   const book = page.locator(".ch-book-fixed");
   await expect(book).toBeVisible();

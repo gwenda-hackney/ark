@@ -44,7 +44,10 @@ export function seen(name) {
 
 function markSeen(name) {
   try {
-    localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seenList(), name])]));
+    localStorage.setItem(
+      SEEN_KEY,
+      JSON.stringify([...new Set([...seenList(), name])]),
+    );
   } catch {
     // Private mode or storage off: it pops up again next visit.
   }
@@ -64,9 +67,12 @@ export function initOccasionSheet({ delay = SHEET_DELAY_MS } = {}) {
   const sheet = document.querySelector("[data-occasion-sheet]");
   const section = document.querySelector("[data-occasion-cards]");
   if (!sheet || !section || sheet.dataset.bound) return;
-  const card = [...section.querySelectorAll(".ch-occasion")].find((one) => !one.hidden);
+  const card = [...section.querySelectorAll(".ch-occasion")].find(
+    (one) => !one.hidden,
+  );
   if (!card) return;
-  const name = card.querySelector(".ch-occasion-name")?.textContent?.trim() || "";
+  const name =
+    card.querySelector(".ch-occasion-name")?.textContent?.trim() || "";
   if (seen(name)) return;
   sheet.dataset.bound = "1";
 

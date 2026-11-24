@@ -1897,7 +1897,6 @@ html:not(.fonts-ready) :is(.ch-hero-social, .ch-hero-line, .ch-hero-nav) {
   }
 }
 
-
 /* Eyebrows over the section titles: a size up, in gold, so they read */
 .ch-path > .ch-caps {
   font-size: 1.0625rem;

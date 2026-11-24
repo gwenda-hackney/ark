@@ -41,7 +41,12 @@ export default defineConfig({
     // over home (scripts/occasion-cards.js). Its own tests start empty.
     storageState: {
       cookies: [],
-      origins: [{ origin: new URL(baseURL).origin, localStorage: [{ name: "gwenda:occasions-seen", value: '["*"]' }] }],
+      origins: [
+        {
+          origin: new URL(baseURL).origin,
+          localStorage: [{ name: "gwenda:occasions-seen", value: '["*"]' }],
+        },
+      ],
     },
     trace: "retain-on-failure",
   },

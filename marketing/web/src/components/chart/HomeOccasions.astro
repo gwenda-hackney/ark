@@ -89,9 +89,21 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
     <>
       {/* scripts/occasion-cards.js initOccasionSheet: the occasion pops up the first
           time (a sheet on a phone, a window wider); closed, it stays in the page. */}
-      <dialog class="ch-occasion-sheet" data-occasion-sheet aria-label="Booking now" tabindex="-1">
+      <dialog
+        class="ch-occasion-sheet"
+        data-occasion-sheet
+        aria-label="Booking now"
+        tabindex="-1"
+      >
         <span class="ch-occasion-sheet-grip" aria-hidden="true" />
-        <button type="button" class="ch-occasion-sheet-close" data-sheet-close aria-label="Close">×</button>
+        <button
+          type="button"
+          class="ch-occasion-sheet-close"
+          data-sheet-close
+          aria-label="Close"
+        >
+          ×
+        </button>
         <div data-sheet-body />
       </dialog>
     </>
@@ -99,7 +111,10 @@ const partyForm = formPublicPath(PARTY_FORM_SLUG);
 }
 
 <script>
-  import { initOccasionCards, initOccasionSheet } from "../../scripts/occasion-cards.js";
+  import {
+    initOccasionCards,
+    initOccasionSheet,
+  } from "../../scripts/occasion-cards.js";
   initOccasionCards();
   initOccasionSheet();
   document.addEventListener("astro:page-load", () => {

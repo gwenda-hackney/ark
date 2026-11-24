@@ -6,7 +6,8 @@ import { arrived, settle } from "./support.js";
  * (Back to top) jump to the start of the page, with the keyboard there too
  * (#240). The jump is a step Back undoes, the same on home as on any other
  * page: Back after it stays on the page, where the visitor was, and never
- * leaves the site.
+ * leaves the site. Home's address follows the visitor down the page, so its
+ * Back may name the section they were in.
  */
 
 const ways = [
@@ -38,9 +39,15 @@ for (const path of ["/", "/bar"]) {
       await expect(page).toHaveURL((url) => url.hash === "#main");
       await settle(page);
 
+      // Back to where they were. On home the address follows the visitor
+      // down the page (chart-nav.js followSection), so there it may name
+      // the section they were in
       await page.goBack();
       await expect(page).toHaveURL(
-        (url) => url.pathname === path && url.hash === "",
+        (url) =>
+          url.pathname === path &&
+          url.hash !== "#main" &&
+          (path === "/" || url.hash === ""),
       );
       await arrived(page);
     });
