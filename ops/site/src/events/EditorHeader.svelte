@@ -172,7 +172,7 @@
 					variant="outline"
 					size="sm"
 					data-compact
-					aria-label="Promote in an email"
+					aria-label="Email: promote this in an email"
 					disabled={actions.promote.disabled || promoting}
 					reason={actions.promote.reason}
 					busy={promoting}
@@ -182,7 +182,21 @@
 					{#snippet icon()}
 						<Icon name="send" size={14} />
 					{/snippet}
-					Promote
+					Email
+				</Button>
+				<Button
+					class="desk-tool"
+					variant="outline"
+					size="sm"
+					data-compact
+					aria-label="Instagram: post this to Instagram"
+					disabled
+					reason="Posting to Instagram from ops is coming"
+				>
+					{#snippet icon()}
+						<Icon name="instagram" size={14} />
+					{/snippet}
+					Instagram
 				</Button>
 				<Button
 					variant="primary"
