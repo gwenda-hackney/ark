@@ -15,19 +15,36 @@ export function flattenNavRoutes(routes: NavRoute[]): NavRoute[] {
 	return leaves;
 }
 
-/** Drop admin-only entries (and headings left empty) for everyone else. */
-export function visibleRoutes(routes: NavRoute[], isAdmin: boolean): NavRoute[] {
+/**
+ * Drop admin-only entries, and pages of an area `see` says they have no
+ * access to (#375), with headings left empty, for everyone else.
+ */
+export function visibleRoutes(
+	routes: NavRoute[],
+	isAdmin: boolean,
+	see: (area: string | undefined) => boolean = () => true,
+): NavRoute[] {
 	const out: NavRoute[] = [];
 	for (const route of routes) {
 		if (route.adminOnly && !isAdmin) continue;
+		if (route.area && !see(route.area)) continue;
 		if (route.children?.length) {
-			const children = visibleRoutes(route.children, isAdmin);
+			const children = visibleRoutes(route.children, isAdmin, see);
 			if (children.length) out.push({ ...route, children });
 		} else {
 			out.push(route);
 		}
 	}
 	return out;
+}
+
+/** The area of ops a path is in (#375): its tab's, if that tab has its own, else its page's. */
+export function areaOfPath(page: NavRoute | null, path: string): string | undefined {
+	const bare = path.split("?")[0] || "/";
+	const tab = (page?.tabs || [])
+		.filter((candidate) => candidate.path === bare || bare.startsWith(`${candidate.path}/`))
+		.sort((a, b) => b.path.length - a.path.length)[0];
+	return tab?.area || page?.area;
 }
 
 /** Every address that is this page: its path, and each of its tabs'. */
@@ -44,14 +61,19 @@ export function isPagePath(route: NavRoute | null, path: string): boolean {
 	return Boolean(route && pagePaths(route).includes(bare));
 }
 
-/** A page's tabs as links for its header (Stock: Inventory | Suppliers). */
-export function pageTabs(routes: NavRoute[], id: string): SegmentedItem[] {
+/** A page's tabs as links for its header (Stock: Inventory | Suppliers); one of an area `see` refuses is disabled. */
+export function pageTabs(
+	routes: NavRoute[],
+	id: string,
+	see: (area: string | undefined) => boolean = () => true,
+): SegmentedItem[] {
 	const page = flattenNavRoutes(routes).find((route) => route.id === id);
 	return (page?.tabs || []).map((tab) => ({
 		id: tab.id,
 		label: tab.label,
 		href: tab.path,
 		...(tab.badge ? { badge: tab.badge } : {}),
+		...(tab.area && !see(tab.area) ? { disabled: true, reason: "You don't have access to this. Ask an owner." } : {}),
 	}));
 }
 

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, it } from "vitest";
 import { onRequestGet as listRoles, onRequestPost as addRole } from "../../functions/api/roles/index.js";
 import { onRequestDelete as removeRole, onRequestPatch as changeRole } from "../../functions/api/roles/[id].js";
 import { onRequestDelete as removeUser, onRequestPatch as changeUser } from "../../functions/api/users/[id].js";
+import { onRequestPost as addUser } from "../../functions/api/users/index.js";
 import { signedIn } from "../email/testing.js";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import { d1UserRepository } from "./server/adapters/d1-users.js";
@@ -74,6 +75,17 @@ describe("roles", () => {
 });
 
 describe("a person's role", () => {
+  it("an owner adds someone with a role; no one else can give a role when adding", async () => {
+    const added = await as(OWNER, addUser, { method: "POST", path: "/api/users", body: { email: "new@gwenda.co.uk", active: true, roleId: 3 } });
+    assert.equal(added.status, 201, JSON.stringify(added.data));
+    assert.equal(added.data.user.roleId, 3);
+    assert.equal((await users.get(added.data.user.id)).roleId, 3, "Marketing, saved");
+
+    const refused = await as(STAFF, addUser, { method: "POST", path: "/api/users", body: { email: "other@gwenda.co.uk", roleId: 1 } });
+    assert.equal(refused.status, 403);
+    assert.ok(!(await users.list()).some((user) => user.email === "other@gwenda.co.uk"), "nobody added");
+  });
+
   it("an owner gives someone a role and extras; they can't give themselves one", async () => {
     const sam = await idOf(STAFF);
     const given = await as(OWNER, changeUser, {

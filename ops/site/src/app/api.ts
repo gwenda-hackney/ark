@@ -57,7 +57,11 @@ export type AuthMe = {
     owner: boolean;
     role: { id: number; name: string } | null;
     levels: Record<string, "none" | "view" | "edit">;
+    /** An owner on dev looking at ops as this role sees it. */
+    viewingAs?: boolean;
   } | null;
+  /** Dev and local only: the roles an owner can view ops as (Owner first). */
+  viewAs?: { id: number; name: string; owner: boolean }[] | null;
   /** Features that are read-only while their data moves to D1 (#191). */
   frozen?: string[];
 };

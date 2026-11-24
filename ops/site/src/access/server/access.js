@@ -6,7 +6,9 @@
  *
  * Owners have everything. On dev and a developer's machine everyone is an
  * owner, as everyone was an admin there before roles. A person with no role
- * has the default role (Manager). Before the roles migration has run (a
+ * has the default role (Manager). There an owner can look at ops as a role
+ * sees it ("view as", the ops_view_as cookie, viewAsFrom): their levels are
+ * that role's until they switch back; production ignores it. Before the roles migration has run (a
  * local database, a deploy that skipped it) the old rule holds: admins
  * (config ops.admin_emails) are owners and everyone else a Manager.
  */
@@ -56,9 +58,37 @@ async function usersAndRoles(env) {
  * One person's access: { owner, role: { id, name } | null, levels }.
  * `levels` has every area (areas.js levelsFor).
  */
-export async function accessFor(env, email) {
-  if (siteEnvName(env) === "dev") return ownerOf({ id: DEFAULT_ROLES[0].id, name: DEFAULT_ROLES[0].name });
+export async function accessFor(env, email, { viewAs = null } = {}) {
+  if (siteEnvName(env) === "dev") {
+    const viewing = viewAs == null ? null : await viewingAs(env, viewAs);
+    return viewing || ownerOf({ id: DEFAULT_ROLES[0].id, name: DEFAULT_ROLES[0].name });
+  }
   return accessByRole(env, email);
+}
+
+/** The cookie an owner on dev sets to look at ops as a role sees it. */
+export const VIEW_AS_COOKIE = "ops_view_as";
+
+/** The role id a request asks to view as, or null. */
+export function viewAsFrom(request) {
+  const cookies = String(request?.headers?.get("Cookie") || "");
+  const match = cookies.match(new RegExp(`(?:^|;\\s*)${VIEW_AS_COOKIE}=(\\d+)`));
+  return match ? Number(match[1]) : null;
+}
+
+/** On dev: the access of a role that isn't Owner, marked as viewing as it; null for any other. */
+async function viewingAs(env, roleId) {
+  const { roles } = await usersAndRoles(env);
+  const role = roles?.find((candidate) => candidate.id === Number(roleId));
+  if (!role || role.owner) return null;
+  return { owner: false, role: { id: role.id, name: role.name }, levels: levelsFor(role), viewingAs: true };
+}
+
+/** The roles an owner on dev can view ops as: every one, Owner first (Owner = back to themselves). */
+export async function viewAsChoices(env) {
+  if (siteEnvName(env) !== "dev") return null;
+  const { roles } = await usersAndRoles(env);
+  return (roles || []).map((role) => ({ id: role.id, name: role.name, owner: Boolean(role.owner) }));
 }
 
 const ownerOf = (role) => ({ owner: true, role, levels: levelsFor({ owner: true }) });
@@ -111,5 +141,5 @@ export async function requireArea(env, email, area, need = "edit") {
 export async function requestAccess(context) {
   const { resolveAuth, resolveSessionEmail } = await import("./auth.js");
   const email = await resolveSessionEmail(context.request, resolveAuth(context.env)).catch(() => "");
-  return { email, ...(await accessFor(context.env, email)) };
+  return { email, ...(await accessFor(context.env, email, { viewAs: viewAsFrom(context.request) })) };
 }

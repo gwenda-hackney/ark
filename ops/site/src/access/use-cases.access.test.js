@@ -6,6 +6,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
 import { protect as middleware } from "../../functions/_middleware.js";
+import { onRequestGet as getMe } from "../../functions/api/auth/me.js";
 import { signedIn } from "../email/testing.js";
 import { createFakeWorld } from "../testing/fake-world.js";
 import { resetUsersCacheForTests } from "../users/server/user-store.js";
@@ -97,5 +98,36 @@ describe("the Marketing role", () => {
     assert.equal((await as("mo@gwenda.co.uk", "PATCH", "/api/menus/3")).status, 403);
     assert.equal((await as("mo@gwenda.co.uk", "GET", "/api/email/people")).status, 403);
     assert.equal((await as("mo@gwenda.co.uk", "GET", "/api/users")).status, 403);
+  });
+});
+
+describe("view as a role (dev and local only)", () => {
+  /** A request as an owner, with the view-as cookie for `roleId`. */
+  async function viewing(roleId, method, path) {
+    const headers = new Headers(await signedIn(world, "dan@gwenda.co.uk"));
+    headers.set("Cookie", [headers.get("Cookie"), `ops_view_as=${roleId}`].filter(Boolean).join("; "));
+    const request = new Request(`https://ops.example${path}`, { method, headers });
+    return { request, res: await middleware({ request, env: world.env, data: { opsEnv: world.env }, next: async () => new Response("ok") }) };
+  }
+
+  it("on dev an owner viewing as Marketing gets Marketing's refusals, and /me says so; Owner is back to everything", async () => {
+    world.env.SITE_ENV = "dev";
+    await staff();
+    assert.equal((await viewing(3, "POST", "/api/events")).res.status, 200, "Marketing changes What's on");
+    assert.equal((await viewing(3, "PATCH", "/api/menus/3")).res.status, 403, "Marketing has no Menus");
+    assert.equal((await viewing(1, "PATCH", "/api/menus/3")).res.status, 200, "viewing as Owner is themselves");
+
+    const { request } = await viewing(3, "GET", "/api/auth/me");
+    const me = await (await getMe({ request, env: world.env, data: { opsEnv: world.env } })).json();
+    assert.deepEqual([me.access.owner, me.access.role.name, me.access.viewingAs, me.access.levels.menus], [false, "Marketing", true, "none"]);
+    assert.deepEqual(me.viewAs.map((role) => role.name).slice(0, 3), ["Owner", "Manager", "Marketing"]);
+  });
+
+  it("production ignores the cookie, and offers no view as", async () => {
+    await staff();
+    assert.equal((await viewing(3, "PATCH", "/api/menus/3")).res.status, 200, "still the owner");
+    const { request } = await viewing(3, "GET", "/api/auth/me");
+    const me = await (await getMe({ request, env: world.env, data: { opsEnv: world.env } })).json();
+    assert.deepEqual([me.access.owner, me.viewAs], [true, null]);
   });
 });

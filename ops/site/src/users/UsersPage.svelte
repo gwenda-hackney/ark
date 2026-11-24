@@ -139,6 +139,7 @@
 	function openDrawer() {
 		name = "";
 		email = "";
+		newRoleId = String(defaultRole?.id ?? "");
 		error = "";
 		errors.clearAll();
 		drawerOpen = true;
@@ -148,6 +149,9 @@
 		if (saving) return;
 		drawerOpen = false;
 	}
+
+	/** The role a new person starts with: the default role unless an owner picks another. */
+	let newRoleId = $state("");
 
 	async function onAdd(event: Event) {
 		event.preventDefault();
@@ -170,6 +174,8 @@
 				name: name.trim() || undefined,
 				email: email.trim(),
 				active: true,
+				// Only owners give roles; anyone else's new person has the default.
+				...(isOwner && newRoleId && newRoleId !== String(defaultRole?.id ?? "") ? { roleId: Number(newRoleId) } : {}),
 			});
 			users = [...users, data.user].sort((a, b) =>
 				String(a.email).localeCompare(String(b.email)),
@@ -343,6 +349,14 @@
 				autocomplete="off"
 				spellcheck="false"
 				oninput={() => errors.clear("user-email")}
+			/>
+		</Field>
+		<Field label="Role" for="new-user-role" hint={isOwner ? "What they can do in ops. Change it, or give extras, later with Change." : NOT_OWNER}>
+			<NativeSelect
+				id="new-user-role"
+				bind:value={newRoleId}
+				disabled={!isOwner || !roles.length}
+				options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))}
 			/>
 		</Field>
 		{#if error}

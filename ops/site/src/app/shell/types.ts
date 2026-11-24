@@ -5,6 +5,8 @@ export type NavTab = {
 	path: string;
 	/** A status beside the tab's label (Featured artist: "Off" while closed, #313). */
 	badge?: { label: string; tone?: string; title?: string };
+	/** The area of ops it belongs to, when not its page's (src/access/areas.js). */
+	area?: string;
 };
 
 /**
@@ -27,6 +29,8 @@ export type NavRoute = {
 	 * page's own `path`; each tab's address lights this page in the rail.
 	 */
 	tabs?: NavTab[];
+	/** The area of ops it belongs to (src/access/areas.js): hidden for someone with no access. */
+	area?: string;
 	/** Hidden unless the signed-in user is an admin. */
 	adminOnly?: boolean;
 	/** Shorter name for the phone tab strip. Falls back to `name`. */
