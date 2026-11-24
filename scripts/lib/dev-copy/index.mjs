@@ -6,9 +6,13 @@
  *   content        website content only (Sanity)
  *   ops-data       the ops database only
  *   website-data   the website database only
+ *
+ * Every target ends by giving dev production's record of which deploy
+ * migrations have run (./migration-record.mjs).
  */
 import { copySanityContent } from "./content.mjs";
 import { databaseProvider } from "./database.mjs";
+import { copyMigrationRecord } from "./migration-record.mjs";
 
 export const COPY_TARGETS = ["everything", "content", "ops-data", "website-data"];
 
@@ -16,7 +20,7 @@ export const COPY_TARGETS = ["everything", "content", "ops-data", "website-data"
  * The steps one target runs, in order.
  * @returns {{ id: string, label: string, run: (opts: { dryRun: boolean }) => void | Promise<void> }[]}
  */
-export function copySteps(target, { provider = databaseProvider(), copyContent = copySanityContent } = {}) {
+export function copySteps(target, { provider = databaseProvider(), copyContent = copySanityContent, copyRecord = copyMigrationRecord } = {}) {
   if (!COPY_TARGETS.includes(target)) {
     throw new Error(`Unknown target "${target}". Use one of: ${COPY_TARGETS.join(", ")}.`);
   }
@@ -30,13 +34,18 @@ export function copySteps(target, { provider = databaseProvider(), copyContent =
     label: `${database[0].toUpperCase()}${database.slice(1)} database (${provider.label})`,
     run: ({ dryRun }) => provider.copy(database, { dryRun }),
   });
-  if (target === "content") return [content];
-  if (target === "everything") return [content, ...provider.databases.map(data)];
+  const record = {
+    id: "migrations",
+    label: "Record of the migrations that ran",
+    run: ({ dryRun }) => copyRecord({ dryRun }),
+  };
+  if (target === "content") return [content, record];
+  if (target === "everything") return [content, ...provider.databases.map(data), record];
   const database = target.replace(/-data$/, "");
   if (!provider.databases.includes(database)) {
     throw new Error(`${provider.label} has no ${database} database.`);
   }
-  return [data(database)];
+  return [data(database), record];
 }
 
 /**

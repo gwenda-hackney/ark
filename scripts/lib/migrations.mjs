@@ -25,10 +25,12 @@
  * `dryRun` (migrate.mjs --dry-run) asks a migration to report what it would
  * do and change nothing; a migration that changes data supports it.
  *
- * Nothing records which migrations ran. Every deploy runs them all, so each
- * one checks the real state first and does nothing when it's already done.
- * A record would lie after `copy-prod-to-dev` replaces a copy from production.
- * Delete a migration once it has run in production.
+ * Each runs once per environment: once it succeeds it is recorded in that
+ * environment's config database (./migration-record.mjs), and later deploys
+ * skip it. A standing migration, one that tidies up after every deploy, says
+ * `export const every = true` and runs each time. A one-off still checks the
+ * real state first, so running it by hand again (--only) is safe. Delete a
+ * one-off once it has run in production.
  */
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -59,8 +61,9 @@ export function checkMigration(name, mod) {
   if (!PHASES.includes(mod.phase)) problems.push(`phase must be one of ${PHASES.join(", ")}`);
   if (typeof mod.about !== "string" || !mod.about.trim()) problems.push("about is missing");
   if (typeof mod.up !== "function") problems.push("up() is missing");
+  if (mod.every !== undefined && typeof mod.every !== "boolean") problems.push("every must be true or false");
   if (problems.length) throw new Error(`Migration ${name}: ${problems.join("; ")}.`);
-  return { name, app: mod.app, phase: mod.phase, about: mod.about.trim(), up: mod.up };
+  return { name, app: mod.app, phase: mod.phase, about: mod.about.trim(), every: mod.every === true, up: mod.up };
 }
 
 /** Every migration in `dir`, in filename order. */
@@ -140,16 +143,26 @@ export function sanityContent({ env, processEnv, site, request = fetch }) {
 /**
  * Run the selected migrations in order. `d1(role)` opens this env's D1
  * database and `sanity()` its Sanity content (cached, noting into `site`).
- * Stops at the first failure.
- * @returns {Promise<{ rebuild: boolean, changes: string[] }>}
+ * `record` (./migration-record.mjs) says which have run here: those are
+ * skipped, unless `again` (a migration asked for by name), and each one-off
+ * is added once it succeeds. A dry run records nothing. Stops at the first
+ * failure, which isn't recorded, so the next deploy tries it again.
+ * @returns {Promise<{ rebuild: boolean, changes: string[], ran: string[] }>}
  */
 export async function runMigrations(
   migrations,
-  { env, processEnv, d1, sanity, site = siteChanges(), log = console.log, dryRun = false },
+  { env, processEnv, d1, sanity, record, again = false, site = siteChanges(), log = console.log, dryRun = false },
 ) {
+  const done = record ? await record.ran() : new Set();
+  const ran = [];
   for (const migration of migrations) {
+    if (!migration.every && !again && done.has(migration.name)) continue;
     log(`→ ${migration.name}: ${migration.about}${dryRun ? " (dry run)" : ""}`);
     await migration.up({ env, processEnv, d1, sanity, dryRun, log: (line) => log(`    ${line}`) });
+    ran.push(migration.name);
+    if (record && !dryRun && !migration.every) await record.add(migration);
   }
-  return { rebuild: site.rebuild, changes: site.changes };
+  const skipped = migrations.length - ran.length;
+  if (skipped) log(`${skipped} already ran here: skipped`);
+  return { rebuild: site.rebuild, changes: site.changes, ran };
 }

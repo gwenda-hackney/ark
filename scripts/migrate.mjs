@@ -7,7 +7,10 @@
  *   npm run migrate -- --app web --phase pre --env dev      # by hand
  *   ... --only 2026-11-17-chez-pickle-wed-sun --dry-run  # one migration, reporting only
  *
- * --only <name> runs just that migration (its file name without .mjs).
+ * Each one-off runs once per environment: what has run is recorded in its
+ * config database (scripts/lib/migration-record.mjs) and skipped after.
+ * --only <name> runs just that migration (its file name without .mjs), even
+ * if it has run before.
  * --dry-run passes `dryRun` to the migrations, which then change nothing;
  * use it with --only, since not every migration supports it.
  *
@@ -29,6 +32,7 @@ import {
   selectMigrations,
   siteChanges,
 } from "./lib/migrations.mjs";
+import { migrationRecord } from "./lib/migration-record.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -75,6 +79,8 @@ const { rebuild, changes } = await runMigrations(migrations, {
   sanity,
   site,
   dryRun,
+  record: migrationRecord(d1("config")),
+  again: Boolean(only),
 });
 // CI rebuilds the website when a migration changed what it shows.
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `rebuild=${rebuild}\n`);

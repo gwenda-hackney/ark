@@ -30,9 +30,9 @@ A migration can also change **Sanity content** (a form's field, a document the c
 
 Pick `app` by which deploy the change belongs to: the app whose new code needs it (pre) or whose old code last used it (post).
 
-**Every migration must be safe to run again.** Nothing records which ones ran: every deploy runs them all, and each checks the real state first. A record would be wrong after `copy-prod-to-dev` replaces a copy from production.
+**Each migration runs once per environment.** When one succeeds, the deploy records it in that environment's config database (`data_migrations`, `scripts/lib/migration-record.mjs`), and later deploys skip it. One that fails isn't recorded, so the next deploy tries again. `--only <name>` runs it again by hand, so it should still check the real state first and do nothing when it's done. Copying production to dev ends by giving dev production's record: dev's data is then production's, so a migration dev ran but production hasn't runs again on the copy at dev's next deploy.
 
-Delete a migration once it has run in production (if it made a form the deploy test submits, take its `createdBy` off `SMOKE_FORMS` in `marketing/web/functions/_lib/form-smoke.js` in the same change; a test fails until you do). Two standing migrations are the exception and stay: `config-retired-settings.mjs` removes whatever is listed in `RETIRED_SETTINGS`, and `smoke-test-cleanup.mjs` removes the deploy smoke test's sign-up from the website D1 subscribers and, in production, Mailchimp, if a run left it behind.
+Delete a migration once it has run in production (if it made a form the deploy test submits, take its `createdBy` off `SMOKE_FORMS` in `marketing/web/functions/_lib/form-smoke.js` in the same change; a test fails until you do). Two **standing** migrations stay and run at every deploy (`export const every = true`, never recorded): `config-retired-settings.mjs` removes whatever is listed in `RETIRED_SETTINGS`, and `smoke-test-cleanup.mjs` removes the deploy smoke test's sign-up from the website D1 subscribers and, in production, Mailchimp, if a run left it behind.
 
 Code that needs what a migration adds should cope without it, so a local database, or a deploy that skipped migrations, still works.
 
