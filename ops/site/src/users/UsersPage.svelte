@@ -53,29 +53,37 @@
 	function roleOf(user: OpsUser): OpsRole | null {
 		return roles.find((role) => role.id === user.roleId) || defaultRole;
 	}
-	// Changing one person's role: what they can do is their role's alone.
-	let accessFor = $state<OpsUser | null>(null);
-	let accessRoleId = $state("");
-	let accessSaving = $state(false);
-	function openAccess(user: OpsUser) {
-		accessFor = user;
-		accessRoleId = String(user.roleId ?? defaultRole?.id ?? "");
+	// Editing one person (a row, or its pencil): their name and role. What
+	// they can do is their role's alone; only owners change it.
+	let editFor = $state<OpsUser | null>(null);
+	let editName = $state("");
+	let editRoleId = $state("");
+	let editSaving = $state(false);
+	function openEdit(user: OpsUser) {
+		editFor = user;
+		editName = user.name && user.name !== user.email ? user.name : "";
+		editRoleId = String(user.roleId ?? defaultRole?.id ?? "");
 	}
-	const accessRole = $derived(roles.find((role) => String(role.id) === accessRoleId) || null);
-	async function saveAccess() {
-		if (!accessFor || !isOwner) return;
-		const id = String(accessFor.id || accessFor._id || "");
-		accessSaving = true;
+	const editRole = $derived(roles.find((role) => String(role.id) === editRoleId) || null);
+	async function saveEdit() {
+		if (!editFor) return;
+		const id = String(editFor.id || editFor._id || "");
+		const roleId = editRoleId ? Number(editRoleId) : null;
+		const roleChanged = roleId !== (editFor.roleId ?? defaultRole?.id ?? null);
+		editSaving = true;
 		try {
-			const data = await updateOpsUser(id, { roleId: accessRoleId ? Number(accessRoleId) : null });
+			const data = await updateOpsUser(id, {
+				name: editName.trim() || editFor.email,
+				...(isOwner && roleChanged ? { roleId } : {}),
+			});
 			users = users.map((row) => (String(row.id) === id ? data.user : row));
-			toast.ok(`${accessFor.name || accessFor.email} is ${accessRole?.name || "set"} now.`);
-			accessFor = null;
-			void loadRoles();
+			toast.ok(`${data.user.name || data.user.email} saved.`);
+			editFor = null;
+			if (roleChanged) void loadRoles();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Couldn't change their access.");
+			toast.error(err instanceof Error ? err.message : "Couldn't save them.");
 		} finally {
-			accessSaving = false;
+			editSaving = false;
 		}
 	}
 	async function loadRoles() {
@@ -269,7 +277,7 @@
 				{#each users as user (user.id)}
 					{@const busy = busyId === String(user.id)}
 					{@const role = roleOf(user)}
-					<tr class:off={!user.active}>
+					<tr class="editable" class:off={!user.active} onclick={() => openEdit(user)}>
 						<td class="person">
 							<div class="person-inner">
 								<span class="avatar" aria-hidden="true">{initial(user)}</span>
@@ -284,10 +292,10 @@
 						<td class="roles" data-label="Role">
 							<span class="role-cell">
 								<Badge tone={role?.owner ? "success" : "neutral"} label={role?.name || "…"} />
-								<Button variant="ghost" size="sm" disabled={!isOwner || busy} reason={NOT_OWNER} onclick={() => openAccess(user)}>Change</Button>
 							</span>
 						</td>
-						<td class="status" data-label="Can sign in">
+						<!-- Its own control: switching sign-in doesn't open the person. -->
+						<td class="status" data-label="Can sign in" onclick={(event) => event.stopPropagation()}>
 							<span class="access">
 								<Switch
 									checked={Boolean(user.active)}
@@ -298,7 +306,8 @@
 								<Badge tone={user.active ? "success" : "neutral"} label={user.active ? "Yes" : "No"} />
 							</span>
 						</td>
-						<td class="row-actions">
+						<td class="row-actions" onclick={(event) => event.stopPropagation()}>
+							<RowAction icon="pencil" label="Edit {user.email}" disabled={busy} reason="Saving…" onclick={() => openEdit(user)} />
 							<RowAction label="Delete {user.email}" disabled={busy} reason="Saving…" onclick={() => onRemove(user)} />
 						</td>
 					</tr>
@@ -360,15 +369,21 @@
 
 <ConfirmDialog {confirm} />
 
-<Dialog open={accessFor !== null} sheet={phone.matches} title={accessFor ? `${accessFor.name || accessFor.email}'s role` : "Role"} onclose={() => !accessSaving && (accessFor = null)}>
-	{#if accessFor}
-		<Field label="Role" for="user-role" hint={accessRole ? `${roleSummary(accessRole)}. Change what a role can do on the Roles tab.` : ""}>
-			<NativeSelect id="user-role" bind:value={accessRoleId} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))} />
-		</Field>
+<Dialog open={editFor !== null} sheet={phone.matches} title="Edit user" onclose={() => !editSaving && (editFor = null)}>
+	{#if editFor}
+		<form class="edit" novalidate onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>
+			<p class="edit-email">{editFor.email}</p>
+			<Field label="Name" for="edit-user-name" optional>
+				<TextField id="edit-user-name" bind:value={editName} autocomplete="off" />
+			</Field>
+			<Field label="Role" for="edit-user-role" hint={!isOwner ? NOT_OWNER : editRole ? `${roleSummary(editRole)}. Change what a role can do on the Roles tab.` : ""}>
+				<NativeSelect id="edit-user-role" bind:value={editRoleId} disabled={!isOwner} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))} />
+			</Field>
+		</form>
 	{/if}
 	{#snippet footer()}
-		<Button variant="ghost" disabled={accessSaving} onclick={() => (accessFor = null)}>Cancel</Button>
-		<Button variant="primary" busy={accessSaving} disabled={!isOwner} reason={NOT_OWNER} onclick={() => void saveAccess()}>
+		<Button variant="ghost" disabled={editSaving} onclick={() => (editFor = null)}>Cancel</Button>
+		<Button variant="primary" busy={editSaving} onclick={() => void saveEdit()}>
 			{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 			Save
 		</Button>
@@ -431,6 +446,21 @@
 
 	.table tbody tr:hover {
 		background: var(--surface-3);
+	}
+
+	.table tbody tr.editable {
+		cursor: pointer;
+	}
+
+	.edit {
+		display: grid;
+		gap: var(--space-4);
+	}
+
+	.edit-email {
+		margin: 0;
+		color: var(--fg-muted);
+		font-size: var(--text-sm);
 	}
 
 	/* The flex row lives inside the cell: a flex td stops being a table
