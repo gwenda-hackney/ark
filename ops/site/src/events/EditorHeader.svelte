@@ -9,10 +9,8 @@
 	import type { EventForm } from "./event-form.svelte";
 	import { websiteJobFor } from "./website-jobs.svelte";
 	import { getSitePendingState } from "../website/site-pending.svelte";
-	import { navigate } from "../app/nav";
 	import { toast } from "../ui/toast.svelte";
 	import { promoteEvent } from "../email/email-api";
-	import { writePath } from "../email/one-off-view";
 
 	let {
 		form,
@@ -29,6 +27,7 @@
 		calendarSyncing,
 		localOps,
 		onsynccalendar,
+		onpromoted,
 		onputonwebsite,
 		onreload,
 		onclose,
@@ -51,6 +50,8 @@
 		/** Local ops: Save and Update website change the Gwenda Dev copy only. */
 		localOps: boolean;
 		onsynccalendar: () => void;
+		/** Email made a draft to promote it: open it over the event. */
+		onpromoted: (emailId: number) => void;
 		onputonwebsite: () => void;
 		onreload: () => void;
 		onclose: () => void;
@@ -85,14 +86,14 @@
 	);
 	const liveCurrent = $derived(current?.publish.live === "current");
 
-	/** Promote in an email: its kind picks the template; the draft opens in the email editor. */
+	/** Email: its kind picks the template; the draft opens over the event (onpromoted). */
 	let promoting = $state(false);
 	async function promote() {
 		promoting = true;
 		try {
 			const { email } = await promoteEvent(eventId);
 			toast.ok("Drafted an email to promote it. Change anything, then send yourself a test.");
-			navigate(writePath(email.id));
+			onpromoted(email.id);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Couldn't make the email.");
 		} finally {

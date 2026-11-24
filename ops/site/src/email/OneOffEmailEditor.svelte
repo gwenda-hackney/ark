@@ -86,6 +86,7 @@
 		open = true,
 		me,
 		onchanged,
+		onclose,
 	}: {
 		path: string;
 		/** Whether it shows (the Write tab keeps it mounted so it can zoom in and out). */
@@ -93,6 +94,11 @@
 		me: AuthMe;
 		/** Something was saved or deleted: the list is out of date. */
 		onchanged?: () => void;
+		/**
+		 * Opened over another page (an event's Email button): closing or
+		 * deleting it calls this instead of going to Email's list.
+		 */
+		onclose?: () => void;
 	} = $props();
 
 	const route = $derived(parseShellPath(path));
@@ -403,7 +409,7 @@
 				access = data.access;
 				email = null;
 				fill({ name: "", subject: "", previewText: "", sections: [] });
-				setCrumbLeaf("New email");
+				if (!onclose) setCrumbLeaf("New email");
 				return;
 			}
 			if (!id) throw new Error("That email isn't here.");
@@ -412,7 +418,7 @@
 			frame = data.frame;
 			access = data.access;
 			fill(data.email);
-			setCrumbLeaf(emailName(data.email) || "Email");
+			if (!onclose) setCrumbLeaf(emailName(data.email) || "Email");
 		} catch (err) {
 			error = err instanceof Error ? err.message : "Couldn't load this email.";
 		} finally {
@@ -422,7 +428,7 @@
 
 	$effect(() => {
 		if (open) void load(emailId, isNew);
-		else setCrumbLeaf("");
+		else if (!onclose) setCrumbLeaf("");
 	});
 
 	async function save() {
@@ -442,7 +448,7 @@
 			// Keep the editor's own sections (and their keys); only what was cleaned changes.
 			if (sameDraft(draftOf(next.name, next.subject, next.previewText, editorSections(next.sections)), draft)) saved = $state.snapshot(draft) as OneOffDraft;
 			else fill(next);
-			setCrumbLeaf(emailName(next) || "Email");
+			if (!onclose) setCrumbLeaf(emailName(next) || "Email");
 			toast.ok("Email saved.");
 			onchanged?.();
 		} catch (err) {
@@ -503,7 +509,8 @@
 			toast.ok("Email deleted.");
 			onchanged?.();
 			beginLeave();
-			navigate(writePath(), { replace: true, force: true });
+			if (onclose) onclose();
+			else navigate(writePath(), { replace: true, force: true });
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Couldn't delete the email.");
 		} finally {
@@ -512,7 +519,10 @@
 	}
 
 	function back() {
-		leaveEditor(writePath());
+		if (!onclose) return leaveEditor(writePath());
+		// In place there's no page change for the unsaved guard to catch: ask here.
+		if (dirty && !saving) discardOpen = true;
+		else onclose();
 	}
 
 	$effect(() => {
@@ -543,7 +553,7 @@
 
 	onDestroy(() => {
 		clearUnsavedGuard();
-		setCrumbLeaf("");
+		if (!onclose) setCrumbLeaf("");
 	});
 
 	function keepEditing() {
@@ -556,6 +566,7 @@
 		beginLeave();
 		const pending = takeBlockedNav();
 		if (pending?.path) navigate(pending.path, { force: true, replace: pending.replace });
+		else onclose?.();
 	}
 
 	const heading = $derived(error ? "Email" : emailName({ name, subject }) || (isNew ? "New email" : "No name"));
