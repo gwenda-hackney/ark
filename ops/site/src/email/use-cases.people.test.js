@@ -100,7 +100,7 @@ describe("the people on our list", () => {
           "2026-11-05",
           "2026-11-08",
           3,
-          "Not on the list",
+          "Did not consent",
         ],
         ["in@example.com", "Website", "2026-10-01", null, 0, "In Mailchimp"],
         [

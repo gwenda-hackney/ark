@@ -26,7 +26,7 @@ export function mailchimpStatus(record) {
   if (record.marketingOffOn) {
     return { status: "unsubscribed", label: "Unsubscribed", tone: "warning", detail: "Unsubscribed in Mailchimp." };
   }
-  return { status: "off", label: "Not on the list", tone: "neutral", detail: "Didn't ask for emails, so never sent to Mailchimp." };
+  return { status: "off", label: "Did not consent", tone: "neutral", detail: "Didn't tick the box for emails, so never sent to Mailchimp." };
 }
 
 /** One person as the People list shows them. */

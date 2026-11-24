@@ -46,7 +46,7 @@
 
 	const subtitle = $derived(
 		counts
-			? `${counts.total.toLocaleString("en-GB")} people · ${counts.in} in Mailchimp · ${counts.waiting} waiting · ${counts.unsubscribed} unsubscribed · ${counts.off} not on the list`
+			? `${counts.total.toLocaleString("en-GB")} people · ${counts.in} in Mailchimp · ${counts.waiting} waiting · ${counts.unsubscribed} unsubscribed · ${counts.off} did not consent`
 			: "Our list, as the Mailchimp sync sends it",
 	);
 

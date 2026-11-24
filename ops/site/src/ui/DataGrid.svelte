@@ -383,8 +383,13 @@
 		display: none;
 	}
 
+	/*
+	 * The rows scroll under the header (this AG Grid lays it over them), so
+	 * it is painted solid here: the theme's header colour isn't, in this layout.
+	 */
 	.host :global(.ag-header) {
 		border-bottom: 1px solid var(--border);
+		background-color: var(--ag-header-background-color);
 	}
 
 	/*
