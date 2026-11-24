@@ -9,6 +9,10 @@
 	import type { EventForm } from "./event-form.svelte";
 	import { websiteJobFor } from "./website-jobs.svelte";
 	import { getSitePendingState } from "../website/site-pending.svelte";
+	import { navigate } from "../app/nav";
+	import { toast } from "../ui/toast.svelte";
+	import { promoteEvent } from "../email/email-api";
+	import { writePath } from "../email/one-off-view";
 
 	let {
 		form,
@@ -80,6 +84,21 @@
 		}),
 	);
 	const liveCurrent = $derived(current?.publish.live === "current");
+
+	/** Promote in an email: its kind picks the template; the draft opens in the email editor. */
+	let promoting = $state(false);
+	async function promote() {
+		promoting = true;
+		try {
+			const { email } = await promoteEvent(eventId);
+			toast.ok("Drafted an email to promote it. Change anything, then send yourself a test.");
+			navigate(writePath(email.id));
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Couldn't make the email.");
+		} finally {
+			promoting = false;
+		}
+	}
 	const actions = $derived(
 		editorHeaderActions({
 			eventId,
@@ -147,6 +166,23 @@
 					<Icon name="calendar" size={14} />
 	{/snippet}
 					Update calendar
+				</Button>
+				<Button
+					class="desk-tool"
+					variant="outline"
+					size="sm"
+					data-compact
+					aria-label="Promote in an email"
+					disabled={actions.promote.disabled || promoting}
+					reason={actions.promote.reason}
+					busy={promoting}
+					title="Make an email that promotes this, and open it to change and send."
+					onclick={() => void promote()}
+				>
+					{#snippet icon()}
+						<Icon name="send" size={14} />
+					{/snippet}
+					Promote
 				</Button>
 				<Button
 					variant="primary"

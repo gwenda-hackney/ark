@@ -4,10 +4,11 @@
  * editor uses (shared/email/sections.js). The draft is then the owner's to
  * change, test and send like any other.
  *
- * Two templates: a night (its picture, name and guest, when, any offer, the
+ * Three templates: a deal (its picture, the deal, when it runs, its page and
+ * booking), a night (its picture, name and guest, when, any offer, the
  * running order, and the ways to its page and to book) and a pop-up kitchen
  * (its picture, who and when, a few dishes from its menu, and the ways to its
- * menu and to book). Deals and occasions can join PROMOTE_TEMPLATES later
+ * menu and to book). Occasions can join PROMOTE_TEMPLATES later
  * with the same two parts: `choices` (what can be picked) and `draft` (the
  * email for one of them).
  */
@@ -241,9 +242,59 @@ export async function nightChoices(env, { today = londonToday() } = {}) {
     .map(({ event }) => ({ id: String(event.id), name: event.name, when: popupWhen(event, today) }));
 }
 
+/** The line after a deal's own: the same for every deal. */
+export const DEAL_NUDGE = "Grab your mates and make the most of it.";
+
+/**
+ * A deal's email: its picture, its name, the deal in bold, its line, when it
+ * runs and a nudge; a second picture from its gallery, then its page and
+ * Book a table.
+ * @param {{ origin: string }} site the website the links go to
+ */
+export async function dealDraft(env, id, { site, today = londonToday() }) {
+  const event = await getEvent(env, id).catch(() => null);
+  if (!event || event.deletedAt || event.category !== "promotion") throw refusal(404, "That deal isn't in ops any more.");
+  const name = event.name;
+  const offer = text(event.offer);
+  const when = popupWhen(event, today);
+  const page = `${site.origin}/whats-on/${event.slug}/`;
+  const picture = event.mainImage?.asset || "";
+  const second = (event.gallery || []).find((photo) => photo.asset && photo.asset !== picture)?.asset || "";
+  const line = text(event.shortDescription) || text(event.description);
+  const once = !event.repeatUnit || ["once", "none"].includes(String(event.repeatUnit).toLowerCase());
+  const days = event.repeatUnit === "week" ? daysWords(event.weekdays) : "";
+  const next = nextNight(event, today) || event.startsOn;
+  const sections = [
+    ...(picture ? [{ kind: "image", assetId: picture, alt: name, size: "full" }] : []),
+    { kind: "heading", text: name },
+    { kind: "copy", text: [offer ? `**${offer}.**` : "", line, when ? `**${when}.**` : "", DEAL_NUDGE].filter(Boolean).join("\n\n") },
+    ...(second ? [{ kind: "image", assetId: second, alt: name, size: "full" }] : []),
+    { kind: "button", label: "More about the deal →", link: page, look: "link" },
+    { kind: "booking" },
+  ];
+  return {
+    name: `${name} promo`,
+    subject: `${name} at Gwenda${offer ? `: ${offer}` : ""}, ${once || !days ? dateWords(next) : days}`,
+    previewText: previewLine(line, when),
+    sections,
+  };
+}
+
+/** Deals with a day to come, soonest first: { id, name, when }. */
+export async function dealChoices(env, { today = londonToday() } = {}) {
+  const events = await listEvents(env);
+  return events
+    .filter((event) => event.category === "promotion" && !event.deletedAt)
+    .map((event) => ({ event, next: nextNight(event, today) }))
+    .filter(({ next }) => next)
+    .sort((a, b) => a.next.localeCompare(b.next))
+    .map(({ event }) => ({ id: String(event.id), name: event.name, when: popupWhen(event, today) }));
+}
+
 /** What can be promoted, by template. */
 export const PROMOTE_TEMPLATES = {
   night: { label: "A night", choices: nightChoices, draft: nightDraft },
+  deal: { label: "A deal", choices: dealChoices, draft: dealDraft },
   popup: { label: "A pop-up kitchen", choices: popupChoices, draft: popupDraft },
 };
 
@@ -256,8 +307,22 @@ export async function promoteChoices(env, options = {}) {
   return { templates };
 }
 
-/** The draft for one thing, from its template; a 400 for a template that isn't one. */
+/** Which template promotes a series of this category: a pop-up, a deal, else a night. */
+export function templateFor(category) {
+  return category === "popup" ? "popup" : category === "promotion" ? "deal" : "night";
+}
+
+/**
+ * The draft for one thing, from its template; a 400 for a template that isn't
+ * one. With no template (the event editor's Promote button) the series' own
+ * category picks it.
+ */
 export async function promoteDraft(env, { template, id }, options) {
+  if (!text(template) && text(id)) {
+    const event = await getEvent(env, text(id)).catch(() => null);
+    if (!event || event.deletedAt) throw refusal(404, "That isn't in ops any more.");
+    template = templateFor(event.category);
+  }
   const chosen = PROMOTE_TEMPLATES[String(template)];
   if (!chosen) throw refusal(400, "Pick what to promote.");
   if (!text(id)) throw refusal(400, "Pick which one to promote.");

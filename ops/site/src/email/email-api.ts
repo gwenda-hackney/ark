@@ -291,3 +291,8 @@ export function getPromoteChoices() {
 export function promoteInEmail(template: string, id: string) {
 	return request<{ email: OneOffEmail }>("/api/email/promote", post({ template, id }));
 }
+
+/** Promote a series from its editor: its kind (night, deal or pop-up) picks the template. */
+export function promoteEvent(id: string) {
+	return request<{ email: OneOffEmail }>("/api/email/promote", post({ id }));
+}
