@@ -139,8 +139,12 @@
 		gap: var(--space-2);
 		height: 100%;
 		padding: 0 var(--space-4);
+		/* Gold words and the bar the menu's current item has: a form's heading reads apart from its rows. */
 		background: var(--surface-1);
+		box-shadow: inset 3px 0 0 var(--primary);
+		color: var(--primary);
 		font-weight: 600;
+		letter-spacing: 0.01em;
 	}
 
 	.frame :global(.form-group-count) {
