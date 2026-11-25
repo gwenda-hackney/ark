@@ -8,7 +8,7 @@ export function sessionEmail(context) {
 
 /**
  * Changing the monthly email's schedule and sending to the list need Edit on
- * Email: send and schedule (#375). Throws 403 for anyone else.
+ * Sending emails (#375). Throws 403 for anyone else.
  */
 export async function requireEmailAdmin(context) {
   try {

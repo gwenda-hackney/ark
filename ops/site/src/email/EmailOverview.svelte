@@ -9,6 +9,7 @@
 	import { Button, EmptyState, Skeleton } from "../ui";
 	import { Icon } from "../app/shell";
 	import EmailListGrid, { type EmailListRow } from "./EmailListGrid.svelte";
+	import type { GridGroup } from "../ui/grid";
 	import { getWeeklyEmailPreview, type EmailFrame, type OneOffSummary, type WeeklyEmailStatus } from "./email-api";
 	import { leadPicture, nextLine, sentLine, statusLine } from "./email-view";
 	import { sectionImageUrl } from "../../../../shared/email/sections.js";
@@ -107,67 +108,32 @@
 		...scheduled.map(oneOffRow),
 	]);
 	const oneOffRows = $derived(ordered.map(oneOffRow));
+	const groups = $derived<GridGroup<EmailListRow>[]>([
+		{ key: "scheduled", title: "Scheduled", note: "They go out by themselves: the monthly what's on, and any email set to go.", rows: scheduledRows },
+		{ key: "one-off", title: "Manually sent", note: "You send them when you're ready: a promotion from a template, or your own.", rows: oneOffRows },
+	]);
 </script>
 
 <div class="overview">
-	<section class="group" aria-labelledby="scheduled">
-		<header class="group-head">
-			<div>
-				<h2 id="scheduled">Scheduled</h2>
-				<p>They go out by themselves: the monthly what's on, and any email set to go.</p>
-			</div>
-		</header>
-		<EmailListGrid rows={scheduledRows} scrollKey="email-scheduled" />
-	</section>
-
-	<section class="group" aria-labelledby="one-off">
-		<header class="group-head">
-			<div>
-				<h2 id="one-off">Manually sent</h2>
-				<p>You send them when you're ready: a promotion from a template, or your own.</p>
-			</div>
-		</header>
-		{#if error}
-			<EmptyState tone="error" title="Couldn't load the emails" text={error}>
-				{#snippet action()}
-					<Button variant="outline" size="sm" onclick={onretry}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
-				{/snippet}
-			</EmptyState>
-		{:else if loading && !emails.length}
-			<Skeleton rows={2} lines={2} label="Loading emails…" />
-		{:else if !ordered.length}
-			<EmptyState icon="send" title="No one-off emails yet" text="Promote a night or a pop-up kitchen, or write your own: a picture, a few words, a button." />
-		{:else}
-			<EmailListGrid rows={oneOffRows} scrollKey="email-one-off" />
-		{/if}
-	</section>
+	<!-- One table, grouped like Enquiries: a heading row for each group. -->
+	<EmailListGrid {groups} scrollKey="email-list" />
+	{#if error}
+		<EmptyState tone="error" title="Couldn't load the emails" text={error}>
+			{#snippet action()}
+				<Button variant="outline" size="sm" onclick={onretry}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
+			{/snippet}
+		</EmptyState>
+	{:else if loading && !emails.length}
+		<Skeleton rows={2} lines={2} label="Loading emails…" />
+	{:else if !ordered.length}
+		<EmptyState icon="send" title="No one-off emails yet" text="Promote a night or a pop-up kitchen, or write your own: a picture, a few words, a button." />
+	{/if}
 </div>
 
 <style>
 	.overview {
 		display: grid;
-		gap: var(--space-6);
+		gap: var(--space-4);
 		align-content: start;
-	}
-	.group {
-		display: grid;
-		gap: var(--space-3);
-	}
-	.group-head {
-		display: flex;
-		align-items: flex-end;
-		justify-content: space-between;
-		gap: var(--space-3);
-		flex-wrap: wrap;
-	}
-	.group-head h2 {
-		margin: 0;
-		font-size: var(--text-lg);
-		font-weight: 600;
-	}
-	.group-head p {
-		margin: 0.125rem 0 0;
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
 	}
 </style>

@@ -346,12 +346,12 @@
 				oninput={() => errors.clear("user-email")}
 			/>
 		</Field>
-		<Field label="Role" for="new-user-role" hint={isOwner ? "What they can do in ops. Change it later with Change." : NOT_OWNER}>
+		<Field label="Role" for="new-user-role" hint={isOwner ? "What they can do in ops. You can change it later: click their row." : NOT_OWNER}>
 			<NativeSelect
 				id="new-user-role"
 				bind:value={newRoleId}
 				disabled={!isOwner || !roles.length}
-				options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))}
+				options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (new people get this)` : role.name }))}
 			/>
 		</Field>
 		{#if error}
@@ -377,7 +377,7 @@
 				<TextField id="edit-user-name" bind:value={editName} autocomplete="off" />
 			</Field>
 			<Field label="Role" for="edit-user-role" hint={!isOwner ? NOT_OWNER : editRole ? `${roleSummary(editRole)}. Change what a role can do on the Roles tab.` : ""}>
-				<NativeSelect id="edit-user-role" bind:value={editRoleId} disabled={!isOwner} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))} />
+				<NativeSelect id="edit-user-role" bind:value={editRoleId} disabled={!isOwner} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (new people get this)` : role.name }))} />
 			</Field>
 		</form>
 	{/if}

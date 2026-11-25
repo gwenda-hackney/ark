@@ -6,40 +6,30 @@
 	import { navigate } from "../app/nav";
 	import { formatWhen } from "../website/web-metrics";
 	import { DataGrid } from "../ui";
-	import { keepUnderHeadings, withHeadings, type FormGroup, type GroupedRow } from "./form-groups";
+	import GroupHeadingCell from "../ui/GroupHeadingCell.svelte";
+	import { groupedItem, keepFullWidthGroupsTogether, withGroupRows, type GroupedGridRow } from "../ui/grid";
+	import type { FormSubmission } from "../app/api";
+	import type { FormGroup } from "./form-groups";
+
+	type GroupedRow = GroupedGridRow<FormSubmission>;
 
 	/**
-	 * Every enquiry in one table, under a full-width heading row for each form
-	 * (so no Form column). A column sort sorts within each form.
+	 * Every enquiry in one table, under a heading row for each form (so no
+	 * Form column). A column sort sorts within each form.
 	 */
 	let { groups, scrollKey = "forms" }: { groups: FormGroup[]; scrollKey?: string } = $props();
 
-	const rowData = $derived(withHeadings(groups));
-
-	/** A form's heading row: its name and how many. Built as elements, so a form's name is never read as HTML. */
-	function headingRow(params: ICellRendererParams<GroupedRow>): HTMLElement {
-		const row = document.createElement("div");
-		row.className = "form-group-row";
-		const data = params.data;
-		if (data?.kind !== "group") return row;
-		const title = document.createElement("span");
-		title.className = "form-group-title";
-		title.textContent = data.title;
-		const count = document.createElement("span");
-		count.className = "form-group-count";
-		count.textContent = String(data.count);
-		row.append(title, count);
-		return row;
-	}
-
-	/** The enquiry on a row, or nothing on a heading row. */
-	const enquiry = (row?: GroupedRow) => (row?.kind === "row" ? row : undefined);
+	const rowData = $derived(withGroupRows(groups));
+	const enquiry = groupedItem<FormSubmission>;
 
 	const gridOptions = {
 		onRowClicked: openRow,
-		isFullWidthRow: (params: IsFullWidthRowParams<GroupedRow>) => params.rowNode.data?.kind === "group",
-		fullWidthCellRenderer: headingRow,
-		postSortRows: (params: PostSortRowsParams<GroupedRow>) => keepUnderHeadings(params.nodes),
+		getRowHeight: (params: { data?: GroupedRow }) => (params.data?._kind === "group" ? 44 : undefined),
+		isFullWidthRow: (params: IsFullWidthRowParams<GroupedRow>) => params.rowNode.data?._kind === "group",
+		fullWidthCellRenderer: svelteCell(GroupHeadingCell, (params: ICellRendererParams<GroupedRow>) =>
+			params.data?._kind === "group" ? { title: params.data.title, count: params.data.count } : {},
+		),
+		postSortRows: (params: PostSortRowsParams<GroupedRow>) => keepFullWidthGroupsTogether(params.nodes),
 	};
 
 	const columnDefs: ColDef<GroupedRow>[] = [
@@ -101,7 +91,7 @@
 	}
 
 	function openRow(event: RowClickedEvent<GroupedRow>) {
-		if (event.data?.kind !== "row") return;
+		if (event.data?._kind !== "row") return;
 		if (hasRangeSelection()) return;
 		const mouse = event.event;
 		if (mouse instanceof MouseEvent) {
@@ -119,7 +109,7 @@
 		{columnDefs}
 		{scrollKey}
 		domLayout="autoHeight"
-		getRowId={(row) => row.id}
+		getRowId={(row) => (row._kind === "group" ? row._id : row.id)}
 		{gridOptions}
 	/>
 </div>
@@ -133,27 +123,4 @@
 		cursor: pointer;
 	}
 
-	.frame :global(.form-group-row) {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		height: 100%;
-		padding: 0 var(--space-4);
-		/* Gold words and the bar the menu's current item has: a form's heading reads apart from its rows. */
-		background: var(--surface-1);
-		box-shadow: inset 3px 0 0 var(--primary);
-		color: var(--primary);
-		font-weight: 600;
-		letter-spacing: 0.01em;
-	}
-
-	.frame :global(.form-group-count) {
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-		font-weight: 500;
-	}
-
-	.frame :global(.not-sent) {
-		color: var(--danger);
-	}
 </style>
