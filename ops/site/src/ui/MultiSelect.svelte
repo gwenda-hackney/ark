@@ -39,8 +39,8 @@
 			.map((opt) => opt.label)
 			.filter(Boolean);
 		if (!names.length) return placeholder;
+		// One name, else a count: the box keeps its width as picks change (controls never move).
 		if (names.length === 1) return names[0];
-		if (names.length === 2) return names.join(", ");
 		return `${names.length} selected`;
 	});
 	const enabledOptions = $derived(
@@ -225,6 +225,16 @@
 		position: relative;
 		width: 100%;
 		min-width: 0;
+	}
+
+	/* In a list's filter row: one width whatever is picked, so the row never reflows. */
+	:global(.filter-control) > .wrap {
+		flex: 0 0 auto;
+		width: 13rem;
+	}
+
+	:global(.filter-sheet .filter-control) > .wrap {
+		width: 100%;
 	}
 
 	.trigger {
