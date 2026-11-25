@@ -28,7 +28,7 @@ test("Enquiries as a table is one table, a heading row for each type", async ({ 
 
 	await expect(page.locator(".ag-root")).toHaveCount(1);
 	await expect(page.locator(".ag-header")).toHaveCount(1);
-	const groupRows = page.locator(".form-group-row");
+	const groupRows = page.locator(".grid-group-heading");
 	await expect(groupRows).toHaveText([/Christmas parties\s*1/, /Play at Gwenda\s*2/]);
 	// Every enquiry is a row under its type.
 	await expect(page.locator(".ag-root .ag-row:not(.ag-full-width-row)")).toHaveCount(3);

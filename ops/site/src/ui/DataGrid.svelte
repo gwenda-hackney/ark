@@ -523,11 +523,12 @@
 		box-shadow: inset 2px 0 0 var(--primary);
 	}
 
-	/* Group rows (sections, weeks): one step up from the rows they head. */
+	/* Group rows (sections, weeks): one step up from the rows they head, with the menu's gold bar. */
 	.host :global(.ag-full-width-row),
 	.host :global(.ag-row.row-group) {
 		background-color: var(--surface-2) !important;
 		border-bottom: 1px solid var(--border);
+		box-shadow: inset 3px 0 0 var(--primary);
 	}
 
 	.host :global(.ag-full-width-row.ag-row-hover) {

@@ -38,7 +38,7 @@
 	import PosMenuCell from "./cells/PosMenuCell.svelte";
 	import PosScreenCell from "./cells/PosScreenCell.svelte";
 	import GuestMenuCell from "./cells/GuestMenuCell.svelte";
-	import SectionGroupCell from "./cells/SectionGroupCell.svelte";
+	import GroupHeadingCell from "../ui/GroupHeadingCell.svelte";
 	import ViewDetailsCell from "./cells/ViewDetailsCell.svelte";
 
 	type GridRow = MenuListRow;
@@ -530,7 +530,7 @@
 						keepFullWidthGroupsTogether(params.nodes),
 					isFullWidthRow: (params) => params.rowNode.data?._kind === "group",
 					fullWidthCellRenderer: svelteCell(
-						SectionGroupCell,
+						GroupHeadingCell,
 						(params: ICellRendererParams<GridRow>) => ({
 							title:
 								params.data?._kind === "group" ? params.data.title : "",

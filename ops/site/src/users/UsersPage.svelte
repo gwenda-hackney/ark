@@ -5,7 +5,6 @@
 	 * them; everyone else with Users can look.
 	 */
 	import { onMount } from "svelte";
-	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
 		Badge,
@@ -19,10 +18,8 @@
 		Field,
 		FormErrors,
 		PageDrawer,
-		PageHeader,
-		RowAction,
+		ListPage,
 		Skeleton,
-		Switch,
 		TextField,
 	} from "../ui";
 	import {
@@ -35,9 +32,9 @@
 	} from "../app/api";
 	import { navTabs } from "../app/nav-routes";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
+	import UsersGrid from "./UsersGrid.svelte";
 	import RolesList from "./RolesList.svelte";
 	import { toast } from "../ui/toast.svelte";
-	import { easeOut, flyMs } from "../ui/motion";
 	import type { OpsRole, OpsUser } from "./types";
 	import { roleSummary } from "./role-summary";
 
@@ -224,18 +221,13 @@
 		}
 	}
 
-	function initial(user: OpsUser): string {
-		const source = (user.name || user.email || "").trim();
-		return source ? source.charAt(0).toUpperCase() : "?";
-	}
 </script>
 
-<div class="page scrollbar-fade">
-	<PageHeader
-		title="Users"
-		subtitle="Who can sign in to ops, and what they can do."
-		tabs={{ items: navTabs("users"), value: view }}
-	>
+<ListPage
+	title="Users"
+	subtitle="Who can sign in to ops, and what they can do."
+	tabs={{ items: navTabs("users"), value: view }}
+>
 		{#snippet actions()}
 			<Button type="button" disabled={view !== "people"} reason="Add people on the People tab" onclick={openDrawer}>
 				{#snippet icon()}
@@ -244,7 +236,6 @@
 				Add user
 			</Button>
 		{/snippet}
-	</PageHeader>
 
 	{#if view === "roles"}
 		<RolesList canEdit={isOwner} />
@@ -264,61 +255,12 @@
 		</EmptyState>
 	{:else}
 		<p class="count">{summary}</p>
-		<table class="table" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-			<thead>
-				<tr>
-					<th scope="col">Person</th>
-					<th scope="col">Role</th>
-					<th scope="col">Can sign in</th>
-					<th scope="col"><span class="sr-only">Actions</span></th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each users as user (user.id)}
-					{@const busy = busyId === String(user.id)}
-					{@const role = roleOf(user)}
-					<tr class="editable" class:off={!user.active} onclick={() => openEdit(user)}>
-						<td class="person">
-							<div class="person-inner">
-								<span class="avatar" aria-hidden="true">{initial(user)}</span>
-								<span class="who">
-									<span class="name">{user.name || user.email}</span>
-									{#if user.name && user.name !== user.email}
-										<span class="email">{user.email}</span>
-									{/if}
-								</span>
-							</div>
-						</td>
-						<td class="roles" data-label="Role">
-							<span class="role-cell">
-								<Badge tone={role?.owner ? "success" : "neutral"} label={role?.name || "…"} />
-							</span>
-						</td>
-						<!-- Its own control: switching sign-in doesn't open the person. -->
-						<td class="status" data-label="Can sign in" onclick={(event) => event.stopPropagation()}>
-							<span class="access">
-								<Switch
-									checked={Boolean(user.active)}
-									disabled={busy}
-									ariaLabel="{user.email} can sign in"
-									onchange={() => onToggle(user)}
-								/>
-								<Badge tone={user.active ? "success" : "neutral"} label={user.active ? "Yes" : "No"} />
-							</span>
-						</td>
-						<td class="row-actions" onclick={(event) => event.stopPropagation()}>
-							<RowAction icon="pencil" label="Edit {user.email}" disabled={busy} reason="Saving…" onclick={() => openEdit(user)} />
-							<RowAction label="Delete {user.email}" disabled={busy} reason="Saving…" onclick={() => onRemove(user)} />
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
+		<UsersGrid {users} {busyId} {roleOf} onedit={openEdit} ontoggle={(user) => void onToggle(user)} onremove={(user) => void onRemove(user)} />
 	{/if}
 
 	<!-- First load shows skeleton rows; the overlay covers a reload. -->
 	<BusyOverlay active={loading && users.length > 0} label="Loading…" />
-</div>
+</ListPage>
 
 <PageDrawer open={drawerOpen} onclose={closeDrawer} title="Add user">
 	<form class="add" novalidate onsubmit={onAdd}>
@@ -346,12 +288,12 @@
 				oninput={() => errors.clear("user-email")}
 			/>
 		</Field>
-		<Field label="Role" for="new-user-role" hint={isOwner ? "What they can do in ops. Change it later with Change." : NOT_OWNER}>
+		<Field label="Role" for="new-user-role" hint={isOwner ? "What they can do in ops. You can change it later: click their row." : NOT_OWNER}>
 			<NativeSelect
 				id="new-user-role"
 				bind:value={newRoleId}
 				disabled={!isOwner || !roles.length}
-				options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))}
+				options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (new people get this)` : role.name }))}
 			/>
 		</Field>
 		{#if error}
@@ -377,7 +319,7 @@
 				<TextField id="edit-user-name" bind:value={editName} autocomplete="off" />
 			</Field>
 			<Field label="Role" for="edit-user-role" hint={!isOwner ? NOT_OWNER : editRole ? `${roleSummary(editRole)}. Change what a role can do on the Roles tab.` : ""}>
-				<NativeSelect id="edit-user-role" bind:value={editRoleId} disabled={!isOwner} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (everyone's, until given another)` : role.name }))} />
+				<NativeSelect id="edit-user-role" bind:value={editRoleId} disabled={!isOwner} options={roles.map((role) => ({ value: String(role.id), label: role.isDefault ? `${role.name} (new people get this)` : role.name }))} />
 			</Field>
 		</form>
 	{/if}
@@ -391,65 +333,10 @@
 </Dialog>
 
 <style>
-	.role-cell {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-	.page {
-		position: relative;
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		padding: var(--page-gutter);
-	}
-
 	.count {
 		margin: 0 0 var(--space-2);
 		font-size: var(--text-sm);
 		color: var(--fg-muted);
-	}
-
-	.table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: var(--text-sm);
-	}
-
-	.table th,
-	.table td {
-		padding: var(--space-3) var(--space-2);
-		text-align: left;
-		vertical-align: middle;
-		border-bottom: 1px solid var(--border);
-	}
-
-	.table th:first-child,
-	.table td:first-child {
-		padding-left: var(--space-3);
-	}
-
-	.table th:last-child,
-	.table td:last-child {
-		padding-right: var(--space-3);
-	}
-
-	.table th {
-		background: var(--surface-1);
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--muted-foreground);
-		white-space: nowrap;
-	}
-
-	.table tbody tr:hover {
-		background: var(--surface-3);
-	}
-
-	.table tbody tr.editable {
-		cursor: pointer;
 	}
 
 	.edit {
@@ -461,138 +348,6 @@
 		margin: 0;
 		color: var(--fg-muted);
 		font-size: var(--text-sm);
-	}
-
-	/* The flex row lives inside the cell: a flex td stops being a table
-	   cell, and its bottom border then ends short of the row. */
-	.person-inner {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		min-width: 0;
-	}
-
-	.avatar {
-		display: grid;
-		place-items: center;
-		flex-shrink: 0;
-		width: 2.1rem;
-		height: 2.1rem;
-		border-radius: 50%;
-		background: var(--primary-wash);
-		color: var(--primary);
-		font-weight: 600;
-	}
-
-	.who {
-		display: grid;
-		gap: 0.1rem;
-		min-width: 0;
-	}
-
-	.name {
-		font-size: var(--text-base);
-		font-weight: 600;
-		overflow-wrap: anywhere;
-	}
-
-	.email {
-		color: var(--muted-foreground);
-		overflow-wrap: anywhere;
-	}
-
-	tr.off .avatar {
-		background: var(--muted);
-		color: var(--muted-foreground);
-	}
-
-	tr.off .name {
-		color: var(--muted-foreground);
-	}
-
-	.access {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.row-actions {
-		width: 1%;
-		text-align: right;
-		white-space: nowrap;
-	}
-
-	/* Phones: each person is a card instead of a squeezed row. */
-	@media (max-width: 900px) {
-		.table,
-		.table tbody {
-			display: grid;
-			gap: var(--space-2);
-		}
-
-		.table thead {
-			display: none;
-		}
-
-		.table tbody tr {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto;
-			gap: var(--space-3);
-			padding: var(--space-3);
-			border: 1px solid var(--border);
-			border-radius: var(--radius-lg);
-			background: var(--panel-bg);
-		}
-
-		.table tbody tr:hover {
-			background: var(--surface-1);
-		}
-
-		.table td,
-		.table td:first-child,
-		.table td:last-child {
-			padding: 0;
-			border-bottom: 0;
-		}
-
-		.person {
-			grid-column: 1;
-		}
-
-		.name {
-			font-size: var(--text-base);
-		}
-
-		.email {
-			font-size: var(--text-sm);
-		}
-
-		.row-actions {
-			grid-column: 2;
-			grid-row: 1;
-			width: auto;
-		}
-
-		.roles,
-		.status {
-			grid-column: 1 / -1;
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			min-height: 2.75rem;
-			padding-top: var(--space-1) !important;
-			border-top: 1px solid var(--border) !important;
-		}
-
-		.roles::before,
-		.status::before {
-			content: attr(data-label);
-			font-size: var(--text-2xs);
-			font-weight: 600;
-			letter-spacing: var(--tracking-label);
-			text-transform: uppercase;
-			color: var(--fg-muted);
-		}
 	}
 
 	.add {

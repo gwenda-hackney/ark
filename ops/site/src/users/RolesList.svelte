@@ -116,7 +116,7 @@
 	}
 </script>
 
-<Card title="Roles" subtitle="What each role can do in ops. Give people a role on the People tab." fill>
+<Card title="Roles" subtitle="What each role can do in ops. Give people a role on the People tab." fill class="list-fill">
 	{#snippet actions()}
 		<Button size="sm" disabled={!canEdit} reason={NOT_OWNER} onclick={() => open(null)}>
 			{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
@@ -131,7 +131,6 @@
 			{columnDefs}
 			getRowId={(row) => String(row.id)}
 			scrollKey="users-roles"
-			domLayout="autoHeight"
 			onRowClicked={(row: OpsRole) => open(row)}
 			gridOptions={{ rowHeight: 56, enableBrowserTooltips: true, overlayNoRowsTemplate: `<span>${loaded ? "No roles" : "Loading…"}</span>` }}
 		/>

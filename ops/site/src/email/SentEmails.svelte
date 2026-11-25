@@ -61,6 +61,7 @@
 	title="Sent"
 	subtitle={reports ? `${reports.length} ${reports.length === 1 ? "email" : "emails"} · from Mailchimp` : "From Mailchimp"}
 	fill
+	class="list-fill"
 >
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
 	<div class="frame">

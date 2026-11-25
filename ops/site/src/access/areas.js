@@ -25,14 +25,14 @@ export const LEVELS = /** @type {const} */ (["none", "view", "edit"]);
 export const AREAS = [
   {
     id: "email-people",
-    label: "Email: People",
+    label: "Guest email list",
     hint: "Guests' email addresses and visits",
     guarded: true,
     api: [/^\/api\/email\/people(\/|$)/],
   },
   {
     id: "email-send",
-    label: "Email: send and schedule",
+    label: "Sending emails",
     hint: "Send to the mailing list, and the monthly email's schedule",
     guarded: true,
     api: [
@@ -42,7 +42,7 @@ export const AREAS = [
   },
   {
     id: "email",
-    label: "Email",
+    label: "Writing emails",
     hint: "Write emails and send yourself a test",
     api: [/^\/api\/email(\/|$)/],
   },

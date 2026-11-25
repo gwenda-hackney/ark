@@ -7,7 +7,8 @@
 	import type { ColDef, ICellRendererParams, RowClickedEvent } from "ag-grid-community";
 	import { DataGrid } from "../ui";
 	import BadgeCell from "../ui/BadgeCell.svelte";
-	import { hasRangeSelection, svelteCell } from "../ui/grid";
+	import { groupedItem, hasRangeSelection, keepFullWidthGroupsTogether, svelteCell, withGroupRows, type GridGroup, type GroupedGridRow } from "../ui/grid";
+	import GroupHeadingCell from "../ui/GroupHeadingCell.svelte";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { navigate } from "../app/nav";
 	import PhotoCell from "../menu/cells/PhotoCell.svelte";
@@ -25,11 +26,17 @@
 		when: string;
 	};
 
-	let { rows, scrollKey }: { rows: EmailListRow[]; scrollKey: string } = $props();
+	type Row = GroupedGridRow<EmailListRow>;
+
+	/** The emails in one table, under a heading row for each group (Scheduled, Manually sent). */
+	let { groups, scrollKey }: { groups: GridGroup<EmailListRow>[]; scrollKey: string } = $props();
+
+	const rowData = $derived(withGroupRows(groups));
+	const email = groupedItem<EmailListRow>;
 
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
-	const columnDefs = $derived.by((): ColDef<EmailListRow>[] => [
+	const columnDefs = $derived.by((): ColDef<Row>[] => [
 		{
 			headerName: "",
 			colId: "photo",
@@ -38,8 +45,8 @@
 			flex: 0,
 			sortable: false,
 			cellClass: "photo-cell",
-			cellRenderer: svelteCell(PhotoCell, (params: ICellRendererParams<EmailListRow>) => ({
-				url: params.data?.photo || "",
+			cellRenderer: svelteCell(PhotoCell, (params: ICellRendererParams<Row>) => ({
+				url: email(params.data)?.photo || "",
 				alt: "",
 				size: "lg",
 			})),
@@ -50,10 +57,10 @@
 			flex: 1,
 			minWidth: 180,
 			sortable: false,
-			valueGetter: (p) => p.data?.name || "",
-			cellRenderer: svelteCell(EmailNameCell, (params: ICellRendererParams<EmailListRow>) => ({
-				title: params.data?.name || "",
-				subtitle: phone.matches ? [params.data?.subject, params.data?.when].filter(Boolean).join(" · ") : params.data?.subject || "",
+			valueGetter: (p) => email(p.data)?.name || "",
+			cellRenderer: svelteCell(EmailNameCell, (params: ICellRendererParams<Row>) => ({
+				title: email(params.data)?.name || "",
+				subtitle: phone.matches ? [email(params.data)?.subject, email(params.data)?.when].filter(Boolean).join(" · ") : email(params.data)?.subject || "",
 			})),
 		},
 		{
@@ -62,10 +69,10 @@
 			width: 130,
 			flex: 0,
 			sortable: false,
-			valueGetter: (p) => p.data?.status || "",
-			cellRenderer: svelteCell(BadgeCell, (params: ICellRendererParams<EmailListRow>) => ({
-				label: params.data?.status || "",
-				tone: params.data?.tone || "neutral",
+			valueGetter: (p) => email(p.data)?.status || "",
+			cellRenderer: svelteCell(BadgeCell, (params: ICellRendererParams<Row>) => ({
+				label: email(params.data)?.status || "",
+				tone: email(params.data)?.tone || "neutral",
 			})),
 		},
 		{
@@ -75,39 +82,44 @@
 			flex: 0,
 			sortable: false,
 			hide: phone.matches,
-			valueGetter: (p) => p.data?.when || "",
+			valueGetter: (p) => email(p.data)?.when || "",
 			cellClass: "when-cell",
 		},
 	]);
 
-	function openRow(event: RowClickedEvent<EmailListRow>) {
+	function openRow(event: RowClickedEvent<Row>) {
 		if (hasRangeSelection()) return;
 		const mouse = event.event;
 		if (mouse instanceof MouseEvent && (mouse.button !== 0 || mouse.metaKey || mouse.ctrlKey || mouse.shiftKey || mouse.altKey)) return;
-		if (event.data) navigate(event.data.href);
+		const row = email(event.data);
+		if (row) navigate(row.href);
 	}
 </script>
 
-<div class="frame">
+<div class="frame list-fill">
 	<DataGrid
-		rowData={rows}
+		{rowData}
 		{columnDefs}
 		{scrollKey}
 		hideHeader={phone.matches}
-		getRowId={(row) => row.id}
-		domLayout="autoHeight"
-		gridOptions={{ rowHeight: 80, getRowClass: () => "email-row", onRowClicked: openRow }}
+		getRowId={(row) => (row._kind === "group" ? row._id : row.id)}
+		gridOptions={{
+			rowHeight: 80,
+			getRowHeight: (params) => (params.data?._kind === "group" ? 52 : undefined),
+			isFullWidthRow: (params) => params.rowNode.data?._kind === "group",
+			fullWidthCellRenderer: svelteCell(GroupHeadingCell, (params: ICellRendererParams<Row>) =>
+				params.data?._kind === "group" ? { title: params.data.title, note: params.data.note, count: params.data.count } : {},
+			),
+			postSortRows: (params) => keepFullWidthGroupsTogether(params.nodes),
+			getRowClass: (params) => (params.data?._kind === "group" ? "" : "email-row"),
+			onRowClicked: openRow,
+		}}
 	/>
 </div>
 
 <style>
 	.frame :global(.email-row) {
 		cursor: pointer;
-	}
-
-	/* As tall as its rows: AG Grid keeps a short list 150px tall otherwise. */
-	.frame :global(.ag-grid-scrolling-rows.ag-layout-auto-height) {
-		min-height: 0 !important;
 	}
 
 	.frame :global(.when-cell) {

@@ -13,7 +13,7 @@
 	import { onMount } from "svelte";
 	import { Icon } from "../app/shell";
 	import { navTabs } from "../app/nav-routes";
-	import { Button, PageHeader } from "../ui";
+	import { Button, ListPage } from "../ui";
 	import type { AuthMe } from "../app/api";
 	import { getWeeklyEmailStatus, type WeeklyEmailStatus } from "./email-api";
 	import MonthlyEmailEditor from "./MonthlyEmailEditor.svelte";
@@ -97,8 +97,7 @@
 </script>
 
 <div class="root">
-<div class="page scrollbar-fade" class:fill={view === "sent" || view === "people"} class:parked={editing} inert={editing}>
-	<PageHeader title="Email" tabs={{ items: navTabs("email"), value: view === "sent" || view === "people" ? view : "emails" }}>
+<ListPage title="Email" tabs={{ items: navTabs("email"), value: view === "sent" || view === "people" ? view : "emails" }} parked={editing}>
 		{#snippet actions()}
 			{#if onCards}
 				<Button variant="outline" size="sm" data-compact onclick={() => (promoting = true)}>
@@ -117,7 +116,6 @@
 				Refresh
 			</Button>
 		{/snippet}
-	</PageHeader>
 
 	{#if statusError}<p class="error" role="alert">{statusError}</p>{/if}
 
@@ -132,7 +130,7 @@
 	{:else}
 		<EmailOverview {status} frame={oneOffFrame} emails={oneOffs} loading={oneOffsLoading} error={oneOffsError} onretry={() => void loadOneOffs()} />
 	{/if}
-</div>
+</ListPage>
 <PromoteDialog open={promoting} onclose={() => (promoting = false)} />
 {#if onCards}
 	<!-- Always mounted with the cards: each comes forward over them when its email opens (EditorShell). -->
@@ -155,33 +153,6 @@
 		flex: 1;
 		min-height: 0;
 		height: 100%;
-		overflow: hidden;
-	}
-	.page {
-		transition:
-			transform 440ms var(--ease),
-			opacity 440ms var(--ease);
-	}
-	.page.parked {
-		pointer-events: none;
-		transform: scale(0.97);
-		opacity: 0.35;
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.page {
-			transition: none;
-		}
-	}
-	.page {
-		position: relative;
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		padding: var(--page-gutter);
-	}
-	.page.fill {
-		display: flex;
-		flex-direction: column;
 		overflow: hidden;
 	}
 	.error {
