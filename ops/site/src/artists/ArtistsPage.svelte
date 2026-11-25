@@ -6,7 +6,6 @@
 	import { getArtist, getArtists, type ArtistSlot, type WallArtist } from "../app/api";
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { navigate, parseShellPath } from "../app/nav";
-	import { navTabs } from "../app/nav-routes";
 	import { addArtistAction } from "./featured-artist.js";
 
 	let { path = "/artists" }: { path?: string } = $props();
@@ -163,8 +162,7 @@
 	{:else}
 		<div class="sheet scrollbar-fade">
 			<PageHeader
-				title="Artists"
-				tabs={{ items: navTabs("artists"), value: "featured" }}
+				title="Enquiries"
 				{subtitle}
 			>
 				{#snippet actions()}

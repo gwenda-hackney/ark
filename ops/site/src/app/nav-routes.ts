@@ -2,7 +2,6 @@ import type { NavRoute } from "./shell/types";
 import type { SegmentedItem } from "../ui/types";
 import { pageTabs } from "./nav-tree";
 import { canSee } from "../access/access.svelte";
-import { FEATURED_ARTIST_CLOSED } from "../artists/featured-artist.js";
 
 /**
  * Side rail (#312): one level, grouped by the job. What's on is everything
@@ -36,20 +35,11 @@ export const NAV_ROUTES: NavRoute[] = [
 			{
 				id: "artists", area: "artists",
 				path: "/forms",
-				name: "Artists",
+				name: "Enquiries",
 				icon: "artist",
-				hint: "Who applied to play, and past featured artists",
-				// Applications first (#313): the website shows no featured artist
-				// any more, so its tab is for looking up past ones.
-				tabs: [
-					{ id: "applications", label: "Applications", path: "/forms" },
-					{
-						id: "featured",
-						label: "Featured artist",
-						path: "/artists",
-						...(FEATURED_ARTIST_CLOSED ? { badge: { label: "Off", tone: "warning", title: FEATURED_ARTIST_CLOSED } } : {}),
-					},
-				],
+				hint: "What people sent through the website's forms",
+				// Every form's replies, not only artists' applications. The
+				// Featured artist tab is gone: the website shows none any more.
 			},
 			{
 				id: "email", area: "email",

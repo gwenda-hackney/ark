@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from "svelte";
+	import { groupByForm } from "./form-groups";
 	import { fade, fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
@@ -33,7 +34,6 @@
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { easeOut, fadeMs, flyMs } from "../ui/motion";
 	import { navigate, parseShellPath } from "../app/nav";
-	import { navTabs } from "../app/nav-routes";
 	import {
 		beginLeave,
 		clearUnsavedGuard,
@@ -123,6 +123,8 @@
 			return haystack.includes(needle);
 		});
 	});
+
+	const groups = $derived(groupByForm(visible));
 
 	/** Answers only. Name and email sit in the header. */
 	const detailAnswers = $derived(
@@ -543,9 +545,8 @@
 	{:else}
 		<div class="list">
 			<PageHeader
-				title="Artists"
-				tabs={{ items: navTabs("artists"), value: "applications" }}
-				subtitle="Artists who applied to play through the site. Latest reply for each address."
+				title="Enquiries"
+				subtitle="What people sent through the website's forms, by form. Latest reply for each address."
 			>
 				{#snippet toolbar()}
 					<FilterBar
@@ -559,7 +560,7 @@
 						filters={forms.length > 1 ? formFilterField : undefined}
 					>
 						{#snippet end()}
-							<p class="meta">{loading ? "" : `${visible.length} ${visible.length === 1 ? "application" : "applications"}`}</p>
+							<p class="meta">{loading ? "" : `${visible.length} ${visible.length === 1 ? "enquiry" : "enquiries"}`}</p>
 							{#if !phone.matches}
 								<Segmented
 									value={view.value}
@@ -574,22 +575,31 @@
 				{/snippet}
 			</PageHeader>
 			{#if error}
-				<EmptyState tone="error" title="Could not load applications" text={error} />
+				<EmptyState tone="error" title="Could not load enquiries" text={error} />
 			{:else if loading}
-				<Skeleton rows={6} lines={1} label="Loading applications…" />
+				<Skeleton rows={6} lines={1} label="Loading enquiries…" />
 			{:else if visible.length === 0}
 				{#if rows.length === 0}
-					<EmptyState icon="forms" title="No applications yet" text="When an artist applies to play on the website, it shows here." />
+					<EmptyState icon="forms" title="No enquiries yet" text="When someone sends a form on the website (to play, for a party…), it shows here." />
 				{:else}
 					<EmptyState icon="search" title="Nothing matches" text="Try another name or email, or clear the filters." />
 				{/if}
 			{:else}
-				<div class="grid-host">
-					{#if phone.matches || view.value === "cards"}
-						<FormsCards rows={visible} showForm={forms.length > 1} />
-					{:else}
-						<FormsGrid rows={visible} />
-					{/if}
+				<!-- By form (#312 follow-up): artists' applications, party enquiries… each under its own heading. -->
+				<div class="grid-host scrollbar-fade">
+					{#each groups as group (group.key)}
+						<section class="form-group" aria-labelledby="form-group-{group.key}">
+							<h2 class="group-title" id="form-group-{group.key}">
+								{group.title}
+								<span class="group-count">{group.rows.length}</span>
+							</h2>
+							{#if phone.matches || view.value === "cards"}
+								<FormsCards rows={group.rows} />
+							{:else}
+								<FormsGrid rows={group.rows} scrollKey="forms-{group.key}" />
+							{/if}
+						</section>
+					{/each}
 				</div>
 			{/if}
 		</div>
@@ -921,6 +931,24 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
+		gap: var(--space-6);
+		overflow-y: auto;
+		padding-bottom: var(--space-4);
+	}
+
+	.group-title {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+		margin: 0 0 var(--space-2);
+		font-size: var(--text-base);
+		font-weight: 600;
+	}
+
+	.group-count {
+		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+		font-weight: 500;
 	}
 
 	.error {

@@ -55,8 +55,8 @@ export const AREAS = [
   { id: "occasions", label: "Occasions", hint: "Christmas parties and the like", api: [/^\/api\/occasions(\/|$)/] },
   {
     id: "artists",
-    label: "Artists",
-    hint: "The featured artist and applications",
+    label: "Enquiries",
+    hint: "What people sent through the website's forms, and the featured artist",
     api: [/^\/api\/(artists|forms)(\/|$)/],
   },
   { id: "photos", label: "Photos", hint: "The venue's photos on the website", api: [/^\/api\/venue\/gallery(\/|$)/] },

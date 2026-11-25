@@ -2,7 +2,7 @@
 const LABELS: Record<string, string> = {
 	events: "Events",
 	menu: "Menu and inventory",
-	artists: "Artists",
+	artists: "Enquiries",
 	users: "Users",
 	guests: "Forms and guest lists",
 };
