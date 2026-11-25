@@ -416,18 +416,13 @@ describe("spa-path", () => {
     assert.equal(isEditorPath("/artists/new"), true);
   });
 
-  it("sends a new featured artist's address back to the list, and keeps past ones open (#313)", () => {
-    assert.equal(canonicalizePath("/artists/new"), "/artists");
-    assert.equal(canonicalizePath("/artists/new/"), "/artists");
-    assert.equal(canonicalizePath("/artists/new?x=1"), "/artists");
-    assert.equal(canonicalizePath("/#/artists/new"), "/artists");
-    assert.equal(canonicalizePath("/artists"), "/artists");
-    assert.equal(canonicalizePath("/artists/3"), "/artists/3");
-    assert.equal(
-      canonicalizePath("/artists/newton"),
-      "/artists/newton",
-      "an id that starts with new",
-    );
+  it("sends every Featured artist address to Enquiries: the page is gone from ops (#313)", () => {
+    assert.equal(canonicalizePath("/artists/new"), "/forms");
+    assert.equal(canonicalizePath("/artists/new?x=1"), "/forms");
+    assert.equal(canonicalizePath("/#/artists/new"), "/forms");
+    assert.equal(canonicalizePath("/artists"), "/forms");
+    assert.equal(canonicalizePath("/artists/3"), "/forms");
+    assert.equal(canonicalizePath("/forms/12"), "/forms/12", "Enquiries' own addresses stay");
   });
 
   it("gives Pop-ups and Deals their own list, Add and editor addresses (#312)", () => {

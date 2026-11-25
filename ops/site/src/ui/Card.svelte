@@ -91,10 +91,13 @@
 		background: var(--sunken);
 	}
 
-	/* Grids and lists inside a card sit on its surface, never a darker box. */
+	/*
+	 * Grids and lists inside a card sit on its surface, never a darker box.
+	 * The header is the card's colour made solid: rows scroll under it.
+	 */
 	.card {
 		--grid-bg: transparent;
-		--grid-head-bg: transparent;
+		--grid-head-bg: color-mix(in srgb, var(--surface-1) 86%, var(--background));
 	}
 
 	.primary {

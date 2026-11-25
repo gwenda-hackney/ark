@@ -7,6 +7,9 @@ import {
 	eventWeekStart,
 	filterEventSchedule,
 	buildScheduleCalendar,
+	buildScheduleWeek,
+	scheduleWeekLabel,
+	shiftScheduleWeek,
 	formatScheduleDate,
 	formatScheduleWeekday,
 	groupEventSchedule,
@@ -291,6 +294,34 @@ describe("buildScheduleCalendar", () => {
 		assert.equal(shiftScheduleMonth("2026-12", 1), "2027-01");
 		assert.equal(shiftScheduleMonth("2026-01", -1), "2025-12");
 		assert.equal(scheduleMonthLabel("2026-09"), "September 2026");
+	});
+});
+
+describe("buildScheduleWeek", () => {
+	it("lays one week out Monday to Sunday, from any day in it, with its nights on their dates", () => {
+		const weeks = groupEventSchedule(
+			[
+				event("wed", "Wednesday Jazz", ["2026-11-25", "2026-12-02"]),
+				event("sun", "Sunday Roast", ["2026-11-29"]),
+			],
+			new Date(2026, 10, 20),
+		);
+		const week = buildScheduleWeek(weeks, "2026-11-25");
+		assert.deepEqual(week.days.map((day) => day.date), ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27", "2026-11-28", "2026-11-29"]);
+		assert.ok(week.days.every((day) => day.inMonth), "every day of the week is in view, not greyed");
+		assert.deepEqual(week.days[2].rows.map((row) => row.event.name), ["Wednesday Jazz"]);
+		assert.deepEqual(week.days[6].rows.map((row) => row.event.name), ["Sunday Roast"]);
+		assert.equal(week.days.flatMap((day) => day.rows).length, 2, "next week's jazz isn't in it");
+		assert.equal(week.month, "2026-11");
+	});
+
+	it("names the week, across months and years, and steps a week at a time", () => {
+		assert.equal(scheduleWeekLabel("2026-11-23"), "23 – 29 November 2026");
+		assert.equal(scheduleWeekLabel("2026-11-30"), "30 November – 6 December 2026");
+		assert.equal(scheduleWeekLabel("2026-12-28"), "28 December 2026 – 3 January 2027");
+		assert.equal(shiftScheduleWeek("2026-11-25", 1), "2026-11-30");
+		assert.equal(shiftScheduleWeek("2026-11-23", -1), "2026-11-16");
+		assert.equal(shiftScheduleWeek("2026-12-28", 1), "2027-01-04");
 	});
 });
 

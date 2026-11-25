@@ -8,7 +8,8 @@
 	import { formatWhen } from "../website/web-metrics";
 	import { DataGrid } from "../ui";
 
-	let { rows }: { rows: FormSubmission[] } = $props();
+	/** One form's enquiries (Enquiries groups them by form, so no Form column). */
+	let { rows, scrollKey = "forms" }: { rows: FormSubmission[]; scrollKey?: string } = $props();
 
 	const columnDefs: ColDef<FormSubmission>[] = [
 		{
@@ -22,12 +23,6 @@
 			field: "email",
 			flex: 1.4,
 			minWidth: 180,
-		},
-		{
-			headerName: "Form",
-			field: "formTitle",
-			flex: 1,
-			minWidth: 140,
 		},
 		{
 			headerName: "Decision",
@@ -90,7 +85,8 @@
 	<DataGrid
 		rowData={rows}
 		{columnDefs}
-		scrollKey="forms"
+		{scrollKey}
+		domLayout="autoHeight"
 		getRowId={(row) => row.id}
 		gridOptions={{ onRowClicked: openRow }}
 	/>
@@ -98,9 +94,7 @@
 
 <style>
 	.frame {
-		flex: 1;
-		height: 100%;
-		min-height: 0;
+		min-width: 0;
 	}
 
 	.frame :global(.ag-row) {

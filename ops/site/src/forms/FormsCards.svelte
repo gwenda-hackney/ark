@@ -21,7 +21,7 @@
 	}
 </script>
 
-<ul class="cards scrollbar-fade">
+<ul class="cards">
 	{#each cards as card (card.id)}
 		<li>
 			<a class="card" href={card.href} onclick={(event) => open(event, card.href)}>
@@ -55,11 +55,8 @@
 		grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
 		align-content: start;
 		gap: var(--space-3);
-		flex: 1;
-		min-height: 0;
 		margin: 0;
-		padding: 0 0 var(--space-4);
-		overflow-y: auto;
+		padding: 0;
 		list-style: none;
 	}
 
