@@ -34,8 +34,8 @@
 	} = $props();
 
 	/*
-	 * A month, or one week (Monday to Sunday, taller days): remembered in this
-	 * browser like List or Calendar. The week view opens on this week.
+	 * One week (Monday to Sunday, taller days), the default, or a month:
+	 * remembered in this browser like List or Calendar. A week opens on this week.
 	 */
 	const SPAN_KEY = "ops.events.calendarSpan";
 	const SPANS = [
@@ -44,9 +44,9 @@
 	];
 	function readSpan(): "month" | "week" {
 		try {
-			return localStorage.getItem(SPAN_KEY) === "week" ? "week" : "month";
+			return localStorage.getItem(SPAN_KEY) === "month" ? "month" : "week";
 		} catch {
-			return "month";
+			return "week";
 		}
 	}
 	let span = $state<"month" | "week">(readSpan());

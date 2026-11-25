@@ -94,11 +94,12 @@
 
 	const SCHEDULE_VIEW_KEY = "ops.events.scheduleView";
 
+	/** The calendar (its week view) unless they've picked the list. */
 	function readScheduleView(): string {
 		try {
-			return localStorage.getItem(SCHEDULE_VIEW_KEY) === "calendar" ? "calendar" : "list";
+			return localStorage.getItem(SCHEDULE_VIEW_KEY) === "list" ? "list" : "calendar";
 		} catch {
-			return "list";
+			return "calendar";
 		}
 	}
 
