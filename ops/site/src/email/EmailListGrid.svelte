@@ -96,14 +96,13 @@
 	}
 </script>
 
-<div class="frame">
+<div class="frame list-fill">
 	<DataGrid
 		{rowData}
 		{columnDefs}
 		{scrollKey}
 		hideHeader={phone.matches}
 		getRowId={(row) => (row._kind === "group" ? row._id : row.id)}
-		domLayout="autoHeight"
 		gridOptions={{
 			rowHeight: 80,
 			getRowHeight: (params) => (params.data?._kind === "group" ? 52 : undefined),
@@ -121,11 +120,6 @@
 <style>
 	.frame :global(.email-row) {
 		cursor: pointer;
-	}
-
-	/* As tall as its rows: AG Grid keeps a short list 150px tall otherwise. */
-	.frame :global(.ag-grid-scrolling-rows.ag-layout-auto-height) {
-		min-height: 0 !important;
 	}
 
 	.frame :global(.when-cell) {

@@ -103,12 +103,11 @@
 	}
 </script>
 
-<div class="frame">
+<div class="frame list-fill">
 	<DataGrid
 		{rowData}
 		{columnDefs}
 		{scrollKey}
-		domLayout="autoHeight"
 		getRowId={(row) => (row._kind === "group" ? row._id : row.id)}
 		{gridOptions}
 	/>
@@ -116,7 +115,9 @@
 
 <style>
 	.frame {
+		flex: 1;
 		min-width: 0;
+		min-height: 0;
 	}
 
 	.frame :global(.ag-row:not(.ag-full-width-row)) {

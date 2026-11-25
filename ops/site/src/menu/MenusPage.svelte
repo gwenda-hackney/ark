@@ -9,7 +9,7 @@
 	 */
 	import { onMount, untrack } from "svelte";
 	import type { ColDef, ICellRendererParams, RowClickedEvent } from "ag-grid-community";
-	import { Button, DataGrid, EmptyState, PageHeader, Skeleton } from "../ui";
+	import { Button, DataGrid, EmptyState, ListPage, Skeleton } from "../ui";
 	import BadgeCell from "../ui/BadgeCell.svelte";
 	import { hasRangeSelection, svelteCell } from "../ui/grid";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
@@ -135,15 +135,13 @@
 </script>
 
 <div class="menus-root">
-	<div class="page" class:parked={editing} inert={editing}>
-		<PageHeader title="Menus" subtitle="Every menu guests can see: the drinks, and each pop-up kitchen's food.">
+	<ListPage title="Menus" subtitle="Every menu guests can see: the drinks, and each pop-up kitchen's food." parked={editing}>
 			{#snippet actions()}
 				<Button type="button" onclick={() => navigate(newMenuPath())}>
 					{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
 					Add menu
 				</Button>
 			{/snippet}
-		</PageHeader>
 
 		{#if error}
 			<EmptyState tone="error" title="Couldn't load the menus" text={error}>
@@ -160,19 +158,18 @@
 				{/snippet}
 			</EmptyState>
 		{:else}
-			<div class="frame">
+			<div class="frame list-fill">
 				<DataGrid
 					rowData={menus}
 					{columnDefs}
 					scrollKey="menus"
 					hideHeader={phone.matches}
 					getRowId={(row) => row.id}
-					domLayout="autoHeight"
 					gridOptions={{ rowHeight: 56, onRowClicked: openRow, getRowClass: () => "menu-row" }}
 				/>
 			</div>
 		{/if}
-	</div>
+	</ListPage>
 	<!-- Always mounted: it comes forward over the list when a menu opens (EditorShell). -->
 	<MenuEditor {path} open={editing} />
 </div>
@@ -186,36 +183,6 @@
 		min-height: 0;
 		height: 100%;
 		overflow: hidden;
-	}
-
-	/* Steps back and dims while a menu comes forward over it; it keeps its scroll. */
-	.page {
-		transition:
-			transform 440ms var(--ease),
-			opacity 440ms var(--ease);
-	}
-
-	.page.parked {
-		pointer-events: none;
-		transform: scale(0.97);
-		opacity: 0.35;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.page {
-			transition: none;
-		}
-	}
-
-	.page {
-		position: relative;
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		padding: var(--page-gutter);
-		display: grid;
-		gap: var(--space-4);
-		align-content: start;
 	}
 
 	.frame :global(.menu-row) {

@@ -114,26 +114,16 @@
 	]);
 </script>
 
-<div class="overview">
-	<!-- One table, grouped like Enquiries: a heading row for each group. -->
-	<EmailListGrid {groups} scrollKey="email-list" />
-	{#if error}
-		<EmptyState tone="error" title="Couldn't load the emails" text={error}>
-			{#snippet action()}
-				<Button variant="outline" size="sm" onclick={onretry}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
-			{/snippet}
-		</EmptyState>
-	{:else if loading && !emails.length}
-		<Skeleton rows={2} lines={2} label="Loading emails…" />
-	{:else if !ordered.length}
-		<EmptyState icon="send" title="No one-off emails yet" text="Promote a night or a pop-up kitchen, or write your own: a picture, a few words, a button." />
-	{/if}
-</div>
-
-<style>
-	.overview {
-		display: grid;
-		gap: var(--space-4);
-		align-content: start;
-	}
-</style>
+<!-- One table, grouped like Enquiries; it fills the page and scrolls inside (ListPage). -->
+{#if error}
+	<EmptyState tone="error" title="Couldn't load the emails" text={error}>
+		{#snippet action()}
+			<Button variant="outline" size="sm" onclick={onretry}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
+		{/snippet}
+	</EmptyState>
+{:else if loading && !emails.length}
+	<Skeleton rows={2} lines={2} label="Loading emails…" />
+{:else if !ordered.length}
+	<EmptyState icon="send" title="No one-off emails yet" text="Promote a night or a pop-up kitchen, or write your own: a picture, a few words, a button." />
+{/if}
+<EmailListGrid {groups} scrollKey="email-list" />
