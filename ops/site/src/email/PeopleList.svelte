@@ -46,7 +46,7 @@
 
 	const subtitle = $derived(
 		counts
-			? `${counts.total.toLocaleString("en-GB")} people · ${counts.in} in Mailchimp · ${counts.waiting} waiting · ${counts.unsubscribed} unsubscribed · ${counts.off} not on the list`
+			? `${counts.total.toLocaleString("en-GB")} people · ${counts.in + counts.waiting} opted in${counts.waiting ? ` (${counts.waiting} not sent to Mailchimp yet)` : ""} · ${counts.unsubscribed} unsubscribed · ${counts.off} did not consent`
 			: "Our list, as the Mailchimp sync sends it",
 	);
 
@@ -55,7 +55,7 @@
 	const columnDefs: ColDef<ListPerson>[] = [
 		{ headerName: "Email", field: "email", flex: 1, minWidth: 220, tooltipField: "email" },
 		{
-			headerName: "Mailchimp",
+			headerName: "Emails",
 			colId: "mailchimp",
 			width: 160,
 			minWidth: 140,

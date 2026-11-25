@@ -41,7 +41,10 @@ export const opsGridTheme = themeQuartz.withParams({
 	fontSize: 13,
 	foregroundColor: "var(--foreground)",
 
-	headerBackgroundColor: "var(--grid-head-bg, var(--panel-bg))",
+	// Solid: AG Grid lays the header over the rows, which scroll under it, so
+	// a see-through header lets them show through. --panel-bg is 86% surface-1
+	// over the page; the same mix made solid looks the same.
+	headerBackgroundColor: "var(--grid-head-bg, color-mix(in srgb, var(--surface-1) 86%, var(--background)))",
 	menuBackgroundColor: "var(--popover)",
 	// --text-2xs
 	headerFontSize: 11,

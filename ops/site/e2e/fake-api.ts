@@ -27,6 +27,46 @@ export const ROLES = [
 ];
 export const USERS = [{ id: "1", _id: "1", email: ME.email, active: true, roleId: 1 }];
 
+/** Email → People: enough guests that the list scrolls. */
+export const PEOPLE = {
+  people: Array.from({ length: 60 }, (_, index) => ({
+    id: index + 1,
+    email: `guest${index + 1}@example.com`,
+    source: "Wi-Fi",
+    acquiredOn: "2026-11-21",
+    lastSeenOn: "2026-11-21",
+    visitDays: 1,
+    onListSince: null,
+    unsubscribedOn: null,
+    mailchimp: { status: "off", label: "Did not consent", tone: "neutral", detail: "" },
+  })),
+  counts: { total: 60, in: 0, waiting: 0, unsubscribed: 0, off: 60 },
+};
+
+/** Enquiries: what came through two of the website's forms. */
+const enquiry = (id: string, formSlug: string, formTitle: string, name: string) => ({
+  id,
+  formSlug,
+  formTitle,
+  email: `${name.toLowerCase()}@example.com`,
+  name,
+  status: "",
+  decision: "",
+  artistName: "",
+  artistLink: "",
+  submitted: null,
+  submittedAt: "2026-11-20T18:00:00.000Z",
+  current: true,
+  notifySentAt: "",
+  receiptSentAt: "",
+  answers: [],
+});
+export const ENQUIRIES = [
+  enquiry("1", "play", "Play at Gwenda", "Ava"),
+  enquiry("2", "party", "Christmas parties", "Ben"),
+  enquiry("3", "play", "Play at Gwenda", "Cy"),
+];
+
 export const FRAME = {
   site: {
     origin: "https://gwenda.example",
@@ -145,6 +185,8 @@ export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
     }
     if (pathname === "/api/web/jobs") return json({ ok: true, jobs: [] });
     if (pathname === "/api/users") return json({ users: USERS });
+    if (pathname === "/api/email/people") return json(PEOPLE);
+    if (pathname === "/api/forms") return json({ submissions: ENQUIRIES });
     if (pathname === "/api/roles") return json({ roles: ROLES });
     if (pathname === "/api/venue/gallery") {
       if (request.method() === "PUT") {

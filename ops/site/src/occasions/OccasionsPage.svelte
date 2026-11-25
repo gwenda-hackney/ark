@@ -9,6 +9,7 @@
 	import type { ColDef, ICellRendererParams, RowClickedEvent } from "ag-grid-community";
 	import { Button, DataGrid, EmptyState, PageHeader, Skeleton } from "../ui";
 	import BadgeCell from "../ui/BadgeCell.svelte";
+	import PhotoCell from "../menu/cells/PhotoCell.svelte";
 	import { hasRangeSelection, svelteCell } from "../ui/grid";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { Icon } from "../app/shell";
@@ -45,6 +46,17 @@
 	});
 
 	const columnDefs = $derived.by((): ColDef<Occasion>[] => [
+		// The card's photo, as the Events and Emails lists show theirs.
+		{
+			headerName: "",
+			colId: "photo",
+			width: 84,
+			minWidth: 72,
+			flex: 0,
+			sortable: false,
+			cellClass: "photo-cell",
+			cellRenderer: svelteCell(PhotoCell, (params: ICellRendererParams<Occasion>) => ({ url: params.data?.imageUrl || "", alt: "", size: "lg" })),
+		},
 		{ headerName: "Occasion", colId: "name", flex: 2, minWidth: 180, valueGetter: (p) => p.data?.name || "" },
 		{
 			headerName: "On home",
@@ -108,7 +120,7 @@
 					hideHeader={phone.matches}
 					getRowId={(row) => String(row.id)}
 					domLayout="autoHeight"
-					gridOptions={{ rowHeight: 52, onRowClicked: openRow, getRowClass: () => "occasion-row" }}
+					gridOptions={{ rowHeight: 80, onRowClicked: openRow, getRowClass: () => "occasion-row" }}
 				/>
 			</div>
 		{/if}

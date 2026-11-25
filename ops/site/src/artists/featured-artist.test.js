@@ -12,12 +12,12 @@ describe("featured artist: no new ones while the website shows none (#313)", () 
     assert.deepEqual(addArtistAction(), { disabled: true, reason: "Not on the website" });
   });
 
-  it("sends a new artist's address back to the list; past artists still open", () => {
-    assert.equal(closedArtistRedirect("/artists/new"), "/artists");
-    assert.equal(closedArtistRedirect("/artists/new/details"), "/artists");
-    assert.equal(closedArtistRedirect("/artists"), null);
-    assert.equal(closedArtistRedirect("/artists/3"), null);
-    assert.equal(canonicalizePath("/artists/new"), "/artists", "the app's own addresses follow it");
+  it("sends every Featured artist address to Enquiries: the page is gone", () => {
+    assert.equal(closedArtistRedirect("/artists/new"), "/forms");
+    assert.equal(closedArtistRedirect("/artists"), "/forms");
+    assert.equal(closedArtistRedirect("/artists/3"), "/forms");
+    assert.equal(closedArtistRedirect("/forms"), null);
+    assert.equal(canonicalizePath("/artists/new"), "/forms", "the app's own addresses follow it");
   });
 
   it("brings Add and the new artist's address back when it opens again", () => {

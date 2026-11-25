@@ -28,7 +28,7 @@ describe("NAV_ROUTES (#312)", () => {
 			],
 		);
 		const names = (id: string) => routes.find((row) => row.id === id)?.children?.map((row) => row.name);
-		assert.deepEqual(names("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Occasions", "Artists", "Email", "Photos"]);
+		assert.deepEqual(names("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Occasions", "Enquiries", "Email", "Photos"]);
 		assert.deepEqual(names("bar-kitchen"), ["Menus", "Items", "Stock"]);
 		assert.deepEqual(names("publish"), ["Website"]);
 		assert.deepEqual(names("settings"), ["Venue", "Users", "Lightspeed", "Configuration", "Developer tools"]);
@@ -56,12 +56,9 @@ describe("NAV_ROUTES (#312)", () => {
 });
 
 describe("pages with tabs", () => {
-	it("Artists, Stock and Lightspeed are one page each, with their old pages as tabs", () => {
+	it("Stock and Lightspeed are one page each, with their old pages as tabs; Enquiries has none", () => {
 		const tabs = (id: string) => pageTabs(routes, id).map((tab) => [tab.label, tab.href]);
-		assert.deepEqual(tabs("artists"), [
-			["Applications", "/forms"],
-			["Featured artist", "/artists"],
-		]);
+		assert.deepEqual(tabs("artists"), [], "the Featured artist tab is gone");
 		assert.deepEqual(tabs("stock"), [
 			["Inventory", "/inventory"],
 			["Suppliers", "/suppliers"],
@@ -73,20 +70,10 @@ describe("pages with tabs", () => {
 		assert.deepEqual(pageTabs(routes, "events"), [], "a page without tabs has none");
 	});
 
-	it("Artists opens on Applications; Featured artist is still a tab, marked Off while closed (#313)", () => {
-		const artists = flattenNavRoutes(routes).find((row) => row.id === "artists");
-		assert.equal(artists?.path, "/forms");
-		assert.deepEqual(pageTabs(routes, "artists"), [
-			{ id: "applications", label: "Applications", href: "/forms" },
-			{
-				id: "featured",
-				label: "Featured artist",
-				href: "/artists",
-				...(FEATURED_ARTIST_CLOSED ? { badge: { label: "Off", tone: "warning", title: "Not on the website" } } : {}),
-			},
-		]);
-		assert.ok(FEATURED_ARTIST_CLOSED, "closed for now, so the tab says Off");
-		assert.ok(pageTabs(routes, "stock").every((tab) => !tab.badge), "other tabs carry none");
+	it("Enquiries is every form's replies, at /forms, with no tabs", () => {
+		const enquiries = flattenNavRoutes(routes).find((row) => row.id === "artists");
+		assert.deepEqual([enquiries?.name, enquiries?.path, enquiries?.tabs], ["Enquiries", "/forms", undefined]);
+		assert.ok(pageTabs(routes, "stock").every((tab) => !tab.badge), "no tab carries a badge");
 	});
 
 	it("opens on its first tab", () => {
@@ -101,7 +88,6 @@ describe("pages with tabs", () => {
 		assert.equal(page("/inventory/gin"), "stock");
 		assert.equal(page("/forms"), "artists");
 		assert.equal(page("/forms/12"), "artists");
-		assert.equal(page("/artists/3"), "artists");
 		assert.equal(page("/lightspeed/export"), "lightspeed");
 		assert.equal(page("/lightspeed/menus"), "lightspeed");
 	});
@@ -118,8 +104,7 @@ describe("pages with tabs", () => {
 		assert.equal(pageFrame(routes, "/inventory"), "stock");
 		assert.equal(pageFrame(routes, "/suppliers"), "stock");
 		assert.equal(pageFrame(routes, "/inventory/gin"), "stock");
-		assert.equal(pageFrame(routes, "/artists"), "artists");
-		assert.equal(pageFrame(routes, "/forms/12"), "artists");
+		assert.equal(pageFrame(routes, "/forms/12"), "forms", "Enquiries has no tabs: its own frame");
 		assert.equal(pageFrame(routes, "/lightspeed/export"), "lightspeed");
 		assert.equal(pageFrame(routes, "/events"), "events");
 		assert.equal(pageFrame(routes, "/popups/36"), "events");
@@ -193,8 +178,8 @@ describe("matchActiveRoute", () => {
 		assert.deepEqual(opens("/inventory"), ["stock", "inventory"]);
 		assert.deepEqual(opens("/suppliers"), ["stock", "suppliers"]);
 		assert.deepEqual(opens("/forms"), ["artists", "forms"]);
-		assert.deepEqual(opens(canonicalizePath("/artists")), ["artists", "artists"]);
-		assert.deepEqual(opens(canonicalizePath("/artists/3")), ["artists", "artists"]);
+		assert.deepEqual(opens(canonicalizePath("/artists")), ["artists", "forms"], "Featured artist is gone: Enquiries");
+		assert.deepEqual(opens(canonicalizePath("/artists/3")), ["artists", "forms"]);
 		assert.deepEqual(opens("/lightspeed"), ["lightspeed", "lightspeed"]);
 		assert.deepEqual(opens("/lightspeed/export"), ["lightspeed", "lightspeed"]);
 		assert.deepEqual(opens("/venue/gallery"), ["photos", "venue"]);

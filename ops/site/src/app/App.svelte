@@ -125,8 +125,8 @@
 						/>
 					{:else if key === "events"}
 						<EventsPage path={current} />
-					{:else if key === "artists"}
-						<!-- Artists: Featured artist | Applications (#312) -->
+					{:else if key === "artists" || key === "forms"}
+						<!-- Enquiries: Enquiries | Featured artist (#312) -->
 						{#if route.page === "forms"}
 							<FormsPage path={current} />
 						{:else}

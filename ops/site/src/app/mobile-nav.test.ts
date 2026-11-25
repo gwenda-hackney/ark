@@ -83,7 +83,7 @@ describe("tabPages", () => {
 
 describe("stripPages", () => {
 	it("uses the short names", () => {
-		assert.deepEqual(labels("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Occasions", "Artists", "Email", "Photos"]);
+		assert.deepEqual(labels("whats-on"), ["Schedule", "Events", "Pop-ups", "Deals", "Occasions", "Enquiries", "Email", "Photos"]);
 		assert.deepEqual(labels("bar-kitchen"), ["Menus", "Items", "Stock"]);
 		// Website is one page now: nothing to switch between.
 		assert.deepEqual(stripPages("website", admin), []);
@@ -103,7 +103,7 @@ describe("mobileTabFor", () => {
 		assert.equal(mobileTabFor("/events/12@2026-09-25"), "whats-on");
 		assert.equal(mobileTabFor("/popups/36"), "whats-on");
 		assert.equal(mobileTabFor("/deals"), "whats-on");
-		assert.equal(mobileTabFor("/artists"), "whats-on");
+		assert.equal(mobileTabFor("/forms"), "whats-on");
 		assert.equal(mobileTabFor("/forms/12"), "whats-on");
 		assert.equal(mobileTabFor("/menus"), "bar-kitchen");
 		assert.equal(mobileTabFor("/menu/negroni"), "bar-kitchen");
