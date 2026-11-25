@@ -7,7 +7,7 @@
 	 */
 	import { untrack } from "svelte";
 	import type { ColDef, ICellRendererParams, RowClickedEvent } from "ag-grid-community";
-	import { Button, DataGrid, EmptyState, PageHeader, Skeleton } from "../ui";
+	import { Button, DataGrid, EmptyState, ListPage, Skeleton } from "../ui";
 	import BadgeCell from "../ui/BadgeCell.svelte";
 	import PhotoCell from "../menu/cells/PhotoCell.svelte";
 	import { hasRangeSelection, svelteCell } from "../ui/grid";
@@ -87,15 +87,13 @@
 </script>
 
 <div class="occasions-root">
-	<div class="page" class:parked={editing} inert={editing}>
-		<PageHeader title="Occasions" subtitle="Christmas parties and the like: a card on home between its show days, leading to the party form.">
+	<ListPage title="Occasions" subtitle="Christmas parties and the like: a card on home between its show days, leading to the party form." parked={editing}>
 			{#snippet actions()}
 				<Button type="button" onclick={() => navigate("/occasions/new")}>
 					{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
 					Add occasion
 				</Button>
 			{/snippet}
-		</PageHeader>
 
 		{#if error}
 			<EmptyState tone="error" title="Couldn't load the occasions" text={error}>
@@ -112,19 +110,18 @@
 				{/snippet}
 			</EmptyState>
 		{:else}
-			<div class="frame">
+			<div class="frame list-fill">
 				<DataGrid
 					rowData={occasions}
 					{columnDefs}
 					scrollKey="occasions"
 					hideHeader={phone.matches}
 					getRowId={(row) => String(row.id)}
-					domLayout="autoHeight"
 					gridOptions={{ rowHeight: 80, onRowClicked: openRow, getRowClass: () => "occasion-row" }}
 				/>
 			</div>
 		{/if}
-	</div>
+	</ListPage>
 	<!-- Always mounted: it comes forward over the list when an occasion opens (EditorShell). -->
 	<OccasionEditor {path} open={editing} onchanged={() => void load()} />
 </div>
@@ -138,32 +135,6 @@
 		min-height: 0;
 		height: 100%;
 		overflow: hidden;
-	}
-
-	.page {
-		position: relative;
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		padding: var(--page-gutter);
-		display: grid;
-		gap: var(--space-4);
-		align-content: start;
-		transition:
-			transform 440ms var(--ease),
-			opacity 440ms var(--ease);
-	}
-
-	.page.parked {
-		pointer-events: none;
-		transform: scale(0.97);
-		opacity: 0.35;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.page {
-			transition: none;
-		}
 	}
 
 	.frame :global(.occasion-row) {

@@ -19,6 +19,7 @@ export { default as HighlightText } from "./HighlightText.svelte";
 export { default as Notice } from "./Notice.svelte";
 export { default as PageDrawer } from "./PageDrawer.svelte";
 export { default as PageHeader } from "./PageHeader.svelte";
+export { default as ListPage } from "./ListPage.svelte";
 export { default as PageHelp } from "./PageHelp.svelte";
 export { default as HelpDrawer } from "./HelpDrawer.svelte";
 export { default as SearchField } from "./SearchField.svelte";

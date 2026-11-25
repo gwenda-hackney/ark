@@ -54,3 +54,24 @@ export function keepFullWidthGroupsTogether<T extends FullWidthGroupRow>(
 	}
 	nodes.length = i;
 }
+
+/** A group for one table with heading rows: its name, an optional note, its rows. */
+export type GridGroup<T> = { key: string; title: string; note?: string; rows: T[] };
+/** A group's heading row, as keepFullWidthGroupsTogether and GroupHeadingCell want it. */
+export type GroupHeadingRow = FullWidthGroupRow & { _kind: "group"; _id: string; sectionId: string; _sectionOrder: number; title: string; note?: string; count: number };
+/** A row under a heading. */
+export type GroupedItem<T> = T & { _kind: "row"; sectionId: string; _sectionOrder: number };
+export type GroupedGridRow<T> = GroupHeadingRow | GroupedItem<T>;
+
+/** The groups as one table's rows: each group's heading row, then its rows (sort them with keepFullWidthGroupsTogether). */
+export function withGroupRows<T>(groups: GridGroup<T>[]): GroupedGridRow<T>[] {
+	return groups.flatMap((group, order): GroupedGridRow<T>[] => [
+		{ _kind: "group", _id: `section:${group.key}`, sectionId: group.key, _sectionOrder: order, title: group.title, note: group.note, count: group.rows.length },
+		...group.rows.map((row): GroupedItem<T> => ({ ...row, _kind: "row", sectionId: group.key, _sectionOrder: order })),
+	]);
+}
+
+/** The row's own data, or nothing on a heading row. */
+export function groupedItem<T>(row: GroupedGridRow<T> | null | undefined): GroupedItem<T> | undefined {
+	return row?._kind === "row" ? row : undefined;
+}

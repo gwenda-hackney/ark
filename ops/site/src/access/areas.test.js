@@ -58,7 +58,7 @@ describe("what a level lets through", () => {
   it("reads stay open where pages share data, but not in a guarded area", () => {
     assert.equal(refusalFor(bar, "/api/events", "GET"), null);
     assert.match(refusalFor(bar, "/api/users", "GET"), /access to Users/);
-    assert.match(refusalFor(bar, "/api/email/people", "GET"), /access to Email: People/);
+    assert.match(refusalFor(bar, "/api/email/people", "GET"), /access to Guest email list/);
     assert.match(refusalFor(bar, "/api/web/databases", "GET"), /access to Developer tools/);
   });
 

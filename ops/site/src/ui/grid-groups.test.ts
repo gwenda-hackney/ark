@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { keepFullWidthGroupsTogether } from "./grid-groups.ts";
+import { keepFullWidthGroupsTogether, withGroupRows } from "./grid-groups.ts";
 
 function node(
 	data: {
@@ -96,6 +96,30 @@ describe("keepFullWidthGroupsTogether", () => {
 		assert.deepEqual(
 			nodes.map((row) => row.data?._id),
 			["section:cocktails", "b", "a"],
+		);
+	});
+});
+
+describe("withGroupRows", () => {
+	const groups = [
+		{ key: "party", title: "Party enquiry", rows: [{ id: "2" }] },
+		{ key: "play", title: "Play at Gwenda", note: "Artists", rows: [{ id: "1" }, { id: "3" }] },
+	];
+
+	it("lists each group's heading, with its count, then its rows", () => {
+		assert.deepEqual(
+			withGroupRows(groups).map((row) => (row._kind === "group" ? `# ${row.title} ${row.count}` : row.id)),
+			["# Party enquiry 1", "2", "# Play at Gwenda 2", "1", "3"],
+		);
+	});
+
+	it("a column sort keeps every row under its own heading, sorted within it", () => {
+		const nodes = withGroupRows(groups).map((data) => ({ data }));
+		const sorted = [nodes[4], nodes[2], nodes[1], nodes[3], nodes[0]];
+		keepFullWidthGroupsTogether(sorted);
+		assert.deepEqual(
+			sorted.map(({ data }) => (data._kind === "group" ? `# ${data.title}` : data.id)),
+			["# Party enquiry", "2", "# Play at Gwenda", "3", "1"],
 		);
 	});
 });

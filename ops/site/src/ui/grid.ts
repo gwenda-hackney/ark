@@ -17,8 +17,13 @@ export function hasRangeSelection(): boolean {
 }
 
 export {
+	groupedItem,
 	keepFullWidthGroupsTogether,
+	withGroupRows,
 	type FullWidthGroupRow,
+	type GridGroup,
+	type GroupedGridRow,
+	type GroupHeadingRow,
 } from "./grid-groups";
 
 /**

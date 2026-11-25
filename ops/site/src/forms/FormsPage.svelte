@@ -15,7 +15,7 @@
 		FilterBar,
 		FilterField,
 		MultiSelect,
-		PageHeader,
+		ListPage,
 		Segmented,
 		Skeleton,
 		TextField,
@@ -546,7 +546,7 @@
 	{/if}
 	<!-- The list stays put while an enquiry is open (hidden), so closing it doesn't reload and resize the table. -->
 	<div class="list" hidden={Boolean(openId)}>
-			<PageHeader
+			<ListPage
 				title="Enquiries"
 				subtitle="What people sent through the website's forms, by form. Latest reply for each address."
 			>
@@ -575,7 +575,6 @@
 						{/snippet}
 					</FilterBar>
 				{/snippet}
-			</PageHeader>
 			{#if error}
 				<EmptyState tone="error" title="Could not load enquiries" text={error} />
 			{:else if loading}
@@ -588,7 +587,7 @@
 				{/if}
 			{:else}
 				<!-- By form (#312 follow-up): cards under a heading for each form; the table is one table with a heading row for each. -->
-				<div class="grid-host scrollbar-fade">
+				<div class="grid-host" class:list-fill={!(phone.matches || view.value === "cards")}>
 					{#if phone.matches || view.value === "cards"}
 						{#each groups as group (group.key)}
 							<section class="form-group" aria-labelledby="form-group-{group.key}">
@@ -604,6 +603,7 @@
 					{/if}
 				</div>
 			{/if}
+			</ListPage>
 		</div>
 	<BusyOverlay active={loading && Boolean(openId)} label="Loading…" />
 </div>
@@ -623,7 +623,6 @@
 		flex-direction: column;
 		flex: 1;
 		min-height: 0;
-		padding: var(--page-gutter);
 	}
 
 	.list[hidden] {
@@ -931,14 +930,10 @@
 	}
 
 	.grid-host {
-		flex: 1;
-		min-height: 0;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-6);
-		overflow-y: auto;
-		padding-bottom: var(--space-4);
 	}
 
 	.group-title {

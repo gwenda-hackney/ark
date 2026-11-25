@@ -102,7 +102,7 @@
 	];
 </script>
 
-<Card title="People" {subtitle} fill>
+<Card title="People" {subtitle} fill class="list-fill">
 	{#snippet actions()}
 		<SearchField bind:value={search} placeholder="Search emails…" ariaLabel="Search people" count={shown.length} />
 	{/snippet}

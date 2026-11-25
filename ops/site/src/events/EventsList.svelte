@@ -15,7 +15,7 @@
 		FilterField,
 		DateField,
 		MultiSelect,
-		PageHeader,
+		ListPage,
 		PageHelp,
 		Segmented,
 		Skeleton,
@@ -255,23 +255,22 @@
 	});
 </script>
 
-<div
-	class="list-page scrollbar-fade"
-	class:parked={editing || missing}
-	inert={editing || missing ? true : undefined}
-	aria-hidden={editing || missing ? true : undefined}
+<!-- The Schedule's kind filter: in list and calendar alike, so nothing moves when the view or the kind changes. -->
+{#snippet kinds()}
+	<Segmented
+		bind:value={kindFilter}
+		items={SCHEDULE_KINDS}
+		tone="soft"
+		size="sm"
+		ariaLabel="Show events, pop-ups or deals"
+	/>
+{/snippet}
+<ListPage
+	class="events-list"
+	title={copy.title}
+	header={section ? undefined : kinds}
+	parked={editing || missing}
 >
-		<!-- The Schedule's kind filter: in list and calendar alike, so nothing moves when the view or the kind changes. -->
-		{#snippet kinds()}
-			<Segmented
-				bind:value={kindFilter}
-				items={SCHEDULE_KINDS}
-				tone="soft"
-				size="sm"
-				ariaLabel="Show events, pop-ups or deals"
-			/>
-		{/snippet}
-		<PageHeader title={copy.title} children={section ? undefined : kinds}>
 			{#snippet actions()}
 				{#if !section}
 					<Segmented
@@ -352,8 +351,7 @@
 					{/if}
 				{/if}
 			{/snippet}
-		</PageHeader>
-		<div class="list-main fill" >
+		<div class="list-main fill list-fill">
 			{#if error && !editing && !missing && !events.length}
 				<EmptyState tone="error" title="Could not load events" text={error}>
 					{#snippet action()}
@@ -402,18 +400,14 @@
 				{/if}
 			{/if}
 		</div>
-	</div>
+</ListPage>
 
 <style>
-	.list-page {
+	/* The editor opens over the list, so the list sits under it (ListPage does the rest). */
+	:global(.list-page.events-list) {
 		position: absolute;
 		inset: 0;
 		z-index: 0;
-		overflow: hidden;
-		padding: var(--page-gutter);
-		display: flex;
-		flex-direction: column;
-		background: transparent;
 	}
 
 	.list-main {
@@ -438,29 +432,6 @@
 		flex-direction: column;
 	}
 
-	.list-page.parked {
-		/* Keep the list laid out and scrolled under the detail. */
-		pointer-events: none;
-	}
-
-	/* Steps back and dims while an editor comes forward over it. */
-	.list-page {
-		transition:
-			transform 440ms var(--ease),
-			opacity 440ms var(--ease);
-	}
-
-	.list-page.parked {
-		transform: scale(0.97);
-		opacity: 0.35;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.list-page {
-			transition: none;
-		}
-	}
-
 	.error {
 		margin: 0 0 var(--space-3);
 		color: var(--destructive);
@@ -469,7 +440,7 @@
 
 	/* Phones: the list runs edge to edge, so rows use the full width. */
 	@media (max-width: 900px) {
-		.list-page {
+		:global(.list-page.events-list) {
 			padding-bottom: 0;
 		}
 	}
