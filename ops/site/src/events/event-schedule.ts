@@ -383,12 +383,27 @@ export function scheduleMonthDays(
 }
 
 /** Monday-first month grid. Nights land on their date, including leading and trailing days. */
-export function buildScheduleCalendar(
-	weeks: EventScheduleWeek[],
-	month: string,
-	now = new Date(),
-): ScheduleCalendar {
-	const grid = scheduleMonthDays(month, now);
+/** The Monday a week view starts on, `delta` weeks from the week of `date`. */
+export function shiftScheduleWeek(date: string, delta: number): string {
+	return formatIsoDate(addDays(parseIsoDate(eventWeekStart(date)), delta * 7));
+}
+
+/** "23 – 29 November 2026"; across months "30 November – 6 December 2026"; across years both years. */
+export function scheduleWeekLabel(start: string): string {
+	const from = parseIsoDate(eventWeekStart(start));
+	const to = addDays(from, 6);
+	const day = (date: Date) => String(date.getDate());
+	const monthName = (date: Date) => date.toLocaleDateString("en-GB", { month: "long" });
+	if (from.getFullYear() !== to.getFullYear()) {
+		return `${day(from)} ${monthName(from)} ${from.getFullYear()} – ${day(to)} ${monthName(to)} ${to.getFullYear()}`;
+	}
+	if (from.getMonth() !== to.getMonth()) {
+		return `${day(from)} ${monthName(from)} – ${day(to)} ${monthName(to)} ${to.getFullYear()}`;
+	}
+	return `${day(from)} – ${day(to)} ${monthName(to)} ${to.getFullYear()}`;
+}
+
+function rowsByDate(weeks: EventScheduleWeek[]): Map<string, EventScheduleRow[]> {
 	const byDate = new Map<string, EventScheduleRow[]>();
 	for (const week of weeks) {
 		for (const row of week.rows) {
@@ -397,6 +412,30 @@ export function buildScheduleCalendar(
 			byDate.set(row.date, list);
 		}
 	}
+	return byDate;
+}
+
+/**
+ * One week's cells, Monday to Sunday, for the week holding `date`: the
+ * calendar's week view. Every day counts as in view (none greyed).
+ */
+export function buildScheduleWeek(weeks: EventScheduleWeek[], date: string): ScheduleCalendar {
+	const start = eventWeekStart(date);
+	const byDate = rowsByDate(weeks);
+	const days: ScheduleCalendarDay[] = Array.from({ length: 7 }, (_, index) => {
+		const day = formatIsoDate(addDays(parseIsoDate(start), index));
+		return { date: day, inMonth: true, rows: byDate.get(day) || [] };
+	});
+	return { month: start.slice(0, 7), label: scheduleWeekLabel(start), weekdays: SCHEDULE_WEEKDAYS, days };
+}
+
+export function buildScheduleCalendar(
+	weeks: EventScheduleWeek[],
+	month: string,
+	now = new Date(),
+): ScheduleCalendar {
+	const grid = scheduleMonthDays(month, now);
+	const byDate = rowsByDate(weeks);
 	const days: ScheduleCalendarDay[] = grid.days.map((day) => ({
 		...day,
 		rows: byDate.get(day.date) || [],

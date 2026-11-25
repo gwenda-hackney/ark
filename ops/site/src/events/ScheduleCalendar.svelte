@@ -6,12 +6,16 @@
 	 */
 	import { mediaMatches, SHELL_MOBILE_QUERY } from "../ui/viewport.svelte";
 	import { Icon } from "../app/shell";
-	import { Button } from "../ui";
+	import { Button, Segmented } from "../ui";
+	import { tick, untrack } from "svelte";
 	import type { EventScheduleWeek } from "./event-schedule";
 	import {
 		buildScheduleCalendar,
+		buildScheduleWeek,
+		eventWeekStart,
 		scheduleMonthLabel,
 		shiftScheduleMonth,
+		shiftScheduleWeek,
 	} from "./event-schedule";
 	import { eventItemPath } from "../app/nav";
 	import { eventPath } from "./event-lists";
@@ -29,7 +33,38 @@
 		filtersActive?: boolean;
 	} = $props();
 
-	const calendar = $derived(buildScheduleCalendar(weeks, month));
+	/*
+	 * A month, or one week (Monday to Sunday, taller days): remembered in this
+	 * browser like List or Calendar. The week view opens on this week.
+	 */
+	const SPAN_KEY = "ops.events.calendarSpan";
+	const SPANS = [
+		{ id: "month", label: "Month" },
+		{ id: "week", label: "Week" },
+	];
+	function readSpan(): "month" | "week" {
+		try {
+			return localStorage.getItem(SPAN_KEY) === "week" ? "week" : "month";
+		} catch {
+			return "month";
+		}
+	}
+	let span = $state<"month" | "week">(readSpan());
+	let weekOf = $state(untrack(() => today));
+	function setSpan(next: string) {
+		const value = next === "week" ? "week" : "month";
+		if (value === span) return;
+		if (value === "week") weekOf = month === today.slice(0, 7) || !month ? today : `${month}-01`;
+		else month = eventWeekStart(weekOf).slice(0, 7);
+		span = value;
+		try {
+			localStorage.setItem(SPAN_KEY, value);
+		} catch {
+			// Private windows: it just isn't remembered.
+		}
+	}
+
+	const calendar = $derived(span === "week" ? buildScheduleWeek(weeks, weekOf) : buildScheduleCalendar(weeks, month));
 	const totalRows = $derived(weeks.reduce((total, week) => total + week.rows.length, 0));
 	const nightsInMonth = $derived(
 		calendar.days.reduce(
@@ -88,7 +123,10 @@
 
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 	const agendaDays = $derived(calendar.days.filter((day) => day.inMonth && day.rows.length));
-	const thisMonth = $derived(calendar.month === today.slice(0, 7));
+	const thisMonth = $derived(
+		span === "week" ? eventWeekStart(weekOf) === eventWeekStart(today) : calendar.month === today.slice(0, 7),
+	);
+	const unit = $derived(span === "week" ? "week" : "month");
 
 	function weekdayShort(iso: string): string {
 		return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
@@ -101,8 +139,40 @@
 	}
 
 	function go(delta: number): void {
-		month = shiftScheduleMonth(calendar.month, delta);
+		if (span === "week") {
+			weekOf = shiftScheduleWeek(weekOf, delta);
+			month = weekOf.slice(0, 7);
+		} else month = shiftScheduleMonth(calendar.month, delta);
 	}
+
+	function goToday(): void {
+		weekOf = today;
+		month = today.slice(0, 7);
+	}
+
+	/*
+	 * Opening on this month, or coming back to it: today's week scrolls into
+	 * view, however far down the month it is. Other months start at the top.
+	 */
+	let scrollEl = $state<HTMLDivElement | undefined>();
+	$effect(() => {
+		const box = scrollEl;
+		const showingToday = thisMonth && span === "month";
+		void calendar.month;
+		if (!box) return;
+		void tick().then(() => {
+			if (!showingToday) {
+				box.scrollTop = 0;
+				return;
+			}
+			const cell = box.querySelector<HTMLElement>(".day.today");
+			if (!cell) return;
+			const cellTop = cell.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+			const header = box.querySelector<HTMLElement>(".head")?.offsetHeight ?? 0;
+			const fits = cellTop + cell.offsetHeight <= box.clientHeight;
+			box.scrollTop = fits ? 0 : Math.max(0, cellTop - header - 8);
+		});
+	});
 </script>
 
 <div class="calendar">
@@ -112,8 +182,9 @@
 			<p class="count">
 				{nightsInMonth === 1 ? "1 night" : `${nightsInMonth} nights`}
 			</p>
-			<div class="stepper" role="group" aria-label="Month">
-				<Button type="button" variant="outline" size="sm" aria-label="Previous month" title="Previous month" onclick={() => go(-1)}>
+			<Segmented size="sm" tone="soft" items={SPANS} value={span} ariaLabel="Show a month or a week" onChange={(id: string) => setSpan(id)} />
+			<div class="stepper" role="group" aria-label={unit === "week" ? "Week" : "Month"}>
+				<Button type="button" variant="outline" size="sm" aria-label="Previous {unit}" title="Previous {unit}" onclick={() => go(-1)}>
 					{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
 				</Button>
 				<Button
@@ -121,13 +192,13 @@
 					variant="outline"
 					size="sm"
 					disabled={thisMonth}
-					title={thisMonth ? "Already showing this month" : "Back to this month"}
-					onclick={() => (month = today.slice(0, 7))}
+					title={thisMonth ? `Already showing this ${unit}` : `Back to this ${unit}`}
+					onclick={goToday}
 				>
 					{#snippet icon()}<Icon name="calendar" size={14} />{/snippet}
 					Today
 				</Button>
-				<Button type="button" variant="outline" size="sm" aria-label="Next month" title="Next month" onclick={() => go(1)}>
+				<Button type="button" variant="outline" size="sm" aria-label="Next {unit}" title="Next {unit}" onclick={() => go(1)}>
 					{#snippet icon()}<Icon name="chevron-right" size={16} />{/snippet}
 				</Button>
 			</div>
@@ -138,6 +209,8 @@
 		<p class="empty">
 			{filtersActive ? "No nights match these filters." : "No upcoming nights."}
 		</p>
+	{:else if nightsInMonth === 0 && span === "week"}
+		<p class="note">No nights this week.</p>
 	{:else if nightsInMonth === 0}
 		<p class="note">
 			No nights in {calendar.label}.
@@ -178,8 +251,8 @@
 			{/each}
 		</ol>
 	{:else}
-	<div class="scroll">
-		<div class="grid" role="grid" aria-label={calendar.label}>
+	<div class="scroll" bind:this={scrollEl}>
+		<div class="grid" class:week={span === "week"} role="grid" aria-label={calendar.label}>
 			{#each calendar.weekdays as weekday (weekday)}
 				<div class="head" role="columnheader">{weekday}</div>
 			{/each}
@@ -303,23 +376,38 @@
 		grid-template-columns: repeat(7, minmax(0, 1fr));
 		grid-template-rows: auto;
 		grid-auto-rows: minmax(6.75rem, 1fr);
-		gap: 1px;
 		min-width: 0;
 		height: 100%;
 		min-height: min-content;
-		background: var(--border);
-		border: 1px solid var(--border);
+		border-top: 1px solid var(--border);
+		border-left: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		overflow: hidden;
 	}
 
+	/* A week: one row of tall days filling the space. */
+	.grid.week {
+		grid-auto-rows: minmax(16rem, 1fr);
+	}
+
+	/*
+	 * See-through, so the page's glow shows behind them. They used to paint
+	 * the glow themselves (fixed to the window), which the browser drew green
+	 * inside this scroll box until the first scroll. The lines are borders.
+	 */
 	.head,
 	.day {
-		background: var(--ambient), var(--background);
+		background: transparent;
+		border-right: 1px solid var(--border);
+		border-bottom: 1px solid var(--border);
 		min-width: 0;
 	}
 
+	/* The weekday names stay in view as the month scrolls, solid so days go under them. */
 	.head {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		background: color-mix(in srgb, var(--surface-1) 86%, var(--background));
 		padding: var(--space-2) var(--space-2);
 		color: var(--muted-foreground);
 		font-size: var(--text-2xs);
