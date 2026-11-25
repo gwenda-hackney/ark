@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from "svelte";
 	import { groupByForm } from "./form-groups";
-	import { fade, fly } from "svelte/transition";
+	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
 		Badge,
@@ -32,7 +32,7 @@
 		type FormSubmission,
 	} from "../app/api";
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
-	import { easeOut, fadeMs, flyMs } from "../ui/motion";
+	import { easeOut, flyMs } from "../ui/motion";
 	import { navigate, parseShellPath } from "../app/nav";
 	import {
 		beginLeave,
@@ -326,11 +326,8 @@
 
 <div class="forms-root">
 	{#if openId}
-		<div
-			class="detail"
-			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-			out:fade={{ duration: fadeMs, easing: easeOut }}
-		>
+		<!-- No fade out: the list is already underneath, so closing shows it at once, where it was. -->
+		<div class="detail" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
 			{#snippet decisionButtons()}
 				<!-- Same three buttons on every submission; ones that don't apply are disabled. -->
 				<Button
@@ -546,8 +543,9 @@
 				</article>
 			</div>
 		</div>
-	{:else}
-		<div class="list">
+	{/if}
+	<!-- The list stays put while an enquiry is open (hidden), so closing it doesn't reload and resize the table. -->
+	<div class="list" hidden={Boolean(openId)}>
 			<PageHeader
 				title="Enquiries"
 				subtitle="What people sent through the website's forms, by form. Latest reply for each address."
@@ -589,25 +587,24 @@
 					<EmptyState icon="search" title="Nothing matches" text="Try another name or email, or clear the filters." />
 				{/if}
 			{:else}
-				<!-- By form (#312 follow-up): artists' applications, party enquiries… each under its own heading. -->
+				<!-- By form (#312 follow-up): cards under a heading for each form; the table is one table with a heading row for each. -->
 				<div class="grid-host scrollbar-fade">
-					{#each groups as group (group.key)}
-						<section class="form-group" aria-labelledby="form-group-{group.key}">
-							<h2 class="group-title" id="form-group-{group.key}">
-								{group.title}
-								<span class="group-count">{group.rows.length}</span>
-							</h2>
-							{#if phone.matches || view.value === "cards"}
+					{#if phone.matches || view.value === "cards"}
+						{#each groups as group (group.key)}
+							<section class="form-group" aria-labelledby="form-group-{group.key}">
+								<h2 class="group-title" id="form-group-{group.key}">
+									{group.title}
+									<span class="group-count">{group.rows.length}</span>
+								</h2>
 								<FormsCards rows={group.rows} />
-							{:else}
-								<FormsGrid rows={group.rows} scrollKey="forms-{group.key}" />
-							{/if}
-						</section>
-					{/each}
+							</section>
+						{/each}
+					{:else}
+						<FormsGrid {groups} />
+					{/if}
 				</div>
 			{/if}
 		</div>
-	{/if}
 	<BusyOverlay active={loading && Boolean(openId)} label="Loading…" />
 </div>
 
@@ -627,6 +624,10 @@
 		flex: 1;
 		min-height: 0;
 		padding: var(--page-gutter);
+	}
+
+	.list[hidden] {
+		display: none;
 	}
 
 	.detail {
