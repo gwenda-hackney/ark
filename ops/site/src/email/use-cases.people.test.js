@@ -93,7 +93,7 @@ describe("the people on our list", () => {
         person.mailchimp.label,
       ]),
       [
-        ["new@example.com", "Wi-Fi", "2026-11-09", "2026-11-09", 1, "Waiting"],
+        ["new@example.com", "Wi-Fi", "2026-11-09", "2026-11-09", 1, "Opted in, not sent yet"],
         [
           "guest@example.com",
           "Wi-Fi",
@@ -102,7 +102,7 @@ describe("the people on our list", () => {
           3,
           "Did not consent",
         ],
-        ["in@example.com", "Website", "2026-10-01", null, 0, "In Mailchimp"],
+        ["in@example.com", "Website", "2026-10-01", null, 0, "Opted in"],
         [
           "left@example.com",
           "Website, Wi-Fi",

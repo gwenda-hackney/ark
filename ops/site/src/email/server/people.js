@@ -20,8 +20,8 @@ const SOURCES = { wifi: "Wi-Fi", website: "Website", prelaunch: "Before opening"
 export function mailchimpStatus(record) {
   if (record.marketing) {
     return record.synced
-      ? { status: "in", label: "In Mailchimp", tone: "success", detail: "On the mailing list in Mailchimp." }
-      : { status: "waiting", label: "Waiting", tone: "info", detail: "Goes to Mailchimp with the next hourly sync." }
+      ? { status: "in", label: "Opted in", tone: "success", detail: "Asked for emails; on the mailing list in Mailchimp." }
+      : { status: "waiting", label: "Opted in, not sent yet", tone: "info", detail: "Asked for emails; goes to Mailchimp with the next hourly sync." }
   }
   if (record.marketingOffOn) {
     return { status: "unsubscribed", label: "Unsubscribed", tone: "warning", detail: "Unsubscribed in Mailchimp." };
