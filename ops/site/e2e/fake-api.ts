@@ -43,6 +43,30 @@ export const PEOPLE = {
   counts: { total: 60, in: 0, waiting: 0, unsubscribed: 0, off: 60 },
 };
 
+/** Enquiries: what came through two of the website's forms. */
+const enquiry = (id: string, formSlug: string, formTitle: string, name: string) => ({
+  id,
+  formSlug,
+  formTitle,
+  email: `${name.toLowerCase()}@example.com`,
+  name,
+  status: "",
+  decision: "",
+  artistName: "",
+  artistLink: "",
+  submitted: null,
+  submittedAt: "2026-11-20T18:00:00.000Z",
+  current: true,
+  notifySentAt: "",
+  receiptSentAt: "",
+  answers: [],
+});
+export const ENQUIRIES = [
+  enquiry("1", "play", "Play at Gwenda", "Ava"),
+  enquiry("2", "party", "Christmas parties", "Ben"),
+  enquiry("3", "play", "Play at Gwenda", "Cy"),
+];
+
 export const FRAME = {
   site: {
     origin: "https://gwenda.example",
@@ -162,6 +186,7 @@ export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
     if (pathname === "/api/web/jobs") return json({ ok: true, jobs: [] });
     if (pathname === "/api/users") return json({ users: USERS });
     if (pathname === "/api/email/people") return json(PEOPLE);
+    if (pathname === "/api/forms") return json({ submissions: ENQUIRIES });
     if (pathname === "/api/roles") return json({ roles: ROLES });
     if (pathname === "/api/venue/gallery") {
       if (request.method() === "PUT") {

@@ -14,7 +14,7 @@
 		Field,
 		FilterBar,
 		FilterField,
-		NativeSelect,
+		MultiSelect,
 		PageHeader,
 		Segmented,
 		Skeleton,
@@ -64,7 +64,8 @@
 	let loading = $state(true);
 	let error = $state("");
 	let query = $state("");
-	let formFilter = $state("");
+	/** The enquiry types shown (forms' keys); none picked shows them all. */
+	let formTypes = $state<string[]>([]);
 	let sending = $state<FormEmailKind | null>(null);
 	let mailNote = $state("");
 	let mailError = $state("");
@@ -94,22 +95,19 @@
 		return [...titles.entries()].sort((a, b) => a[1].localeCompare(b[1]));
 	});
 
-	const formOptions = $derived([
-		{ value: "", label: "All forms" },
-		...forms.map(([value, label]) => ({ value, label })),
-	]);
-
 	const formChips = $derived(
-		formFilter
-			? [{ key: "form", label: formOptions.find((row) => row.value === formFilter)?.label || "Form", onremove: () => (formFilter = "") }]
-			: [],
+		formTypes.map((key) => ({
+			key: `form-${key}`,
+			label: forms.find(([value]) => value === key)?.[1] || key,
+			onremove: () => (formTypes = formTypes.filter((value) => value !== key)),
+		})),
 	);
 
 	const visible = $derived.by(() => {
 		const needle = query.trim().toLowerCase();
 		return rows.filter((row) => {
 			const formKey = row.formSlug || row.formTitle;
-			if (formFilter && formKey !== formFilter) return false;
+			if (formTypes.length && !formTypes.includes(formKey)) return false;
 			if (!needle) return true;
 			const haystack = [
 				row.name,
@@ -315,8 +313,14 @@
 </script>
 
 {#snippet formFilterField()}
-	<FilterField label="Form" for="forms-filter">
-		<NativeSelect id="forms-filter" bind:value={formFilter} options={formOptions} size="sm" />
+	<FilterField label="Type" for="forms-filter">
+		<MultiSelect
+			id="forms-filter"
+			size="sm"
+			bind:value={formTypes}
+			options={forms.map(([value, label]) => ({ value, label }))}
+			placeholder="All types"
+		/>
 	</FilterField>
 {/snippet}
 
@@ -551,13 +555,13 @@
 				{#snippet toolbar()}
 					<FilterBar
 						bind:query
-						placeholder="Search people"
+						placeholder="Search names, emails and answers"
 						ariaLabel="Search submissions"
 						searchCount={query ? visible.length : undefined}
-						active={formFilter ? 1 : 0}
+						active={formTypes.length}
 						chips={formChips}
-						onclearfilters={() => (formFilter = "")}
-						filters={forms.length > 1 ? formFilterField : undefined}
+						onclearfilters={() => (formTypes = [])}
+						filters={formFilterField}
 					>
 						{#snippet end()}
 							<p class="meta">{loading ? "" : `${visible.length} ${visible.length === 1 ? "enquiry" : "enquiries"}`}</p>
