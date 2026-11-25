@@ -57,8 +57,9 @@
 		{
 			headerName: "Emails",
 			colId: "mailchimp",
-			width: 160,
-			minWidth: 140,
+			// Wide enough for "Opted in, not sent yet" in full.
+			width: 210,
+			minWidth: 200,
 			valueGetter: (p) => p.data?.mailchimp.label || "",
 			tooltipValueGetter: (p) => {
 				const person = p.data;
