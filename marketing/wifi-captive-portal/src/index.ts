@@ -1,4 +1,5 @@
 import { handlePortalRequest } from "./handler.js";
+import { runPortalAddressCheck } from "./portal-addresses.js";
 import type { Env } from "./types.js";
 import { captureConsoleIntegration, withSentry } from "@sentry/cloudflare";
 import { sentryOptions } from "../../../shared/sentry.js";
@@ -14,6 +15,11 @@ export default withSentry(
     integrations: [captureConsoleIntegration({ levels: ["error"] })],
   }),
   {
+    // Every 15 minutes: the router keeps up with Cloudflare's addresses for the portal (#388).
+    async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+      await runPortalAddressCheck(env);
+    },
+
     async fetch(request: Request, env: Env): Promise<Response> {
       try {
         return await handlePortalRequest(request, env);

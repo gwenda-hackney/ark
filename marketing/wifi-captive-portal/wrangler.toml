@@ -29,6 +29,11 @@ REDIRECT_URL = "https://gwenda.co.uk"
 # Console id from https://unifi.ui.com/consoles/{UNIFI_CONSOLE_ID}/…
 UNIFI_CONSOLE_ID = "A89C6C0EB1810000000009A42CB9000000000A2C1924000000006920A430:1883747293"
 
+# Every 15 minutes the router is checked to still let guests reach the
+# portal's current Cloudflare addresses before sign-in (#388).
+[triggers]
+crons = ["*/15 * * * *"]
+
 # D1: the website database, for subscribers and the write freeze.
 [[d1_databases]]
 binding = "WEBSITE_DB"
