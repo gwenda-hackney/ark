@@ -34,7 +34,7 @@ export const NAV_ROUTES: NavRoute[] = [
 			{ id: "occasions", area: "occasions", path: "/occasions", name: "Occasions", icon: "events", hint: "Christmas parties and the like, on home" },
 			{
 				id: "artists", area: "artists",
-				path: "/forms",
+				path: "/enquiries",
 				name: "Enquiries",
 				icon: "artist",
 				hint: "What people sent through the website's forms",

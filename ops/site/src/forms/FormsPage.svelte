@@ -18,7 +18,6 @@
 		ListPage,
 		Segmented,
 		Skeleton,
-		Switch,
 		TextField,
 	} from "../ui";
 	import { decisionBadge } from "../ui/badge";
@@ -49,7 +48,7 @@
 	import type { ListView } from "../ui/view-prefs";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 
-	let { path = "/forms" }: { path?: string } = $props();
+	let { path = "/enquiries" }: { path?: string } = $props();
 
 	const route = $derived(parseShellPath(path));
 	/** Phones get cards; the table needs a desk. */
@@ -72,8 +71,8 @@
 	let mailNote = $state("");
 	let mailError = $state("");
 	let deciding = $state(false);
-	/** The list shows open enquiries, or with this on, the archived ones (#390). */
-	let showArchived = $state(false);
+	/** The Open tab (/enquiries) or the Archived tab (/enquiries/archived), #390. */
+	const showArchived = $derived(route.page === "forms" && route.view === "archived");
 	let archiving = $state(false);
 	let decisionError = $state("");
 	/** Ops' copy of the artist name and link, shown filled with what they sent. */
@@ -129,6 +128,7 @@
 	});
 
 	const groups = $derived(groupByForm(visible));
+	const openCount = $derived(rows.filter((row) => !row.archivedAt).length);
 
 	/** Answers only. Name and email sit in the header. */
 	const detailAnswers = $derived(
@@ -162,7 +162,7 @@
 
 	function closeDetail() {
 		// Unsaved guest-artist edits are caught by the guard below.
-		navigate("/forms");
+		navigate(selected?.archivedAt ? "/enquiries/archived" : "/enquiries");
 	}
 
 	$effect(() => {
@@ -301,7 +301,7 @@
 		try {
 			const saved = await setFormArchived(row.id, archive);
 			rows = rows.map((item) => (item.id === row.id ? { ...item, archivedAt: saved.archivedAt } : item));
-			if (archive) closeDetail();
+			if (archive) navigate("/enquiries");
 		} catch (err) {
 			decisionError = err instanceof Error ? err.message : "Could not save that.";
 		} finally {
@@ -406,14 +406,14 @@
 					Approve
 				</Button>
 			{/snippet}
-			<EditorBackBar label="Play applications" onback={closeDetail} />
+			<EditorBackBar label="Enquiries" onback={closeDetail} />
 			<div class="split">
 				<article class="panel">
 					<header class="panel-head">
 						<div class="type-line">
 							<Icon name="forms" size={14} />
 							<p class="eyebrow">
-								Play application{selected?.formTitle ? ` · ${selected.formTitle}` : ""}
+								{selected?.formTitle || "Enquiry"}
 							</p>
 							{#if selected?.status}
 								<Badge tone={statusTone} label={selected.status} />
@@ -453,7 +453,7 @@
 						{#if selected}
 							<p class="head-note">
 								{#if selected.submittedAt}
-									<span>Applied {formatWhen(selected.submittedAt)}.</span>
+									<span>Sent {formatWhen(selected.submittedAt)}.</span>
 								{/if}
 								<span>
 									{selected.current
@@ -473,7 +473,7 @@
 						{:else if selected}
 							<section class="details-board">
 								<div class="details-main">
-									<h2 class="section-title">Application</h2>
+									<h2 class="section-title">{selected.formSlug === "play" ? "Application" : "Enquiry"}</h2>
 									{#if detailAnswers.length}
 										<dl class="answers">
 											{#each detailAnswers as answer (answer.key)}
@@ -591,6 +591,14 @@
 	<div class="list" hidden={Boolean(openId)}>
 			<ListPage
 				title="Enquiries"
+				tabs={{
+					items: [
+						{ id: "open", label: "Open", href: "/enquiries", count: loading ? undefined : openCount },
+						{ id: "archived", label: "Archived", href: "/enquiries/archived", count: loading ? undefined : rows.length - openCount },
+					],
+					value: showArchived ? "archived" : "open",
+					label: "Open or archived",
+				}}
 				subtitle="What people sent through the website's forms, by form. Latest reply for each address."
 			>
 				{#snippet toolbar()}
@@ -605,7 +613,6 @@
 						filters={formFilterField}
 					>
 						{#snippet end()}
-							<Switch bind:checked={showArchived} label="Show archived" />
 							<p class="meta">{loading ? "" : `${visible.length} ${showArchived ? "archived" : visible.length === 1 ? "enquiry" : "enquiries"}`}</p>
 							{#if !phone.matches}
 								<Segmented
@@ -630,7 +637,7 @@
 					{#if showArchived}
 						<EmptyState icon="archive" title="Nothing archived" text="Open an enquiry and press Archive to take it off the list. It shows here." />
 					{:else}
-						<EmptyState icon="inbox" title="All dealt with" text="Every enquiry is archived. Turn on Show archived to see them." />
+						<EmptyState icon="inbox" title="All dealt with" text="Every enquiry is archived. They're on the Archived tab." />
 					{/if}
 				{:else}
 					<EmptyState icon="search" title="Nothing matches" text="Try another name or email, or clear the filters." />

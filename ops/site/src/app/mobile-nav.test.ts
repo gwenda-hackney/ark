@@ -103,8 +103,8 @@ describe("mobileTabFor", () => {
 		assert.equal(mobileTabFor("/events/12@2026-09-25"), "whats-on");
 		assert.equal(mobileTabFor("/popups/36"), "whats-on");
 		assert.equal(mobileTabFor("/deals"), "whats-on");
-		assert.equal(mobileTabFor("/forms"), "whats-on");
-		assert.equal(mobileTabFor("/forms/12"), "whats-on");
+		assert.equal(mobileTabFor("/enquiries"), "whats-on");
+		assert.equal(mobileTabFor("/enquiries/12"), "whats-on");
 		assert.equal(mobileTabFor("/menus"), "bar-kitchen");
 		assert.equal(mobileTabFor("/menu/negroni"), "bar-kitchen");
 		assert.equal(mobileTabFor("/inventory"), "bar-kitchen");

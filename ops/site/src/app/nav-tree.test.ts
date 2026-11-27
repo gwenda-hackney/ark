@@ -70,9 +70,9 @@ describe("pages with tabs", () => {
 		assert.deepEqual(pageTabs(routes, "events"), [], "a page without tabs has none");
 	});
 
-	it("Enquiries is every form's replies, at /forms, with no tabs", () => {
+	it("Enquiries is every form's replies, at /enquiries, with no tabs", () => {
 		const enquiries = flattenNavRoutes(routes).find((row) => row.id === "artists");
-		assert.deepEqual([enquiries?.name, enquiries?.path, enquiries?.tabs], ["Enquiries", "/forms", undefined]);
+		assert.deepEqual([enquiries?.name, enquiries?.path, enquiries?.tabs], ["Enquiries", "/enquiries", undefined]);
 		assert.ok(pageTabs(routes, "stock").every((tab) => !tab.badge), "no tab carries a badge");
 	});
 
@@ -86,8 +86,8 @@ describe("pages with tabs", () => {
 		const page = (path: string) => matchActiveRoute(routes, path)?.id;
 		assert.equal(page("/suppliers"), "stock");
 		assert.equal(page("/inventory/gin"), "stock");
-		assert.equal(page("/forms"), "artists");
-		assert.equal(page("/forms/12"), "artists");
+		assert.equal(page("/enquiries"), "artists");
+		assert.equal(page("/enquiries/12"), "artists");
 		assert.equal(page("/lightspeed/export"), "lightspeed");
 		assert.equal(page("/lightspeed/menus"), "lightspeed");
 	});
@@ -104,7 +104,7 @@ describe("pages with tabs", () => {
 		assert.equal(pageFrame(routes, "/inventory"), "stock");
 		assert.equal(pageFrame(routes, "/suppliers"), "stock");
 		assert.equal(pageFrame(routes, "/inventory/gin"), "stock");
-		assert.equal(pageFrame(routes, "/forms/12"), "forms", "Enquiries has no tabs: its own frame");
+		assert.equal(pageFrame(routes, "/enquiries/12"), "forms", "Enquiries has no tabs: its own frame");
 		assert.equal(pageFrame(routes, "/lightspeed/export"), "lightspeed");
 		assert.equal(pageFrame(routes, "/events"), "events");
 		assert.equal(pageFrame(routes, "/popups/36"), "events");
@@ -177,7 +177,8 @@ describe("matchActiveRoute", () => {
 		assert.deepEqual(opens("/events"), ["events", "events"]);
 		assert.deepEqual(opens("/inventory"), ["stock", "inventory"]);
 		assert.deepEqual(opens("/suppliers"), ["stock", "suppliers"]);
-		assert.deepEqual(opens("/forms"), ["artists", "forms"]);
+		assert.deepEqual(opens(canonicalizePath("/forms")), ["artists", "forms"], "Enquiries was Forms");
+		assert.deepEqual(opens(canonicalizePath("/forms/12")), ["artists", "forms"]);
 		assert.deepEqual(opens(canonicalizePath("/artists")), ["artists", "forms"], "Featured artist is gone: Enquiries");
 		assert.deepEqual(opens(canonicalizePath("/artists/3")), ["artists", "forms"]);
 		assert.deepEqual(opens("/lightspeed"), ["lightspeed", "lightspeed"]);

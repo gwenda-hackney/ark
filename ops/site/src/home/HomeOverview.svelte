@@ -231,7 +231,7 @@
 				label: "Applications to review",
 				short: "To review",
 				icon: "forms",
-				href: "/forms",
+				href: "/enquiries",
 				state: formsCard.state === "loading" ? "loading" : "ready",
 				value: formsCard.state === "error" ? "—" : String(applications.count),
 				sub:
@@ -533,7 +533,7 @@
 				clearText={applications.emailFailed
 					? `No applications waiting. ${plural(applications.emailFailed, "submission")} with an email that did not go out.`
 					: "No applications waiting."}
-				href="/forms"
+				href="/enquiries"
 				linkLabel="Applications"
 				onretry={loadDashboard}
 			>
@@ -544,7 +544,7 @@
 				<ul class="rows">
 					{#each applications.rows as row (row.id)}
 						<li class="row">
-							<a class="name" href="/forms/{encodeURIComponent(row.id)}">{row.name || row.email}</a>
+							<a class="name" href="/enquiries/{encodeURIComponent(row.id)}">{row.name || row.email}</a>
 							<span class="sub tnum">{row.age}</span>
 						</li>
 					{/each}

@@ -26,7 +26,7 @@ export function formCard(row: FormSubmission, opts: { showForm?: boolean } = {})
 	if (!row.receiptSentAt) badges.push({ label: "No receipt", tone: "danger" });
 	return {
 		id: row.id,
-		href: `/forms/${encodeURIComponent(row.id)}`,
+		href: `/enquiries/${encodeURIComponent(row.id)}`,
 		title,
 		email: title === row.email ? "" : row.email,
 		form: opts.showForm ? row.formTitle : "",

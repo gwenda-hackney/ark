@@ -27,7 +27,7 @@ const LOGO_URL = emailLogoUrl(SITE_DOMAIN);
 export function formSubmissionOpsUrl(env, rowId) {
   const id = String(rowId ?? "").trim();
   if (!id) return "";
-  return `${opsUrlFor(env?.SITE_ENV?.trim())}/forms/${encodeURIComponent(id)}`;
+  return `${opsUrlFor(env?.SITE_ENV?.trim())}/enquiries/${encodeURIComponent(id)}`;
 }
 const log = createLogger();
 

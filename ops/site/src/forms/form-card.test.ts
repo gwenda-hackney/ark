@@ -28,7 +28,7 @@ function row(extra: Partial<FormSubmission> = {}): FormSubmission {
 describe("play application card", () => {
 	it("shows the person, their email and the decision", () => {
 		const card = formCard(row());
-		assert.equal(card.href, "/forms/sub%201");
+		assert.equal(card.href, "/enquiries/sub%201");
 		assert.equal(card.title, "DJ Vbrave");
 		assert.equal(card.email, "dj@example.com");
 		assert.equal(card.form, "");

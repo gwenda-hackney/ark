@@ -8,7 +8,7 @@ import { fakeApi } from "./fake-api";
 test("Enquiries groups by type, and the Type filter shows only the types picked", async ({ page }) => {
 	await fakeApi(page, { email: { id: 1, sections: [] } });
 	await page.setViewportSize({ width: 1280, height: 800 });
-	await page.goto("/forms");
+	await page.goto("/enquiries");
 	const headings = page.locator("h2.group-title");
 	await expect(headings).toHaveText([/Christmas parties\s*1/, /Play at Gwenda\s*2/]);
 	await expect(page.getByPlaceholder("Search names, emails and answers")).toBeVisible();
@@ -23,7 +23,7 @@ test("Enquiries groups by type, and the Type filter shows only the types picked"
 test("Enquiries as a table is one table, a heading row for each type", async ({ page }) => {
 	await fakeApi(page, { email: { id: 1, sections: [] } });
 	await page.setViewportSize({ width: 1280, height: 800 });
-	await page.goto("/forms");
+	await page.goto("/enquiries");
 	await page.getByRole("tab", { name: "Table" }).click();
 
 	await expect(page.locator(".ag-root")).toHaveCount(1);
@@ -37,7 +37,7 @@ test("Enquiries as a table is one table, a heading row for each type", async ({ 
 test("picking types doesn't move the toolbar: the Type box keeps its width", async ({ page }) => {
 	await fakeApi(page, { email: { id: 1, sections: [] } });
 	await page.setViewportSize({ width: 1280, height: 800 });
-	await page.goto("/forms");
+	await page.goto("/enquiries");
 	const box = page.locator("#forms-filter");
 	const layout = page.getByRole("tab", { name: "Table" });
 	const before = { type: await box.boundingBox(), layout: await layout.boundingBox() };
@@ -52,19 +52,19 @@ test("picking types doesn't move the toolbar: the Type box keeps its width", asy
 	expect(await layout.boundingBox()).toEqual(before.layout);
 });
 
-test("Archive takes an enquiry off the list; Show archived finds it, and Unarchive brings it back (#390)", async ({ page }) => {
+test("Archive takes an enquiry off the list; the Archived tab has it, and Unarchive brings it back (#390)", async ({ page }) => {
 	await fakeApi(page, { email: { id: 1, sections: [] } });
 	await page.setViewportSize({ width: 1280, height: 800 });
-	await page.goto("/forms/2");
+	await page.goto("/enquiries/2");
 	await page.locator(".head-tools").getByRole("button", { name: "Archive" }).click();
 
 	// Back on the list, without it.
-	await expect(page).toHaveURL(/\/forms$/);
+	await expect(page).toHaveURL(/\/enquiries$/);
 	await expect(page.locator("h2.group-title")).toHaveText([/Play at Gwenda\s*2/]);
 	await expect(page.getByText("2 enquiries")).toBeVisible();
 
-	await page.getByText("Show archived", { exact: true }).click();
-	await expect(page.getByRole("switch", { name: "Show archived" })).toBeChecked();
+	await page.getByRole("tab", { name: /Archived/ }).click();
+	await expect(page).toHaveURL(/\/enquiries\/archived$/);
 	await expect(page.locator("h2.group-title")).toHaveText([/Christmas parties\s*1/]);
 	await expect(page.getByText("1 archived")).toBeVisible();
 
@@ -72,6 +72,6 @@ test("Archive takes an enquiry off the list; Show archived finds it, and Unarchi
 	await expect(page.locator(".type-line").getByText("Archived", { exact: true })).toBeVisible();
 	await page.locator(".head-tools").getByRole("button", { name: "Unarchive" }).click();
 	await expect(page.locator(".head-tools").getByRole("button", { name: "Archive" })).toBeVisible();
-	await page.goto("/forms");
+	await page.goto("/enquiries");
 	await expect(page.locator("h2.group-title")).toHaveText([/Christmas parties\s*1/, /Play at Gwenda\s*2/]);
 });
