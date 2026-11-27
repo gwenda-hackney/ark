@@ -13,8 +13,8 @@ import { authorizeGuest } from "./unifi.js";
 
 /**
  * The guests sign-up (the website's too), on D1.
- * Every guest is kept, seen today; `marketing` (the newsletter box) decides
- * the mailing list, and unticked never changes an address's consent. Tests
+ * Every guest is kept, seen today; `marketing` (posted only by the "Get online + what’s on" button) decides
+ * the mailing list, and "Just get online" never changes an address's consent. Tests
  * hand in a repository.
  */
 export function subscribeEmail(
@@ -93,7 +93,7 @@ async function parseForm(request: Request): Promise<Record<string, string>> {
   return out;
 }
 
-/** The newsletter box: ticked only when the guest chose it (an unticked box isn't posted). */
+/** Only the "Get online + what’s on" button posts marketing; "Just get online" posts nothing. */
 function marketingConsent(form: Record<string, string>): boolean {
   return Boolean(form.marketing?.trim());
 }
