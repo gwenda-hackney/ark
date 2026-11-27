@@ -18,6 +18,7 @@
 		ListPage,
 		Segmented,
 		Skeleton,
+		Switch,
 		TextField,
 	} from "../ui";
 	import { decisionBadge } from "../ui/badge";
@@ -25,6 +26,7 @@
 	import {
 		getFormSubmissions,
 		resendFormEmail,
+		setFormArchived,
 		setFormArtist,
 		setFormDecision,
 		type FormDecision,
@@ -70,6 +72,9 @@
 	let mailNote = $state("");
 	let mailError = $state("");
 	let deciding = $state(false);
+	/** The list shows open enquiries, or with this on, the archived ones (#390). */
+	let showArchived = $state(false);
+	let archiving = $state(false);
 	let decisionError = $state("");
 	/** Ops' copy of the artist name and link, shown filled with what they sent. */
 	let artistNameDraft = $state("");
@@ -106,6 +111,7 @@
 	const visible = $derived.by(() => {
 		const needle = query.trim().toLowerCase();
 		return rows.filter((row) => {
+			if (Boolean(row.archivedAt) !== showArchived) return false;
 			const formKey = row.formSlug || row.formTitle;
 			if (formTypes.length && !formTypes.includes(formKey)) return false;
 			if (!needle) return true;
@@ -283,6 +289,26 @@
 		}
 	}
 
+	/**
+	 * Archive: off the list, back to it (the next one is a click away).
+	 * Unarchive: back on the list; stay on it.
+	 */
+	async function toggleArchived(row: FormSubmission) {
+		if (archiving) return;
+		const archive = !row.archivedAt;
+		archiving = true;
+		decisionError = "";
+		try {
+			const saved = await setFormArchived(row.id, archive);
+			rows = rows.map((item) => (item.id === row.id ? { ...item, archivedAt: saved.archivedAt } : item));
+			if (archive) closeDetail();
+		} catch (err) {
+			decisionError = err instanceof Error ? err.message : "Could not save that.";
+		} finally {
+			archiving = false;
+		}
+	}
+
 	function personLabel(row: FormSubmission): string {
 		return row.name || row.email || "Submission";
 	}
@@ -329,7 +355,21 @@
 		<!-- No fade out: the list is already underneath, so closing shows it at once, where it was. -->
 		<div class="detail" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
 			{#snippet decisionButtons()}
-				<!-- Same three buttons on every submission; ones that don't apply are disabled. -->
+				<!-- Same four buttons on every submission; ones that don't apply are disabled. -->
+				<Button
+					variant="outline"
+					size="sm"
+					type="button"
+					disabled={!selected || archiving}
+					busy={archiving}
+					title={selected?.archivedAt
+						? "Put it back on the list"
+						: "Take it off the list: dealt with, or spam. Nothing is sent to them."}
+					onclick={() => selected && void toggleArchived(selected)}
+				>
+					{#snippet icon()}<Icon name={selected?.archivedAt ? "undo" : "archive"} size={14} />{/snippet}
+					{selected?.archivedAt ? "Unarchive" : "Archive"}
+				</Button>
 				<Button
 					variant="outline"
 					size="sm"
@@ -377,6 +417,9 @@
 							</p>
 							{#if selected?.status}
 								<Badge tone={statusTone} label={selected.status} />
+							{/if}
+							{#if selected?.archivedAt}
+								<Badge tone="neutral" label="Archived" />
 							{/if}
 							{#if selected?.decision}
 								{@const decision = decisionBadge(selected.decision)}
@@ -562,7 +605,8 @@
 						filters={formFilterField}
 					>
 						{#snippet end()}
-							<p class="meta">{loading ? "" : `${visible.length} ${visible.length === 1 ? "enquiry" : "enquiries"}`}</p>
+							<Switch bind:checked={showArchived} label="Show archived" />
+							<p class="meta">{loading ? "" : `${visible.length} ${showArchived ? "archived" : visible.length === 1 ? "enquiry" : "enquiries"}`}</p>
 							{#if !phone.matches}
 								<Segmented
 									value={view.value}
@@ -582,6 +626,12 @@
 			{:else if visible.length === 0}
 				{#if rows.length === 0}
 					<EmptyState icon="forms" title="No enquiries yet" text="When someone sends a form on the website (to play, for a party…), it shows here." />
+				{:else if !query && !formTypes.length}
+					{#if showArchived}
+						<EmptyState icon="archive" title="Nothing archived" text="Open an enquiry and press Archive to take it off the list. It shows here." />
+					{:else}
+						<EmptyState icon="inbox" title="All dealt with" text="Every enquiry is archived. Turn on Show archived to see them." />
+					{/if}
 				{:else}
 					<EmptyState icon="search" title="Nothing matches" text="Try another name or email, or clear the filters." />
 				{/if}

@@ -37,6 +37,7 @@ function submission(overrides = {}) {
     notifySentAt: "2026-10-01T18:00:02.000Z",
     receiptSentAt: null,
     editLink: "https://gwenda.co.uk/contact/play?edit=token",
+    archivedAt: null,
     ...overrides,
   };
 }
@@ -89,7 +90,15 @@ repositoryContract("FormSubmissionRepository", {
         notifySentAt: null,
         receiptSentAt: null,
         editLink: "",
+        archivedAt: null,
       });
+    },
+    "archives and unarchives, and archived records stay current": async (repo) => {
+      const created = await repo.create(submission());
+      const archived = await repo.update(created.id, { archivedAt: "2026-11-27T10:00:00.000Z" });
+      assert.equal(archived.archivedAt, "2026-11-27T10:00:00.000Z");
+      assert.deepEqual(ids(await repo.listCurrent()), [created.id]);
+      assert.equal((await repo.update(created.id, { archivedAt: null })).archivedAt, null);
     },
     "a form's records from one address, any case, newest first": async (
       repo,

@@ -14,6 +14,7 @@
  *     notifySentAt: ISO string | null,  the team email went out
  *     receiptSentAt: ISO string | null, the sender's receipt went out
  *     editLink: string,                 the receipt's "change your answers" link
+ *     archivedAt: ISO string | null,    ops archived it (dealt with, or spam): off the list (#390)
  *   }
  *
  * Storage is the repository's (form-submission-repository.js).
@@ -39,6 +40,7 @@ export const EMPTY_FORM_SUBMISSION = {
   notifySentAt: null,
   receiptSentAt: null,
   editLink: "",
+  archivedAt: null,
 };
 
 /** A record with every field, from partial fields. */

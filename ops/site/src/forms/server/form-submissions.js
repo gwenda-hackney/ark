@@ -74,6 +74,7 @@ export function mapFormSubmission(submission) {
     current: submission.current,
     notifySentAt: submission.notifySentAt || "",
     receiptSentAt: submission.receiptSentAt || "",
+    archivedAt: submission.archivedAt || "",
     answers,
   };
 }
@@ -149,6 +150,18 @@ async function playSubmission(env, rowId) {
   const row = mapFormSubmission(await findSubmission(env, rowId));
   if (row.formSlug !== PLAY_FORM) throw httpError("Only play applications can be approved.", 400);
   return row;
+}
+
+/**
+ * Archive a submission (dealt with, or spam) or bring it back (#390). Only ops
+ * sees it: the sender gets nothing, and their answers stay. Archiving again
+ * keeps the first date.
+ */
+export async function setFormArchived(env, rowId, archived) {
+  const found = await findSubmission(env, rowId);
+  const archivedAt = archived ? found.archivedAt || new Date().toISOString() : null;
+  if (archivedAt !== found.archivedAt) await submissions(env).update(found.id, { archivedAt });
+  return { ok: true, archivedAt: archivedAt || "" };
 }
 
 /** Approve or decline an applicant ("" clears the decision). */

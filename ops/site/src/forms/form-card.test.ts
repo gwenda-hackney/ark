@@ -19,6 +19,7 @@ function row(extra: Partial<FormSubmission> = {}): FormSubmission {
 		current: true,
 		notifySentAt: "2026-10-01T10:00:00Z",
 		receiptSentAt: "2026-10-01T10:00:00Z",
+		archivedAt: "",
 		answers: [],
 		...extra,
 	};

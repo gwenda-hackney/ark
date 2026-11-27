@@ -132,6 +132,15 @@ describe("formsSummary", () => {
     assert.equal("answers" in toReview[0], false);
     assert.deepEqual(emailFailed.map((r) => r.id), ["contact"]);
   });
+
+  it("leaves archived submissions out (#390)", () => {
+    const { toReview, emailFailed } = formsSummary([
+      row({ id: "spam", archivedAt: "2026-11-27T10:00:00Z", receiptSentAt: "" }),
+      row({ id: "open" }),
+    ]);
+    assert.deepEqual(toReview.map((r) => r.id), ["open"]);
+    assert.deepEqual(emailFailed, []);
+  });
 });
 
 describe("healthSummary and artistsSummary", () => {
