@@ -59,6 +59,7 @@ const enquiry = (id: string, formSlug: string, formTitle: string, name: string) 
   current: true,
   notifySentAt: "",
   receiptSentAt: "",
+  archivedAt: "",
   answers: [],
 });
 export const ENQUIRIES = [
@@ -151,6 +152,8 @@ export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
   const saves: Record<string, unknown>[] = [];
   /** Each new order the Photos page put (PUT /api/venue/gallery), newest last. */
   const orders: string[][] = [];
+  // This page's enquiries: Archive and Unarchive change them (#390).
+  const enquiries = ENQUIRIES.map((row) => ({ ...row }));
   let current = emailRecord(email);
   await page.route(/^https:\/\/(cdn\.sanity\.io|gwenda\.example)\//, (route) =>
     route.fulfill({ status: 200, contentType: "image/png", body: PIXEL }),
@@ -186,7 +189,14 @@ export async function fakeApi(page: Page, { email }: { email: OneOffFixture }) {
     if (pathname === "/api/web/jobs") return json({ ok: true, jobs: [] });
     if (pathname === "/api/users") return json({ users: USERS });
     if (pathname === "/api/email/people") return json(PEOPLE);
-    if (pathname === "/api/forms") return json({ submissions: ENQUIRIES });
+    if (pathname === "/api/forms") return json({ submissions: enquiries });
+    const archive = /^\/api\/forms\/([^/]+)\/archive$/.exec(pathname);
+    if (archive && request.method() === "POST") {
+      const row = enquiries.find((item) => item.id === archive[1]);
+      if (!row) return json({ error: "Submission not found." }, 404);
+      row.archivedAt = request.postDataJSON().archived ? row.archivedAt || "2026-11-27T10:00:00.000Z" : "";
+      return json({ ok: true, archivedAt: row.archivedAt });
+    }
     if (pathname === "/api/roles") return json({ roles: ROLES });
     if (pathname === "/api/venue/gallery") {
       if (request.method() === "PUT") {

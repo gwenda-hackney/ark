@@ -99,7 +99,7 @@
 			if (mouse.metaKey || mouse.ctrlKey || mouse.shiftKey || mouse.altKey) return;
 		}
 		const id = event.data?.id;
-		if (id) navigate(`/forms/${encodeURIComponent(id)}`);
+		if (id) navigate(`/enquiries/${encodeURIComponent(id)}`);
 	}
 </script>
 

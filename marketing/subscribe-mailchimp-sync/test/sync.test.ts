@@ -187,6 +187,7 @@ describe("syncUnsyncedSubscribers", () => {
         marketingOn: null,
         marketingOffOn: null,
         lastSeenOn: null,
+        visitDays: 0,
         synced: false,
         ...record,
       })),

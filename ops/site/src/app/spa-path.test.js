@@ -417,12 +417,15 @@ describe("spa-path", () => {
   });
 
   it("sends every Featured artist address to Enquiries: the page is gone from ops (#313)", () => {
-    assert.equal(canonicalizePath("/artists/new"), "/forms");
-    assert.equal(canonicalizePath("/artists/new?x=1"), "/forms");
-    assert.equal(canonicalizePath("/#/artists/new"), "/forms");
-    assert.equal(canonicalizePath("/artists"), "/forms");
-    assert.equal(canonicalizePath("/artists/3"), "/forms");
-    assert.equal(canonicalizePath("/forms/12"), "/forms/12", "Enquiries' own addresses stay");
+    assert.equal(canonicalizePath("/artists/new"), "/enquiries");
+    assert.equal(canonicalizePath("/artists/new?x=1"), "/enquiries");
+    assert.equal(canonicalizePath("/#/artists/new"), "/enquiries");
+    assert.equal(canonicalizePath("/artists"), "/enquiries");
+    assert.equal(canonicalizePath("/artists/3"), "/enquiries");
+    assert.equal(canonicalizePath("/enquiries/12"), "/enquiries/12", "Enquiries' own addresses stay");
+    assert.equal(canonicalizePath("/forms/12"), "/enquiries/12", "its old address (team emails) opens the same one");
+    assert.equal(canonicalizePath("/forms"), "/enquiries");
+    assert.deepEqual(parseShellPath("/enquiries/12"), parseShellPath("/forms/12"));
   });
 
   it("gives Pop-ups and Deals their own list, Add and editor addresses (#312)", () => {

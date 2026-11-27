@@ -113,7 +113,8 @@ function slimSubmission(row) {
  * Status is left over from email verification and means nothing now.
  */
 export function formsSummary(submissions) {
-  const rows = (submissions || []).filter((row) => row?.id);
+  // Archived ones are dealt with (#390).
+  const rows = (submissions || []).filter((row) => row?.id && !row.archivedAt);
   const toReview = rows
     .filter((row) => row.formSlug === PLAY_FORM && !row.decision)
     .map(slimSubmission)

@@ -81,6 +81,7 @@ describe("the Marketing role", () => {
       ["POST", "/api/events"],
       ["PATCH", "/api/occasions/1"],
       ["POST", "/api/forms/1/decision"],
+      ["POST", "/api/forms/1/archive"],
       ["POST", "/api/email/one-off/4/send"],
       ["POST", "/api/venue/gallery"],
       ["POST", "/api/web/update"],

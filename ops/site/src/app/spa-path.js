@@ -51,6 +51,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/occasions/") ||
     p === "/web" ||
     p.startsWith("/web/") ||
+    p === "/enquiries" ||
+    p.startsWith("/enquiries/") ||
     p === "/forms" ||
     p.startsWith("/forms/") ||
     p === "/email" ||
@@ -88,6 +90,8 @@ export function canonicalizePath(href) {
   if (path === "/events/nights" || path.startsWith("/events/nights/")) {
     path = `/events/schedule${path.slice("/events/nights".length)}`;
   }
+  // Enquiries were Forms: old links, team emails included, open the same one.
+  if (path === "/forms" || path.startsWith("/forms/")) path = `/enquiries${path.slice("/forms".length)}`;
   // No new featured artists while it's closed (#313): back to the list.
   const closedArtist = closedArtistRedirect(path);
   if (closedArtist) return closedArtist;
@@ -291,10 +295,15 @@ export function parseShellPath(path) {
   }
   // The first page: every email as cards (#348).
   if (p === "/email" || p.startsWith("/email/")) return { page: "email", view: "emails" };
-  if (p === "/forms") return { page: "forms", slug: null };
-  if (p.startsWith("/forms/")) {
-    const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");
-    return { page: "forms", slug: part || null };
+  // Enquiries (the page is "forms" inside the app); /forms is its old address.
+  for (const base of ["/enquiries", "/forms"]) {
+    if (p === base) return { page: "forms", slug: null };
+    if (p.startsWith(`${base}/`)) {
+      const part = decodeSegment(p.slice(base.length + 1).split("/")[0] || "");
+      // The Archived tab (#390); ids are numbers, so it can't be one.
+      if (part === "archived") return { page: "forms", slug: null, view: "archived" };
+      return { page: "forms", slug: part || null };
+    }
   }
   // Menu sections live on each menu's page now (#305): old links land on Menus.
   if (p === "/config/sections" || p.startsWith("/config/sections/"))

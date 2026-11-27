@@ -71,9 +71,19 @@ Use the Hotspot UI you already have open, e.g.
 4. **Pre-authorization allowances** (walled garden): add the hostnames
    `wifi.gwenda.co.uk`, `gwenda.co.uk` and `www.gwenda.co.uk`, so guests can load the
    splash page, and the Wi‑Fi terms and privacy policy it links to, before they are
-   authorized. Hostnames only: UniFi allows the addresses a hostname resolves to, so IP
-   entries aren't needed and go out of date (Cloudflare's addresses change).  
+   authorized.  
    (D1 / Mailchimp stay server-side; no need to allowlist them for guests)
+
+   **The host names aren't enough on their own (#388).** On our UDR7 (Network 11.0.104,
+   guest network in the Hotspot zone) UniFi doesn't apply host names in this list: a guest
+   gets the pop-up but a blank page, whatever DNS they use. What lets them through is the
+   portal's **addresses** in the list, and the portal IP field set to one of them.
+   Cloudflare changes those addresses without notice, so the portal keeps them up to date
+   itself: every 15 minutes (`scheduled`, `src/portal-addresses.ts`) it looks up
+   `wifi.gwenda.co.uk` and, if the addresses have changed, updates the list and the portal IP
+   through Site Manager and reports it to Sentry (an email to alerts@). It only touches
+   single addresses in Cloudflare's ranges; the host names and anything else stay. Don't
+   remove the addresses by hand.
 5. Keep the UDR online to UI.com; authorize calls go through Site Manager
 
 ### Test
@@ -106,7 +116,8 @@ After deploy, UniFi should use:
 | Field | Value |
 |---|---|
 | Domain | `wifi.gwenda.co.uk` |
-| Pre-auth | `wifi.gwenda.co.uk`, `gwenda.co.uk`, `www.gwenda.co.uk` (hostnames only, no IPs) |
+| Pre-auth | `wifi.gwenda.co.uk`, `gwenda.co.uk`, `www.gwenda.co.uk`, plus the portal's current addresses (kept up to date by the portal, #388) |
+| Portal IP | the portal's first current address (kept up to date by the portal) |
 
 ## Develop
 

@@ -482,12 +482,26 @@ export type FormSubmission = {
   notifySentAt: string;
   /** ISO time the applicant receipt went out, or "" if never. */
   receiptSentAt: string;
+  /** ISO time ops archived it (dealt with, or spam), or "" while it's open (#390). */
+  archivedAt: string;
   answers: FormAnswer[];
 };
 
 export type FormEmailKind = "notify" | "receipt";
 
 export type FormDecision = "Approved" | "Declined" | "";
+
+/** Archive a submission off the list, or bring it back (#390). The sender gets nothing. */
+export function setFormArchived(id: string, archived: boolean) {
+  return request<{ ok: boolean; archivedAt: string }>(
+    `/api/forms/${encodeURIComponent(id)}/archive`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived }),
+    },
+  );
+}
 
 export function setFormDecision(id: string, decision: FormDecision) {
   return request<{ ok: boolean; decision: FormDecision }>(
