@@ -97,22 +97,23 @@ describe("marketing consent", () => {
       { authorize },
     );
 
-  it("shows the newsletter box unticked, apart from the required email", async () => {
+  it("offers two buttons; only the what's-on one signs up, and the keyboard's Go isn't it", async () => {
     const page = await handlePortalRequest(
       new Request("https://wifi.example/guest/s/default/?id=aa:bb:cc:dd:ee:ff"),
       env,
     );
     const html = await page.text();
-    const box = html.match(/<input[^>]*name="marketing"[^>]*>/)?.[0];
-    expect(box).toBeDefined();
-    expect(box).toContain('type="checkbox"');
-    expect(box).not.toMatch(/\bchecked\b/);
-    expect(box).not.toMatch(/\brequired\b/);
-    expect(html).toContain("Send me what’s on at Gwenda");
-    expect(html).not.toContain("The occasional note from Gwenda");
+    const buttons = [...html.matchAll(/<button[^>]*>[^<]*<\/button>/g)].map((m) => m[0]);
+    expect(buttons).toHaveLength(2);
+    // The first submit button is the one Enter/Go presses: it must not sign anyone up.
+    expect(buttons[0]).toContain("Just get online");
+    expect(buttons[0]).not.toContain('name="marketing"');
+    expect(buttons[1]).toContain('name="marketing" value="yes"');
+    expect(buttons[1]).toContain("Get online + what’s on");
+    expect(html).not.toContain('type="checkbox"');
   });
 
-  it("without the box: gets online, kept with today's visit, not on the mailing list", async () => {
+  it("Just get online: gets online, kept with today's visit, not on the mailing list", async () => {
     const { env: testEnv, subscribers } = guestEnv();
     const post = await submit(testEnv, { email: "Guest@Example.com" });
     expect(post.status).toBe(200);
@@ -123,7 +124,7 @@ describe("marketing consent", () => {
     expect(await subscribers.listUnsynced({ all: true })).toEqual([]);
   });
 
-  it("with the box: on the mailing list, tagged wifi, to sync", async () => {
+  it("Get online + what’s on: on the mailing list, tagged wifi, to sync", async () => {
     const { env: testEnv, subscribers } = guestEnv();
     const post = await submit(testEnv, {
       email: "guest@example.com",
@@ -142,7 +143,7 @@ describe("marketing consent", () => {
     ]);
   });
 
-  it("without the box leaves an existing subscriber as they were, but for the visit", async () => {
+  it("Just get online leaves an existing subscriber as they were, but for the visit", async () => {
     const { env: testEnv, subscribers } = guestEnv();
     await subscribers.create({
       email: "guest@example.com",

@@ -194,59 +194,26 @@ const SHARED_STYLES = `
     button[aria-busy="true"] { animation: none; }
     button[aria-busy="true"]::before { animation-duration: 2.4s; }
   }
-  /* The newsletter box: unticked, the whole row is the tap target. */
-  .opt-in {
+  /* Two ways in: the what's-on button on top, but "Just get online"
+     comes first in the form, so the keyboard's Go never signs anyone up. */
+  .choices {
     display: flex;
-    align-items: flex-start;
-    gap: 0.8rem;
-    min-height: 44px;
-    padding: 0.2rem 0 0.35rem;
-    margin-bottom: 1.15rem;
-    font-family: var(--font-body);
-    font-size: 0.95rem;
-    font-weight: 400;
-    letter-spacing: normal;
-    text-transform: none;
-    color: var(--text);
-    line-height: 1.45;
-    cursor: pointer;
+    flex-direction: column;
+    gap: 0.7rem;
   }
-  .opt-in input {
-    appearance: none;
-    flex: none;
-    width: 1.5rem;
-    height: 1.5rem;
-    margin-top: 0.05rem;
-    background: var(--bg-elevated);
-    border: 1px solid color-mix(in srgb, var(--text) 28%, transparent);
-    display: grid;
-    place-items: center;
-    cursor: pointer;
+  .choices button[name="marketing"] { order: -2; }
+  .choices .what-on { order: -1; margin: -0.25rem 0 0.2rem; }
+  button.plain {
+    background: transparent;
+    color: var(--gold);
   }
-  .opt-in input::after {
-    content: "";
-    width: 0.4rem;
-    height: 0.75rem;
-    margin-top: -0.15rem;
-    border: solid var(--bg);
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg) scale(0);
-    transition: transform 0.2s var(--ease-smooth);
-  }
-  .opt-in input:checked {
-    background: var(--gold);
-    border-color: var(--gold);
-  }
-  .opt-in input:checked::after { transform: rotate(45deg) scale(1); }
-  .opt-in input:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 55%, transparent);
-  }
-  .opt-in small {
+  button.plain:hover { box-shadow: 0 0 28px color-mix(in srgb, var(--gold) 22%, transparent); }
+  .what-on {
     display: block;
-    margin-top: 0.15rem;
     color: var(--muted);
     font-size: 0.82rem;
+    line-height: 1.45;
+    text-align: center;
   }
   .consent {
     margin-top: 1rem;
@@ -346,16 +313,26 @@ const SUCCESS_STYLES = `
 const BUSY_SCRIPT = `
   (function () {
     var form = document.querySelector("form");
-    var button = form.querySelector("button");
-    var label = button.textContent;
+    var buttons = form.querySelectorAll("button");
+    var labels = [];
+    for (var i = 0; i < buttons.length; i++) labels.push(buttons[i].textContent);
     form.addEventListener("submit", function (event) {
-      if (button.getAttribute("aria-busy") === "true") return event.preventDefault();
-      button.setAttribute("aria-busy", "true");
-      button.textContent = "Getting you online…";
+      if (form.getAttribute("data-sending")) return event.preventDefault();
+      form.setAttribute("data-sending", "true");
+      var pressed = event.submitter || buttons[0];
+      for (var j = 0; j < buttons.length; j++) {
+        if (buttons[j] !== pressed) buttons[j].style.visibility = "hidden";
+      }
+      pressed.setAttribute("aria-busy", "true");
+      pressed.textContent = "Getting you online…";
     });
     window.addEventListener("pageshow", function () {
-      button.removeAttribute("aria-busy");
-      button.textContent = label;
+      form.removeAttribute("data-sending");
+      for (var k = 0; k < buttons.length; k++) {
+        buttons[k].removeAttribute("aria-busy");
+        buttons[k].style.visibility = "";
+        buttons[k].textContent = labels[k];
+      }
     });
   })();
 `;
@@ -383,7 +360,7 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
     <div class="panel">
       <p class="eyebrow">Guest Wi‑Fi</p>
       <h1>${back ? "Welcome back" : "Welcome aboard"}</h1>
-      <p class="lead">${back ? "Your email is in. Tap Get online." : "Share your email to join the network."}</p>
+      <p class="lead">${back ? "Your email is in. Tap a button to get online." : "Share your email to join the network."}</p>
       ${error}
       <form method="post" action="/authorize" autocomplete="email">
         <input type="hidden" name="id" value="${escapeHtml(input.id ?? "")}" />
@@ -393,11 +370,11 @@ export function renderPortalPage(input: PortalPageInput = {}): string {
         <input type="hidden" name="site" value="${escapeHtml(input.site ?? "default")}" />
         <label for="email">Email</label>
         <input id="email" name="email" type="email" value="${escapeHtml(input.email ?? "")}" required inputmode="email" autocomplete="email" placeholder="your@email.com"${input.email ? "" : " autofocus"} />
-        <label class="opt-in">
-          <input type="checkbox" name="marketing" value="yes" />
-          <span>Send me what’s on at Gwenda<small>Now and then, by email. Unsubscribe anytime.</small></span>
-        </label>
-        <button type="submit">Get online</button>
+        <div class="choices">
+          <button type="submit" class="plain">Just get online</button>
+          <button type="submit" name="marketing" value="yes">Get online + what’s on</button>
+          <small class="what-on">What’s on: the odd email about nights at Gwenda. Unsubscribe anytime.</small>
+        </div>
         <p class="consent">We use your email for the Wi‑Fi and to contact you about your visit if we need to. By connecting you agree to our <a href="https://gwenda.co.uk/wifi-terms" target="_blank" rel="noopener">Wi‑Fi terms</a> and <a href="https://gwenda.co.uk/privacy" target="_blank" rel="noopener">privacy policy</a>.</p>
       </form>
       <script>${BUSY_SCRIPT}</script>

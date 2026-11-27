@@ -13,7 +13,7 @@ No LAN host required while the console is online at [unifi.ui.com](https://unifi
 
 1. Guest joins the Hotspot SSID
 2. UniFi redirects to `https://<portal>/guest/s/default/?id=<mac>&ap=<ap>&…`
-3. Guest submits email, and ticks the newsletter box or not
+3. Guest enters their email and taps "Get online + what’s on" (joins the mailing list) or "Just get online"
 4. Box ticked: a new subscriber on the mailing list, or an existing one with `wifi` added and
    consent recorded again (back on the list, even after unsubscribing; synced again)
 5. Not ticked: a new address is kept off the mailing list (`marketing` 0, tag `wifi`); an
