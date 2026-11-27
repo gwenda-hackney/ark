@@ -33,6 +33,7 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
       ops: ${{ steps.filter.outputs.ops }}
       brand: ${{ steps.filter.outputs.brand }}
+      workers: ${{ steps.filter.outputs.workers }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,6 +59,14 @@ jobs:
               # scripts/lib/rulesets.test.mjs checks it against this workflow.
               - '.github/rulesets/**'
               - 'vitest.config.mjs'
+              - 'package-lock.json'
+              - '.github/workflows/pr.yml'
+            workers:
+              - 'marketing/site-deploy-webhook/**'
+              - 'marketing/subscribe-mailchimp-sync/**'
+              - 'marketing/site-health/**'
+              - 'marketing/wifi-captive-portal/**'
+              - 'shared/**'
               - 'package-lock.json'
               - '.github/workflows/pr.yml'
             brand:
@@ -134,6 +143,42 @@ jobs:
           npx playwright install --with-deps chromium-headless-shell
           npm run test:e2e -w @gwenda/ops
 
+  # The Workers deploy from release (workers.yml), which ran their tests only
+  # then, after the change had merged. Here they run before it can (#388).
+  workers:
+    name: Workers (tests, type check)
+    needs: changes
+    if: needs.changes.outputs.workers == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        worker:
+          - site-deploy-webhook
+          - subscribe-mailchimp-sync
+          - site-health
+          - wifi-captive-portal
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        uses: ./.github/actions/npm-install
+
+      - name: Type check
+        run: npm run typecheck -w @gwenda/${{ matrix.worker }}
+
+      - name: Unit tests
+        run: npm test -w @gwenda/${{ matrix.worker }}
+
   brand:
     name: Reference images (WebP, under the size cap)
     needs: changes
@@ -153,12 +198,12 @@ jobs:
   # failed or was cancelled. Renaming it means changing the ruleset too.
   release-checks:
     name: Release checks
-    needs: [changes, web, ops, brand]
+    needs: [changes, web, ops, workers, brand]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Results
-        run: echo "changes=${{ needs.changes.result }} web=${{ needs.web.result }} ops=${{ needs.ops.result }} brand=${{ needs.brand.result }}"
+        run: echo "changes=${{ needs.changes.result }} web=${{ needs.web.result }} ops=${{ needs.ops.result }} workers=${{ needs.workers.result }} brand=${{ needs.brand.result }}"
 
       - name: Fail if a check failed or was cancelled
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
