@@ -138,7 +138,7 @@ describe("POST /api/forms: a party enquiry", () => {
     }
     expect(venue.html).not.toContain(">Budget</div>"); // left empty: not listed
     expect(venue.html).toContain("A 30th &lt;b&gt;birthday&lt;/b&gt;.");
-    expect(venue.html).toContain("/forms/7"); // the submission in ops
+    expect(venue.html).toContain("/enquiries/7"); // the submission in ops
 
     // To the sender: got it, what they sent, and the way to change it
     expect(receipt.to).toBe("sam@example.com");
