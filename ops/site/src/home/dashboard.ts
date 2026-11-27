@@ -112,7 +112,7 @@ export function needsAttention(
 	if (!forms) unknown.push("applications");
 	else {
 		const count = forms.toReview.length;
-		add({ key: "applications", count, label: count === 1 ? "application to review" : "applications to review", href: "/forms", tone: "warning" });
+		add({ key: "applications", count, label: count === 1 ? "application to review" : "applications to review", href: "/enquiries", tone: "warning" });
 	}
 
 	const events = sectionData(data?.events);

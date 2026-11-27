@@ -23,6 +23,7 @@ export const formSubmissionsTable = d1Table({
     notifySentAt: "text",
     receiptSentAt: "text",
     editLink: "text",
+    archivedAt: "text",
   },
   orderBy: "submitted_at DESC, id DESC",
 });

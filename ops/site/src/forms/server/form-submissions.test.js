@@ -9,6 +9,7 @@ import {
   listFormSubmissions,
   mapFormSubmission,
   resendFormEmail,
+  setFormArchived,
   setFormArtist,
   setFormDecision,
   withGuestRecords,
@@ -268,6 +269,29 @@ describe("play applicants: ops' own record", () => {
     assert.equal(artistLink("djsomeone.co.uk"), "https://djsomeone.co.uk/");
     assert.equal(artistLink("https://instagram.com/x"), "https://instagram.com/x");
     assert.equal(artistLink("ask me"), "");
+  });
+});
+
+describe("setFormArchived", () => {
+  it("archives a submission off the list and unarchives it back, for any form", async () => {
+    const env = databases();
+    const row = await submit(env, { formSlug: "party", replyTo: "spam@x.com", current: true, answers: [] });
+    const id = String(row.id);
+    const archived = await setFormArchived(env, id, true);
+    assert.equal(archived.ok, true);
+    assert.match(archived.archivedAt, /^\d{4}-\d{2}-\d{2}T/);
+    const [listed] = await listFormSubmissions(env);
+    assert.equal(listed.archivedAt, archived.archivedAt);
+    assert.deepEqual(await setFormArchived(env, id, false), { ok: true, archivedAt: "" });
+    assert.equal((await listFormSubmissions(env))[0].archivedAt, "");
+  });
+
+  it("archiving twice keeps the first date; a missing submission is 404", async () => {
+    const env = databases();
+    const row = await submit(env, { formSlug: "play", current: true, answers: [] });
+    const first = await setFormArchived(env, String(row.id), true);
+    assert.equal((await setFormArchived(env, String(row.id), true)).archivedAt, first.archivedAt);
+    await assert.rejects(setFormArchived(env, "999", true), { status: 404 });
   });
 });
 

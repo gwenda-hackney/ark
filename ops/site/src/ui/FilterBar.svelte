@@ -59,6 +59,23 @@
 
 	const canClear = $derived(Boolean(query.trim()) || active > 0);
 
+	/**
+	 * The bar is one row at every width: the search shrinks first, and when the
+	 * filters still don't fit beside it they fold into a Filters button and
+	 * sheet, as on a phone. Wrapping put Clear on a row of its own. The width it
+	 * stopped fitting at is kept, so it unfolds only once there's room again.
+	 */
+	let barWidth = $state(0);
+	let row = $state<HTMLDivElement | null>(null);
+	let foldedAt = $state(0);
+	const folded = $derived(phone.matches || (foldedAt > 0 && barWidth <= foldedAt));
+
+	$effect(() => {
+		void barWidth;
+		if (!row || folded || !barWidth) return;
+		if (row.scrollWidth > row.clientWidth + 1) foldedAt = barWidth;
+	});
+
 	function clearAll() {
 		query = "";
 		onclearfilters?.();
@@ -78,14 +95,14 @@
 		if (event.target === sheet) closeSheet();
 	}
 
-	// Leaving phone width with the sheet open: close it, the filters are inline now.
+	// Room again with the sheet open: close it, the filters are inline now.
 	$effect(() => {
-		if (!phone.matches && sheetOpen) closeSheet();
+		if (!folded && sheetOpen) closeSheet();
 	});
 </script>
 
-<div class="filter-bar" class:phone={phone.matches}>
-	<div class="row">
+<div class="filter-bar" class:phone={phone.matches} class:folded bind:clientWidth={barWidth}>
+	<div class="row" bind:this={row}>
 		<div class="search">
 			<SearchField
 				bind:value={query}
@@ -95,10 +112,10 @@
 				width={phone.matches ? "100%" : searchWidth}
 			/>
 		</div>
-		{#if filters && !phone.matches}
+		{#if filters && !folded}
 			<div class="inline-filters">{@render filters()}</div>
 		{/if}
-		{#if filters && phone.matches}
+		{#if filters && folded}
 			<Button
 				variant="outline"
 				class="filters-btn"
@@ -112,7 +129,7 @@
 			</Button>
 		{/if}
 		<!-- Always in place once the list has filters, so the row never shifts. -->
-		{#if !phone.matches && (filters || onclearfilters)}
+		{#if !folded && (filters || onclearfilters)}
 			<Button
 				variant="ghost"
 				size="sm"
@@ -128,7 +145,7 @@
 		{/if}
 	</div>
 
-	{#if phone.matches && chips.length}
+	{#if folded && chips.length}
 		<ul class="chips" aria-label="Filters on">
 			{#each chips as chip (chip.key)}
 				<li>
@@ -144,6 +161,7 @@
 		bind:this={sheet}
 		id={sheetId}
 		class="sheet"
+		class:desk={!phone.matches}
 		aria-labelledby="{sheetId}-title"
 		onclose={() => (sheetOpen = false)}
 		onclick={onSheetClick}
@@ -176,26 +194,32 @@
 	.row {
 		display: flex;
 		align-items: center;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 		gap: var(--space-3);
 		min-width: 0;
 	}
 
 	.search {
 		flex: 0 1 auto;
-		min-width: 12rem;
+		min-width: 10rem;
+	}
+
+	.search :global(*) {
+		max-width: 100%;
 	}
 
 	.inline-filters {
 		display: flex;
 		align-items: center;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
+		flex: none;
 		gap: var(--space-2) var(--space-4);
 		min-width: 0;
 	}
 
 	.end {
 		display: flex;
+		flex: none;
 		align-items: center;
 		gap: var(--space-3);
 		margin-left: auto;
@@ -255,6 +279,18 @@
 		background: transparent;
 		color: var(--fg);
 		overflow: visible;
+	}
+
+	/* Folded on a desk: a centred panel, not a sheet across the whole width. */
+	.sheet.desk {
+		inset: 0;
+		width: min(28rem, calc(100vw - 2rem));
+		margin: auto;
+	}
+
+	.sheet.desk .panel {
+		border-bottom: 1px solid var(--border);
+		border-radius: var(--radius-xl);
 	}
 
 	.sheet::backdrop {

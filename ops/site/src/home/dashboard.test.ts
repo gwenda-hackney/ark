@@ -214,7 +214,7 @@ describe("needsAttention", () => {
 				["site-down", 1, "/web"],
 				["jobs-failed", 1, "/web"],
 				["errors-new", 2, SENTRY_ISSUES_URL],
-				["applications", 2, "/forms"],
+				["applications", 2, "/enquiries"],
 				["events-waiting", 1, "/web"],
 				["changes-waiting", 4, "/web"],
 			],

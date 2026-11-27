@@ -19,6 +19,7 @@ function row(extra: Partial<FormSubmission> = {}): FormSubmission {
 		current: true,
 		notifySentAt: "2026-10-01T10:00:00Z",
 		receiptSentAt: "2026-10-01T10:00:00Z",
+		archivedAt: "",
 		answers: [],
 		...extra,
 	};
@@ -27,7 +28,7 @@ function row(extra: Partial<FormSubmission> = {}): FormSubmission {
 describe("play application card", () => {
 	it("shows the person, their email and the decision", () => {
 		const card = formCard(row());
-		assert.equal(card.href, "/forms/sub%201");
+		assert.equal(card.href, "/enquiries/sub%201");
 		assert.equal(card.title, "DJ Vbrave");
 		assert.equal(card.email, "dj@example.com");
 		assert.equal(card.form, "");

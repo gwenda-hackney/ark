@@ -30,5 +30,5 @@ export function addArtistAction(closed = FEATURED_ARTIST_CLOSED) {
 export function closedArtistRedirect(path, closed = FEATURED_ARTIST_CLOSED) {
   if (!closed) return null;
   // The Featured artist page is gone from ops too: its addresses open Enquiries.
-  return path === "/artists" || path.startsWith("/artists/") ? "/forms" : null;
+  return path === "/artists" || path.startsWith("/artists/") ? "/enquiries" : null;
 }
